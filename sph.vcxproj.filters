@@ -1,0 +1,177 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+    <Filter Include="Header Files\kernel">
+      <UniqueIdentifier>{889bba9e-e8ba-48ca-a4ce-fd77da855a6f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\sample">
+      <UniqueIdentifier>{3f5c3c31-1757-4dce-8305-b86596934f62}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\disph">
+      <UniqueIdentifier>{30858a98-da3e-4047-86ff-f5859ddce2c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\disph">
+      <UniqueIdentifier>{fd625825-0f71-4891-a1d0-6cda4470a850}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\gsph">
+      <UniqueIdentifier>{747d701f-f9b3-45c7-bfe1-d8f8385217a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\gsph">
+      <UniqueIdentifier>{3bb55d42-fa86-425e-9417-b6d795e7178f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\logger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\output.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\timestep.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pre_interaction.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\solver.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\simulation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fluid_force.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bhtree.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\exhaustive_search.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gravity_force.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sample\evrard.cpp">
+      <Filter>Source Files\sample</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sample\gresho_chan_vortex.cpp">
+      <Filter>Source Files\sample</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sample\hydrostatic.cpp">
+      <Filter>Source Files\sample</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sample\khi.cpp">
+      <Filter>Source Files\sample</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sample\pairing_instability.cpp">
+      <Filter>Source Files\sample</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sample\shock_tube.cpp">
+      <Filter>Source Files\sample</Filter>
+    </ClCompile>
+    <ClCompile Include="src\disph\d_fluid_force.cpp">
+      <Filter>Source Files\disph</Filter>
+    </ClCompile>
+    <ClCompile Include="src\disph\d_pre_interaction.cpp">
+      <Filter>Source Files\disph</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gsph\g_fluid_force.cpp">
+      <Filter>Source Files\gsph</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gsph\g_pre_interaction.cpp">
+      <Filter>Source Files\gsph</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\defines.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\exception.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\logger.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vector_type.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\parameters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\particle.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\output.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\timestep.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\openmp.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pre_interaction.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\module.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\simulation.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\solver.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kernel\cubic_spline.hpp">
+      <Filter>Header Files\kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kernel\kernel_function.hpp">
+      <Filter>Header Files\kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kernel\wendland_kernel.hpp">
+      <Filter>Header Files\kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fluid_force.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\periodic.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bhtree.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\exhaustive_search.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\gravity_force.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\disph\d_fluid_force.hpp">
+      <Filter>Header Files\disph</Filter>
+    </ClInclude>
+    <ClInclude Include="include\disph\d_pre_interaction.hpp">
+      <Filter>Header Files\disph</Filter>
+    </ClInclude>
+    <ClInclude Include="include\gsph\g_fluid_force.hpp">
+      <Filter>Header Files\gsph</Filter>
+    </ClInclude>
+    <ClInclude Include="include\gsph\g_pre_interaction.hpp">
+      <Filter>Header Files\gsph</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

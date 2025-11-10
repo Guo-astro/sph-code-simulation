@@ -1,0 +1,11 @@
+target_sources(sph
+    PRIVATE
+        evrard.cpp
+        evrard_cold_collapse.cpp
+        gresho_chan_vortex.cpp
+        hydrostatic.cpp
+        khi.cpp
+        lane_emden.cpp
+        pairing_instability.cpp
+        shock_tube.cpp
+    )

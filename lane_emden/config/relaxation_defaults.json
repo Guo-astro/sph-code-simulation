@@ -1,0 +1,32 @@
+{
+  "description": "Default relaxation settings for all Lane-Emden configurations",
+  "version": "2.0",
+  "last_updated": "2025-11-10",
+  
+  "standard": {
+    "steps": 100,
+    "convergence_threshold": 1e-6,
+    "output_frequency": 10,
+    "damping_factor": 0.0
+  },
+  
+  "quick_test": {
+    "steps": 20,
+    "convergence_threshold": 1e-4,
+    "output_frequency": 5,
+    "damping_factor": 0.0
+  },
+  
+  "production": {
+    "steps": 200,
+    "convergence_threshold": 1e-7,
+    "output_frequency": 20,
+    "damping_factor": 0.0
+  },
+  
+  "notes": {
+    "standard": "Default for development and testing",
+    "quick_test": "Fast iteration for debugging",
+    "production": "High-quality initial conditions for publications"
+  }
+}

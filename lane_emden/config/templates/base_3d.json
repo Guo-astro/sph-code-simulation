@@ -1,0 +1,50 @@
+{
+  "name": "template_3d",
+  "description": "Base template for 3D Lane-Emden configurations",
+  "dimension": 3,
+  
+  "physics": {
+    "polytropic_index": null,
+    "adiabatic_index": null,
+    "total_mass": 1.0,
+    "radius": 1.0,
+    "gravitational_constant": 1.0
+  },
+  
+  "initial_conditions": {
+    "data_file": null,
+    "particle_count": 5400,
+    "distribution": "fibonacci_sphere"
+  },
+  
+  "relaxation": {
+    "enabled": true,
+    "steps": 100,
+    "convergence_threshold": 1e-6,
+    "output_frequency": 10,
+    "damping_factor": 0.0
+  },
+  
+  "simulation": {
+    "end_time": 5.0,
+    "output_time": 0.05,
+    "output_directory": null
+  },
+  
+  "numerical": {
+    "neighbor_number": 50,
+    "kernel": "wendland",
+    "sph_type": "disph",
+    "use_gravity": true,
+    "periodic": false,
+    "iterative_smoothing_length": false,
+    "leaf_particle_number": 32
+  },
+  
+  "artificial_viscosity": {
+    "alpha": 1.0,
+    "use_balsara_switch": true,
+    "use_time_dependent_av": true,
+    "use_artificial_conductivity": false
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "outputDirectory": "lane_emden/results/polytrope_n1.5_3d",
+  "endTime": 5.0,
+  "outputTime": 0.05,
+  "avAlpha": 1.0,
+  "neighborNumber": 50,
+  "useBalsaraSwitch": true,
+  "useTimeDependentAV": true,
+  "useArtificialConductivity": false,
+  "leafParticleNumber": 32,
+  "gamma": 1.6666666666666667,
+  "kernel": "wendland",
+  "N": 30,
+  "periodic": false,
+  "useGravity": false,
+  "G": 1.0,
+  "SPHType": "ssph",
+  "iterativeSmoothingLength": false,
+  "useRelaxation": true,
+  "relaxationSteps": 10000,
+  "relaxationOutputFreq": 10,
+  "relaxationOnly": true
+}

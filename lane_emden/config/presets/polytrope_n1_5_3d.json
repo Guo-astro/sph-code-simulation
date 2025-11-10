@@ -1,0 +1,47 @@
+{
+  "name": "polytrope_n1_5_3d",
+  "description": "3D n=1.5 polytrope (\u03b3=5/3, monatomic ideal gas) - Standard stellar model",
+  "dimension": 3,
+  "use_case": "Main sequence stars, stellar structure calculations",
+  "physics": {
+    "polytropic_index": 1.5,
+    "adiabatic_index": 1.6666666666666667,
+    "total_mass": 1.0,
+    "radius": 1.0,
+    "gravitational_constant": 1.0,
+    "notes": "Most common for stellar interiors with convective envelopes"
+  },
+  "initial_conditions": {
+    "data_file": "lane_emden/data/numerical_solutions/3d/n1.5.dat",
+    "particle_count": 5400,
+    "distribution": "fibonacci_sphere",
+    "shells": 30
+  },
+  "relaxation": {
+    "enabled": true,
+    "steps": 10000,
+    "convergence_threshold": 1e-06,
+    "output_frequency": 10,
+    "damping_factor": 0.0
+  },
+  "simulation": {
+    "end_time": 5.0,
+    "output_time": 0.05,
+    "output_directory": "lane_emden/results/polytrope_n1.5_3d"
+  },
+  "numerical": {
+    "neighbor_number": 50,
+    "kernel": "wendland",
+    "sph_type": "ssph",
+    "use_gravity": false,
+    "periodic": false,
+    "iterative_smoothing_length": false,
+    "leaf_particle_number": 32
+  },
+  "artificial_viscosity": {
+    "alpha": 1.0,
+    "use_balsara_switch": true,
+    "use_time_dependent_av": true,
+    "use_artificial_conductivity": false
+  }
+}

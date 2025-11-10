@@ -1,0 +1,133 @@
+# Lane-Emden Makefile Targets - Single Source of Truth System
+#
+# Usage:
+#   make lane_emden                                    # Run with current preset settings
+#   make lane_emden PRESET=polytrope_n1_5_3d          # Select preset
+#   make lane_emden RELAX_STEPS=10000                  # Override relaxation steps
+#
+# Default preset if not specified
+PRESET ?= polytrope_n1_5_3d
+
+# Paths
+CONFIG_MANAGER = python3 lane_emden_config_manager.py
+
+.PHONY: lane_emden lane_emden_relax lane_emden_relax_only lane_emden_list lane_emden_validate lane_emden_help
+
+# List available presets
+lane_emden_list:
+	@$(CONFIG_MANAGER) list
+
+# Validate a preset
+lane_emden_validate:
+	@$(CONFIG_MANAGER) validate --preset $(PRESET)
+
+# Run simulation (relaxation + evolution)
+lane_emden: build/sph
+	@echo "=========================================="
+	@echo "Lane-Emden: $(PRESET)"
+	@echo "=========================================="
+	@if [ -n "$(RELAX_STEPS)" ]; then \
+		echo "Updating relaxation steps to $(RELAX_STEPS)..."; \
+		$(CONFIG_MANAGER) update --preset $(PRESET) --relax-steps $(RELAX_STEPS); \
+	fi
+	@echo "Applying preset to generate C++ config..."
+	@$(CONFIG_MANAGER) apply --preset $(PRESET)
+	@echo "Output directory:"
+	@python3 -c "import json; print('  📁 ' + json.load(open('sample/lane_emden/lane_emden.json'))['outputDirectory'])"
+	@echo "Running simulation..."
+	./build/sph lane_emden
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results saved to:"
+	@python3 -c "import json; print('   ' + json.load(open('sample/lane_emden/lane_emden.json'))['outputDirectory'])"
+
+# Run ONLY relaxation (no evolution)
+lane_emden_relax_only: build/sph
+	@echo "=========================================="
+	@echo "Lane-Emden Relaxation Only: $(PRESET)"
+	@echo "=========================================="
+	@if [ -n "$(RELAX_STEPS)" ]; then \
+		echo "Updating relaxation steps to $(RELAX_STEPS)..."; \
+		$(CONFIG_MANAGER) update --preset $(PRESET) --relax-steps $(RELAX_STEPS); \
+	fi
+	@echo "Applying preset..."
+	@$(CONFIG_MANAGER) apply --preset $(PRESET)
+	@echo "Enabling relaxation-only mode..."
+	@python3 -c "import json; \
+		config = json.load(open('sample/lane_emden/lane_emden.json')); \
+		config['relaxationOnly'] = True; \
+		json.dump(config, open('sample/lane_emden/lane_emden.json', 'w'), indent=2)"
+	@echo "Output directory:"
+	@python3 -c "import json; print('  📁 ' + json.load(open('sample/lane_emden/lane_emden.json'))['outputDirectory'])"
+	@echo "Running relaxation..."
+	./build/sph lane_emden
+	@echo ""
+	@echo "✓ Relaxation complete!"
+	@echo "📁 Results saved to:"
+	@python3 -c "import json; print('   ' + json.load(open('sample/lane_emden/lane_emden.json'))['outputDirectory'])"
+
+# Legacy alias
+lane_emden_relax: lane_emden
+
+# Create a new preset
+lane_emden_create:
+	@if [ -z "$(NAME)" ] || [ -z "$(N)" ] || [ -z "$(DIM)" ]; then \
+		echo "Usage: make lane_emden_create NAME=custom_n3_3d N=3.0 DIM=3"; \
+		echo ""; \
+		echo "Parameters:"; \
+		echo "  NAME = preset name (e.g., custom_n3_3d)"; \
+		echo "  N    = polytropic index (e.g., 3.0)"; \
+		echo "  DIM  = dimension (2 or 3)"; \
+		exit 1; \
+	fi
+	@$(CONFIG_MANAGER) create --name $(NAME) --polytrope $(N) --dimension $(DIM)
+
+# Help
+lane_emden_help:
+	@echo "Lane-Emden Makefile Targets"
+	@echo "============================"
+	@echo ""
+	@echo "Quick Start:"
+	@echo "  make lane_emden                          # Run with default preset"
+	@echo "  make lane_emden PRESET=polytrope_n1_5_3d # Select preset"
+	@echo "  make lane_emden RELAX_STEPS=10000        # Override relaxation steps"
+	@echo ""
+	@echo "Relaxation only:"
+	@echo "  make lane_emden_relax_only RELAX_STEPS=10000"
+	@echo ""
+	@echo "Animation:"
+	@echo "  make lane_emden_animate                  # Generate animation from latest results"
+	@echo "  make lane_emden_animate PRESET=...       # Animate specific preset results"
+	@echo ""
+	@echo "Management:"
+	@echo "  make lane_emden_list                     # List all presets"
+	@echo "  make lane_emden_validate PRESET=...      # Validate preset"
+	@echo "  make lane_emden_create NAME=... N=... DIM=...  # Create new preset"
+	@echo ""
+	@echo "Direct config management (recommended):"
+	@echo "  python3 lane_emden_config_manager.py list"
+	@echo "  python3 lane_emden_config_manager.py update --preset polytrope_n1_5_3d --relax-steps 10000"
+	@echo "  python3 lane_emden_config_manager.py apply --preset polytrope_n1_5_3d"
+	@echo ""
+	@echo "Available presets:"
+	@$(CONFIG_MANAGER) list
+
+# Generate animation from simulation results
+lane_emden_animate:
+	@echo "=========================================="
+	@echo "Generating Lane-Emden Animation: $(PRESET)"
+	@echo "=========================================="
+	@python3 -c "import json; \
+		preset = json.load(open('lane_emden/config/presets/$(PRESET).json')); \
+		outdir = preset['simulation']['output_directory']; \
+		print('Data directory: ' + outdir)"
+	@python3 lane_emden/scripts/visualization/make_lane_emden_animation.py \
+		$$(python3 -c "import json; print(json.load(open('lane_emden/config/presets/$(PRESET).json'))['simulation']['output_directory'])") \
+		lane_emden_$(PRESET)
+	@echo ""
+	@echo "✓ Animation complete!"
+	@echo "📁 Check current directory for:"
+	@echo "   lane_emden_$(PRESET)_animation.gif"
+	@echo "   lane_emden_$(PRESET)_final.png"
+
+.PHONY: lane_emden_animate

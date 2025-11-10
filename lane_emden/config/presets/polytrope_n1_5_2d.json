@@ -1,0 +1,51 @@
+{
+  "name": "polytrope_n1.5_2d",
+  "description": "2D n=1.5 polytrope (γ=5/3) - For testing and cylindrical problems",
+  "dimension": 2,
+  "use_case": "Fast testing, cylindrical symmetry problems, disk simulations",
+  
+  "physics": {
+    "polytropic_index": 1.5,
+    "adiabatic_index": 1.66666666666666666666666666666666667,
+    "total_mass": 1.0,
+    "radius": 1.0,
+    "gravitational_constant": 1.0
+  },
+  
+  "initial_conditions": {
+    "data_file": "lane_emden/data/numerical_solutions/2d/n1.5.dat",
+    "particle_count": 3600,
+    "distribution": "polar_grid"
+  },
+  
+  "relaxation": {
+    "enabled": true,
+    "steps": 100,
+    "convergence_threshold": 1e-6,
+    "output_frequency": 10,
+    "damping_factor": 0.0
+  },
+  
+  "simulation": {
+    "end_time": 5.0,
+    "output_time": 0.05,
+    "output_directory": "lane_emden/results/polytrope_n1.5_2d"
+  },
+  
+  "numerical": {
+    "neighbor_number": 50,
+    "kernel": "wendland",
+    "sph_type": "disph",
+    "use_gravity": true,
+    "periodic": false,
+    "iterative_smoothing_length": false,
+    "leaf_particle_number": 32
+  },
+  
+  "artificial_viscosity": {
+    "alpha": 1.0,
+    "use_balsara_switch": true,
+    "use_time_dependent_av": true,
+    "use_artificial_conductivity": false
+  }
+}

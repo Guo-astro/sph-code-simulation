@@ -1,0 +1,58 @@
+{
+  "description": "Single Source of Truth (SSOT) for Lane-Emden Relaxation Configuration",
+  "version": "1.0",
+  "last_updated": "2025-11-10",
+  
+  "relaxation": {
+    "enabled": true,
+    "steps": 100,
+    "only_relaxation": false,
+    "output_frequency": 10,
+    "convergence_threshold": 1e-6,
+    "damping_factor": 0.0
+  },
+  
+  "lane_emden": {
+    "polytropic_index": 1.5,
+    "gamma": 1.66666666666666666666666666666666667,
+    "total_mass": 1.0,
+    "radius": 1.0,
+    "gravitational_constant": 1.0,
+    "data_file": "data/lane_emden/n1.5_3d.dat"
+  },
+  
+  "simulation": {
+    "output_directory": "sample/lane_emden/results",
+    "end_time": 5.0,
+    "output_time": 0.05,
+    "neighbor_number": 50,
+    "kernel": "wendland",
+    "sph_type": "disph"
+  },
+  
+  "artificial_viscosity": {
+    "alpha": 1.0,
+    "use_balsara_switch": true,
+    "use_time_dependent_av": true
+  },
+  
+  "numerical": {
+    "iterative_smoothing_length": false,
+    "leaf_particle_number": 32,
+    "use_gravity": true,
+    "periodic": false
+  },
+  
+  "particle_generation": {
+    "N_shells": 30,
+    "target_particle_count": 5400,
+    "distribution_method": "fibonacci_sphere"
+  },
+  
+  "notes": {
+    "relaxation_steps": "Number of force balancing iterations before simulation",
+    "only_relaxation": "If true, exit after relaxation without running simulation",
+    "convergence_threshold": "Target for maximum acceleration (currently not enforced)",
+    "iterative_smoothing_length": "Must be false for extreme density gradients (10^7:1)"
+  }
+}

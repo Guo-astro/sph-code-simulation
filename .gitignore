@@ -1,0 +1,34 @@
+*.exe
+obj/
+x64/
+sph\.exe\.stackdump
+.vs/
+*.vcxproj.user
+
+parameters\.json
+sample/shock_tube/results/
+
+sample/gresho_chan_vortex/results/
+
+sample/hydrostatic/results/
+
+sample/khi/results/
+
+sample/evrard/results/
+
+sample/pairing_instability/results/
+
+build/
+
+# Generated results
+results/
+sample/*/results/
+*.log
+*.png
+*.gif
+evrard_energy_analysis.png
+gravity_softening_test.png
+
+# Build artifacts
+build/
+obj/
