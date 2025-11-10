@@ -9,7 +9,8 @@ target_sources(sph
     logger.hpp
     module.hpp
     openmp.hpp
-    output.hpp
+    output_manager.hpp
+    output_metadata.hpp
     parameters.hpp
     particle.hpp
     periodic.hpp
@@ -17,6 +18,7 @@ target_sources(sph
     simulation.hpp
     solver.hpp
     timestep.hpp
+    units.hpp
     vector_type.hpp
   )
 

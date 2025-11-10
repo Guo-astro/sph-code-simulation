@@ -9,7 +9,7 @@
 #include "particle.hpp"
 #include "logger.hpp"
 #include "exception.hpp"
-#include "output.hpp"
+#include "output_manager.hpp"
 #include "simulation.hpp"
 #include "periodic.hpp"
 #include "bhtree.hpp"
@@ -155,7 +155,8 @@ Solver::Solver(int argc, char * argv[])
 
     WRITE_LOG;
 
-    m_output = std::make_shared<Output>();
+    // Initialize OutputManager (will be configured in read_parameterfile)
+    m_snapshot_counter = 0;
 }
 
 void Solver::read_parameterfile(const char * filename)
@@ -327,6 +328,79 @@ void Solver::read_parameterfile(const char * filename)
             std::cout << "Relaxation-only mode: Will exit after relaxation without running simulation" << std::endl;
         }
     }
+    
+    // Checkpoint configuration
+    m_checkpoint_config.enabled = input.get<bool>("checkpoint.enabled", false);
+    m_checkpoint_config.save_interval = input.get<int>("checkpoint.saveInterval", 100);
+    m_checkpoint_config.directory = input.get<std::string>("checkpoint.directory", "checkpoints");
+    m_checkpoint_config.save_on_exit = input.get<bool>("checkpoint.saveOnExit", true);
+    m_checkpoint_config.max_checkpoints = input.get<int>("checkpoint.maxCheckpoints", 5);
+    m_checkpoint_config.auto_resume = input.get<bool>("checkpoint.autoResume", false);
+    m_checkpoint_config.resume_file = input.get<std::string>("checkpoint.resumeFile", "");
+    
+    m_resume_from_checkpoint = m_checkpoint_config.auto_resume || !m_checkpoint_config.resume_file.empty();
+    m_checkpoint_file = m_checkpoint_config.resume_file;
+    
+    if(m_checkpoint_config.enabled) {
+        std::cout << "Checkpoint system enabled:" << std::endl;
+        std::cout << "  - Save interval: every " << m_checkpoint_config.save_interval << " steps" << std::endl;
+        std::cout << "  - Directory: " << m_checkpoint_config.directory << std::endl;
+        std::cout << "  - Max checkpoints: " << m_checkpoint_config.max_checkpoints << std::endl;
+        if(m_resume_from_checkpoint) {
+            if(!m_checkpoint_file.empty()) {
+                std::cout << "  - Will resume from: " << m_checkpoint_file << std::endl;
+            } else {
+                std::cout << "  - Will auto-resume from latest checkpoint" << std::endl;
+            }
+        }
+    }
+    
+    // Unit system configuration
+    std::string unit_type_str = input.get<std::string>("units.type", "CODE");
+    if(unit_type_str == "CODE") {
+        m_units = UnitSystem(); // Default CODE units
+    } else if(unit_type_str == "GALACTIC") {
+        real length_kpc = input.get<real>("units.length_kpc", 1.0);
+        real mass_msun = input.get<real>("units.mass_msun", 1.0e10);
+        real velocity_kms = input.get<real>("units.velocity_kms", 1.0);
+        m_units = UnitSystem::create_galactic(length_kpc, mass_msun, velocity_kms);
+    } else if(unit_type_str == "SI") {
+        real length_m = input.get<real>("units.length_m", 1.0);
+        real mass_kg = input.get<real>("units.mass_kg", 1.0);
+        real time_s = input.get<real>("units.time_s", 1.0);
+        m_units = UnitSystem::create_si(length_m, mass_kg, time_s);
+    } else if(unit_type_str == "CGS") {
+        real length_cm = input.get<real>("units.length_cm", 1.0);
+        real mass_g = input.get<real>("units.mass_g", 1.0);
+        real time_s = input.get<real>("units.time_s", 1.0);
+        m_units = UnitSystem::create_cgs(length_cm, mass_g, time_s);
+    } else {
+        std::cerr << "Warning: Unknown unit type '" << unit_type_str << "', using CODE units" << std::endl;
+        m_units = UnitSystem();
+    }
+    
+    std::cout << "Unit system: " << m_units.get_type_name() << std::endl;
+    
+    // Output configuration
+    OutputConfig output_config;
+    output_config.enable_csv = input.get<bool>("output.enableCSV", true);
+    output_config.enable_hdf5 = input.get<bool>("output.enableHDF5", false);
+    output_config.enable_energy_file = input.get<bool>("output.enableEnergyFile", true);
+    output_config.csv_precision = input.get<int>("output.csvPrecision", 16);
+    output_config.hdf5_compression = input.get<int>("output.hdf5Compression", 6);
+    output_config.output_unit_type = m_units.get_type();
+    
+    std::cout << "Output configuration:" << std::endl;
+    std::cout << "  - CSV: " << (output_config.enable_csv ? "enabled" : "disabled") << std::endl;
+    std::cout << "  - HDF5: " << (output_config.enable_hdf5 ? "enabled" : "disabled") << std::endl;
+    std::cout << "  - Energy file: " << (output_config.enable_energy_file ? "enabled" : "disabled") << std::endl;
+    
+    // Create OutputManager with checkpoint directory
+    std::string checkpoint_dir = m_checkpoint_config.directory;
+    m_output_manager = std::make_shared<OutputManager>(output_config, m_units, m_output_dir, checkpoint_dir);
+    if(!m_output_manager->initialize()) {
+        THROW_ERROR("Failed to initialize OutputManager");
+    }
 }
 
 void Solver::run()
@@ -345,8 +419,13 @@ void Solver::run()
     real t_out = m_param->time.output;
     real t_ene = m_param->time.energy;
 
-    m_output->output_particle(m_sim);
-    m_output->output_energy(m_sim);
+    // Write initial snapshot
+    m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++);
+    
+    // Write initial energy
+    real kinetic, thermal, potential;
+    compute_total_energies(kinetic, thermal, potential);
+    m_output_manager->write_energy(m_sim->get_time(), kinetic, thermal, potential);
 
     const auto start = std::chrono::system_clock::now();
     auto t_cout_i = start;
@@ -373,15 +452,39 @@ void Solver::run()
         }
 
         if(t > t_out) {
-            m_output->output_particle(m_sim);
+            m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++);
             t_out += m_param->time.output;
         }
 
         if(t > t_ene) {
-            m_output->output_energy(m_sim);
+            compute_total_energies(kinetic, thermal, potential);
+            m_output_manager->write_energy(t, kinetic, thermal, potential);
             t_ene += m_param->time.energy;
         }
+        
+        // Save checkpoint at specified intervals
+        if(m_checkpoint_config.enabled && loop % m_checkpoint_config.save_interval == 0) {
+            CheckpointMetadata chk_meta;
+            chk_meta.time = t;
+            chk_meta.step = loop;
+            chk_meta.particle_num = num;
+            chk_meta.is_relaxation = false;
+            
+            m_output_manager->write_checkpoint(m_sim, m_param, chk_meta, loop);
+        }
     }
+    
+    // Save final checkpoint if enabled
+    if(m_checkpoint_config.enabled && m_checkpoint_config.save_on_exit) {
+        CheckpointMetadata chk_meta;
+        chk_meta.time = t;
+        chk_meta.step = loop;
+        chk_meta.particle_num = m_sim->get_particle_num();
+        chk_meta.is_relaxation = false;
+        
+        m_output_manager->write_checkpoint(m_sim, m_param, chk_meta, loop);
+    }
+    
     const auto end = std::chrono::system_clock::now();
     const real calctime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     WRITE_LOG << "\ncalculation is finished";
@@ -393,9 +496,36 @@ void Solver::initialize()
     std::cout << "Solver::initialize() starting..." << std::endl;
     m_sim = std::make_shared<Simulation>(m_param);
     std::cout << "Simulation created" << std::endl;
-
-    make_initial_condition();
-    std::cout << "Initial condition made, particle_num = " << m_sim->get_particle_num() << std::endl;
+    
+    // Check if we should resume from checkpoint
+    CheckpointMetadata resume_metadata;
+    bool resumed = false;
+    
+    if(m_resume_from_checkpoint && !m_checkpoint_file.empty()) {
+        std::cout << "\n=== Attempting to resume from checkpoint ===" << std::endl;
+        if(m_output_manager->load_for_resume(m_checkpoint_file, m_sim, resume_metadata)) {
+            resumed = true;
+            std::cout << "=== Successfully resumed from checkpoint ===" << std::endl;
+            
+            // Restore Lane-Emden relaxation parameters if this is a relaxation checkpoint
+            if(resume_metadata.is_relaxation && m_sample == Sample::LaneEmden) {
+                m_sample_parameters["alpha"] = resume_metadata.alpha_scaling;
+                m_sample_parameters["rho_center"] = resume_metadata.rho_center;
+                m_sample_parameters["K"] = resume_metadata.K;
+                m_sample_parameters["R"] = resume_metadata.R;
+                m_sample_parameters["M_total"] = resume_metadata.M_total;
+                std::cout << "  - Restored Lane-Emden parameters from checkpoint" << std::endl;
+            }
+        } else {
+            std::cerr << "Warning: Failed to load checkpoint, starting from scratch" << std::endl;
+        }
+    }
+    
+    // If not resumed, create initial conditions
+    if(!resumed) {
+        make_initial_condition();
+        std::cout << "Initial condition made, particle_num = " << m_sim->get_particle_num() << std::endl;
+    }
 
     m_timestep = std::make_shared<TimeStep>();
     if(m_param->type == SPHType::SSPH) {
@@ -467,13 +597,34 @@ void Solver::initialize()
         
         // Run relaxation phase
         std::cout << "\n=== Starting Relaxation Phase (" << m_relaxation_steps << " steps) ===" << std::endl;
+        
+        // Check if resuming from checkpoint
+        int start_step = 0;
+        real accumulated_time = 0.0;
+        
+        if(resumed && resume_metadata.is_relaxation) {
+            start_step = resume_metadata.relaxation_step;
+            accumulated_time = resume_metadata.accumulated_time;
+            std::cout << "Resuming from step " << start_step << " (time=" << accumulated_time << ")" << std::endl;
+        }
+        
         std::cout << "Progress: [" << std::string(50, ' ') << "] 0%" << std::flush;
         
         int output_counter = 0;
-        real accumulated_time = 0.0;  // Track physical time elapsed
         int last_percent = -1;
         
-        for(int step = 0; step < m_relaxation_steps; ++step) {
+        for(int step = start_step; step < m_relaxation_steps; ++step) {
+            // Rebuild tree for accurate neighbor search
+            // Particles move during relaxation, so tree must be updated
+            auto& particles = m_sim->get_particles();
+            const int num_p = m_sim->get_particle_num();
+            
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num_p);
+            tree->make(particles, num_p);
+#endif
+            
             // Calculate SPH forces (pressure, gravity, etc.)
             m_pre->calculation(m_sim);
             m_fforce->calculation(m_sim);
@@ -494,8 +645,6 @@ void Solver::initialize()
             
             // Integrate positions with net acceleration
             // Zero velocities and integrate position directly from acceleration
-            auto& particles = m_sim->get_particles();
-            const int num_p = m_sim->get_particle_num();
             auto * periodic = m_sim->get_periodic().get();
             
 #pragma omp parallel for
@@ -558,8 +707,30 @@ void Solver::initialize()
                 }
                 
                 // Output snapshot (silently)
-                m_output->output_particle(m_sim);
+                m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++);
                 output_counter++;
+            }
+            
+            // Save checkpoint at specified intervals
+            if(m_checkpoint_config.enabled && step % m_checkpoint_config.save_interval == 0) {
+                CheckpointMetadata chk_meta;
+                chk_meta.time = accumulated_time;
+                chk_meta.step = 0;  // Not in main simulation yet
+                chk_meta.particle_num = m_sim->get_particle_num();
+                chk_meta.is_relaxation = true;
+                chk_meta.relaxation_step = step;
+                chk_meta.relaxation_total_steps = m_relaxation_steps;
+                chk_meta.accumulated_time = accumulated_time;
+                chk_meta.preset_name = "lane_emden";
+                
+                // Save Lane-Emden relaxation parameters for resume
+                chk_meta.alpha_scaling = boost::any_cast<real>(m_sample_parameters["alpha"]);
+                chk_meta.rho_center = boost::any_cast<real>(m_sample_parameters["rho_center"]);
+                chk_meta.K = boost::any_cast<real>(m_sample_parameters["K"]);
+                chk_meta.R = boost::any_cast<real>(m_sample_parameters["R"]);
+                chk_meta.M_total = boost::any_cast<real>(m_sample_parameters["M_total"]);
+                
+                m_output_manager->write_checkpoint(m_sim, m_param, chk_meta, step);
             }
         }
         
@@ -602,8 +773,12 @@ void Solver::initialize()
             }
             
             // Output relaxed configuration
-            m_output->output_particle(m_sim);
-            m_output->output_energy(m_sim);
+            m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++);
+            
+            // Output energy
+            real kinetic, thermal, potential;
+            compute_total_energies(kinetic, thermal, potential);
+            m_output_manager->write_energy(0.0, kinetic, thermal, potential);
             
             std::cout << "=== Relaxed Configuration Saved ===" << std::endl;
             std::cout << "Check output directory for results" << std::endl;
@@ -728,6 +903,34 @@ void Solver::make_initial_condition()
     }
     std::cout << "make_initial_condition() completed" << std::endl;
     std::cout.flush();
+}
+
+void Solver::compute_total_energies(real& kinetic, real& thermal, real& potential) const
+{
+    kinetic = 0.0;
+    thermal = 0.0;
+    potential = 0.0;
+    
+    const auto& particles = m_sim->get_particles();
+    const int num = m_sim->get_particle_num();
+    const bool use_gravity = m_param->gravity.is_valid;
+    
+    #pragma omp parallel for reduction(+:kinetic,thermal,potential)
+    for(int i = 0; i < num; ++i) {
+        const auto& p = particles[i];
+        
+        // Kinetic energy: 0.5 * m * v^2
+        real vsq = inner_product(p.vel, p.vel);
+        kinetic += 0.5 * p.mass * vsq;
+        
+        // Thermal energy: m * u
+        thermal += p.mass * p.ene;
+        
+        // Gravitational potential energy: 0.5 * m * phi
+        if(use_gravity) {
+            potential += 0.5 * p.mass * p.phi;
+        }
+    }
 }
 
 }

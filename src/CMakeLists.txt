@@ -6,14 +6,17 @@ target_sources(sph
         fluid_force.cpp
         gravity_force.cpp
         logger.cpp
-        output.cpp
+        output_manager.cpp
+        output_metadata.cpp
         pre_interaction.cpp
         simulation.cpp
         solver.cpp
         timestep.cpp
+        units.cpp
     )
 
 add_subdirectory(disph)
 add_subdirectory(gsph)
 add_subdirectory(sample)
 add_subdirectory(relaxation)
+add_subdirectory(writers)

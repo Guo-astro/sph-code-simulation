@@ -19,10 +19,19 @@
   },
   "relaxation": {
     "enabled": true,
-    "steps": 10000,
+    "steps": 40000,
     "convergence_threshold": 1e-06,
-    "output_frequency": 10,
+    "output_frequency": 5000,
     "damping_factor": 0.0
+  },
+  "checkpoint": {
+    "enabled": true,
+    "saveInterval": 1000,
+    "directory": "lane_emden/results/polytrope_n1.5_3d/checkpoints",
+    "saveOnExit": true,
+    "maxCheckpoints": 5,
+    "autoResume": true,
+    "resumeFile": ""
   },
   "simulation": {
     "end_time": 5.0,

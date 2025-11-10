@@ -1,0 +1,6 @@
+# Energy log for SPH simulation
+# Units: Code
+# Time unit: code_time
+# Energy unit: code_energy
+# Columns: time  kinetic  thermal  potential  total
+#

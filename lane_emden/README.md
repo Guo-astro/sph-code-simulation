@@ -172,6 +172,9 @@ Edit JSON files in `config/presets/`:
 ## Documentation
 
 - `docs/LANE_EMDEN_ARCHITECTURE.md` - Full architecture design
+- `docs/CHECKPOINT_SYSTEM.md` - Checkpoint/resume system for long relaxation runs
+- `docs/CHECKPOINT_QUICK_REF.md` - Quick reference for checkpoint usage
+- `docs/RELAXATION_ONLY_MODE.md` - Relaxation-only mode documentation
 - `docs/preset_guide.md` - Which preset to use when
 - `docs/polytrope_physics.md` - Physics background
 - `docs/configuration_schema.md` - JSON schema reference
