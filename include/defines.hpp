@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-#define DIM 1
+#define DIM 2
 typedef double real;
 
 #ifndef M_PI

@@ -17,8 +17,9 @@ all:
 	@echo "  cd build && make -j8"
 	@echo ""
 	@echo "Available simulation workflows:"
-	@echo "  make lane_emden_help    # Lane-Emden polytrope targets"
-	@echo "  make shock_tube_help    # Shock tube test targets"
+	@echo "  make lane_emden_help          # Lane-Emden polytrope targets"
+	@echo "  make shock_tube_help          # Shock tube test targets"
+	@echo "  make pairing_help             # Pairing instability targets"
 	@echo ""
 	@false
 
@@ -29,3 +30,6 @@ help: all
 
 # Shock Tube preset-based system
 -include sample/shock_tube/Makefile.shock_tube
+
+# Pairing Instability preset-based system
+-include sample/pairing_instability/Makefile.pairing_instability
