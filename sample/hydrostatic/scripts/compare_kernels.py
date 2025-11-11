@@ -115,8 +115,8 @@ def main():
     # Generate comparison plots for selected snapshots
     for snap_num in plot_snapshots:
         fig, axes = plt.subplots(5, 2, figsize=(12, 24))
-        fig.suptitle(f'Kernel Comparison - Snapshot {snap_num:04d}\nWendland (left) vs Cubic Spline (right)', 
-                     fontsize=16, fontweight='bold')
+        fig.suptitle(f'Kernel Comparison: Wendland vs Cubic Spline - Snapshot {snap_num:04d}', 
+                     fontsize=16, fontweight='bold', y=0.995)
         
         for idx, method in enumerate(methods):
             # Load Wendland data
@@ -132,14 +132,17 @@ def main():
                 if x_col in data_w and y_col in data_w and 'dens' in data_w:
                     log_dens = np.log10(data_w['dens'] + 1e-10)
                     scatter = ax.scatter(data_w[x_col], data_w[y_col], c=log_dens,
-                                       cmap='hot', s=15, alpha=0.8, edgecolors='none')
-                    ax.set_ylabel(method_labels[idx], fontsize=11, fontweight='bold')
+                                       cmap='hot', s=25, alpha=0.8, edgecolors='none')
+                    ax.set_ylabel(method_labels[idx], fontsize=11, fontweight='bold', rotation=0,
+                                 ha='right', va='center', labelpad=45)
                     ax.set_aspect('equal')
+                    ax.set_xlim(-0.5, 0.5)
+                    ax.set_ylim(-0.5, 0.5)
                     ax.set_facecolor('black')
                     ax.grid(True, alpha=0.2, color='white', linewidth=0.5)
                     
                     if idx == 0:
-                        ax.set_title('Wendland Kernel', fontsize=12, fontweight='bold')
+                        ax.set_title('Wendland Kernel', fontsize=12, fontweight='bold', pad=15)
                     
                     if idx == len(methods) - 1:
                         ax.set_xlabel('x', fontsize=10)
@@ -159,14 +162,16 @@ def main():
                 if x_col in data_c and y_col in data_c and 'dens' in data_c:
                     log_dens = np.log10(data_c['dens'] + 1e-10)
                     scatter = ax.scatter(data_c[x_col], data_c[y_col], c=log_dens,
-                                       cmap='hot', s=15, alpha=0.8, edgecolors='none')
+                                       cmap='hot', s=25, alpha=0.8, edgecolors='none')
                     ax.set_aspect('equal')
+                    ax.set_xlim(-0.5, 0.5)
+                    ax.set_ylim(-0.5, 0.5)
                     ax.set_facecolor('black')
                     ax.grid(True, alpha=0.2, color='white', linewidth=0.5)
                     
                     if idx == 0:
-                        ax.set_title('Cubic Spline Kernel', fontsize=12, fontweight='bold')
-                        cbar = plt.colorbar(scatter, ax=ax)
+                        ax.set_title('Cubic Spline Kernel', fontsize=12, fontweight='bold', pad=15)
+                        cbar = plt.colorbar(scatter, ax=ax, pad=0.02)
                         cbar.set_label('log₁₀(Density)', fontsize=9)
                     
                     if idx == len(methods) - 1:
@@ -176,7 +181,7 @@ def main():
                     
                     ax.set_yticklabels([])
         
-        plt.tight_layout()
+        plt.tight_layout(rect=[0, 0, 1, 0.99])
         output_file = os.path.join(output_dir, f'kernel_compare_snap{snap_num:04d}.png')
         plt.savefig(output_file, dpi=150, bbox_inches='tight')
         plt.close()
@@ -187,8 +192,8 @@ def main():
     print(f"\nCreating final state comparison (snapshot {final_snap:04d})...")
     
     fig, axes = plt.subplots(5, 2, figsize=(12, 24))
-    fig.suptitle(f'Kernel Comparison - Final State (t=1.0)\nWendland (left) vs Cubic Spline (right)', 
-                 fontsize=16, fontweight='bold')
+    fig.suptitle('Kernel Comparison: Wendland vs Cubic Spline - Final State', 
+                 fontsize=16, fontweight='bold', y=0.995)
     
     for idx, method in enumerate(methods):
         # Wendland
@@ -202,15 +207,18 @@ def main():
             if x_col in data_w and y_col in data_w and 'dens' in data_w:
                 log_dens = np.log10(data_w['dens'] + 1e-10)
                 scatter = ax.scatter(data_w[x_col], data_w[y_col], c=log_dens,
-                                   cmap='hot', s=15, alpha=0.8, edgecolors='none',
+                                   cmap='hot', s=25, alpha=0.8, edgecolors='none',
                                    vmin=np.percentile(log_dens, 1), vmax=np.percentile(log_dens, 99))
-                ax.set_ylabel(method_labels[idx], fontsize=11, fontweight='bold')
+                ax.set_ylabel(method_labels[idx], fontsize=11, fontweight='bold', rotation=0,
+                             ha='right', va='center', labelpad=45)
                 ax.set_aspect('equal')
+                ax.set_xlim(-0.5, 0.5)
+                ax.set_ylim(-0.5, 0.5)
                 ax.set_facecolor('black')
                 ax.grid(True, alpha=0.2, color='white', linewidth=0.5)
                 
                 if idx == 0:
-                    ax.set_title('Wendland Kernel', fontsize=12, fontweight='bold')
+                    ax.set_title('Wendland Kernel', fontsize=12, fontweight='bold', pad=15)
                 if idx == len(methods) - 1:
                     ax.set_xlabel('x', fontsize=10)
                 else:
@@ -227,15 +235,17 @@ def main():
             if x_col in data_c and y_col in data_c and 'dens' in data_c:
                 log_dens = np.log10(data_c['dens'] + 1e-10)
                 scatter = ax.scatter(data_c[x_col], data_c[y_col], c=log_dens,
-                                   cmap='hot', s=15, alpha=0.8, edgecolors='none',
+                                   cmap='hot', s=25, alpha=0.8, edgecolors='none',
                                    vmin=np.percentile(log_dens, 1), vmax=np.percentile(log_dens, 99))
                 ax.set_aspect('equal')
+                ax.set_xlim(-0.5, 0.5)
+                ax.set_ylim(-0.5, 0.5)
                 ax.set_facecolor('black')
                 ax.grid(True, alpha=0.2, color='white', linewidth=0.5)
                 
                 if idx == 0:
-                    ax.set_title('Cubic Spline Kernel', fontsize=12, fontweight='bold')
-                    cbar = plt.colorbar(scatter, ax=ax)
+                    ax.set_title('Cubic Spline Kernel', fontsize=12, fontweight='bold', pad=15)
+                    cbar = plt.colorbar(scatter, ax=ax, pad=0.02)
                     cbar.set_label('log₁₀(Density)', fontsize=9)
                 if idx == len(methods) - 1:
                     ax.set_xlabel('x', fontsize=10)
@@ -244,7 +254,7 @@ def main():
                 
                 ax.set_yticklabels([])
     
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 1, 0.99])
     output_file = os.path.join(output_dir, 'kernel_compare_final.png')
     plt.savefig(output_file, dpi=150, bbox_inches='tight')
     plt.close()

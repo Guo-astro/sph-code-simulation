@@ -218,7 +218,7 @@ for row_idx, method in enumerate(methods):
     else:
         ax_w.set_xticklabels([])
     
-    scatters[('wendland', method)] = ax_w.scatter([], [], c=[], cmap='hot', s=15, 
+    scatters[('wendland', method)] = ax_w.scatter([], [], c=[], cmap='hot', s=25, 
                                                   alpha=0.8, edgecolors='none',
                                                   vmin=vmin, vmax=vmax)
     
@@ -235,7 +235,7 @@ for row_idx, method in enumerate(methods):
     else:
         ax_c.set_xticklabels([])
     
-    scatters[('cubic', method)] = ax_c.scatter([], [], c=[], cmap='hot', s=15, 
+    scatters[('cubic', method)] = ax_c.scatter([], [], c=[], cmap='hot', s=25, 
                                                alpha=0.8, edgecolors='none',
                                                vmin=vmin, vmax=vmax)
     

@@ -209,8 +209,8 @@ for row_idx, method in enumerate(methods):
     ax_w.set_ylabel(method_labels[row_idx], fontsize=11, fontweight='bold', rotation=0, 
                     ha='right', va='center', labelpad=40)
     ax_w.set_aspect('equal')
-    ax_w.set_xlim(-0.5, 0.5)
-    ax_w.set_ylim(-0.5, 0.5)
+    ax_w.set_xlim(0.0, 1.0)
+    ax_w.set_ylim(0.0, 1.0)
     ax_w.set_facecolor('black')
     ax_w.grid(True, alpha=0.2, color='white', linewidth=0.5)
     if row_idx == 4:
@@ -225,8 +225,8 @@ for row_idx, method in enumerate(methods):
     # Cubic Spline (right column)
     ax_c = axes[row_idx, 1]
     ax_c.set_aspect('equal')
-    ax_c.set_xlim(-0.5, 0.5)
-    ax_c.set_ylim(-0.5, 0.5)
+    ax_c.set_xlim(0.0, 1.0)
+    ax_c.set_ylim(0.0, 1.0)
     ax_c.set_facecolor('black')
     ax_c.grid(True, alpha=0.2, color='white', linewidth=0.5)
     ax_c.set_yticklabels([])
