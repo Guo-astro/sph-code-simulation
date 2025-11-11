@@ -1,1 +1,0 @@
-lane_emden/scripts/lane_emden_config_manager.py

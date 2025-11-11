@@ -1,9 +1,6 @@
 {
-  "outputDirectory": "lane_emden/results/polytrope_n1.5_3d",
-  "startTime": 0.0,
-  "endTime": 5.0,
-  "outputTime": 0.05,
-  "energyTime": 0.05,
+  "name": "polytrope_n1_5_3d_resume",
+  "description": "Resume 3D n=1.5 polytrope from snapshot_0009.csv checkpoint - SSOT: All physics/particle state loaded from checkpoint",
   "checkpoint": {
     "enabled": true,
     "saveInterval": 1000,
@@ -13,13 +10,9 @@
     "autoResume": false,
     "resumeFile": "/Users/guo/Downloads/sphcode/lane_emden/results/polytrope_n1.5_3d/snapshot_0009.csv"
   },
-  "output": {
-    "formats": [
-      {
-        "type": "csv",
-        "precision": 16
-      }
-    ],
-    "enableEnergyFile": true
+  "simulation": {
+    "end_time": 5.0,
+    "output_time": 0.05,
+    "output_directory": "lane_emden/results/polytrope_n1.5_3d"
   }
 }

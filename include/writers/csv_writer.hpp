@@ -74,6 +74,22 @@ public:
      */
     static std::string get_extension() { return ".csv"; }
     
+    /**
+     * @brief Read particles from CSV checkpoint file
+     * @param filepath Path to CSV checkpoint file
+     * @param particles Vector to store loaded particles (as pointers, caller owns memory)
+     * @return true if successful, false otherwise
+     */
+    static bool read_particles(const std::string& filepath, std::vector<SPHParticle*>& particles);
+    
+    /**
+     * @brief Read metadata from CSV checkpoint file
+     * @param filepath Path to CSV checkpoint file
+     * @param metadata Metadata structure to populate
+     * @return true if successful, false otherwise
+     */
+    static bool read_metadata(const std::string& filepath, OutputMetadata& metadata);
+    
 private:
     std::ofstream m_file;      ///< Output file stream
     int m_precision;           ///< Floating point precision

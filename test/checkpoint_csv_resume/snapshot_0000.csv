@@ -1,0 +1,51 @@
+# SPH Simulation Output - CSV Format v1
+# Timestamp: 2025-11-11T00:26:39Z
+# Simulation: SPH Simulation
+#
+# === Unit System ===
+# Type: Code
+# Length: code_length (1.0000000000000000e+00 cm)
+# Mass: code_mass (1.0000000000000000e+00 g)
+# Time: code_time (1.0000000000000000e+00 s)
+# Velocity: code_velocity (1.0000000000000000e+00 cm/s)
+#
+# === Simulation State ===
+# Step: 0
+# Time (code): 0.0000000000000000e+00
+# Time (physical): 0.0000000000000000e+00 code_time
+# Particle Count: 0
+#
+# === Physics Parameters ===
+# Gamma: 1.6666666666666667e+00
+# G: 1.0000000000000000e+00
+# Neighbor Number: 50
+# SPH Type: Standard SPH
+# Kernel: Wendland C4
+# Gravity: disabled
+# Balsara Switch: enabled
+# Time-Dependent AV: enabled
+#
+# === Energy ===
+# Kinetic: 0.0000000000000000e+00 [code units]
+# Thermal: 0.0000000000000000e+00 [code units]
+# Potential: 0.0000000000000000e+00 [code units]
+# Total: 0.0000000000000000e+00 [code units]
+#
+# === Columns ===
+# id: Particle ID
+# pos_x, pos_y, pos_z: Position [code units]
+# vel_x, vel_y, vel_z: Velocity [code units]
+# acc_x, acc_y, acc_z: Acceleration [code units]
+# mass: Particle mass [code units]
+# dens: Density [code units]
+# pres: Pressure [code units]
+# ene: Specific internal energy [code units]
+# sml: Smoothing length [code units]
+# sound: Sound speed [code units]
+# alpha: Artificial viscosity coefficient
+# balsara: Balsara factor
+# gradh: grad-h term factor
+# phi: Gravitational potential [code units]
+# neighbor: Number of neighbors
+#
+id,pos_x,pos_y,pos_z,vel_x,vel_y,vel_z,acc_x,acc_y,acc_z,mass,dens,pres,ene,sml,sound,alpha,balsara,gradh,phi,neighbor

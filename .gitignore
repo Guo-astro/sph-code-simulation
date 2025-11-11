@@ -5,6 +5,12 @@ sph\.exe\.stackdump
 .vs/
 *.vcxproj.user
 
+# Visual Studio project files (use CMake instead)
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
 parameters\.json
 sample/shock_tube/results/
 
@@ -32,3 +38,11 @@ gravity_softening_test.png
 # Build artifacts
 build/
 obj/
+
+# Temporary and test files
+temp/
+*.bak
+*.orig
+*.tmp
+*~
+.DS_Store

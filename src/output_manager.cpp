@@ -17,13 +17,18 @@ OutputManager::OutputManager(const OutputConfig& config,
     , m_checkpoint_dir(checkpoint_dir.empty() ? output_dir + "/checkpoints" : checkpoint_dir)
     , m_csv_writer(nullptr)
     , m_hdf5_writer(nullptr)
+    , m_vtk_writer(nullptr)
 {
-    if (m_config.enable_csv) {
+    if (m_config.is_format_enabled("csv")) {
         m_csv_writer = std::make_unique<CSVWriter>(m_config.csv_precision);
     }
     
-    if (m_config.enable_hdf5) {
+    if (m_config.is_format_enabled("hdf5")) {
         m_hdf5_writer = std::make_unique<HDF5Writer>(m_config.hdf5_compression);
+    }
+    
+    if (m_config.is_format_enabled("vtk")) {
+        m_vtk_writer = std::make_unique<VTKWriter>(m_config.vtk_binary);
     }
 }
 
@@ -103,7 +108,7 @@ bool OutputManager::write_snapshot(std::shared_ptr<Simulation> sim,
     bool success = true;
     
     // Write CSV if enabled
-    if (m_config.enable_csv && m_csv_writer) {
+    if (m_config.is_format_enabled("csv") && m_csv_writer) {
         std::string csv_path = generate_filename("snapshot", count, ".csv");
         
         if (!m_csv_writer->open(csv_path, metadata)) {
@@ -121,7 +126,7 @@ bool OutputManager::write_snapshot(std::shared_ptr<Simulation> sim,
     }
     
     // Write HDF5 if enabled
-    if (m_config.enable_hdf5 && m_hdf5_writer) {
+    if (m_config.is_format_enabled("hdf5") && m_hdf5_writer) {
         std::string hdf5_path = generate_filename("snapshot", count, ".h5");
         
         if (!m_hdf5_writer->open(hdf5_path, metadata)) {
@@ -135,6 +140,24 @@ bool OutputManager::write_snapshot(std::shared_ptr<Simulation> sim,
                 WRITE_LOG << "Wrote snapshot HDF5: " << hdf5_path;
             }
             m_hdf5_writer->close();
+        }
+    }
+    
+    // Write VTK if enabled
+    if (m_config.is_format_enabled("vtk") && m_vtk_writer) {
+        std::string vtk_path = generate_filename("snapshot", count, ".vtk");
+        
+        if (!m_vtk_writer->open(vtk_path, metadata)) {
+            WRITE_LOG << "Failed to open VTK file: " << vtk_path;
+            success = false;
+        } else {
+            if (!m_vtk_writer->write_particles(particle_ptrs)) {
+                WRITE_LOG << "Failed to write VTK data: " << vtk_path;
+                success = false;
+            } else {
+                WRITE_LOG << "Wrote snapshot VTK: " << vtk_path;
+            }
+            m_vtk_writer->close();
         }
     }
     
@@ -162,7 +185,7 @@ bool OutputManager::write_checkpoint(std::shared_ptr<Simulation> sim,
     bool success = true;
     
     // Write CSV if enabled (use checkpoint directory)
-    if (m_config.enable_csv && m_csv_writer) {
+    if (m_config.is_format_enabled("csv") && m_csv_writer) {
         std::string csv_path = generate_checkpoint_filename("checkpoint", step, ".csv");
         
         if (!m_csv_writer->open(csv_path, metadata)) {
@@ -180,7 +203,7 @@ bool OutputManager::write_checkpoint(std::shared_ptr<Simulation> sim,
     }
     
     // Write HDF5 if enabled (HDF5 is primary for checkpoints, use checkpoint directory)
-    if (m_config.enable_hdf5 && m_hdf5_writer) {
+    if (m_config.is_format_enabled("hdf5") && m_hdf5_writer) {
         std::string hdf5_path = generate_checkpoint_filename("checkpoint", step, ".h5");
         
         if (!m_hdf5_writer->open(hdf5_path, metadata)) {
@@ -197,40 +220,103 @@ bool OutputManager::write_checkpoint(std::shared_ptr<Simulation> sim,
         }
     }
     
+    // Write VTK if enabled (use checkpoint directory)
+    if (m_config.is_format_enabled("vtk") && m_vtk_writer) {
+        std::string vtk_path = generate_checkpoint_filename("checkpoint", step, ".vtk");
+        
+        if (!m_vtk_writer->open(vtk_path, metadata)) {
+            WRITE_LOG << "Failed to open checkpoint VTK: " << vtk_path;
+            success = false;
+        } else {
+            if (!m_vtk_writer->write_particles(particle_ptrs)) {
+                WRITE_LOG << "Failed to write checkpoint VTK data: " << vtk_path;
+                success = false;
+            } else {
+                WRITE_LOG << "Wrote checkpoint VTK: " << vtk_path;
+            }
+            m_vtk_writer->close();
+        }
+    }
+    
     return success;
 }
 
 bool OutputManager::load_for_resume(const std::string& filepath,
                                     std::shared_ptr<Simulation> sim,
-                                    CheckpointMetadata& checkpoint_meta) {
+                                    CheckpointMetadata& checkpoint_meta,
+                                    OutputMetadata* output_meta) {
     WRITE_LOG << "Loading checkpoint from: " << filepath;
     
-    // Read particles from HDF5 (reading as vector of pointers)
+    // Determine file format from extension
+    std::string ext = filepath.substr(filepath.find_last_of('.'));
+    bool is_csv = (ext == ".csv");
+    bool is_hdf5 = (ext == ".h5" || ext == ".hdf5");
+    bool is_vtk = (ext == ".vtk");
+    
+    if (!is_csv && !is_hdf5 && !is_vtk) {
+        WRITE_LOG << "Unsupported checkpoint file format: " << filepath;
+        WRITE_LOG << "Supported formats: .csv, .h5, .hdf5, .vtk";
+        return false;
+    }
+    
+    // Read particles from file (reading as vector of pointers)
     std::vector<SPHParticle*> particle_ptrs;
-    
-    if (!HDF5Writer::read_particles(filepath, particle_ptrs)) {
-        WRITE_LOG << "Failed to read particles from checkpoint: " << filepath;
-        return false;
-    }
-    
-    // Read metadata from HDF5
     OutputMetadata metadata;
-    if (!HDF5Writer::read_metadata(filepath, metadata)) {
-        WRITE_LOG << "Failed to read metadata from checkpoint: " << filepath;
-        // Clean up allocated particles
-        for (auto p : particle_ptrs) delete p;
-        return false;
-    }
     
-    // Verify this is a checkpoint file
-    if (!metadata.is_checkpoint) {
-        WRITE_LOG << "File is not a checkpoint: " << filepath;
-        for (auto p : particle_ptrs) delete p;
+    if (is_hdf5) {
+        // HDF5 format
+        if (!HDF5Writer::read_particles(filepath, particle_ptrs)) {
+            WRITE_LOG << "Failed to read particles from HDF5 checkpoint: " << filepath;
+            return false;
+        }
+        
+        if (!HDF5Writer::read_metadata(filepath, metadata)) {
+            WRITE_LOG << "Failed to read metadata from HDF5 checkpoint: " << filepath;
+            for (auto p : particle_ptrs) delete p;
+            return false;
+        }
+    } else if (is_csv) {
+        // CSV format
+        if (!CSVWriter::read_particles(filepath, particle_ptrs)) {
+            WRITE_LOG << "Failed to read particles from CSV checkpoint: " << filepath;
+            return false;
+        }
+        
+        if (!CSVWriter::read_metadata(filepath, metadata)) {
+            WRITE_LOG << "Failed to read metadata from CSV checkpoint: " << filepath;
+            for (auto p : particle_ptrs) delete p;
+            return false;
+        }
+    } else if (is_vtk) {
+        // VTK format - note: VTK typically doesn't store full checkpoint metadata
+        // We'll read particles but may need to get metadata from a companion file
+        WRITE_LOG << "Warning: VTK format may not contain complete checkpoint metadata";
+        WRITE_LOG << "Consider using HDF5 or CSV for checkpoints if you need full metadata";
+        
+        // For now, VTK resume is not fully supported - suggest using HDF5 or CSV
+        WRITE_LOG << "ERROR: VTK checkpoint resume not yet implemented";
+        WRITE_LOG << "Please use HDF5 (.h5) or CSV (.csv) checkpoint files for resume";
         return false;
     }
     
     // Populate checkpoint metadata
-    checkpoint_meta = metadata.checkpoint_data;
+    // Note: Regular snapshots can be used for resume too (SSOT mode)
+    if (metadata.is_checkpoint) {
+        checkpoint_meta = metadata.checkpoint_data;
+        WRITE_LOG << "Resuming from checkpoint file";
+    } else {
+        WRITE_LOG << "Resuming from regular snapshot (SSOT mode - physics from metadata)";
+        // Create minimal checkpoint metadata from regular snapshot
+        checkpoint_meta.time = metadata.time_code;
+        checkpoint_meta.step = metadata.step;
+        checkpoint_meta.particle_num = metadata.particle_count;
+        checkpoint_meta.is_relaxation = false;
+    }
+    
+    // Return output metadata if requested (for physics parameters - SSOT)
+    if (output_meta != nullptr) {
+        *output_meta = metadata;
+    }
     
     // Convert pointers to vector of values for Simulation
     std::vector<SPHParticle> particles;
@@ -247,6 +333,10 @@ bool OutputManager::load_for_resume(const std::string& filepath,
     
     WRITE_LOG << "Successfully loaded " << particles.size() << " particles from checkpoint";
     WRITE_LOG << "Resume from step " << checkpoint_meta.step << ", time " << checkpoint_meta.time;
+    WRITE_LOG << "Checkpoint physics: gamma=" << metadata.gamma 
+              << ", G=" << metadata.gravitational_constant
+              << ", SPH type=" << static_cast<int>(metadata.sph_type)
+              << ", kernel=" << static_cast<int>(metadata.kernel_type);
     
     return true;
 }

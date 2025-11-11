@@ -25,13 +25,19 @@ data_dir = sys.argv[1] if len(sys.argv) > 1 else "lane_emden/results/polytrope_n
 output_prefix = sys.argv[2] if len(sys.argv) > 2 else "lane_emden"
 
 print('Loading data files...')
-files = sorted(glob.glob(f'{data_dir}/[0-9]*.dat'))  # Only numbered particle files, not energy.dat
+# Try CSV first (new format), then fall back to .dat (old format)
+files = sorted(glob.glob(f'{data_dir}/snapshot_*.csv'))
+if len(files) == 0:
+    files = sorted(glob.glob(f'{data_dir}/[0-9]*.dat'))  # Old format fallback
 
 if len(files) == 0:
     print('ERROR: No data files found!')
+    print(f'Searched in: {data_dir}')
+    print('Looking for: snapshot_*.csv or [0-9]*.dat')
     sys.exit(1)
 
-print(f'Found {len(files)} files')
+file_format = 'csv' if files[0].endswith('.csv') else 'dat'
+print(f'Found {len(files)} {file_format.upper()} files')
 
 # Create animation with 5 subplots
 fig = plt.figure(figsize=(20, 8))
@@ -55,11 +61,21 @@ def update(frame):
     for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
         ax.clear()
     
-    data = np.loadtxt(files[frame])
-    # File format: x y z vx vy vz ax ay az mass dens pres ene sml id neighbor alpha gradh
-    pos = data[:, 0:3]      # x, y, z (columns 0, 1, 2)
-    acc = data[:, 6:9]      # ax, ay, az (columns 6, 7, 8)
-    dens = data[:, 10]      # density (column 10)
+    # Load data based on file format
+    if file_format == 'csv':
+        # CSV format: skip 51 header lines (metadata + column names)
+        data = np.loadtxt(files[frame], delimiter=',', skiprows=51)
+        # CSV column order: id,pos_x,pos_y,pos_z,vel_x,vel_y,vel_z,acc_x,acc_y,acc_z,mass,dens,pres,ene,sml,sound,alpha,balsara,gradh,phi,neighbor
+        pos = data[:, 1:4]      # pos_x, pos_y, pos_z (columns 1, 2, 3)
+        acc = data[:, 7:10]     # acc_x, acc_y, acc_z (columns 7, 8, 9)
+        dens = data[:, 11]      # dens (column 11)
+    else:
+        # Old .dat format: space-delimited, no header
+        data = np.loadtxt(files[frame])
+        # File format: x y z vx vy vz ax ay az mass dens pres ene sml id neighbor alpha gradh
+        pos = data[:, 0:3]      # x, y, z (columns 0, 1, 2)
+        acc = data[:, 6:9]      # ax, ay, az (columns 6, 7, 8)
+        dens = data[:, 10]      # density (column 10)
     
     r = np.sqrt(np.sum(pos**2, axis=1))
     acc_mag = np.sqrt(np.sum(acc**2, axis=1))
@@ -167,11 +183,19 @@ ax4 = fig2.add_subplot(2, 3, 4, projection='3d')
 ax5 = fig2.add_subplot(2, 3, 5)
 ax6 = fig2.add_subplot(2, 3, 6)
 
-data = np.loadtxt(files[-1])
-# File format: x y z vx vy vz ax ay az mass dens pres ene sml id neighbor alpha gradh
-pos = data[:, 0:3]      # x, y, z (columns 0, 1, 2)
-acc = data[:, 6:9]      # ax, ay, az (columns 6, 7, 8)
-dens = data[:, 10]      # density (column 10)
+# Load final snapshot with correct format
+if file_format == 'csv':
+    data = np.loadtxt(files[-1], delimiter=',', skiprows=51)
+    # CSV column order: id,pos_x,pos_y,pos_z,vel_x,vel_y,vel_z,acc_x,acc_y,acc_z,mass,dens,pres,ene,sml,sound,alpha,balsara,gradh,phi,neighbor
+    pos = data[:, 1:4]      # pos_x, pos_y, pos_z (columns 1, 2, 3)
+    acc = data[:, 7:10]     # acc_x, acc_y, acc_z (columns 7, 8, 9)
+    dens = data[:, 11]      # dens (column 11)
+else:
+    data = np.loadtxt(files[-1])
+    # File format: x y z vx vy vz ax ay az mass dens pres ene sml id neighbor alpha gradh
+    pos = data[:, 0:3]      # x, y, z (columns 0, 1, 2)
+    acc = data[:, 6:9]      # ax, ay, az (columns 6, 7, 8)
+    dens = data[:, 10]      # density (column 10)
 
 r = np.sqrt(np.sum(pos**2, axis=1))
 acc_mag = np.sqrt(np.sum(acc**2, axis=1))

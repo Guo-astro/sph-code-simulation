@@ -9,9 +9,9 @@
 PRESET ?= polytrope_n1_5_3d
 
 # Paths
-CONFIG_MANAGER = python3 lane_emden_config_manager.py
+CONFIG_MANAGER = python3 lane_emden/scripts/lane_emden_config_manager.py
 
-.PHONY: lane_emden lane_emden_relax lane_emden_relax_only lane_emden_list lane_emden_validate lane_emden_help
+.PHONY: lane_emden lane_emden_relax lane_emden_relax_only lane_emden_resume lane_emden_list lane_emden_validate lane_emden_help
 
 # List available presets
 lane_emden_list:
@@ -69,6 +69,44 @@ lane_emden_relax_only: build/sph
 # Legacy alias
 lane_emden_relax: lane_emden
 
+# Resume from checkpoint
+lane_emden_resume: build/sph
+	@echo "=========================================="
+	@echo "Lane-Emden Resume from Checkpoint"
+	@echo "=========================================="
+	@if [ -z "$(CHECKPOINT)" ]; then \
+		echo "No CHECKPOINT specified, finding latest snapshot..."; \
+		LATEST=$$(ls -t lane_emden/results/$(PRESET)/snapshot_*.csv 2>/dev/null | head -1); \
+		if [ -z "$$LATEST" ]; then \
+			echo "ERROR: No snapshots found in lane_emden/results/$(PRESET)/"; \
+			echo ""; \
+			echo "Usage:"; \
+			echo "  make -f lane_emden/Makefile.lane_emden lane_emden_resume"; \
+			echo "  make -f lane_emden/Makefile.lane_emden lane_emden_resume CHECKPOINT=<file>"; \
+			echo "  make -f lane_emden/Makefile.lane_emden lane_emden_resume PRESET=<preset>"; \
+			echo ""; \
+			echo "Examples:"; \
+			echo "  make -f lane_emden/Makefile.lane_emden lane_emden_resume  # Use latest snapshot"; \
+			echo "  make -f lane_emden/Makefile.lane_emden lane_emden_resume CHECKPOINT=snapshot_0009.csv"; \
+			echo "  make -f lane_emden/Makefile.lane_emden lane_emden_resume PRESET=polytrope_n3_3d  # Use latest from n3"; \
+			exit 1; \
+		fi; \
+		echo "✓ Found latest snapshot: $$LATEST"; \
+		$(MAKE) -f lane_emden/Makefile.lane_emden lane_emden_resume CHECKPOINT=$$LATEST PRESET=$(PRESET); \
+	else \
+		echo "Preset: $(PRESET)"; \
+		echo "Checkpoint file: $(CHECKPOINT)"; \
+		echo ""; \
+		echo "Configuring resume from checkpoint (SSOT mode)..."; \
+		python3 lane_emden/scripts/configure_resume.py "$(CHECKPOINT)"; \
+		echo ""; \
+		echo "Running simulation from checkpoint..."; \
+		./build/sph lane_emden; \
+		echo ""; \
+		echo "✓ Resumed simulation complete!"; \
+		echo "📁 Results saved to: lane_emden/results/polytrope_n1.5_3d"; \
+	fi
+
 # Create a new preset
 lane_emden_create:
 	@if [ -z "$(NAME)" ] || [ -z "$(N)" ] || [ -z "$(DIM)" ]; then \
@@ -91,6 +129,11 @@ lane_emden_help:
 	@echo "  make lane_emden                          # Run with default preset"
 	@echo "  make lane_emden PRESET=polytrope_n1_5_3d # Select preset"
 	@echo "  make lane_emden RELAX_STEPS=10000        # Override relaxation steps"
+	@echo ""
+	@echo "Resume from checkpoint:"
+	@echo "  make lane_emden_resume CHECKPOINT=snapshot_0009.csv"
+	@echo "  make lane_emden_resume CHECKPOINT=lane_emden/results/polytrope_n1.5_3d/snapshot_0009.csv"
+	@echo "  make lane_emden_resume PRESET=polytrope_n1_5_3d CHECKPOINT=checkpoints/checkpoint_0010.csv"
 	@echo ""
 	@echo "Relaxation only:"
 	@echo "  make lane_emden_relax_only RELAX_STEPS=10000"

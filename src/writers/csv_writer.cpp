@@ -174,4 +174,204 @@ void CSVWriter::close() {
     }
 }
 
+bool CSVWriter::read_metadata(const std::string& filepath, OutputMetadata& metadata) {
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    std::string line;
+    int line_count = 0;
+    
+    // Parse header lines (lines 1-50)
+    while (line_count < 50 && std::getline(file, line)) {
+        line_count++;
+        
+        // Skip empty lines
+        if (line.empty() || line[0] != '#') {
+            continue;
+        }
+        
+        // Extract key-value from "# Key: Value" format
+        auto colon_pos = line.find(':');
+        if (colon_pos == std::string::npos) {
+            continue;
+        }
+        
+        std::string key = line.substr(2, colon_pos - 2); // Skip "# "
+        std::string value = line.substr(colon_pos + 2); // Skip ": "
+        
+        // Trim whitespace
+        key.erase(0, key.find_first_not_of(" \t"));
+        key.erase(key.find_last_not_of(" \t") + 1);
+        value.erase(0, value.find_first_not_of(" \t"));
+        value.erase(value.find_last_not_of(" \t") + 1);
+        
+        // Parse known fields
+        if (key == "Timestamp") {
+            metadata.timestamp = value;
+        } else if (key == "Simulation") {
+            metadata.simulation_name = value;
+        } else if (key == "Step") {
+            metadata.step = std::stoi(value);
+        } else if (key == "Time (code)") {
+            metadata.time_code = std::stod(value);
+        } else if (key == "Particle Count") {
+            metadata.particle_count = std::stoi(value);
+        } else if (key == "Gamma") {
+            metadata.gamma = std::stod(value);
+        } else if (key == "G") {
+            metadata.gravitational_constant = std::stod(value);
+        } else if (key == "Neighbor Number") {
+            metadata.neighbor_number = std::stoi(value);
+        } else if (key == "Kinetic") {
+            // Extract value before " [code units]"
+            auto bracket_pos = value.find(" [");
+            if (bracket_pos != std::string::npos) {
+                metadata.kinetic_energy = std::stod(value.substr(0, bracket_pos));
+            }
+        } else if (key == "Thermal") {
+            auto bracket_pos = value.find(" [");
+            if (bracket_pos != std::string::npos) {
+                metadata.thermal_energy = std::stod(value.substr(0, bracket_pos));
+            }
+        } else if (key == "Potential") {
+            auto bracket_pos = value.find(" [");
+            if (bracket_pos != std::string::npos) {
+                metadata.potential_energy = std::stod(value.substr(0, bracket_pos));
+            }
+        } else if (key == "Total") {
+            auto bracket_pos = value.find(" [");
+            if (bracket_pos != std::string::npos) {
+                metadata.total_energy = std::stod(value.substr(0, bracket_pos));
+            }
+        } else if (key == "Relaxation Step") {
+            // Format: "step / total"
+            metadata.is_checkpoint = true;
+            metadata.checkpoint_data.is_relaxation = true;
+            auto slash_pos = value.find('/');
+            if (slash_pos != std::string::npos) {
+                metadata.checkpoint_data.relaxation_step = std::stoi(value.substr(0, slash_pos));
+                metadata.checkpoint_data.relaxation_total_steps = std::stoi(value.substr(slash_pos + 2));
+            }
+        } else if (key == "Accumulated Time") {
+            metadata.checkpoint_data.accumulated_time = std::stod(value);
+        } else if (key == "Alpha Scaling") {
+            metadata.checkpoint_data.alpha_scaling = std::stod(value);
+        } else if (key == "Central Density") {
+            metadata.checkpoint_data.rho_center = std::stod(value);
+        } else if (key == "Polytropic K") {
+            metadata.checkpoint_data.K = std::stod(value);
+        } else if (key == "Radius") {
+            metadata.checkpoint_data.R = std::stod(value);
+        } else if (key == "Total Mass") {
+            metadata.checkpoint_data.M_total = std::stod(value);
+        } else if (key == "Preset") {
+            metadata.checkpoint_data.preset_name = value;
+        }
+    }
+    
+    file.close();
+    return true;
+}
+
+bool CSVWriter::read_particles(const std::string& filepath, std::vector<SPHParticle*>& particles) {
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    // Skip 51 header lines (50 metadata + 1 column names)
+    std::string line;
+    for (int i = 0; i < 51; ++i) {
+        if (!std::getline(file, line)) {
+            file.close();
+            return false;
+        }
+    }
+    
+    // Clear existing particles
+    particles.clear();
+    
+    // Read particle data line by line
+    while (std::getline(file, line)) {
+        if (line.empty()) {
+            continue;
+        }
+        
+        std::istringstream ss(line);
+        std::string field;
+        std::vector<std::string> fields;
+        
+        // Split by comma
+        while (std::getline(ss, field, ',')) {
+            fields.push_back(field);
+        }
+        
+        // Verify we have all 21 columns
+        if (fields.size() != 21) {
+            // Clean up allocated particles
+            for (auto* p : particles) {
+                delete p;
+            }
+            particles.clear();
+            file.close();
+            return false;
+        }
+        
+        // Allocate new particle
+        auto* p = new SPHParticle();
+        
+        try {
+            // Parse fields in order matching write_column_names()
+            int idx = 0;
+            p->id = std::stoi(fields[idx++]);
+            
+            // Position
+            p->pos[0] = std::stod(fields[idx++]);
+            p->pos[1] = std::stod(fields[idx++]);
+            p->pos[2] = std::stod(fields[idx++]);
+            
+            // Velocity
+            p->vel[0] = std::stod(fields[idx++]);
+            p->vel[1] = std::stod(fields[idx++]);
+            p->vel[2] = std::stod(fields[idx++]);
+            
+            // Acceleration
+            p->acc[0] = std::stod(fields[idx++]);
+            p->acc[1] = std::stod(fields[idx++]);
+            p->acc[2] = std::stod(fields[idx++]);
+            
+            // Scalar fields
+            p->mass = std::stod(fields[idx++]);
+            p->dens = std::stod(fields[idx++]);
+            p->pres = std::stod(fields[idx++]);
+            p->ene = std::stod(fields[idx++]);
+            p->sml = std::stod(fields[idx++]);
+            p->sound = std::stod(fields[idx++]);
+            p->alpha = std::stod(fields[idx++]);
+            p->balsara = std::stod(fields[idx++]);
+            p->gradh = std::stod(fields[idx++]);
+            p->phi = std::stod(fields[idx++]);
+            p->neighbor = std::stoi(fields[idx++]);
+            
+            particles.push_back(p);
+            
+        } catch (const std::exception&) {
+            // Failed to parse this line
+            delete p;
+            // Clean up all particles
+            for (auto* particle : particles) {
+                delete particle;
+            }
+            particles.clear();
+            file.close();
+            return false;
+        }
+    }
+    
+    file.close();
+    return !particles.empty();
+}
+
 } // namespace sph

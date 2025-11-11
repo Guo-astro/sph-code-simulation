@@ -135,12 +135,15 @@ struct OutputMetadata {
 
 /**
  * @brief Configuration for output system
+ * 
+ * Supports two JSON formats:
+ * 1. Array of format objects: [{"type": "csv", "precision": 16}, {"type": "hdf5", "compression": 6}]
+ * 2. Simple array (legacy): ["csv", "hdf5"] with separate option fields
  */
 struct OutputConfig {
-    // Output formats to enable
-    bool enable_csv;                  ///< Write CSV files
-    bool enable_hdf5;                 ///< Write HDF5 files
-    bool enable_energy_file;          ///< Write energy.dat file
+    // Output formats - specified as array in JSON
+    std::vector<std::string> formats;  ///< Output formats to enable
+    bool enable_energy_file;           ///< Write energy.dat file
     
     // CSV options
     int csv_precision;                ///< Floating point precision for CSV
@@ -149,8 +152,18 @@ struct OutputConfig {
     int hdf5_compression;             ///< Compression level (0-9, 0=none, 9=max)
     bool hdf5_single_file_series;     ///< Store time series in single HDF5 file (future)
     
+    // VTK options
+    bool vtk_binary;                  ///< Use binary VTK format (vs ASCII)
+    
     // Unit system for output
     UnitSystem::Type output_unit_type; ///< Which unit system to use for output
+    
+    /**
+     * @brief Check if a format is enabled
+     * @param format Format name ("csv", "hdf5", "vtk")
+     * @return true if format is enabled
+     */
+    bool is_format_enabled(const std::string& format) const;
     
     /**
      * @brief Default constructor with sensible defaults

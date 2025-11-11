@@ -310,7 +310,20 @@ class ConfigManager:
             "useRelaxation": preset["relaxation"]["enabled"],
             "relaxationSteps": preset["relaxation"]["steps"],
             "relaxationOutputFreq": preset["relaxation"]["output_frequency"],
-            "relaxationOnly": False
+            "relaxationOnly": False,
+            "output": {
+                "formats": [
+                    {
+                        "type": "csv",
+                        "precision": 16
+                    },
+                    {
+                        "type": "hdf5",
+                        "compression": 6
+                    }
+                ],
+                "enableEnergyFile": True
+            }
         }
         
         output_file = sample_dir / "lane_emden.json"

@@ -8,6 +8,7 @@
 #include "units.hpp"
 #include "writers/csv_writer.hpp"
 #include "writers/hdf5_writer.hpp"
+#include "writers/vtk_writer.hpp"
 #include <string>
 #include <memory>
 #include <fstream>
@@ -22,7 +23,7 @@ struct CheckpointMetadata;
 /**
  * @brief Manages all output operations for SPH simulations
  * 
- * Coordinates multiple output formats (CSV, HDF5) and handles:
+ * Coordinates multiple output formats (CSV, HDF5, VTK) and handles:
  * - Snapshot output for visualization
  * - Checkpoint output for resume capability
  * - Energy logging
@@ -84,15 +85,20 @@ public:
                          int step);
     
     /**
-     * @brief Load simulation state from checkpoint file for resume
-     * @param filepath Path to checkpoint HDF5 file
-     * @param sim Simulation object to populate
+     * @brief Load checkpoint file for resume
+     * @param filepath Path to checkpoint file (.csv, .h5, or .vtk)
+     * @param sim Simulation instance to populate with loaded data
      * @param checkpoint_meta Checkpoint metadata to populate
-     * @return true if successful
+     * @param output_meta Output metadata including physics parameters (optional output)
+     * @return true if successful, false otherwise
+     * 
+     * This function loads particle data and metadata from a checkpoint file.
+     * When resuming, physics parameters from output_meta should override config values (SSOT).
      */
     bool load_for_resume(const std::string& filepath,
-                        std::shared_ptr<Simulation> sim,
-                        CheckpointMetadata& checkpoint_meta);
+                         std::shared_ptr<Simulation> sim,
+                         CheckpointMetadata& checkpoint_meta,
+                         OutputMetadata* output_meta = nullptr);
     
     /**
      * @brief Write energy values to energy.dat file
@@ -124,6 +130,7 @@ private:
     
     std::unique_ptr<CSVWriter> m_csv_writer;    ///< CSV writer
     std::unique_ptr<HDF5Writer> m_hdf5_writer;  ///< HDF5 writer
+    std::unique_ptr<VTKWriter> m_vtk_writer;    ///< VTK writer
     std::ofstream m_energy_file;                ///< Energy log file
     
     /**

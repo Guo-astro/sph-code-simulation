@@ -10,9 +10,12 @@
 #include "logger.hpp"
 #include "exception.hpp"
 #include "output_manager.hpp"
+#include "output_metadata.hpp"
 #include "simulation.hpp"
 #include "periodic.hpp"
 #include "bhtree.hpp"
+
+#include <nlohmann/json.hpp>
 
 // modules
 #include "timestep.hpp"
@@ -209,16 +212,25 @@ void Solver::read_parameterfile(const char * filename)
 
     m_output_dir = input.get<std::string>("outputDirectory");
 
+    // Check if we're in resume mode - if so, some parameters can have defaults
+    // since they'll be loaded from the checkpoint file
+    bool is_resume_mode = input.get<bool>("checkpoint.autoResume", false) || 
+                          !input.get<std::string>("checkpoint.resumeFile", "").empty();
+    
+    if (is_resume_mode) {
+        std::cout << "Resume mode detected - physics parameters will be loaded from checkpoint" << std::endl;
+    }
+
     // time
     m_param->time.start = input.get<real>("startTime", real(0));
-    m_param->time.end   = input.get<real>("endTime");
+    m_param->time.end   = input.get<real>("endTime", real(1.0));  // Default if resuming
     if(m_param->time.end < m_param->time.start) {
         THROW_ERROR("endTime < startTime");
     }
     m_param->time.output = input.get<real>("outputTime", (m_param->time.end - m_param->time.start) / 100);
     m_param->time.energy = input.get<real>("energyTime", m_param->time.output);
 
-    // type
+    // type - use defaults if resuming (will be overridden by checkpoint)
     std::string sph_type = input.get<std::string>("SPHType", "ssph");
     if(sph_type == "ssph") {
         m_param->type = SPHType::SSPH;
@@ -257,9 +269,9 @@ void Solver::read_parameterfile(const char * filename)
     m_param->tree.max_level = input.get<int>("maxTreeLevel", 20);
     m_param->tree.leaf_particle_num = input.get<int>("leafParticleNumber", 1);
 
-    // Physics
-    m_param->physics.neighbor_number = input.get<int>("neighborNumber", 32);
-    m_param->physics.gamma = input.get<real>("gamma");
+    // Physics - use defaults if resuming (will be overridden by checkpoint)
+    m_param->physics.neighbor_number = input.get<int>("neighborNumber", 50);
+    m_param->physics.gamma = input.get<real>("gamma", 1.6666666666666667);  // Default for resume
 
     // Kernel
     std::string kernel_name = input.get<std::string>("kernel", "cubic_spline");
@@ -381,18 +393,67 @@ void Solver::read_parameterfile(const char * filename)
     
     std::cout << "Unit system: " << m_units.get_type_name() << std::endl;
     
-    // Output configuration
-    OutputConfig output_config;
-    output_config.enable_csv = input.get<bool>("output.enableCSV", true);
-    output_config.enable_hdf5 = input.get<bool>("output.enableHDF5", false);
-    output_config.enable_energy_file = input.get<bool>("output.enableEnergyFile", true);
-    output_config.csv_precision = input.get<int>("output.csvPrecision", 16);
-    output_config.hdf5_compression = input.get<int>("output.hdf5Compression", 6);
+    // Output configuration - convert boost ptree to nlohmann::json for the output section
+    nlohmann::json output_json;
+    
+    // Try to read new array-of-objects format first
+    try {
+        nlohmann::json formats_array = nlohmann::json::array();
+        for (const auto& format : input.get_child("output.formats")) {
+            nlohmann::json format_obj;
+            
+            // If it's an object with properties
+            if (format.second.size() > 0) {
+                for (const auto& prop : format.second) {
+                    const std::string& key = prop.first;
+                    const auto& value = prop.second;
+                    
+                    // Try to determine type and convert appropriately
+                    if (key == "type") {
+                        format_obj[key] = value.get_value<std::string>();
+                    } else if (key == "precision" || key == "compression") {
+                        format_obj[key] = value.get_value<int>();
+                    } else if (key == "binary") {
+                        format_obj[key] = value.get_value<bool>();
+                    } else {
+                        // Default to string for unknown properties
+                        format_obj[key] = value.get_value<std::string>();
+                    }
+                }
+            } else {
+                // If it's just a string, wrap it as {"type": "string"}
+                format_obj["type"] = format.second.get_value<std::string>();
+            }
+            
+            formats_array.push_back(format_obj);
+        }
+        output_json["formats"] = formats_array;
+    } catch (const boost::property_tree::ptree_bad_path&) {
+        // Formats array not found, fall back to legacy boolean flags
+        output_json["enableCSV"] = input.get<bool>("output.enableCSV", true);
+        output_json["enableHDF5"] = input.get<bool>("output.enableHDF5", false);
+        output_json["enableVTK"] = input.get<bool>("output.enableVTK", false);
+        
+        // Legacy separate options
+        output_json["csvPrecision"] = input.get<int>("output.csvPrecision", 16);
+        output_json["hdf5Compression"] = input.get<int>("output.hdf5Compression", 6);
+        output_json["vtkBinary"] = input.get<bool>("output.vtkBinary", true);
+    }
+    
+    output_json["enableEnergyFile"] = input.get<bool>("output.enableEnergyFile", true);
+    
+    // Parse config using from_json
+    OutputConfig output_config = OutputConfig::from_json(output_json);
     output_config.output_unit_type = m_units.get_type();
     
+    // Display enabled formats
     std::cout << "Output configuration:" << std::endl;
-    std::cout << "  - CSV: " << (output_config.enable_csv ? "enabled" : "disabled") << std::endl;
-    std::cout << "  - HDF5: " << (output_config.enable_hdf5 ? "enabled" : "disabled") << std::endl;
+    std::cout << "  - Formats: ";
+    for (size_t i = 0; i < output_config.formats.size(); ++i) {
+        std::cout << output_config.formats[i];
+        if (i < output_config.formats.size() - 1) std::cout << ", ";
+    }
+    std::cout << std::endl;
     std::cout << "  - Energy file: " << (output_config.enable_energy_file ? "enabled" : "disabled") << std::endl;
     
     // Create OutputManager with checkpoint directory
@@ -499,13 +560,38 @@ void Solver::initialize()
     
     // Check if we should resume from checkpoint
     CheckpointMetadata resume_metadata;
+    OutputMetadata checkpoint_physics;  // Will contain physics parameters from checkpoint
     bool resumed = false;
     
     if(m_resume_from_checkpoint && !m_checkpoint_file.empty()) {
         std::cout << "\n=== Attempting to resume from checkpoint ===" << std::endl;
-        if(m_output_manager->load_for_resume(m_checkpoint_file, m_sim, resume_metadata)) {
+        if(m_output_manager->load_for_resume(m_checkpoint_file, m_sim, resume_metadata, &checkpoint_physics)) {
             resumed = true;
             std::cout << "=== Successfully resumed from checkpoint ===" << std::endl;
+            
+            // SSOT: Override physics parameters from checkpoint metadata
+            std::cout << "Applying physics parameters from checkpoint (SSOT):" << std::endl;
+            m_param->physics.gamma = checkpoint_physics.gamma;
+            std::cout << "  - gamma: " << m_param->physics.gamma << std::endl;
+            
+            m_param->gravity.constant = checkpoint_physics.gravitational_constant;
+            m_param->gravity.is_valid = checkpoint_physics.use_gravity;
+            std::cout << "  - G: " << m_param->gravity.constant << " (gravity " 
+                      << (m_param->gravity.is_valid ? "enabled" : "disabled") << ")" << std::endl;
+            
+            m_param->type = checkpoint_physics.sph_type;
+            std::cout << "  - SPH type: " << (int)m_param->type << std::endl;
+            
+            m_param->kernel = checkpoint_physics.kernel_type;
+            std::cout << "  - Kernel: " << (int)m_param->kernel << std::endl;
+            
+            m_param->physics.neighbor_number = checkpoint_physics.neighbor_number;
+            std::cout << "  - Neighbor number: " << m_param->physics.neighbor_number << std::endl;
+            
+            m_param->av.use_balsara_switch = checkpoint_physics.use_balsara;
+            m_param->av.use_time_dependent_av = checkpoint_physics.use_time_dependent_av;
+            std::cout << "  - Balsara switch: " << (m_param->av.use_balsara_switch ? "enabled" : "disabled") << std::endl;
+            std::cout << "  - Time-dependent AV: " << (m_param->av.use_time_dependent_av ? "enabled" : "disabled") << std::endl;
             
             // Restore Lane-Emden relaxation parameters if this is a relaxation checkpoint
             if(resume_metadata.is_relaxation && m_sample == Sample::LaneEmden) {

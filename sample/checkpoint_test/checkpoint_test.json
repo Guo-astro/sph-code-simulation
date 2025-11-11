@@ -1,0 +1,30 @@
+{
+  "outputDirectory": "sample/checkpoint_test/results",
+  "endTime": 2.0,
+  "outputTime": 0.5,
+  "checkpointTime": 0.6,
+  "avAlpha": 1.0,
+  "neighborNumber": 50,
+  "useBalsaraSwitch": true,
+  "useTimeDependentAV": true,
+  "useArtificialConductivity": false,
+  "leafParticleNumber": 32,
+  "gamma": 1.6666666666666667,
+  "kernel": "wendland",
+  "N": 15,
+  "periodic": false,
+  "useGravity": true,
+  "G": 1.0,
+  "SPHType": "ssph",
+  "iterativeSmoothingLength": false,
+  "useRelaxation": true,
+  "relaxationSteps": 1000,
+  "relaxationOutputFreq": 500,
+  "relaxationOnly": false,
+  "output": {
+    "formats": ["csv"],
+    "csv": {
+      "precision": 8
+    }
+  }
+}

@@ -185,14 +185,18 @@ OutputMetadata OutputMetadata::from_json(const nlohmann::json& j) {
 
 // OutputConfig implementation
 OutputConfig::OutputConfig()
-    : enable_csv(true)
-    , enable_hdf5(true)
+    : formats({"csv", "hdf5"})  // Default to CSV and HDF5
     , enable_energy_file(true)
     , csv_precision(16)
     , hdf5_compression(6)
     , hdf5_single_file_series(false)
+    , vtk_binary(true)
     , output_unit_type(UnitSystem::Type::CODE)
 {
+}
+
+bool OutputConfig::is_format_enabled(const std::string& format) const {
+    return std::find(formats.begin(), formats.end(), format) != formats.end();
 }
 
 OutputConfig OutputConfig::from_json(const nlohmann::json& j) {
@@ -201,47 +205,73 @@ OutputConfig OutputConfig::from_json(const nlohmann::json& j) {
     // Check for "output" section in JSON
     const nlohmann::json& output_section = j.contains("output") ? j["output"] : j;
     
-    // Formats
-    if (output_section.contains("formats")) {
-        const auto& formats = output_section["formats"];
-        config.enable_csv = false;
-        config.enable_hdf5 = false;
+    // New format: array of objects [{"type": "csv", "precision": 16}, ...]
+    if (output_section.contains("formats") && output_section["formats"].is_array() 
+        && !output_section["formats"].empty() && output_section["formats"][0].is_object()) {
         
-        for (const auto& fmt : formats) {
-            std::string format = fmt.get<std::string>();
-            if (format == "csv") config.enable_csv = true;
-            if (format == "hdf5") config.enable_hdf5 = true;
+        config.formats.clear();  // Clear defaults
+        
+        for (const auto& format_obj : output_section["formats"]) {
+            std::string type = format_obj.value("type", "");
+            if (type.empty()) continue;
+            
+            config.formats.push_back(type);
+            
+            // Parse format-specific options
+            if (type == "csv") {
+                config.csv_precision = format_obj.value("precision", config.csv_precision);
+            } else if (type == "hdf5") {
+                config.hdf5_compression = format_obj.value("compression", config.hdf5_compression);
+            } else if (type == "vtk") {
+                config.vtk_binary = format_obj.value("binary", config.vtk_binary);
+            }
         }
     }
-    
-    // CSV options
-    if (output_section.contains("csv")) {
-        const auto& csv = output_section["csv"];
-        config.enable_csv = csv.value("enabled", config.enable_csv);
-        config.csv_precision = csv.value("precision", config.csv_precision);
+    // Legacy format 1: simple string array ["csv", "hdf5"]
+    else if (output_section.contains("formats") && output_section["formats"].is_array()) {
+        config.formats.clear();
+        const auto& formats_array = output_section["formats"];
+        for (const auto& fmt : formats_array) {
+            config.formats.push_back(fmt.get<std::string>());
+        }
+        
+        // Read separate option fields
+        config.csv_precision = output_section.value("csvPrecision", config.csv_precision);
+        config.hdf5_compression = output_section.value("hdf5Compression", config.hdf5_compression);
+        config.vtk_binary = output_section.value("vtkBinary", config.vtk_binary);
     }
-    
-    // HDF5 options
-    if (output_section.contains("hdf5")) {
-        const auto& hdf5 = output_section["hdf5"];
-        config.enable_hdf5 = hdf5.value("enabled", config.enable_hdf5);
-        config.hdf5_compression = hdf5.value("compression", config.hdf5_compression);
-        config.hdf5_single_file_series = hdf5.value("single_file_time_series", config.hdf5_single_file_series);
+    // Legacy format 2: individual enable flags
+    else {
+        config.formats.clear();
+        if (output_section.value("enableCSV", true)) {
+            config.formats.push_back("csv");
+        }
+        if (output_section.value("enableHDF5", true)) {
+            config.formats.push_back("hdf5");
+        }
+        if (output_section.value("enableVTK", false)) {
+            config.formats.push_back("vtk");
+        }
+        
+        // Read separate option fields
+        config.csv_precision = output_section.value("csvPrecision", config.csv_precision);
+        config.hdf5_compression = output_section.value("hdf5Compression", config.hdf5_compression);
+        config.vtk_binary = output_section.value("vtkBinary", config.vtk_binary);
     }
     
     // Energy file
-    config.enable_energy_file = output_section.value("energy_file", config.enable_energy_file);
+    config.enable_energy_file = output_section.value("enableEnergyFile", config.enable_energy_file);
     
     // Unit system for output
     if (j.contains("units")) {
         const auto& units = j["units"];
-        std::string system = units.value("system", "code");
+        std::string system = units.value("type", "CODE");
         
-        if (system == "galactic") {
+        if (system == "GALACTIC" || system == "galactic") {
             config.output_unit_type = UnitSystem::Type::GALACTIC;
-        } else if (system == "si") {
+        } else if (system == "SI" || system == "si") {
             config.output_unit_type = UnitSystem::Type::SI;
-        } else if (system == "cgs") {
+        } else if (system == "CGS" || system == "cgs") {
             config.output_unit_type = UnitSystem::Type::CGS;
         } else {
             config.output_unit_type = UnitSystem::Type::CODE;
@@ -254,27 +284,36 @@ OutputConfig OutputConfig::from_json(const nlohmann::json& j) {
 nlohmann::json OutputConfig::to_json() const {
     nlohmann::json j;
     
-    // Formats
-    nlohmann::json formats = nlohmann::json::array();
-    if (enable_csv) formats.push_back("csv");
-    if (enable_hdf5) formats.push_back("hdf5");
-    j["formats"] = formats;
-    
-    // CSV options
-    nlohmann::json csv;
-    csv["enabled"] = enable_csv;
-    csv["precision"] = csv_precision;
-    j["csv"] = csv;
-    
-    // HDF5 options
-    nlohmann::json hdf5;
-    hdf5["enabled"] = enable_hdf5;
-    hdf5["compression"] = hdf5_compression;
-    hdf5["single_file_time_series"] = hdf5_single_file_series;
-    j["hdf5"] = hdf5;
+    // Output formats array with embedded configuration
+    nlohmann::json formats_array = nlohmann::json::array();
+    for (const auto& fmt : formats) {
+        nlohmann::json format_obj;
+        format_obj["type"] = fmt;
+        
+        if (fmt == "csv") {
+            format_obj["precision"] = csv_precision;
+        } else if (fmt == "hdf5") {
+            format_obj["compression"] = hdf5_compression;
+        } else if (fmt == "vtk") {
+            format_obj["binary"] = vtk_binary;
+        }
+        
+        formats_array.push_back(format_obj);
+    }
+    j["formats"] = formats_array;
     
     // Energy file
-    j["energy_file"] = enable_energy_file;
+    j["enableEnergyFile"] = enable_energy_file;
+    
+    // Unit system
+    std::string unit_type_str;
+    switch (output_unit_type) {
+        case UnitSystem::Type::CODE: unit_type_str = "CODE"; break;
+        case UnitSystem::Type::GALACTIC: unit_type_str = "GALACTIC"; break;
+        case UnitSystem::Type::SI: unit_type_str = "SI"; break;
+        case UnitSystem::Type::CGS: unit_type_str = "CGS"; break;
+    }
+    j["outputUnitSystem"] = unit_type_str;
     
     return j;
 }
