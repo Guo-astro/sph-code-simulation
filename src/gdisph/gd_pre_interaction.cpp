@@ -147,10 +147,11 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
             }
         }
 
-        // Artificial viscosity (from DISPH)
+        // Artificial viscosity - GDISPH Balsara switch (equations 100-101 from paper)
         if(m_use_balsara_switch && DIM != 1) {
 #if DIM != 1
-            // balsara switch
+            // GDISPH Balsara switch: uses density-based formulation (not mass*energy like DISPH)
+            // Equations 100-101: div_v and rot_v calculated with mass/density weighting
             real div_v = 0.0;
 #if DIM == 2
             real rot_v = 0.0;
@@ -164,12 +165,13 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
                 const real r = std::abs(r_ij);
                 const vec_t dw = kernel->dw(r_ij, r, p_i.sml);
                 const vec_t v_ij = p_i.vel - p_j.vel;
-                div_v -= p_j.mass * p_j.ene * inner_product(v_ij, dw);
-                rot_v += vector_product(v_ij, dw) * (p_j.mass * p_j.ene);
+                // GDISPH: use mass (not mass*energy) - paper eq 100
+                div_v -= p_j.mass * inner_product(v_ij, dw);
+                rot_v += vector_product(v_ij, dw) * p_j.mass;
             }
-            const real p_inv = (m_gamma - 1.0) / p_i.pres;
-            div_v *= p_inv;
-            rot_v *= p_inv;
+            // Normalize by density (paper eq 100-101)
+            div_v /= p_i.dens;
+            rot_v /= p_i.dens;
             p_i.balsara = std::abs(div_v) / (std::abs(div_v) + std::abs(rot_v) + 1e-4 * p_i.sound / p_i.sml);
 
             // time dependent alpha

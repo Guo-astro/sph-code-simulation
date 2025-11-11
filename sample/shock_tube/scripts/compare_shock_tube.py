@@ -2,13 +2,13 @@
 """
 Compare 1D Shock Tube Results from Multiple SPH Methods
 
-Creates side-by-side comparison plots showing GSPH, SSPH, DISPH, and GDISPH results.
+Creates side-by-side comparison plots showing GSPH, SSPH, DISPH, GDISPH, and GDISPH+Balsara results.
 
 Usage:
     python3 compare_shock_tube.py [base_dir] [output_dir]
     
 Arguments:
-    base_dir    - Base directory containing gsph/, ssph/, disph/, gdisph/ subdirs
+    base_dir    - Base directory containing gsph/, ssph/, disph/, gdisph/, gdisph_balsara/ subdirs
                   Default: sample/shock_tube/results
     output_dir  - Where to save comparison plots
                   Default: sample/shock_tube/results/comparison
@@ -26,16 +26,17 @@ base_dir = sys.argv[1] if len(sys.argv) > 1 else "sample/shock_tube/results"
 output_dir = sys.argv[2] if len(sys.argv) > 2 else "sample/shock_tube/results/comparison"
 
 # SPH methods to compare
-methods = ['gsph', 'ssph', 'disph', 'gdisph']
-method_labels = ['GSPH (Godunov)', 'SSPH (Standard)', 'DISPH (Density-Independent)', 'GDISPH (Godunov DISPH)']
+methods = ['gsph', 'ssph', 'disph', 'gdisph', 'gdisph_balsara']
+method_labels = ['GSPH (Godunov)', 'SSPH (Standard)', 'DISPH (Density-Independent)', 
+                 'GDISPH (Godunov DISPH)', 'GDISPH+Balsara']
 # Colorblind-friendly palette with high contrast
-method_colors = ['#0173B2', '#DE8F05', '#029E73', '#CC78BC']  # Blue, orange, teal, purple
-method_styles = ['-', '--', '-.', ':']  # Solid, dashed, dash-dot, dotted
-method_markers = ['o', 's', '^', 'D']  # Circle, square, triangle, diamond
+method_colors = ['#0173B2', '#DE8F05', '#029E73', '#CC78BC', '#D55E00']  # Blue, orange, teal, purple, red-orange
+method_styles = ['-', '--', '-.', ':', '-']  # Solid, dashed, dash-dot, dotted, solid
+method_markers = ['o', 's', '^', 'D', 'v']  # Circle, square, triangle-up, diamond, triangle-down
 method_markevery = 5  # Show marker every N points
 
 print('=' * 70)
-print('Shock Tube Multi-Method Comparison')
+print('Shock Tube Multi-Method Comparison (5 Methods)')
 print('=' * 70)
 print(f'Base directory:   {base_dir}')
 print(f'Output directory: {output_dir}')
