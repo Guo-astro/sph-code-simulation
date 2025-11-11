@@ -1,10 +1,17 @@
 # Shock Tube Makefile Targets - Single Source of Truth System
 #
-# Usage:
-#   make shock_tube_run                                # Run Sod shock tube test
+# Single Method Usage:
+#   make shock_tube_run                                # Run Sod shock tube test (SSPH)
 #   make shock_tube_resume                             # Resume from latest snapshot
 #   make shock_tube_resume CHECKPOINT=snapshot_0005.csv # Resume from specific snapshot
 #   make shock_tube_clean                              # Clean results
+#
+# Multi-Method Comparison:
+#   make shock_tube_compare_run                        # Run GSPH, SSPH, DISPH simulations
+#   make shock_tube_compare_viz                        # Generate comparison plots
+#   make shock_tube_compare_animate                    # Generate comparison animation
+#   make shock_tube_compare_all                        # Run all methods + visualizations
+#   make shock_tube_compare_clean                      # Clean comparison results
 
 # Default preset (only for shock_tube targets)
 ifeq ($(filter lane_emden%,$(MAKECMDGOALS)),)
@@ -16,7 +23,9 @@ SHOCK_TUBE_DIR = sample/shock_tube
 PRESET_DIR = $(SHOCK_TUBE_DIR)/config/presets
 RESULTS_DIR = $(SHOCK_TUBE_DIR)/results
 
-.PHONY: shock_tube_run shock_tube_resume shock_tube_clean shock_tube_help shock_tube_animate
+.PHONY: shock_tube_run shock_tube_resume shock_tube_clean shock_tube_help shock_tube_animate \
+        shock_tube_compare_run shock_tube_compare_viz shock_tube_compare_animate \
+        shock_tube_compare_all shock_tube_compare_clean
 
 # Run shock tube simulation
 shock_tube_run: build/sph
@@ -131,14 +140,130 @@ shock_tube_help:
 	@echo "Shock Tube Makefile Targets"
 	@echo "============================"
 	@echo ""
-	@echo "Available targets:"
-	@echo "  shock_tube_run     - Run Sod shock tube test"
+	@echo "Single Method Targets:"
+	@echo "  shock_tube_run     - Run Sod shock tube test (SSPH)"
 	@echo "  shock_tube_resume  - Resume from latest snapshot"
 	@echo "  shock_tube_animate - Generate plots and animation"
 	@echo "  shock_tube_clean   - Clean results"
 	@echo ""
+	@echo "Multi-Method Comparison Targets:"
+	@echo "  shock_tube_compare_run     - Run all SPH methods (GSPH, SSPH, DISPH)"
+	@echo "  shock_tube_compare_viz     - Generate comparison plots"
+	@echo "  shock_tube_compare_animate - Generate comparison animation"
+	@echo "  shock_tube_compare_all     - Run all + generate visualizations"
+	@echo "  shock_tube_compare_clean   - Clean all comparison results"
+	@echo ""
 	@echo "Examples:"
 	@echo "  make shock_tube_run"
-	@echo "  make shock_tube_resume"
-	@echo "  make shock_tube_animate"
+	@echo "  make shock_tube_compare_all"
 	@echo "  make shock_tube_resume CHECKPOINT=sample/shock_tube/results/snapshot_0005.csv"
+
+# ============================================================================
+# Multi-Method Comparison Targets
+# ============================================================================
+
+# Run all three SPH methods (GSPH, SSPH, DISPH)
+shock_tube_compare_run: build/sph
+	@echo "=========================================="
+	@echo "Shock Tube Multi-Method Comparison"
+	@echo "Running: GSPH, SSPH, DISPH"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^#define DIM 1" include/defines.hpp; then \
+		echo "✓ DIM=1 build detected"; \
+	else \
+		echo "❌ ERROR: Shock tube requires DIM=1 build"; \
+		echo "See sample/shock_tube/README.md for details."; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "[1/3] Running GSPH simulation..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/shock_tube_1d_gsph.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(RESULTS_DIR)/gsph
+	@./build/sph shock_tube
+	@echo "✓ GSPH complete"
+	@echo ""
+	@echo "[2/3] Running SSPH simulation..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/shock_tube_1d_ssph.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(RESULTS_DIR)/ssph
+	@./build/sph shock_tube
+	@echo "✓ SSPH complete"
+	@echo ""
+	@echo "[3/3] Running DISPH simulation..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/shock_tube_1d_disph.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(RESULTS_DIR)/disph
+	@./build/sph shock_tube
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All simulations complete!"
+	@echo "=========================================="
+	@echo "Results directories:"
+	@echo "  📁 $(RESULTS_DIR)/gsph/"
+	@echo "  📁 $(RESULTS_DIR)/ssph/"
+	@echo "  📁 $(RESULTS_DIR)/disph/"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  make shock_tube_compare_viz     - Generate comparison plots"
+	@echo "  make shock_tube_compare_animate - Generate animation"
+
+# Generate comparison plots
+shock_tube_compare_viz:
+	@echo "=========================================="
+	@echo "Generating Comparison Plots"
+	@echo "=========================================="
+	@if [ ! -d "$(RESULTS_DIR)/gsph" ] || [ ! -d "$(RESULTS_DIR)/ssph" ] || [ ! -d "$(RESULTS_DIR)/disph" ]; then \
+		echo "ERROR: Missing results directories"; \
+		echo "Run 'make shock_tube_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(RESULTS_DIR)/comparison
+	@python3 $(SHOCK_TUBE_DIR)/scripts/compare_shock_tube.py $(RESULTS_DIR) $(RESULTS_DIR)/comparison
+	@echo ""
+	@echo "✓ Comparison plots generated!"
+	@echo "📊 Output: $(RESULTS_DIR)/comparison/"
+	@ls -lh $(RESULTS_DIR)/comparison/*.png 2>/dev/null || true
+
+# Generate comparison animation
+shock_tube_compare_animate:
+	@echo "=========================================="
+	@echo "Generating Comparison Animation"
+	@echo "=========================================="
+	@if [ ! -d "$(RESULTS_DIR)/gsph" ] || [ ! -d "$(RESULTS_DIR)/ssph" ] || [ ! -d "$(RESULTS_DIR)/disph" ]; then \
+		echo "ERROR: Missing results directories"; \
+		echo "Run 'make shock_tube_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(RESULTS_DIR)/comparison
+	@python3 $(SHOCK_TUBE_DIR)/scripts/animate_comparison.py $(RESULTS_DIR) $(RESULTS_DIR)/comparison/comparison_animation.gif
+	@echo ""
+	@echo "✓ Animation complete!"
+	@echo "🎬 Output: $(RESULTS_DIR)/comparison/comparison_animation.gif"
+	@ls -lh $(RESULTS_DIR)/comparison/*.gif 2>/dev/null || true
+
+# Run all methods and generate all visualizations
+shock_tube_compare_all: shock_tube_compare_run shock_tube_compare_viz shock_tube_compare_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Full Comparison Study Complete!"
+	@echo "=========================================="
+	@echo "📁 All outputs saved to: $(RESULTS_DIR)/"
+	@echo ""
+	@echo "Generated files:"
+	@echo "  Data:"
+	@echo "    $(RESULTS_DIR)/gsph/snapshot_*.csv"
+	@echo "    $(RESULTS_DIR)/ssph/snapshot_*.csv"
+	@echo "    $(RESULTS_DIR)/disph/snapshot_*.csv"
+	@echo "  Comparison Plots:"
+	@ls $(RESULTS_DIR)/comparison/*.png 2>/dev/null | sed 's/^/    /' || true
+	@echo "  Comparison Animation:"
+	@ls $(RESULTS_DIR)/comparison/*.gif 2>/dev/null | sed 's/^/    /' || true
+
+# Clean all comparison results
+shock_tube_compare_clean:
+	@echo "Cleaning all comparison results..."
+	@rm -rf $(RESULTS_DIR)/gsph $(RESULTS_DIR)/ssph $(RESULTS_DIR)/disph $(RESULTS_DIR)/comparison
+	@echo "✓ Comparison results cleaned"

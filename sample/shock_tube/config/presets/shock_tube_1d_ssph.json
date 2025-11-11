@@ -1,5 +1,5 @@
 {
-  "outputDirectory": "sample/shock_tube/results/disph",
+  "outputDirectory": "sample/shock_tube/results/ssph",
   "startTime": 0.0,
   "endTime": 0.2,
   "outputTime": 0.01,
@@ -25,5 +25,5 @@
   "periodic": true,
   "rangeMax": [1.5],
   "rangeMin": [-0.5],
-  "SPHType": "disph"
+  "SPHType": "ssph"
 }
