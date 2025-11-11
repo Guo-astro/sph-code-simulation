@@ -1,0 +1,16 @@
+{
+    "outputDirectory" : "sample/hydrostatic/results/gdisph_wendland",
+    "endTime" : 8.0,
+    "outputTime" : 0.2,
+    "avAlpha" : 1.0,
+    "neighborNumber" : 32,
+    "useBalsaraSwitch" : false,
+    "leafParticleNumber" : 16,
+    "gamma" : 1.66666666666666666666666666666666667,
+    "kernel" : "wendland",
+    "N" : 64,
+    "periodic" : true,
+    "rangeMax" : [0.5, 0.5],
+    "rangeMin" : [-0.5,-0.5],
+    "SPHType" : "gdisph"
+}

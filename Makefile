@@ -20,6 +20,8 @@ all:
 	@echo "  make lane_emden_help          # Lane-Emden polytrope targets"
 	@echo "  make shock_tube_help          # Shock tube test targets"
 	@echo "  make pairing_help             # Pairing instability targets"
+	@echo "  make hydrostatic_help         # Hydrostatic test targets"
+	@echo "  make khi_help                 # Kelvin-Helmholtz instability targets"
 	@echo ""
 	@false
 
@@ -33,3 +35,9 @@ help: all
 
 # Pairing Instability preset-based system
 -include sample/pairing_instability/Makefile.pairing_instability
+
+# Hydrostatic Test preset-based system
+-include sample/hydrostatic/Makefile.hydrostatic
+
+# Kelvin-Helmholtz Instability preset-based system
+-include sample/khi/Makefile.khi

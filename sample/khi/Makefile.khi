@@ -1,0 +1,316 @@
+# KHI (Kelvin-Helmholtz Instability) Makefile Targets - Multi-Method Comparison System
+#
+# Single Method Usage:
+#   make khi_run                                   # Run KHI test (SSPH)
+#   make khi_clean                                 # Clean results
+#
+# Multi-Method Comparison:
+#   make khi_compare_run                           # Run all 5 SPH methods (Cubic Spline)
+#   make khi_compare_viz                           # Generate comparison plots
+#   make khi_compare_animate                       # Generate comparison animation
+#   make khi_compare_all                           # Run all methods + visualizations
+#   make khi_compare_clean                         # Clean comparison results
+#
+# Kernel Comparison:
+#   make khi_kernel_run                            # Run all 5 methods with both kernels (10 runs)
+#   make khi_kernel_viz                            # Generate kernel comparison plots
+#   make khi_kernel_animate                        # Generate kernel comparison animation
+#   make khi_kernel_all                            # Run all + visualizations
+#   make khi_kernel_clean                          # Clean kernel comparison results
+
+# Default preset
+KHI_PRESET ?= khi_ssph
+
+# Paths
+KHI_DIR = sample/khi
+PRESET_DIR = $(KHI_DIR)/config/presets
+RESULTS_DIR = $(KHI_DIR)/results
+
+.PHONY: khi_run khi_clean khi_help \
+        khi_compare_run khi_compare_viz khi_compare_animate \
+        khi_compare_all khi_compare_clean \
+        khi_kernel_run khi_kernel_viz khi_kernel_animate \
+        khi_kernel_all khi_kernel_clean
+
+# Run KHI test
+khi_run: build/sph
+	@echo "=========================================="
+	@echo "KHI Test: $(KHI_PRESET)"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^#define DIM 2" include/defines.hpp; then \
+		echo "✓ DIM=2 build detected"; \
+	else \
+		echo "❌ ERROR: KHI test requires DIM=2 build"; \
+		echo ""; \
+		echo "Current build is configured for DIM=$$(grep '^#define DIM' include/defines.hpp | awk '{print $$3}')."; \
+		echo "KHI is a 2D test case and requires DIM=2."; \
+		echo ""; \
+		echo "To rebuild for 2D:"; \
+		echo "  sed -i '' 's/#define DIM [0-9]/#define DIM 2/' include/defines.hpp"; \
+		echo "  cd build && make -j8 && cd .."; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "Applying preset configuration..."
+	@cp $(PRESET_DIR)/$(KHI_PRESET).json $(KHI_DIR)/khi.json
+	@echo "Output directory:"
+	@grep -o '"outputDirectory"[[:space:]]*:[[:space:]]*"[^"]*"' $(KHI_DIR)/khi.json | sed 's/.*: *"\(.*\)"/  📁 \1/'
+	@echo "Creating results directory..."
+	@mkdir -p $(RESULTS_DIR)
+	@echo "Running simulation..."
+	./build/sph khi
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results saved to: $(RESULTS_DIR)"
+
+# Clean results
+khi_clean:
+	@echo "Cleaning KHI test results..."
+	@rm -rf $(RESULTS_DIR)
+	@echo "✓ Results cleaned"
+
+# Help
+khi_help:
+	@echo "KHI Test Makefile Targets"
+	@echo "========================="
+	@echo ""
+	@echo "Single Method Targets:"
+	@echo "  khi_run     - Run KHI test (SSPH)"
+	@echo "  khi_clean   - Clean results"
+	@echo ""
+	@echo "Multi-Method Comparison Targets:"
+	@echo "  khi_compare_run     - Run all 5 SPH methods (GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara)"
+	@echo "  khi_compare_viz     - Generate comparison plots"
+	@echo "  khi_compare_animate - Generate comparison animation"
+	@echo "  khi_compare_all     - Run all + generate visualizations"
+	@echo "  khi_compare_clean   - Clean all comparison results"
+	@echo ""
+	@echo "Kernel Comparison Targets:"
+	@echo "  khi_kernel_run      - Run all 5 methods with both kernels"
+	@echo "  khi_kernel_viz      - Generate kernel comparison plots"
+	@echo "  khi_kernel_animate  - Generate kernel comparison animation"
+	@echo "  khi_kernel_all      - Run all + visualizations"
+	@echo "  khi_kernel_clean    - Clean kernel comparison results"
+
+# ============================================================================
+# Multi-Method Comparison Targets
+# ============================================================================
+
+# Run all five SPH methods (GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara)
+khi_compare_run: build/sph
+	@echo "=========================================="
+	@echo "KHI Multi-Method Comparison"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^#define DIM 2" include/defines.hpp; then \
+		echo "✓ DIM=2 build detected"; \
+	else \
+		echo "❌ ERROR: KHI test requires DIM=2 build"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "[1/5] Running GSPH simulation..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/khi_gsph.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/gsph
+	@./build/sph khi
+	@echo "✓ GSPH complete"
+	@echo ""
+	@echo "[2/5] Running SSPH simulation..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/khi_ssph.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/ssph
+	@./build/sph khi
+	@echo "✓ SSPH complete"
+	@echo ""
+	@echo "[3/5] Running DISPH simulation..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/khi_disph.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/disph
+	@./build/sph khi
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "[4/5] Running GDISPH simulation..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/khi_gdisph.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/gdisph
+	@./build/sph khi
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "[5/5] Running GDISPH+Balsara simulation..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/khi_gdisph_balsara.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/gdisph_balsara
+	@./build/sph khi
+	@echo "✓ GDISPH+Balsara complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All simulations complete!"
+	@echo "=========================================="
+
+# Generate comparison plots
+khi_compare_viz:
+	@echo "=========================================="
+	@echo "Generating Comparison Plots"
+	@echo "=========================================="
+	@if [ ! -d "$(RESULTS_DIR)/gsph" ]; then \
+		echo "ERROR: Missing results directories"; \
+		echo "Run 'make khi_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(RESULTS_DIR)/comparison
+	@python3 $(KHI_DIR)/scripts/compare_khi.py $(RESULTS_DIR) $(RESULTS_DIR)/comparison
+	@echo ""
+	@echo "✓ Comparison plots generated!"
+	@echo "📊 Output: $(RESULTS_DIR)/comparison/"
+
+# Generate comparison animation
+khi_compare_animate:
+	@echo "=========================================="
+	@echo "Generating Comparison Animation"
+	@echo "=========================================="
+	@if [ ! -d "$(RESULTS_DIR)/gsph" ]; then \
+		echo "ERROR: Missing results directories"; \
+		echo "Run 'make khi_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(RESULTS_DIR)/comparison
+	@python3 $(KHI_DIR)/scripts/animate_khi.py $(RESULTS_DIR) $(RESULTS_DIR)/comparison/comparison_animation.gif
+	@echo ""
+	@echo "✓ Animation complete!"
+	@echo "🎬 Output: $(RESULTS_DIR)/comparison/comparison_animation.gif"
+
+# Run all comparisons and generate all visualizations
+khi_compare_all: khi_compare_run khi_compare_viz khi_compare_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Comparison Workflow Done!"
+	@echo "=========================================="
+
+# Clean all comparison results
+khi_compare_clean:
+	@echo "Cleaning all KHI comparison results..."
+	@rm -rf $(RESULTS_DIR)/gsph $(RESULTS_DIR)/ssph $(RESULTS_DIR)/disph $(RESULTS_DIR)/gdisph $(RESULTS_DIR)/gdisph_balsara $(RESULTS_DIR)/comparison
+	@echo "✓ All comparison results cleaned"
+
+# ============================================================================
+# Kernel Comparison Targets (Wendland vs Cubic Spline)
+# ============================================================================
+
+# Run all five SPH methods with both Wendland and Cubic Spline kernels (10 total runs)
+khi_kernel_run: build/sph
+	@echo "=========================================="
+	@echo "Kernel Comparison: Wendland vs Cubic Spline"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "Kernels: Cubic Spline, Wendland"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^#define DIM 2" include/defines.hpp; then \
+		echo "✓ DIM=2 build detected"; \
+	else \
+		echo "❌ ERROR: KHI test requires DIM=2 build"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "=== CUBIC SPLINE KERNEL RUNS ===" 
+	@echo "[1/10] Running GSPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/khi_gsph.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/gsph
+	@./build/sph khi
+	@echo "✓ GSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[2/10] Running SSPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/khi_ssph.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/ssph
+	@./build/sph khi
+	@echo "✓ SSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[3/10] Running DISPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/khi_disph.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/disph
+	@./build/sph khi
+	@echo "✓ DISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[4/10] Running GDISPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/khi_gdisph.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/gdisph
+	@./build/sph khi
+	@echo "✓ GDISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[5/10] Running GDISPH+Balsara (Cubic Spline)..."
+	@cp $(PRESET_DIR)/khi_gdisph_balsara.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/gdisph_balsara
+	@./build/sph khi
+	@echo "✓ GDISPH+Balsara (Cubic Spline) complete"
+	@echo ""
+	@echo "=== WENDLAND KERNEL RUNS ==="
+	@echo "[6/10] Running GSPH (Wendland)..."
+	@cp $(PRESET_DIR)/khi_gsph_wendland.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/gsph_wendland
+	@./build/sph khi
+	@echo "✓ GSPH (Wendland) complete"
+	@echo ""
+	@echo "[7/10] Running SSPH (Wendland)..."
+	@cp $(PRESET_DIR)/khi_ssph_wendland.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/ssph_wendland
+	@./build/sph khi
+	@echo "✓ SSPH (Wendland) complete"
+	@echo ""
+	@echo "[8/10] Running DISPH (Wendland)..."
+	@cp $(PRESET_DIR)/khi_disph_wendland.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/disph_wendland
+	@./build/sph khi
+	@echo "✓ DISPH (Wendland) complete"
+	@echo ""
+	@echo "[9/10] Running GDISPH (Wendland)..."
+	@cp $(PRESET_DIR)/khi_gdisph_wendland.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/gdisph_wendland
+	@./build/sph khi
+	@echo "✓ GDISPH (Wendland) complete"
+	@echo ""
+	@echo "[10/10] Running GDISPH+Balsara (Wendland)..."
+	@cp $(PRESET_DIR)/khi_gdisph_balsara_wendland.json $(KHI_DIR)/khi.json
+	@mkdir -p $(RESULTS_DIR)/gdisph_balsara_wendland
+	@./build/sph khi
+	@echo "✓ GDISPH+Balsara (Wendland) complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All kernel comparison simulations complete!"
+	@echo "=========================================="
+
+# Generate kernel comparison plots
+khi_kernel_viz:
+	@echo "=========================================="
+	@echo "Generating Kernel Comparison Plots"
+	@echo "=========================================="
+	@mkdir -p $(RESULTS_DIR)/kernel_comparison
+	@python3 $(KHI_DIR)/scripts/compare_kernels.py $(RESULTS_DIR) $(RESULTS_DIR)/kernel_comparison
+	@echo ""
+	@echo "✓ Kernel comparison plots generated!"
+	@echo "📊 Output: $(RESULTS_DIR)/kernel_comparison/"
+
+# Generate kernel comparison animation
+khi_kernel_animate:
+	@echo "=========================================="
+	@echo "Generating Kernel Comparison Animation"
+	@echo "=========================================="
+	@mkdir -p $(RESULTS_DIR)/kernel_comparison
+	@python3 $(KHI_DIR)/scripts/animate_kernel_comparison.py $(RESULTS_DIR) $(RESULTS_DIR)/kernel_comparison/kernel_comparison.gif
+	@echo ""
+	@echo "✓ Animation complete!"
+	@echo "🎬 Output: $(RESULTS_DIR)/kernel_comparison/kernel_comparison.gif"
+
+# Run all kernel comparisons and generate all visualizations
+khi_kernel_all: khi_kernel_run khi_kernel_viz khi_kernel_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Kernel Comparison Done!"
+	@echo "=========================================="
+
+# Clean kernel comparison results
+khi_kernel_clean:
+	@echo "Cleaning kernel comparison results..."
+	@rm -rf $(RESULTS_DIR)/*_wendland $(RESULTS_DIR)/kernel_comparison
+	@echo "✓ Kernel comparison results cleaned"
