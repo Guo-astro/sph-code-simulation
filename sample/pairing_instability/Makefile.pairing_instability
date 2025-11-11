@@ -5,11 +5,18 @@
 #   make pairing_clean                             # Clean results
 #
 # Multi-Method Comparison:
-#   make pairing_compare_run                       # Run all 5 SPH methods
+#   make pairing_compare_run                       # Run all 5 SPH methods (Cubic Spline)
 #   make pairing_compare_viz                       # Generate comparison plots
 #   make pairing_compare_animate                   # Generate comparison animation
 #   make pairing_compare_all                       # Run all methods + visualizations
 #   make pairing_compare_clean                     # Clean comparison results
+#
+# Kernel Comparison:
+#   make pairing_kernel_run                        # Run all 5 methods with both kernels (10 runs)
+#   make pairing_kernel_viz                        # Generate kernel comparison plots
+#   make pairing_kernel_animate                    # Generate kernel comparison animation
+#   make pairing_kernel_all                        # Run all + visualizations
+#   make pairing_kernel_clean                      # Clean kernel comparison results
 
 # Default preset
 PAIRING_PRESET ?= pairing_instability_ssph
@@ -21,7 +28,9 @@ RESULTS_DIR = $(PAIRING_DIR)/results
 
 .PHONY: pairing_run pairing_clean pairing_help \
         pairing_compare_run pairing_compare_viz pairing_compare_animate \
-        pairing_compare_all pairing_compare_clean
+        pairing_compare_all pairing_compare_clean \
+        pairing_kernel_run pairing_kernel_viz pairing_kernel_animate \
+        pairing_kernel_all pairing_kernel_clean
 
 # Run pairing instability simulation
 pairing_run: build/sph
@@ -196,3 +205,139 @@ pairing_compare_clean:
 	@echo "Cleaning all pairing instability comparison results..."
 	@rm -rf $(RESULTS_DIR)/gsph $(RESULTS_DIR)/ssph $(RESULTS_DIR)/disph $(RESULTS_DIR)/gdisph $(RESULTS_DIR)/gdisph_balsara $(RESULTS_DIR)/comparison
 	@echo "✓ All comparison results cleaned"
+
+# ============================================================================
+# Kernel Comparison Targets (Wendland vs Cubic Spline)
+# ============================================================================
+
+# Run all five SPH methods with both Wendland and Cubic Spline kernels (10 total runs)
+pairing_kernel_run: build/sph
+	@echo "=========================================="
+	@echo "Kernel Comparison: Wendland vs Cubic Spline"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "Kernels: Cubic Spline, Wendland"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^#define DIM 2" include/defines.hpp; then \
+		echo "✓ DIM=2 build detected"; \
+	else \
+		echo "❌ ERROR: Pairing instability requires DIM=2 build"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "=== CUBIC SPLINE KERNEL RUNS ===" 
+	@echo "[1/10] Running GSPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/pairing_instability_gsph.json $(PAIRING_DIR)/pairing_instability.json
+	@mkdir -p $(RESULTS_DIR)/gsph
+	@./build/sph pairing_instability
+	@echo "✓ GSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[2/10] Running SSPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/pairing_instability_ssph.json $(PAIRING_DIR)/pairing_instability.json
+	@mkdir -p $(RESULTS_DIR)/ssph
+	@./build/sph pairing_instability
+	@echo "✓ SSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[3/10] Running DISPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/pairing_instability_disph.json $(PAIRING_DIR)/pairing_instability.json
+	@mkdir -p $(RESULTS_DIR)/disph
+	@./build/sph pairing_instability
+	@echo "✓ DISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[4/10] Running GDISPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/pairing_instability_gdisph.json $(PAIRING_DIR)/pairing_instability.json
+	@mkdir -p $(RESULTS_DIR)/gdisph
+	@./build/sph pairing_instability
+	@echo "✓ GDISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[5/10] Running GDISPH+Balsara (Cubic Spline)..."
+	@cp $(PRESET_DIR)/pairing_instability_gdisph_balsara.json $(PAIRING_DIR)/pairing_instability.json
+	@mkdir -p $(RESULTS_DIR)/gdisph_balsara
+	@./build/sph pairing_instability
+	@echo "✓ GDISPH+Balsara (Cubic Spline) complete"
+	@echo ""
+	@echo "=== WENDLAND KERNEL RUNS ==="
+	@echo "[6/10] Running GSPH (Wendland)..."
+	@cp $(PRESET_DIR)/pairing_instability_gsph_wendland.json $(PAIRING_DIR)/pairing_instability.json
+	@mkdir -p $(RESULTS_DIR)/gsph_wendland
+	@./build/sph pairing_instability
+	@echo "✓ GSPH (Wendland) complete"
+	@echo ""
+	@echo "[7/10] Running SSPH (Wendland)..."
+	@cp $(PRESET_DIR)/pairing_instability_ssph_wendland.json $(PAIRING_DIR)/pairing_instability.json
+	@mkdir -p $(RESULTS_DIR)/ssph_wendland
+	@./build/sph pairing_instability
+	@echo "✓ SSPH (Wendland) complete"
+	@echo ""
+	@echo "[8/10] Running DISPH (Wendland)..."
+	@cp $(PRESET_DIR)/pairing_instability_disph_wendland.json $(PAIRING_DIR)/pairing_instability.json
+	@mkdir -p $(RESULTS_DIR)/disph_wendland
+	@./build/sph pairing_instability
+	@echo "✓ DISPH (Wendland) complete"
+	@echo ""
+	@echo "[9/10] Running GDISPH (Wendland)..."
+	@cp $(PRESET_DIR)/pairing_instability_gdisph_wendland.json $(PAIRING_DIR)/pairing_instability.json
+	@mkdir -p $(RESULTS_DIR)/gdisph_wendland
+	@./build/sph pairing_instability
+	@echo "✓ GDISPH (Wendland) complete"
+	@echo ""
+	@echo "[10/10] Running GDISPH+Balsara (Wendland)..."
+	@cp $(PRESET_DIR)/pairing_instability_gdisph_balsara_wendland.json $(PAIRING_DIR)/pairing_instability.json
+	@mkdir -p $(RESULTS_DIR)/gdisph_balsara_wendland
+	@./build/sph pairing_instability
+	@echo "✓ GDISPH+Balsara (Wendland) complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All kernel comparison simulations complete!"
+	@echo "=========================================="
+	@echo "Cubic Spline results:"
+	@echo "  📁 $(RESULTS_DIR)/gsph/"
+	@echo "  📁 $(RESULTS_DIR)/ssph/"
+	@echo "  📁 $(RESULTS_DIR)/disph/"
+	@echo "  📁 $(RESULTS_DIR)/gdisph/"
+	@echo "  📁 $(RESULTS_DIR)/gdisph_balsara/"
+	@echo ""
+	@echo "Wendland results:"
+	@echo "  📁 $(RESULTS_DIR)/gsph_wendland/"
+	@echo "  📁 $(RESULTS_DIR)/ssph_wendland/"
+	@echo "  📁 $(RESULTS_DIR)/disph_wendland/"
+	@echo "  📁 $(RESULTS_DIR)/gdisph_wendland/"
+	@echo "  📁 $(RESULTS_DIR)/gdisph_balsara_wendland/"
+
+# Generate kernel comparison plots
+pairing_kernel_viz:
+	@echo "=========================================="
+	@echo "Generating Kernel Comparison Plots"
+	@echo "=========================================="
+	@mkdir -p $(RESULTS_DIR)/kernel_comparison
+	@python3 $(PAIRING_DIR)/scripts/compare_kernels.py $(RESULTS_DIR) $(RESULTS_DIR)/kernel_comparison
+	@echo ""
+	@echo "✓ Kernel comparison plots generated!"
+	@echo "📊 Output: $(RESULTS_DIR)/kernel_comparison/"
+	@ls -lh $(RESULTS_DIR)/kernel_comparison/*.png 2>/dev/null || true
+
+# Generate kernel comparison animation
+pairing_kernel_animate:
+	@echo "=========================================="
+	@echo "Generating Kernel Comparison Animation"
+	@echo "=========================================="
+	@mkdir -p $(RESULTS_DIR)/kernel_comparison
+	@python3 $(PAIRING_DIR)/scripts/animate_kernel_comparison.py $(RESULTS_DIR) $(RESULTS_DIR)/kernel_comparison/kernel_comparison.gif
+	@echo ""
+	@echo "✓ Animation complete!"
+	@echo "🎬 Output: $(RESULTS_DIR)/kernel_comparison/kernel_comparison.gif"
+	@ls -lh $(RESULTS_DIR)/kernel_comparison/kernel_comparison.gif 2>/dev/null || true
+
+# Run all kernel comparisons and generate all visualizations
+pairing_kernel_all: pairing_kernel_run pairing_kernel_viz pairing_kernel_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Kernel Comparison Done!"
+	@echo "=========================================="
+	@echo "All results in: $(RESULTS_DIR)/kernel_comparison/"
+
+# Clean kernel comparison results
+pairing_kernel_clean:
+	@echo "Cleaning kernel comparison results..."
+	@rm -rf $(RESULTS_DIR)/*_wendland $(RESULTS_DIR)/kernel_comparison
+	@echo "✓ Kernel comparison results cleaned"

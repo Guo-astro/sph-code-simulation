@@ -1,5 +1,5 @@
 {
-  "outputDirectory": "sample/pairing_instability/results/gdisph_balsara_wendland",
+  "outputDirectory": "sample/pairing_instability/results/gsph_wendland",
   "startTime": 0.0,
   "endTime": 1.0,
   "outputTime": 0.05,
@@ -27,5 +27,6 @@
   "periodic": true,
   "rangeMax": [0.5, 0.5],
   "rangeMin": [-0.5, -0.5],
-  "SPHType": "gdisph"
+  "SPHType": "gsph",
+  "gsphIs2ndOrder": true
 }
