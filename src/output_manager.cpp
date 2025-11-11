@@ -9,12 +9,10 @@ namespace sph {
 
 OutputManager::OutputManager(const OutputConfig& config,
                            const UnitSystem& units,
-                           const std::string& output_dir,
-                           const std::string& checkpoint_dir)
+                           const std::string& output_dir)
     : m_config(config)
     , m_units(units)
     , m_output_dir(output_dir)
-    , m_checkpoint_dir(checkpoint_dir.empty() ? output_dir + "/checkpoints" : checkpoint_dir)
     , m_csv_writer(nullptr)
     , m_hdf5_writer(nullptr)
     , m_vtk_writer(nullptr)
@@ -53,21 +51,6 @@ bool OutputManager::initialize() {
         return false;
     }
     
-    // Create checkpoint directory if different from output directory
-    if (m_checkpoint_dir != m_output_dir) {
-        if (stat(m_checkpoint_dir.c_str(), &st) != 0) {
-            // Directory doesn't exist, create it
-            if (mkdir(m_checkpoint_dir.c_str(), 0755) != 0) {
-                WRITE_LOG << "Failed to create checkpoint directory: " << m_checkpoint_dir;
-                return false;
-            }
-            WRITE_LOG << "Created checkpoint directory: " << m_checkpoint_dir;
-        } else if (!S_ISDIR(st.st_mode)) {
-            WRITE_LOG << "Checkpoint path exists but is not a directory: " << m_checkpoint_dir;
-            return false;
-        }
-    }
-    
     // Open energy file if energy output is enabled
     if (m_config.enable_energy_file) {
         std::string energy_path = m_output_dir + "/energy.dat";
@@ -96,7 +79,7 @@ bool OutputManager::write_snapshot(std::shared_ptr<Simulation> sim,
                                    std::shared_ptr<SPHParameters> params,
                                    int count) {
     // Build metadata
-    OutputMetadata metadata = build_metadata(sim, params, count, false);
+    OutputMetadata metadata = build_metadata(sim, params, count);
     
     // Get particles as pointers
     std::vector<SPHParticle*> particle_ptrs;
@@ -164,88 +147,10 @@ bool OutputManager::write_snapshot(std::shared_ptr<Simulation> sim,
     return success;
 }
 
-bool OutputManager::write_checkpoint(std::shared_ptr<Simulation> sim,
-                                     std::shared_ptr<SPHParameters> params,
-                                     const CheckpointMetadata& checkpoint_meta,
-                                     int step) {
-    // Build metadata
-    OutputMetadata metadata = build_metadata(sim, params, step, true);
-    
-    // Add checkpoint-specific data
-    metadata.checkpoint_data = checkpoint_meta;
-    metadata.is_checkpoint = true;
-    
-    // Get particles as pointers
-    std::vector<SPHParticle*> particle_ptrs;
-    particle_ptrs.reserve(sim->get_particle_num());
-    for (size_t i = 0; i < sim->get_particles().size(); ++i) {
-        particle_ptrs.push_back(&sim->get_particles()[i]);
-    }
-    
-    bool success = true;
-    
-    // Write CSV if enabled (use checkpoint directory)
-    if (m_config.is_format_enabled("csv") && m_csv_writer) {
-        std::string csv_path = generate_checkpoint_filename("checkpoint", step, ".csv");
-        
-        if (!m_csv_writer->open(csv_path, metadata)) {
-            WRITE_LOG << "Failed to open checkpoint CSV: " << csv_path;
-            success = false;
-        } else {
-            if (!m_csv_writer->write_particles(particle_ptrs)) {
-                WRITE_LOG << "Failed to write checkpoint CSV data: " << csv_path;
-                success = false;
-            } else {
-                WRITE_LOG << "Wrote checkpoint CSV: " << csv_path;
-            }
-            m_csv_writer->close();
-        }
-    }
-    
-    // Write HDF5 if enabled (HDF5 is primary for checkpoints, use checkpoint directory)
-    if (m_config.is_format_enabled("hdf5") && m_hdf5_writer) {
-        std::string hdf5_path = generate_checkpoint_filename("checkpoint", step, ".h5");
-        
-        if (!m_hdf5_writer->open(hdf5_path, metadata)) {
-            WRITE_LOG << "Failed to open checkpoint HDF5: " << hdf5_path;
-            success = false;
-        } else {
-            if (!m_hdf5_writer->write_particles(particle_ptrs)) {
-                WRITE_LOG << "Failed to write checkpoint HDF5 data: " << hdf5_path;
-                success = false;
-            } else {
-                WRITE_LOG << "Wrote checkpoint HDF5: " << hdf5_path;
-            }
-            m_hdf5_writer->close();
-        }
-    }
-    
-    // Write VTK if enabled (use checkpoint directory)
-    if (m_config.is_format_enabled("vtk") && m_vtk_writer) {
-        std::string vtk_path = generate_checkpoint_filename("checkpoint", step, ".vtk");
-        
-        if (!m_vtk_writer->open(vtk_path, metadata)) {
-            WRITE_LOG << "Failed to open checkpoint VTK: " << vtk_path;
-            success = false;
-        } else {
-            if (!m_vtk_writer->write_particles(particle_ptrs)) {
-                WRITE_LOG << "Failed to write checkpoint VTK data: " << vtk_path;
-                success = false;
-            } else {
-                WRITE_LOG << "Wrote checkpoint VTK: " << vtk_path;
-            }
-            m_vtk_writer->close();
-        }
-    }
-    
-    return success;
-}
-
 bool OutputManager::load_for_resume(const std::string& filepath,
                                     std::shared_ptr<Simulation> sim,
-                                    CheckpointMetadata& checkpoint_meta,
                                     OutputMetadata* output_meta) {
-    WRITE_LOG << "Loading checkpoint from: " << filepath;
+    WRITE_LOG << "Loading snapshot for resume from: " << filepath;
     
     // Determine file format from extension
     std::string ext = filepath.substr(filepath.find_last_of('.'));
@@ -299,20 +204,6 @@ bool OutputManager::load_for_resume(const std::string& filepath,
         return false;
     }
     
-    // Populate checkpoint metadata
-    // Note: Regular snapshots can be used for resume too (SSOT mode)
-    if (metadata.is_checkpoint) {
-        checkpoint_meta = metadata.checkpoint_data;
-        WRITE_LOG << "Resuming from checkpoint file";
-    } else {
-        WRITE_LOG << "Resuming from regular snapshot (SSOT mode - physics from metadata)";
-        // Create minimal checkpoint metadata from regular snapshot
-        checkpoint_meta.time = metadata.time_code;
-        checkpoint_meta.step = metadata.step;
-        checkpoint_meta.particle_num = metadata.particle_count;
-        checkpoint_meta.is_relaxation = false;
-    }
-    
     // Return output metadata if requested (for physics parameters - SSOT)
     if (output_meta != nullptr) {
         *output_meta = metadata;
@@ -331,9 +222,9 @@ bool OutputManager::load_for_resume(const std::string& filepath,
     sim->get_particle_num() = particles.size();
     sim->get_time() = metadata.time_code;
     
-    WRITE_LOG << "Successfully loaded " << particles.size() << " particles from checkpoint";
-    WRITE_LOG << "Resume from step " << checkpoint_meta.step << ", time " << checkpoint_meta.time;
-    WRITE_LOG << "Checkpoint physics: gamma=" << metadata.gamma 
+    WRITE_LOG << "Successfully loaded " << particles.size() << " particles from snapshot";
+    WRITE_LOG << "Resume from step " << metadata.step << ", time " << metadata.time_code;
+    WRITE_LOG << "Snapshot physics (SSOT): gamma=" << metadata.gamma 
               << ", G=" << metadata.gravitational_constant
               << ", SPH type=" << static_cast<int>(metadata.sph_type)
               << ", kernel=" << static_cast<int>(metadata.kernel_type);
@@ -362,8 +253,7 @@ bool OutputManager::write_energy(real time, real kinetic, real thermal, real pot
 
 OutputMetadata OutputManager::build_metadata(std::shared_ptr<Simulation> sim,
                                              std::shared_ptr<SPHParameters> params,
-                                             int step,
-                                             bool is_checkpoint) const {
+                                             int step) const {
     OutputMetadata metadata;
     
     // Provenance
@@ -389,9 +279,6 @@ OutputMetadata OutputManager::build_metadata(std::shared_ptr<Simulation> sim,
     
     // Units
     metadata.units = m_units;
-    
-    // Checkpoint flag
-    metadata.is_checkpoint = is_checkpoint;
     
     // Compute energies - get particles as pointers
     std::vector<SPHParticle*> particle_ptrs;
@@ -445,17 +332,6 @@ std::string OutputManager::generate_filename(const std::string& prefix,
     // Format: output_dir/prefix_0000.ext
     std::ostringstream oss;
     oss << m_output_dir << "/" << prefix << "_"
-        << std::setfill('0') << std::setw(4) << count
-        << extension;
-    return oss.str();
-}
-
-std::string OutputManager::generate_checkpoint_filename(const std::string& prefix,
-                                                       int count,
-                                                       const std::string& extension) const {
-    // Format: checkpoint_dir/prefix_0000.ext
-    std::ostringstream oss;
-    oss << m_checkpoint_dir << "/" << prefix << "_"
         << std::setfill('0') << std::setw(4) << count
         << extension;
     return oss.str();

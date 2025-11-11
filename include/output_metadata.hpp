@@ -11,51 +11,6 @@
 namespace sph {
 
 /**
- * @brief Checkpoint metadata structure
- * 
- * Stores information about the checkpoint state for resuming simulations
- */
-struct CheckpointMetadata {
-    int version = 1;                    // Checkpoint format version
-    real time = 0.0;                    // Current simulation time
-    int step = 0;                       // Current step/loop count
-    int particle_num = 0;               // Number of particles
-    
-    // Relaxation-specific metadata
-    bool is_relaxation = false;         // Is this a relaxation checkpoint?
-    int relaxation_step = 0;            // Current relaxation iteration
-    int relaxation_total_steps = 0;     // Total relaxation steps planned
-    real accumulated_time = 0.0;        // Accumulated physical time during relaxation
-    
-    // Lane-Emden relaxation parameters (needed for resume)
-    real alpha_scaling = 1.0;           // Scaling factor for relaxation
-    real rho_center = 1.0;              // Central density
-    real K = 1.0;                       // Polytropic constant
-    real R = 1.0;                       // Star radius
-    real M_total = 1.0;                 // Total mass
-    
-    // Configuration fingerprint (for validation)
-    std::string config_hash;            // Hash of configuration file
-    std::string preset_name;            // Preset name if using Lane-Emden
-};
-
-/**
- * @brief Configuration for checkpoint behavior
- */
-struct CheckpointConfig {
-    bool enabled = false;                           // Enable checkpointing
-    int save_interval = 100;                        // Save every N steps/iterations
-    std::string directory = "checkpoints";          // Checkpoint directory
-    bool save_on_exit = true;                       // Always save when exiting
-    int max_checkpoints = 5;                        // Keep only N most recent checkpoints
-    bool compress = false;                          // Compress checkpoint files (future)
-    
-    // Auto-resume settings
-    bool auto_resume = false;                       // Automatically resume from latest checkpoint
-    std::string resume_file;                        // Specific checkpoint to resume from
-};
-
-/**
  * @brief Comprehensive metadata for SPH simulation outputs
  * 
  * Contains all information needed to understand and reproduce a simulation snapshot,
@@ -86,9 +41,16 @@ struct OutputMetadata {
     // === Unit System ===
     UnitSystem units;                 ///< Unit conversion system
     
-    // === Resume/Checkpoint Data (optional) ===
-    bool is_checkpoint;               ///< True if this is a checkpoint file
-    CheckpointMetadata checkpoint_data; ///< Checkpoint-specific metadata (if is_checkpoint=true)
+    // === Relaxation-Specific Metadata (for Lane-Emden resume) ===
+    bool is_relaxation = false;         ///< Is this from a relaxation phase?
+    int relaxation_step = 0;            ///< Current relaxation iteration
+    int relaxation_total_steps = 0;     ///< Total relaxation steps planned
+    real accumulated_time = 0.0;        ///< Accumulated physical time during relaxation
+    real alpha_scaling = 1.0;           ///< Scaling factor for relaxation
+    real rho_center = 1.0;              ///< Central density
+    real K = 1.0;                       ///< Polytropic constant
+    real R = 1.0;                       ///< Star radius
+    real M_total = 1.0;                 ///< Total mass
     
     // === Energy Diagnostics ===
     real kinetic_energy;              ///< Total kinetic energy (code units)

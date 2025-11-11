@@ -11,7 +11,7 @@
     "saveOnExit": true,
     "maxCheckpoints": 5,
     "autoResume": false,
-    "resumeFile": "/Users/guo/Downloads/sphcode/lane_emden/results/polytrope_n1.5_3d/snapshot_0009.csv"
+    "resumeFile": "/Users/guo/Downloads/sphcode/lane_emden/results/polytrope_n1.5_3d/snapshot_0071.csv"
   },
   "output": {
     "formats": [

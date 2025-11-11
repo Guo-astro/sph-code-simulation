@@ -18,14 +18,12 @@ namespace sph {
 // Forward declarations
 class Simulation;
 struct SPHParameters;
-struct CheckpointMetadata;
 
 /**
  * @brief Manages all output operations for SPH simulations
  * 
  * Coordinates multiple output formats (CSV, HDF5, VTK) and handles:
- * - Snapshot output for visualization
- * - Checkpoint output for resume capability
+ * - Snapshot output for visualization and resume (SSOT)
  * - Energy logging
  * - Metadata management
  * 
@@ -38,12 +36,10 @@ public:
      * @param config Output configuration
      * @param units Unit system for conversions
      * @param output_dir Base output directory
-     * @param checkpoint_dir Checkpoint directory (defaults to output_dir/checkpoints)
      */
     OutputManager(const OutputConfig& config, 
                   const UnitSystem& units,
-                  const std::string& output_dir,
-                  const std::string& checkpoint_dir = "");
+                  const std::string& output_dir);
     
     /**
      * @brief Destructor - closes all open files
@@ -61,7 +57,7 @@ public:
     bool initialize();
     
     /**
-     * @brief Write snapshot output (for visualization)
+     * @brief Write snapshot output (for visualization and resume)
      * @param sim Simulation state
      * @param params Simulation parameters
      * @param count Snapshot counter
@@ -72,32 +68,17 @@ public:
                        int count);
     
     /**
-     * @brief Write checkpoint output (for resume capability)
-     * @param sim Simulation state
-     * @param params Simulation parameters
-     * @param checkpoint_meta Checkpoint-specific metadata
-     * @param step Current timestep
-     * @return true if successful
-     */
-    bool write_checkpoint(std::shared_ptr<Simulation> sim,
-                         std::shared_ptr<SPHParameters> params,
-                         const CheckpointMetadata& checkpoint_meta,
-                         int step);
-    
-    /**
-     * @brief Load checkpoint file for resume
-     * @param filepath Path to checkpoint file (.csv, .h5, or .vtk)
+     * @brief Load snapshot file for resume (SSOT mode)
+     * @param filepath Path to snapshot file (.csv, .h5, or .vtk)
      * @param sim Simulation instance to populate with loaded data
-     * @param checkpoint_meta Checkpoint metadata to populate
      * @param output_meta Output metadata including physics parameters (optional output)
      * @return true if successful, false otherwise
      * 
-     * This function loads particle data and metadata from a checkpoint file.
+     * This function loads particle data and metadata from a snapshot file.
      * When resuming, physics parameters from output_meta should override config values (SSOT).
      */
     bool load_for_resume(const std::string& filepath,
                          std::shared_ptr<Simulation> sim,
-                         CheckpointMetadata& checkpoint_meta,
                          OutputMetadata* output_meta = nullptr);
     
     /**
@@ -126,7 +107,6 @@ private:
     OutputConfig m_config;             ///< Output configuration
     UnitSystem m_units;                ///< Unit system
     std::string m_output_dir;          ///< Base output directory
-    std::string m_checkpoint_dir;      ///< Checkpoint directory
     
     std::unique_ptr<CSVWriter> m_csv_writer;    ///< CSV writer
     std::unique_ptr<HDF5Writer> m_hdf5_writer;  ///< HDF5 writer
@@ -138,13 +118,11 @@ private:
      * @param sim Simulation state
      * @param params Simulation parameters
      * @param step Timestep number
-     * @param is_checkpoint Whether this is a checkpoint
      * @return OutputMetadata structure
      */
     OutputMetadata build_metadata(std::shared_ptr<Simulation> sim,
                                   std::shared_ptr<SPHParameters> params,
-                                  int step,
-                                  bool is_checkpoint = false) const;
+                                  int step) const;
     
     /**
      * @brief Compute total energies from particle data
@@ -161,26 +139,15 @@ private:
                          real& potential) const;
     
     /**
-     * @brief Generate filename for snapshot/checkpoint
-     * @param prefix Filename prefix ("snapshot" or "checkpoint")
+     * @brief Generate filename for snapshot
+     * @param prefix Filename prefix ("snapshot")
      * @param count File counter
-     * @param extension File extension (".csv" or ".h5")
+     * @param extension File extension (".csv", ".h5", or ".vtk")
      * @return Full filepath
      */
     std::string generate_filename(const std::string& prefix,
                                   int count,
                                   const std::string& extension) const;
-    
-    /**
-     * @brief Generate filename for checkpoint in checkpoint directory
-     * @param prefix Filename prefix ("checkpoint")
-     * @param count File counter
-     * @param extension File extension (".csv" or ".h5")
-     * @return Full filepath in checkpoint directory
-     */
-    std::string generate_checkpoint_filename(const std::string& prefix,
-                                            int count,
-                                            const std::string& extension) const;
 };
 
 } // namespace sph

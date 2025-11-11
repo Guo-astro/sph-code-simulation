@@ -1,0 +1,144 @@
+# Shock Tube Makefile Targets - Single Source of Truth System
+#
+# Usage:
+#   make shock_tube_run                                # Run Sod shock tube test
+#   make shock_tube_resume                             # Resume from latest snapshot
+#   make shock_tube_resume CHECKPOINT=snapshot_0005.csv # Resume from specific snapshot
+#   make shock_tube_clean                              # Clean results
+
+# Default preset (only for shock_tube targets)
+ifeq ($(filter lane_emden%,$(MAKECMDGOALS)),)
+PRESET ?= shock_tube_1d_sod
+endif
+
+# Paths
+SHOCK_TUBE_DIR = sample/shock_tube
+PRESET_DIR = $(SHOCK_TUBE_DIR)/config/presets
+RESULTS_DIR = $(SHOCK_TUBE_DIR)/results
+
+.PHONY: shock_tube_run shock_tube_resume shock_tube_clean shock_tube_help shock_tube_animate
+
+# Run shock tube simulation
+shock_tube_run: build/sph
+	@echo "=========================================="
+	@echo "Shock Tube: $(PRESET)"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^#define DIM 1" include/defines.hpp; then \
+		echo "✓ DIM=1 build detected"; \
+	else \
+		echo "❌ ERROR: Shock tube requires DIM=1 build"; \
+		echo ""; \
+		echo "Current build is configured for DIM=3 (3D simulations)."; \
+		echo "Shock tube is a 1D test case and requires DIM=1."; \
+		echo ""; \
+		echo "To rebuild for 1D:"; \
+		echo "  sed -i '' 's/#define DIM 3/#define DIM 1/' include/defines.hpp"; \
+		echo "  cd build && make -j8 && cd .."; \
+		echo ""; \
+		echo "To restore 3D build after shock tube:"; \
+		echo "  sed -i '' 's/#define DIM 1/#define DIM 3/' include/defines.hpp"; \
+		echo "  cd build && make -j8 && cd .."; \
+		echo ""; \
+		echo "See sample/shock_tube/README.md for details."; \
+		exit 1; \
+	fi
+	@echo "Applying preset configuration..."
+	@cp $(PRESET_DIR)/$(PRESET).json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@echo "Output directory:"
+	@python3 -c "import json; print('  📁 ' + json.load(open('$(SHOCK_TUBE_DIR)/shock_tube.json'))['outputDirectory'])"
+	@echo "Creating results directory..."
+	@mkdir -p $(RESULTS_DIR)
+	@echo "Running simulation..."
+	./build/sph shock_tube
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results saved to: $(RESULTS_DIR)"
+
+# Resume from checkpoint
+shock_tube_resume: build/sph
+	@echo "=========================================="
+	@echo "Shock Tube Resume from Checkpoint"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^#define DIM 1" include/defines.hpp; then \
+		echo "✓ DIM=1 build detected"; \
+	else \
+		echo "❌ ERROR: Shock tube requires DIM=1 build"; \
+		echo "See sample/shock_tube/README.md for details."; \
+		exit 1; \
+	fi
+	@if [ -z "$(CHECKPOINT)" ]; then \
+		echo "No CHECKPOINT specified, finding latest snapshot..."; \
+		LATEST=$$(ls -t $(RESULTS_DIR)/snapshot_*.csv 2>/dev/null | head -1); \
+		if [ -z "$$LATEST" ]; then \
+			echo "ERROR: No snapshots found in $(RESULTS_DIR)/"; \
+			echo ""; \
+			echo "Usage:"; \
+			echo "  make shock_tube_resume                              # Use latest snapshot"; \
+			echo "  make shock_tube_resume CHECKPOINT=snapshot_0005.csv # Use specific snapshot"; \
+			echo ""; \
+			exit 1; \
+		fi; \
+		echo "✓ Found latest snapshot: $$LATEST"; \
+		$(MAKE) shock_tube_resume CHECKPOINT=$$LATEST; \
+	else \
+		echo "Checkpoint file: $(CHECKPOINT)"; \
+		echo ""; \
+		echo "Creating resume configuration (SSOT mode)..."; \
+		python3 -c "import json; \
+			resume_config = { \
+				'checkpoint': {'resumeFile': '$(CHECKPOINT)'}, \
+				'outputDirectory': '$(RESULTS_DIR)', \
+				'endTime': 0.4, \
+				'outputTime': 0.01 \
+			}; \
+			json.dump(resume_config, open('$(SHOCK_TUBE_DIR)/shock_tube.json', 'w'), indent=2)"; \
+		echo "✓ Resume config created"; \
+		echo ""; \
+		echo "Running simulation from checkpoint..."; \
+		./build/sph shock_tube; \
+		echo ""; \
+		echo "✓ Resumed simulation complete!"; \
+		echo "📁 Results saved to: $(RESULTS_DIR)"; \
+	fi
+
+# Clean results
+shock_tube_clean:
+	@echo "Cleaning shock tube results..."
+	@rm -rf $(RESULTS_DIR)
+	@echo "✓ Results cleaned"
+
+# Visualize results
+shock_tube_animate:
+	@echo "=========================================="
+	@echo "Visualizing Shock Tube Results"
+	@echo "=========================================="
+	@if [ ! -d "$(RESULTS_DIR)" ] || [ -z "$$(ls -A $(RESULTS_DIR)/snapshot_*.csv 2>/dev/null)" ]; then \
+		echo "ERROR: No results found in $(RESULTS_DIR)/"; \
+		echo "Run 'make shock_tube_run' first to generate data."; \
+		exit 1; \
+	fi
+	@echo "Data directory: $(RESULTS_DIR)"
+	@python3 $(SHOCK_TUBE_DIR)/scripts/visualize_shock_tube.py $(RESULTS_DIR) shock_tube_sod
+	@echo ""
+	@echo "✓ Visualization complete!"
+	@echo "📊 Generated files in $(RESULTS_DIR):"
+	@ls -lh $(RESULTS_DIR)/shock_tube_sod_*.png $(RESULTS_DIR)/shock_tube_sod_*.gif 2>/dev/null || true
+
+# Help
+shock_tube_help:
+	@echo "Shock Tube Makefile Targets"
+	@echo "============================"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  shock_tube_run     - Run Sod shock tube test"
+	@echo "  shock_tube_resume  - Resume from latest snapshot"
+	@echo "  shock_tube_animate - Generate plots and animation"
+	@echo "  shock_tube_clean   - Clean results"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make shock_tube_run"
+	@echo "  make shock_tube_resume"
+	@echo "  make shock_tube_animate"
+	@echo "  make shock_tube_resume CHECKPOINT=sample/shock_tube/results/snapshot_0005.csv"

@@ -54,8 +54,7 @@ class Solver {
     int m_relaxation_output_freq;  // Output frequency during relaxation
     bool m_relaxation_only;  // If true, exit after relaxation without simulation
     
-    // checkpoint configuration (checkpoints now handled by OutputManager)
-    CheckpointConfig m_checkpoint_config;
+    // Resume configuration (SSOT mode - all physics from snapshot)
     bool m_resume_from_checkpoint;
     std::string m_checkpoint_file;
 

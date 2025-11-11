@@ -5,8 +5,10 @@
 #   make lane_emden PRESET=polytrope_n1_5_3d          # Select preset
 #   make lane_emden RELAX_STEPS=10000                  # Override relaxation steps
 #
-# Default preset if not specified
+# Default preset if not specified (only for lane_emden targets)
+ifeq ($(filter shock_tube%,$(MAKECMDGOALS)),)
 PRESET ?= polytrope_n1_5_3d
+endif
 
 # Paths
 CONFIG_MANAGER = python3 lane_emden/scripts/lane_emden_config_manager.py
@@ -76,9 +78,16 @@ lane_emden_resume: build/sph
 	@echo "=========================================="
 	@if [ -z "$(CHECKPOINT)" ]; then \
 		echo "No CHECKPOINT specified, finding latest snapshot..."; \
-		LATEST=$$(ls -t lane_emden/results/$(PRESET)/snapshot_*.csv 2>/dev/null | head -1); \
+		echo "Preset: $(PRESET)"; \
+		OUTPUT_DIR=$$(python3 -c "import json; print(json.load(open('lane_emden/config/presets/$(PRESET).json'))['simulation']['output_directory'])" 2>/dev/null); \
+		if [ -z "$$OUTPUT_DIR" ]; then \
+			echo "ERROR: Could not read output directory from preset $(PRESET)"; \
+			exit 1; \
+		fi; \
+		echo "Output directory: $$OUTPUT_DIR"; \
+		LATEST=$$(ls -t $$OUTPUT_DIR/snapshot_*.csv 2>/dev/null | head -1); \
 		if [ -z "$$LATEST" ]; then \
-			echo "ERROR: No snapshots found in lane_emden/results/$(PRESET)/"; \
+			echo "ERROR: No snapshots found in $$OUTPUT_DIR/"; \
 			echo ""; \
 			echo "Usage:"; \
 			echo "  make -f lane_emden/Makefile.lane_emden lane_emden_resume"; \
@@ -131,9 +140,9 @@ lane_emden_help:
 	@echo "  make lane_emden RELAX_STEPS=10000        # Override relaxation steps"
 	@echo ""
 	@echo "Resume from checkpoint:"
-	@echo "  make lane_emden_resume CHECKPOINT=snapshot_0009.csv"
-	@echo "  make lane_emden_resume CHECKPOINT=lane_emden/results/polytrope_n1.5_3d/snapshot_0009.csv"
-	@echo "  make lane_emden_resume PRESET=polytrope_n1_5_3d CHECKPOINT=checkpoints/checkpoint_0010.csv"
+	@echo "  make -f lane_emden/Makefile.lane_emden lane_emden_resume                        # Use latest snapshot (auto-detect)"
+	@echo "  make -f lane_emden/Makefile.lane_emden lane_emden_resume CHECKPOINT=snapshot_0009.csv"
+	@echo "  make -f lane_emden/Makefile.lane_emden lane_emden_resume PRESET=polytrope_n3_3d # Latest from different preset"
 	@echo ""
 	@echo "Relaxation only:"
 	@echo "  make lane_emden_relax_only RELAX_STEPS=10000"

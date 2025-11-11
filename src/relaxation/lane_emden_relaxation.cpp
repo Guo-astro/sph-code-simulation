@@ -33,7 +33,7 @@ vec_t LaneEmdenRelaxation::compute_relaxation_force(const SPHParticle& p) const
         THROW_ERROR("LaneEmdenRelaxation not initialized");
     }
     
-    vec_t force = {0.0, 0.0, 0.0};
+    vec_t force(0.0);
     
     // Spherical radius
     const real r = std::abs(p.pos);

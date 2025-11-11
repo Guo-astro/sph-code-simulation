@@ -22,8 +22,15 @@ OutputMetadata::OutputMetadata()
     , use_balsara(true)
     , use_time_dependent_av(false)
     , units()
-    , is_checkpoint(false)
-    , checkpoint_data()
+    , is_relaxation(false)
+    , relaxation_step(0)
+    , relaxation_total_steps(0)
+    , accumulated_time(0.0)
+    , alpha_scaling(1.0)
+    , rho_center(1.0)
+    , K(1.0)
+    , R(1.0)
+    , M_total(1.0)
     , kinetic_energy(0.0)
     , thermal_energy(0.0)
     , potential_energy(0.0)
@@ -86,30 +93,17 @@ nlohmann::json OutputMetadata::to_json() const {
     // Unit system
     j["units"] = units.to_json();
     
-    // Checkpoint data (if applicable)
-    j["is_checkpoint"] = is_checkpoint;
-    if (is_checkpoint) {
-        nlohmann::json chk;
-        chk["version"] = checkpoint_data.version;
-        chk["time"] = checkpoint_data.time;
-        chk["step"] = checkpoint_data.step;
-        chk["particle_num"] = checkpoint_data.particle_num;
-        chk["is_relaxation"] = checkpoint_data.is_relaxation;
-        
-        if (checkpoint_data.is_relaxation) {
-            chk["relaxation_step"] = checkpoint_data.relaxation_step;
-            chk["relaxation_total_steps"] = checkpoint_data.relaxation_total_steps;
-            chk["accumulated_time"] = checkpoint_data.accumulated_time;
-            chk["alpha_scaling"] = checkpoint_data.alpha_scaling;
-            chk["rho_center"] = checkpoint_data.rho_center;
-            chk["K"] = checkpoint_data.K;
-            chk["R"] = checkpoint_data.R;
-            chk["M_total"] = checkpoint_data.M_total;
-            chk["config_hash"] = checkpoint_data.config_hash;
-            chk["preset_name"] = checkpoint_data.preset_name;
-        }
-        
-        j["checkpoint"] = chk;
+    // Relaxation data (for Lane-Emden resume)
+    j["is_relaxation"] = is_relaxation;
+    if (is_relaxation) {
+        j["relaxation_step"] = relaxation_step;
+        j["relaxation_total_steps"] = relaxation_total_steps;
+        j["accumulated_time"] = accumulated_time;
+        j["alpha_scaling"] = alpha_scaling;
+        j["rho_center"] = rho_center;
+        j["K"] = K;
+        j["R"] = R;
+        j["M_total"] = M_total;
     }
     
     // Energy diagnostics
@@ -150,28 +144,17 @@ OutputMetadata OutputMetadata::from_json(const nlohmann::json& j) {
         meta.units = UnitSystem::from_json(j["units"]);
     }
     
-    // Checkpoint data
-    meta.is_checkpoint = j.value("is_checkpoint", false);
-    if (meta.is_checkpoint && j.contains("checkpoint")) {
-        const auto& chk = j["checkpoint"];
-        meta.checkpoint_data.version = chk.value("version", 1);
-        meta.checkpoint_data.time = chk.value("time", 0.0);
-        meta.checkpoint_data.step = chk.value("step", 0);
-        meta.checkpoint_data.particle_num = chk.value("particle_num", 0);
-        meta.checkpoint_data.is_relaxation = chk.value("is_relaxation", false);
-        
-        if (meta.checkpoint_data.is_relaxation) {
-            meta.checkpoint_data.relaxation_step = chk.value("relaxation_step", 0);
-            meta.checkpoint_data.relaxation_total_steps = chk.value("relaxation_total_steps", 0);
-            meta.checkpoint_data.accumulated_time = chk.value("accumulated_time", 0.0);
-            meta.checkpoint_data.alpha_scaling = chk.value("alpha_scaling", 1.0);
-            meta.checkpoint_data.rho_center = chk.value("rho_center", 0.0);
-            meta.checkpoint_data.K = chk.value("K", 0.0);
-            meta.checkpoint_data.R = chk.value("R", 0.0);
-            meta.checkpoint_data.M_total = chk.value("M_total", 0.0);
-            meta.checkpoint_data.config_hash = chk.value("config_hash", "");
-            meta.checkpoint_data.preset_name = chk.value("preset_name", "");
-        }
+    // Relaxation data (for Lane-Emden resume)
+    meta.is_relaxation = j.value("is_relaxation", false);
+    if (meta.is_relaxation) {
+        meta.relaxation_step = j.value("relaxation_step", 0);
+        meta.relaxation_total_steps = j.value("relaxation_total_steps", 0);
+        meta.accumulated_time = j.value("accumulated_time", 0.0);
+        meta.alpha_scaling = j.value("alpha_scaling", 1.0);
+        meta.rho_center = j.value("rho_center", 0.0);
+        meta.K = j.value("K", 0.0);
+        meta.R = j.value("R", 0.0);
+        meta.M_total = j.value("M_total", 0.0);
     }
     
     // Energy diagnostics

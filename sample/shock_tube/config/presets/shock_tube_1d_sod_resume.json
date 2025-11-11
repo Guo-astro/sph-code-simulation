@@ -1,6 +1,6 @@
 {
   "checkpoint": {
-    "resumeFile": "sample/shock_tube/results/snapshot_0020.csv"
+    "resumeFile": "sample/shock_tube/results/snapshot_0010.csv"
   },
   "outputDirectory": "sample/shock_tube/results",
   "endTime": 0.4,

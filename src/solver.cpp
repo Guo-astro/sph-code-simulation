@@ -341,30 +341,14 @@ void Solver::read_parameterfile(const char * filename)
         }
     }
     
-    // Checkpoint configuration
-    m_checkpoint_config.enabled = input.get<bool>("checkpoint.enabled", false);
-    m_checkpoint_config.save_interval = input.get<int>("checkpoint.saveInterval", 100);
-    m_checkpoint_config.directory = input.get<std::string>("checkpoint.directory", "checkpoints");
-    m_checkpoint_config.save_on_exit = input.get<bool>("checkpoint.saveOnExit", true);
-    m_checkpoint_config.max_checkpoints = input.get<int>("checkpoint.maxCheckpoints", 5);
-    m_checkpoint_config.auto_resume = input.get<bool>("checkpoint.autoResume", false);
-    m_checkpoint_config.resume_file = input.get<std::string>("checkpoint.resumeFile", "");
+    // Resume configuration (SSOT mode)
+    m_checkpoint_file = input.get<std::string>("checkpoint.resumeFile", "");
+    m_resume_from_checkpoint = !m_checkpoint_file.empty();
     
-    m_resume_from_checkpoint = m_checkpoint_config.auto_resume || !m_checkpoint_config.resume_file.empty();
-    m_checkpoint_file = m_checkpoint_config.resume_file;
-    
-    if(m_checkpoint_config.enabled) {
-        std::cout << "Checkpoint system enabled:" << std::endl;
-        std::cout << "  - Save interval: every " << m_checkpoint_config.save_interval << " steps" << std::endl;
-        std::cout << "  - Directory: " << m_checkpoint_config.directory << std::endl;
-        std::cout << "  - Max checkpoints: " << m_checkpoint_config.max_checkpoints << std::endl;
-        if(m_resume_from_checkpoint) {
-            if(!m_checkpoint_file.empty()) {
-                std::cout << "  - Will resume from: " << m_checkpoint_file << std::endl;
-            } else {
-                std::cout << "  - Will auto-resume from latest checkpoint" << std::endl;
-            }
-        }
+    if(m_resume_from_checkpoint) {
+        std::cout << "Resume mode enabled (SSOT):" << std::endl;
+        std::cout << "  - Will resume from: " << m_checkpoint_file << std::endl;
+        std::cout << "  - All physics parameters will be loaded from snapshot metadata" << std::endl;
     }
     
     // Unit system configuration
@@ -456,9 +440,8 @@ void Solver::read_parameterfile(const char * filename)
     std::cout << std::endl;
     std::cout << "  - Energy file: " << (output_config.enable_energy_file ? "enabled" : "disabled") << std::endl;
     
-    // Create OutputManager with checkpoint directory
-    std::string checkpoint_dir = m_checkpoint_config.directory;
-    m_output_manager = std::make_shared<OutputManager>(output_config, m_units, m_output_dir, checkpoint_dir);
+    // Create OutputManager
+    m_output_manager = std::make_shared<OutputManager>(output_config, m_units, m_output_dir);
     if(!m_output_manager->initialize()) {
         THROW_ERROR("Failed to initialize OutputManager");
     }
@@ -522,28 +505,6 @@ void Solver::run()
             m_output_manager->write_energy(t, kinetic, thermal, potential);
             t_ene += m_param->time.energy;
         }
-        
-        // Save checkpoint at specified intervals
-        if(m_checkpoint_config.enabled && loop % m_checkpoint_config.save_interval == 0) {
-            CheckpointMetadata chk_meta;
-            chk_meta.time = t;
-            chk_meta.step = loop;
-            chk_meta.particle_num = num;
-            chk_meta.is_relaxation = false;
-            
-            m_output_manager->write_checkpoint(m_sim, m_param, chk_meta, loop);
-        }
-    }
-    
-    // Save final checkpoint if enabled
-    if(m_checkpoint_config.enabled && m_checkpoint_config.save_on_exit) {
-        CheckpointMetadata chk_meta;
-        chk_meta.time = t;
-        chk_meta.step = loop;
-        chk_meta.particle_num = m_sim->get_particle_num();
-        chk_meta.is_relaxation = false;
-        
-        m_output_manager->write_checkpoint(m_sim, m_param, chk_meta, loop);
     }
     
     const auto end = std::chrono::system_clock::now();
@@ -558,52 +519,51 @@ void Solver::initialize()
     m_sim = std::make_shared<Simulation>(m_param);
     std::cout << "Simulation created" << std::endl;
     
-    // Check if we should resume from checkpoint
-    CheckpointMetadata resume_metadata;
-    OutputMetadata checkpoint_physics;  // Will contain physics parameters from checkpoint
+    // Check if we should resume from snapshot
+    OutputMetadata snapshot_data;  // Will contain physics parameters from snapshot (SSOT)
     bool resumed = false;
     
     if(m_resume_from_checkpoint && !m_checkpoint_file.empty()) {
-        std::cout << "\n=== Attempting to resume from checkpoint ===" << std::endl;
-        if(m_output_manager->load_for_resume(m_checkpoint_file, m_sim, resume_metadata, &checkpoint_physics)) {
+        std::cout << "\n=== Attempting to resume from snapshot ===" << std::endl;
+        if(m_output_manager->load_for_resume(m_checkpoint_file, m_sim, &snapshot_data)) {
             resumed = true;
-            std::cout << "=== Successfully resumed from checkpoint ===" << std::endl;
+            std::cout << "=== Successfully resumed from snapshot ===" << std::endl;
             
-            // SSOT: Override physics parameters from checkpoint metadata
-            std::cout << "Applying physics parameters from checkpoint (SSOT):" << std::endl;
-            m_param->physics.gamma = checkpoint_physics.gamma;
+            // SSOT: Override physics parameters from snapshot metadata
+            std::cout << "Applying physics parameters from snapshot (SSOT):" << std::endl;
+            m_param->physics.gamma = snapshot_data.gamma;
             std::cout << "  - gamma: " << m_param->physics.gamma << std::endl;
             
-            m_param->gravity.constant = checkpoint_physics.gravitational_constant;
-            m_param->gravity.is_valid = checkpoint_physics.use_gravity;
+            m_param->gravity.constant = snapshot_data.gravitational_constant;
+            m_param->gravity.is_valid = snapshot_data.use_gravity;
             std::cout << "  - G: " << m_param->gravity.constant << " (gravity " 
                       << (m_param->gravity.is_valid ? "enabled" : "disabled") << ")" << std::endl;
             
-            m_param->type = checkpoint_physics.sph_type;
+            m_param->type = snapshot_data.sph_type;
             std::cout << "  - SPH type: " << (int)m_param->type << std::endl;
             
-            m_param->kernel = checkpoint_physics.kernel_type;
+            m_param->kernel = snapshot_data.kernel_type;
             std::cout << "  - Kernel: " << (int)m_param->kernel << std::endl;
             
-            m_param->physics.neighbor_number = checkpoint_physics.neighbor_number;
+            m_param->physics.neighbor_number = snapshot_data.neighbor_number;
             std::cout << "  - Neighbor number: " << m_param->physics.neighbor_number << std::endl;
             
-            m_param->av.use_balsara_switch = checkpoint_physics.use_balsara;
-            m_param->av.use_time_dependent_av = checkpoint_physics.use_time_dependent_av;
+            m_param->av.use_balsara_switch = snapshot_data.use_balsara;
+            m_param->av.use_time_dependent_av = snapshot_data.use_time_dependent_av;
             std::cout << "  - Balsara switch: " << (m_param->av.use_balsara_switch ? "enabled" : "disabled") << std::endl;
             std::cout << "  - Time-dependent AV: " << (m_param->av.use_time_dependent_av ? "enabled" : "disabled") << std::endl;
             
-            // Restore Lane-Emden relaxation parameters if this is a relaxation checkpoint
-            if(resume_metadata.is_relaxation && m_sample == Sample::LaneEmden) {
-                m_sample_parameters["alpha"] = resume_metadata.alpha_scaling;
-                m_sample_parameters["rho_center"] = resume_metadata.rho_center;
-                m_sample_parameters["K"] = resume_metadata.K;
-                m_sample_parameters["R"] = resume_metadata.R;
-                m_sample_parameters["M_total"] = resume_metadata.M_total;
-                std::cout << "  - Restored Lane-Emden parameters from checkpoint" << std::endl;
+            // Restore Lane-Emden relaxation parameters if this is a relaxation snapshot
+            if(snapshot_data.is_relaxation && m_sample == Sample::LaneEmden) {
+                m_sample_parameters["alpha"] = snapshot_data.alpha_scaling;
+                m_sample_parameters["rho_center"] = snapshot_data.rho_center;
+                m_sample_parameters["K"] = snapshot_data.K;
+                m_sample_parameters["R"] = snapshot_data.R;
+                m_sample_parameters["M_total"] = snapshot_data.M_total;
+                std::cout << "  - Restored Lane-Emden parameters from snapshot" << std::endl;
             }
         } else {
-            std::cerr << "Warning: Failed to load checkpoint, starting from scratch" << std::endl;
+            std::cerr << "Warning: Failed to load snapshot, starting from scratch" << std::endl;
         }
     }
     
@@ -688,9 +648,9 @@ void Solver::initialize()
         int start_step = 0;
         real accumulated_time = 0.0;
         
-        if(resumed && resume_metadata.is_relaxation) {
-            start_step = resume_metadata.relaxation_step;
-            accumulated_time = resume_metadata.accumulated_time;
+        if(resumed && snapshot_data.is_relaxation) {
+            start_step = snapshot_data.relaxation_step;
+            accumulated_time = snapshot_data.accumulated_time;
             std::cout << "Resuming from step " << start_step << " (time=" << accumulated_time << ")" << std::endl;
         }
         
@@ -795,28 +755,6 @@ void Solver::initialize()
                 // Output snapshot (silently)
                 m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++);
                 output_counter++;
-            }
-            
-            // Save checkpoint at specified intervals
-            if(m_checkpoint_config.enabled && step % m_checkpoint_config.save_interval == 0) {
-                CheckpointMetadata chk_meta;
-                chk_meta.time = accumulated_time;
-                chk_meta.step = 0;  // Not in main simulation yet
-                chk_meta.particle_num = m_sim->get_particle_num();
-                chk_meta.is_relaxation = true;
-                chk_meta.relaxation_step = step;
-                chk_meta.relaxation_total_steps = m_relaxation_steps;
-                chk_meta.accumulated_time = accumulated_time;
-                chk_meta.preset_name = "lane_emden";
-                
-                // Save Lane-Emden relaxation parameters for resume
-                chk_meta.alpha_scaling = boost::any_cast<real>(m_sample_parameters["alpha"]);
-                chk_meta.rho_center = boost::any_cast<real>(m_sample_parameters["rho_center"]);
-                chk_meta.K = boost::any_cast<real>(m_sample_parameters["K"]);
-                chk_meta.R = boost::any_cast<real>(m_sample_parameters["R"]);
-                chk_meta.M_total = boost::any_cast<real>(m_sample_parameters["M_total"]);
-                
-                m_output_manager->write_checkpoint(m_sim, m_param, chk_meta, step);
             }
         }
         

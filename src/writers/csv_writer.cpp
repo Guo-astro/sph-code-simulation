@@ -86,20 +86,17 @@ void CSVWriter::write_header(const OutputMetadata& metadata) {
     m_file << "# Total: " << metadata.total_energy << " [code units]\n";
     m_file << "#\n";
     
-    // Checkpoint information (if applicable)
-    if (metadata.is_checkpoint && metadata.checkpoint_data.is_relaxation) {
+    // Relaxation information (for Lane-Emden)
+    if (metadata.is_relaxation) {
         m_file << "# === Lane-Emden Relaxation ===\n";
-        m_file << "# Relaxation Step: " << metadata.checkpoint_data.relaxation_step << " / " 
-               << metadata.checkpoint_data.relaxation_total_steps << "\n";
-        m_file << "# Accumulated Time: " << metadata.checkpoint_data.accumulated_time << "\n";
-        m_file << "# Alpha Scaling: " << metadata.checkpoint_data.alpha_scaling << "\n";
-        m_file << "# Central Density: " << metadata.checkpoint_data.rho_center << "\n";
-        m_file << "# Polytropic K: " << metadata.checkpoint_data.K << "\n";
-        m_file << "# Radius: " << metadata.checkpoint_data.R << "\n";
-        m_file << "# Total Mass: " << metadata.checkpoint_data.M_total << "\n";
-        if (!metadata.checkpoint_data.preset_name.empty()) {
-            m_file << "# Preset: " << metadata.checkpoint_data.preset_name << "\n";
-        }
+        m_file << "# Relaxation Step: " << metadata.relaxation_step << " / " 
+               << metadata.relaxation_total_steps << "\n";
+        m_file << "# Accumulated Time: " << metadata.accumulated_time << "\n";
+        m_file << "# Alpha Scaling: " << metadata.alpha_scaling << "\n";
+        m_file << "# Central Density: " << metadata.rho_center << "\n";
+        m_file << "# Polytropic K: " << metadata.K << "\n";
+        m_file << "# Radius: " << metadata.R << "\n";
+        m_file << "# Total Mass: " << metadata.M_total << "\n";
         m_file << "#\n";
     }
     
@@ -247,27 +244,24 @@ bool CSVWriter::read_metadata(const std::string& filepath, OutputMetadata& metad
             }
         } else if (key == "Relaxation Step") {
             // Format: "step / total"
-            metadata.is_checkpoint = true;
-            metadata.checkpoint_data.is_relaxation = true;
+            metadata.is_relaxation = true;
             auto slash_pos = value.find('/');
             if (slash_pos != std::string::npos) {
-                metadata.checkpoint_data.relaxation_step = std::stoi(value.substr(0, slash_pos));
-                metadata.checkpoint_data.relaxation_total_steps = std::stoi(value.substr(slash_pos + 2));
+                metadata.relaxation_step = std::stoi(value.substr(0, slash_pos));
+                metadata.relaxation_total_steps = std::stoi(value.substr(slash_pos + 2));
             }
         } else if (key == "Accumulated Time") {
-            metadata.checkpoint_data.accumulated_time = std::stod(value);
+            metadata.accumulated_time = std::stod(value);
         } else if (key == "Alpha Scaling") {
-            metadata.checkpoint_data.alpha_scaling = std::stod(value);
+            metadata.alpha_scaling = std::stod(value);
         } else if (key == "Central Density") {
-            metadata.checkpoint_data.rho_center = std::stod(value);
+            metadata.rho_center = std::stod(value);
         } else if (key == "Polytropic K") {
-            metadata.checkpoint_data.K = std::stod(value);
+            metadata.K = std::stod(value);
         } else if (key == "Radius") {
-            metadata.checkpoint_data.R = std::stod(value);
+            metadata.R = std::stod(value);
         } else if (key == "Total Mass") {
-            metadata.checkpoint_data.M_total = std::stod(value);
-        } else if (key == "Preset") {
-            metadata.checkpoint_data.preset_name = value;
+            metadata.M_total = std::stod(value);
         }
     }
     
