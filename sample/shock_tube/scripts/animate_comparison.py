@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Create Side-by-Side Animation Comparing GSPH, SSPH, and DISPH
+Create Side-by-Side Animation Comparing GSPH, SSPH, DISPH, and GDISPH
 
-Generates an animated GIF showing time evolution of all three SPH methods simultaneously.
+Generates an animated GIF showing time evolution of all four SPH methods simultaneously.
 
 Usage:
     python3 animate_comparison.py [base_dir] [output_file]
     
 Arguments:
-    base_dir    - Base directory containing gsph/, ssph/, disph/ subdirs
+    base_dir    - Base directory containing gsph/, ssph/, disph/, gdisph/ subdirs
                   Default: sample/shock_tube/results
     output_file - Output animation filename
                   Default: sample/shock_tube/results/comparison/comparison_animation.gif
@@ -43,12 +43,12 @@ base_dir = sys.argv[1] if len(sys.argv) > 1 else "sample/shock_tube/results"
 output_file = sys.argv[2] if len(sys.argv) > 2 else "sample/shock_tube/results/comparison/comparison_animation.gif"
 
 # SPH methods to compare
-methods = ['gsph', 'ssph', 'disph']
-method_labels = ['GSPH (Godunov)', 'SSPH (Standard)', 'DISPH (Density-Independent)']
+methods = ['gsph', 'ssph', 'disph', 'gdisph']
+method_labels = ['GSPH (Godunov)', 'SSPH (Standard)', 'DISPH (Density-Independent)', 'GDISPH (Godunov DISPH)']
 # Colorblind-friendly palette with high contrast
-method_colors = ['#0173B2', '#DE8F05', '#029E73']  # Vibrant blue, orange, teal
-method_styles = ['-', '--', '-.']  # Solid, dashed, dash-dot for additional distinction
-method_markers = ['o', 's', '^']  # Circle, square, triangle
+method_colors = ['#0173B2', '#DE8F05', '#029E73', '#CC78BC']  # Blue, orange, teal, purple
+method_styles = ['-', '--', '-.', ':']  # Solid, dashed, dash-dot, dotted
+method_markers = ['o', 's', '^', 'D']  # Circle, square, triangle, diamond
 method_markevery = 5  # Show marker every N points
 
 print('=' * 70)

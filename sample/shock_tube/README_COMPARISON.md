@@ -1,9 +1,10 @@
 # 1D Shock Tube Multi-Method Comparison
 
-This directory contains a complete setup for comparing three SPH formulations on the classic 1D Sod shock tube test:
+This directory contains a complete setup for comparing four SPH formulations on the classic 1D Sod shock tube test:
 - **GSPH** (Godunov SPH) - Riemann solver based
 - **SSPH** (Standard SPH) - Density-energy formulation
 - **DISPH** (Density Independent SPH) - Pressure-energy formulation
+- **GDISPH** (Godunov DISPH) - Hybrid combining DISPH pressure-energy with GSPH Riemann solver
 
 ## Quick Start
 
@@ -22,7 +23,7 @@ cd build && make -j8 && cd ..
 ### Run Complete Comparison Study
 
 ```bash
-# Run all three SPH methods + generate all visualizations
+# Run all four SPH methods + generate all visualizations
 make shock_tube_compare_all
 ```
 
@@ -30,8 +31,9 @@ This single command will:
 1. Run GSPH simulation → `results/gsph/`
 2. Run SSPH simulation → `results/ssph/`
 3. Run DISPH simulation → `results/disph/`
-4. Generate comparison plots → `results/comparison/*.png`
-5. Generate comparison animation → `results/comparison/comparison_animation.gif`
+4. Run GDISPH simulation → `results/gdisph/`
+5. Generate comparison plots → `results/comparison/*.png`
+6. Generate comparison animation → `results/comparison/comparison_animation.gif`
 
 **Estimated time:** 2-3 minutes total
 
@@ -57,10 +59,11 @@ If you prefer to run each step separately:
 make shock_tube_compare_run
 ```
 
-This runs all three methods sequentially. Output directories:
+This runs all four methods sequentially. Output directories:
 - `sample/shock_tube/results/gsph/` - GSPH results
 - `sample/shock_tube/results/ssph/` - SSPH results  
 - `sample/shock_tube/results/disph/` - DISPH results
+- `sample/shock_tube/results/gdisph/` - GDISPH results
 
 ### 2. Generate Comparison Plots
 
@@ -68,7 +71,7 @@ This runs all three methods sequentially. Output directories:
 make shock_tube_compare_viz
 ```
 
-Creates static comparison plots showing all three methods side-by-side.
+Creates static comparison plots showing all four methods side-by-side.
 
 ### 3. Generate Comparison Animation
 
@@ -84,7 +87,7 @@ Creates an animated GIF showing time evolution of all three methods.
 make shock_tube_compare_clean
 ```
 
-Removes all comparison results (gsph/, ssph/, disph/, comparison/)
+Removes all comparison results (gsph/, ssph/, disph/, gdisph/, comparison/)
 
 ## Understanding the Results
 
@@ -124,9 +127,10 @@ The 1D Sod shock tube is a Riemann problem with:
 
 **Method Characteristics:**
 
-- **GSPH** - Often sharpest features due to Riemann solver
-- **SSPH** - Classic approach, may show some diffusion
-- **DISPH** - Better pressure handling, reduced tensile instability
+- **GSPH** - Sharp features due to Riemann solver, uses artificial viscosity
+- **SSPH** - Classic density-energy approach, may show some diffusion
+- **DISPH** - Pressure-energy formulation, better contact discontinuities
+- **GDISPH** - Hybrid combining DISPH pressure-energy with GSPH Riemann solver (no artificial viscosity in Case 1)
 
 ## Advanced Usage
 
@@ -139,6 +143,14 @@ cp sample/shock_tube/config/presets/shock_tube_1d_gsph.json sample/shock_tube/sh
 
 # SSPH only
 cp sample/shock_tube/config/presets/shock_tube_1d_ssph.json sample/shock_tube/shock_tube.json
+./build/sph shock_tube
+
+# DISPH only
+cp sample/shock_tube/config/presets/shock_tube_1d_disph.json sample/shock_tube/shock_tube.json
+./build/sph shock_tube
+
+# GDISPH only
+cp sample/shock_tube/config/presets/shock_tube_1d_gdisph.json sample/shock_tube/shock_tube.json
 ./build/sph shock_tube
 
 # DISPH only
@@ -192,6 +204,7 @@ sample/shock_tube/
 │       ├── shock_tube_1d_gsph.json    # GSPH configuration
 │       ├── shock_tube_1d_ssph.json    # SSPH configuration
 │       ├── shock_tube_1d_disph.json   # DISPH configuration
+│       ├── shock_tube_1d_gdisph.json  # GDISPH configuration
 │       ├── shock_tube_1d_sod.json     # Legacy (same as SSPH)
 │       └── shock_tube_1d_sod_resume.json
 │
@@ -208,6 +221,9 @@ sample/shock_tube/
     │   ├── snapshot_*.csv
     │   └── energy.dat
     ├── disph/                         # DISPH outputs
+    │   ├── snapshot_*.csv
+    │   └── energy.dat
+    ├── gdisph/                        # GDISPH outputs
     │   ├── snapshot_*.csv
     │   └── energy.dat
     └── comparison/                    # Comparison outputs
@@ -228,7 +244,7 @@ make shock_tube_clean      # Clean single method results
 
 ### Multi-Method Targets
 ```bash
-make shock_tube_compare_run      # Run GSPH + SSPH + DISPH
+make shock_tube_compare_run      # Run GSPH + SSPH + DISPH + GDISPH
 make shock_tube_compare_viz      # Generate comparison plots
 make shock_tube_compare_animate  # Generate comparison animation
 make shock_tube_compare_all      # Run all + visualizations

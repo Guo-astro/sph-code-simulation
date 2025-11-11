@@ -26,6 +26,8 @@
 #include "disph/d_fluid_force.hpp"
 #include "gsph/g_pre_interaction.hpp"
 #include "gsph/g_fluid_force.hpp"
+#include "gdisph/gd_pre_interaction.hpp"
+#include "gdisph/gd_fluid_force.hpp"
 
 // relaxation
 #include "relaxation/lane_emden_relaxation.hpp"
@@ -85,6 +87,13 @@ Solver::Solver(int argc, char * argv[])
             WRITE_LOG << "SPH type: Godunov SPH (2nd order)";
         } else {
             WRITE_LOG << "SPH type: Godunov SPH (1st order)";
+        }
+        break;
+    case SPHType::GDISPH:
+        if(m_param->gsph.is_2nd_order) {
+            WRITE_LOG << "SPH type: Godunov Density-Independent SPH (2nd order)";
+        } else {
+            WRITE_LOG << "SPH type: Godunov Density-Independent SPH (1st order)";
         }
         break;
     }
@@ -238,6 +247,8 @@ void Solver::read_parameterfile(const char * filename)
         m_param->type = SPHType::DISPH;
     } else if(sph_type == "gsph") {
         m_param->type = SPHType::GSPH;
+    } else if(sph_type == "gdisph") {
+        m_param->type = SPHType::GDISPH;
     } else {
         THROW_ERROR("Unknown SPH type");
     }
@@ -583,11 +594,14 @@ void Solver::initialize()
     } else if(m_param->type == SPHType::GSPH) {
         m_pre = std::make_shared<gsph::PreInteraction>();
         m_fforce = std::make_shared<gsph::FluidForce>();
+    } else if(m_param->type == SPHType::GDISPH) {
+        m_pre = std::make_shared<gdisph::PreInteraction>();
+        m_fforce = std::make_shared<gdisph::FluidForce>();
     }
     m_gforce = std::make_shared<GravityForce>();
 
-    // GSPH
-    if(m_param->type == SPHType::GSPH) {
+    // GSPH and GDISPH require gradient arrays for MUSCL
+    if(m_param->type == SPHType::GSPH || m_param->type == SPHType::GDISPH) {
         std::vector<std::string> names;
         names.push_back("grad_density");
         names.push_back("grad_pressure");

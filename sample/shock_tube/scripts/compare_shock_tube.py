@@ -2,13 +2,13 @@
 """
 Compare 1D Shock Tube Results from Multiple SPH Methods
 
-Creates side-by-side comparison plots showing GSPH, SSPH, and DISPH results.
+Creates side-by-side comparison plots showing GSPH, SSPH, DISPH, and GDISPH results.
 
 Usage:
     python3 compare_shock_tube.py [base_dir] [output_dir]
     
 Arguments:
-    base_dir    - Base directory containing gsph/, ssph/, disph/ subdirs
+    base_dir    - Base directory containing gsph/, ssph/, disph/, gdisph/ subdirs
                   Default: sample/shock_tube/results
     output_dir  - Where to save comparison plots
                   Default: sample/shock_tube/results/comparison
@@ -26,12 +26,12 @@ base_dir = sys.argv[1] if len(sys.argv) > 1 else "sample/shock_tube/results"
 output_dir = sys.argv[2] if len(sys.argv) > 2 else "sample/shock_tube/results/comparison"
 
 # SPH methods to compare
-methods = ['gsph', 'ssph', 'disph']
-method_labels = ['GSPH (Godunov)', 'SSPH (Standard)', 'DISPH (Density-Independent)']
+methods = ['gsph', 'ssph', 'disph', 'gdisph']
+method_labels = ['GSPH (Godunov)', 'SSPH (Standard)', 'DISPH (Density-Independent)', 'GDISPH (Godunov DISPH)']
 # Colorblind-friendly palette with high contrast
-method_colors = ['#0173B2', '#DE8F05', '#029E73']  # Vibrant blue, orange, teal
-method_styles = ['-', '--', '-.']  # Solid, dashed, dash-dot for additional distinction
-method_markers = ['o', 's', '^']  # Circle, square, triangle
+method_colors = ['#0173B2', '#DE8F05', '#029E73', '#CC78BC']  # Blue, orange, teal, purple
+method_styles = ['-', '--', '-.', ':']  # Solid, dashed, dash-dot, dotted
+method_markers = ['o', 's', '^', 'D']  # Circle, square, triangle, diamond
 method_markevery = 5  # Show marker every N points
 
 print('=' * 70)

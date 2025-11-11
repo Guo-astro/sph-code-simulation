@@ -9,6 +9,7 @@ enum struct SPHType {
     SSPH,
     DISPH,
     GSPH,
+    GDISPH,
 };
 
 enum struct KernelType {

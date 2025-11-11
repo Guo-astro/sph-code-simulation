@@ -162,11 +162,11 @@ shock_tube_help:
 # Multi-Method Comparison Targets
 # ============================================================================
 
-# Run all three SPH methods (GSPH, SSPH, DISPH)
+# Run all four SPH methods (GSPH, SSPH, DISPH, GDISPH)
 shock_tube_compare_run: build/sph
 	@echo "=========================================="
 	@echo "Shock Tube Multi-Method Comparison"
-	@echo "Running: GSPH, SSPH, DISPH"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH"
 	@echo "=========================================="
 	@echo "Checking build configuration..."
 	@if grep -q "^#define DIM 1" include/defines.hpp; then \
@@ -191,12 +191,19 @@ shock_tube_compare_run: build/sph
 	@./build/sph shock_tube
 	@echo "✓ SSPH complete"
 	@echo ""
-	@echo "[3/3] Running DISPH simulation..."
+	@echo "[3/4] Running DISPH simulation..."
 	@echo "----------------------------------------"
 	@cp $(PRESET_DIR)/shock_tube_1d_disph.json $(SHOCK_TUBE_DIR)/shock_tube.json
 	@mkdir -p $(RESULTS_DIR)/disph
 	@./build/sph shock_tube
 	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "[4/4] Running GDISPH simulation..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/shock_tube_1d_gdisph.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(RESULTS_DIR)/gdisph
+	@./build/sph shock_tube
+	@echo "✓ GDISPH complete"
 	@echo ""
 	@echo "=========================================="
 	@echo "✓ All simulations complete!"
@@ -205,6 +212,7 @@ shock_tube_compare_run: build/sph
 	@echo "  📁 $(RESULTS_DIR)/gsph/"
 	@echo "  📁 $(RESULTS_DIR)/ssph/"
 	@echo "  📁 $(RESULTS_DIR)/disph/"
+	@echo "  📁 $(RESULTS_DIR)/gdisph/"
 	@echo ""
 	@echo "Next steps:"
 	@echo "  make shock_tube_compare_viz     - Generate comparison plots"
@@ -232,7 +240,7 @@ shock_tube_compare_animate:
 	@echo "=========================================="
 	@echo "Generating Comparison Animation"
 	@echo "=========================================="
-	@if [ ! -d "$(RESULTS_DIR)/gsph" ] || [ ! -d "$(RESULTS_DIR)/ssph" ] || [ ! -d "$(RESULTS_DIR)/disph" ]; then \
+	@if [ ! -d "$(RESULTS_DIR)/gsph" ] || [ ! -d "$(RESULTS_DIR)/ssph" ] || [ ! -d "$(RESULTS_DIR)/disph" ] || [ ! -d "$(RESULTS_DIR)/gdisph" ]; then \
 		echo "ERROR: Missing results directories"; \
 		echo "Run 'make shock_tube_compare_run' first."; \
 		exit 1; \
@@ -257,6 +265,7 @@ shock_tube_compare_all: shock_tube_compare_run shock_tube_compare_viz shock_tube
 	@echo "    $(RESULTS_DIR)/gsph/snapshot_*.csv"
 	@echo "    $(RESULTS_DIR)/ssph/snapshot_*.csv"
 	@echo "    $(RESULTS_DIR)/disph/snapshot_*.csv"
+	@echo "    $(RESULTS_DIR)/gdisph/snapshot_*.csv"
 	@echo "  Comparison Plots:"
 	@ls $(RESULTS_DIR)/comparison/*.png 2>/dev/null | sed 's/^/    /' || true
 	@echo "  Comparison Animation:"
@@ -265,5 +274,5 @@ shock_tube_compare_all: shock_tube_compare_run shock_tube_compare_viz shock_tube
 # Clean all comparison results
 shock_tube_compare_clean:
 	@echo "Cleaning all comparison results..."
-	@rm -rf $(RESULTS_DIR)/gsph $(RESULTS_DIR)/ssph $(RESULTS_DIR)/disph $(RESULTS_DIR)/comparison
+	@rm -rf $(RESULTS_DIR)/gsph $(RESULTS_DIR)/ssph $(RESULTS_DIR)/disph $(RESULTS_DIR)/gdisph $(RESULTS_DIR)/comparison
 	@echo "✓ Comparison results cleaned"
