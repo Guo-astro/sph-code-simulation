@@ -1,0 +1,16 @@
+{
+    "outputDirectory" : "sample/sedov/results/gdisph_cubic",
+    "endTime" : 0.1,
+    "outputTime" : 0.005,
+    "avAlpha" : 1.0,
+    "neighborNumber" : 50,
+    "useBalsaraSwitch" : false,
+    "leafParticleNumber" : 32,
+    "gamma" : 1.4,
+    "kernel" : "cubic_spline",
+    "N" : 50,
+    "periodic" : false,
+    "rangeMax" : [0.5, 0.5],
+    "rangeMin" : [-0.5, -0.5],
+    "SPHType" : "gdisph"
+}

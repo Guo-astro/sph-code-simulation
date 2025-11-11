@@ -160,6 +160,7 @@ Solver::Solver(int argc, char * argv[])
         WRITE_SAMPLE(Sample::Evrard, "Evrard collapse");
         WRITE_SAMPLE(Sample::EvrardColdCollapse, "Evrard cold collapse (demonstrates shock amplification)");
         WRITE_SAMPLE(Sample::LaneEmden, "Lane-Emden hydrostatic");
+        WRITE_SAMPLE(Sample::Sedov, "Sedov blast wave");
 #undef WRITE_SAMPLE
         default:
             break;
@@ -214,6 +215,10 @@ void Solver::read_parameterfile(const char * filename)
         pt::read_json("sample/lane_emden/lane_emden.json", input);
         m_sample = Sample::LaneEmden;
         m_sample_parameters["N"] = input.get<int>("N", 30);
+    } else if(name_str == "sedov") {
+        pt::read_json("sample/sedov/sedov.json", input);
+        m_sample = Sample::Sedov;
+        m_sample_parameters["N"] = input.get<int>("N", 100);
     } else {
         pt::read_json(filename, input);
         m_sample = Sample::DoNotUse;
@@ -929,6 +934,7 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::Evrard, evrard);
         MAKE_SAMPLE(Sample::EvrardColdCollapse, evrard_cold_collapse);
         MAKE_SAMPLE(Sample::LaneEmden, lane_emden);
+        MAKE_SAMPLE(Sample::Sedov, sedov);
         case Sample::DoNotUse:
 
             // サンプルを使わない場合はここを実装

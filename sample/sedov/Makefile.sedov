@@ -1,0 +1,435 @@
+# Sedov Blast Wave Test - Makefile
+#
+# Single Method Usage:
+#   make sedov_run                                 # Run default (GSPH + Wendland)
+#   make sedov_plot_all                            # Generate analytical overlay plots
+#   make sedov_clean                               # Clean results
+#
+# Multi-Method Comparison (4 SPH types, Wendland kernel):
+#   make sedov_compare_run                         # Run all 4 methods
+#   make sedov_compare_viz                         # Generate 1D radial analytical plots
+#   make sedov_compare_2d                          # Generate 2D spatial x-y plots
+#   make sedov_compare_animate                     # Create 1D+2D animations with analytical overlay
+#   make sedov_compare_all                         # Run all + visualizations + animations
+#   make sedov_compare_clean                       # Clean comparison results
+#
+# Kernel Comparison (4 SPH × 2 kernels = 8 variants):
+#   make sedov_kernel_run                          # Run all 8 simulations
+#   make sedov_kernel_viz                          # Generate all plots
+#   make sedov_kernel_animate                      # Create animations for all variants
+#   make sedov_kernel_all                          # Run all + visualizations + animations
+#   make sedov_kernel_clean                        # Clean kernel comparison results
+
+SEDOV_DIR := sample/sedov
+SEDOV_CONFIG := $(SEDOV_DIR)/config
+PRESET_DIR := $(SEDOV_CONFIG)/presets
+SEDOV_RESULTS := $(SEDOV_DIR)/results
+SEDOV_SCRIPTS := $(SEDOV_DIR)/scripts
+
+.PHONY: sedov_help sedov_run sedov_gsph_wendland sedov_gsph_cubic sedov_plot sedov_plot_all sedov_clean \
+        sedov_compare_all sedov_compare_run sedov_compare_viz sedov_compare_2d sedov_compare_animate sedov_compare_clean \
+        sedov_kernel_all sedov_kernel_run sedov_kernel_viz sedov_kernel_animate sedov_kernel_clean \
+        sedov_ssph_wendland sedov_disph_wendland sedov_gdisph_wendland \
+        sedov_ssph_cubic sedov_disph_cubic sedov_gdisph_cubic
+
+# Help
+sedov_help:
+	@echo "=========================================="
+	@echo "Sedov Blast Wave Test"
+	@echo "=========================================="
+	@echo ""
+	@echo "Single Method Targets:"
+	@echo "  sedov_run                 - Run default (GSPH + Wendland)"
+	@echo "  sedov_plot_all            - Generate analytical overlay plots"
+	@echo "  sedov_clean               - Remove all results"
+	@echo ""
+	@echo "Multi-Method Comparison (Wendland kernel):"
+	@echo "  sedov_compare_run         - Run GSPH, SSPH, DISPH, GDISPH"
+	@echo "  sedov_compare_viz         - Generate 1D radial analytical comparison plots"
+	@echo "  sedov_compare_2d          - Generate 2D spatial x-y plots"
+	@echo "  sedov_compare_animate     - Create animations (1D+2D with analytical overlay)"
+	@echo "  sedov_compare_all         - Run all + visualizations + animations"
+	@echo "  sedov_compare_clean       - Clean comparison results"
+	@echo ""
+	@echo "Kernel Comparison (4 methods × 2 kernels):"
+	@echo "  sedov_kernel_run          - Run all 8 simulations"
+	@echo "  sedov_kernel_viz          - Generate kernel comparison plots"
+	@echo "  sedov_kernel_animate      - Create animations for all variants"
+	@echo "  sedov_kernel_all          - Run all + visualizations + animations"
+	@echo "  sedov_kernel_clean        - Clean kernel comparison results"
+	@echo ""
+
+# Default run
+sedov_run: sedov_gsph_wendland
+
+# GSPH with Wendland kernel
+sedov_gsph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running Sedov Blast Wave - GSPH (Wendland)"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/gsph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/gsph_wendland
+	./build/sph sedov
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📊 Output: $(SEDOV_RESULTS)/gsph_wendland/"
+
+# GSPH with Cubic Spline kernel
+sedov_gsph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running Sedov Blast Wave - GSPH (Cubic Spline)"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/gsph_cubic.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/gsph
+	./build/sph sedov
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📊 Output: $(SEDOV_RESULTS)/gsph/"
+
+# Plot single snapshot with analytical solution
+sedov_plot:
+	@echo "=========================================="
+	@echo "Plotting Sedov Analytical Comparison"
+	@echo "=========================================="
+	@chmod +x $(SEDOV_SCRIPTS)/sedov_analytical.py
+	@if [ -f "$(SEDOV_RESULTS)/gsph_wendland/snapshot_0020.csv" ]; then \
+		python3 $(SEDOV_SCRIPTS)/sedov_analytical.py $(SEDOV_RESULTS)/gsph_wendland/snapshot_0020.csv \
+			-o $(SEDOV_RESULTS)/gsph_wendland/sedov_comparison.png --no-show; \
+		echo "✓ Plot saved to $(SEDOV_RESULTS)/gsph_wendland/sedov_comparison.png"; \
+	else \
+		echo "❌ No snapshots found. Run 'make sedov_run' first."; \
+		exit 1; \
+	fi
+
+# Process all snapshots with analytical overlay
+sedov_plot_all:
+	@echo "=========================================="
+	@echo "Processing All Snapshots"
+	@echo "=========================================="
+	@chmod +x $(SEDOV_SCRIPTS)/process_all_snapshots.py
+	@chmod +x $(SEDOV_SCRIPTS)/sedov_analytical.py
+	@if [ -d "$(SEDOV_RESULTS)/gsph_wendland" ]; then \
+		python3 $(SEDOV_SCRIPTS)/process_all_snapshots.py $(SEDOV_RESULTS)/gsph_wendland; \
+		echo ""; \
+		echo "✓ All plots generated!"; \
+		echo "📊 Output: $(SEDOV_RESULTS)/gsph_wendland/plots/"; \
+	else \
+		echo "❌ Results directory not found. Run 'make sedov_run' first."; \
+		exit 1; \
+	fi
+
+# Cleanup
+sedov_clean:
+	@echo "Cleaning Sedov blast wave results..."
+	@rm -rf $(SEDOV_RESULTS)
+	@echo "✓ Cleaned!"
+
+# ============================================================================
+# Multi-Method Comparison Targets (Wendland Kernel)
+# ============================================================================
+
+# Run all comparisons + visualizations + animations
+sedov_compare_all: sedov_compare_run sedov_compare_viz sedov_compare_2d sedov_compare_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Comparison Workflow Done!"
+	@echo "=========================================="
+
+# Run all four SPH methods with Wendland kernel
+sedov_compare_run: build/sph
+	@echo "=========================================="
+	@echo "Sedov Multi-Method Comparison (Wendland)"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH"
+	@echo "=========================================="
+	@echo ""
+	@echo "[1/4] Running GSPH (Wendland)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/gsph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/gsph_wendland
+	@./build/sph sedov
+	@echo "✓ GSPH complete"
+	@echo ""
+	@echo "[2/4] Running SSPH (Wendland)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/ssph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/ssph_wendland
+	@./build/sph sedov
+	@echo "✓ SSPH complete"
+	@echo ""
+	@echo "[3/4] Running DISPH (Wendland)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/disph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/disph_wendland
+	@./build/sph sedov
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "[4/4] Running GDISPH (Wendland)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/gdisph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/gdisph_wendland
+	@./build/sph sedov
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All simulations complete!"
+	@echo "=========================================="
+
+# Generate analytical comparison plots for all methods
+sedov_compare_viz:
+	@echo "=========================================="
+	@echo "Generating Analytical Comparison Plots"
+	@echo "=========================================="
+	@chmod +x $(SEDOV_SCRIPTS)/process_all_snapshots.py
+	@chmod +x $(SEDOV_SCRIPTS)/sedov_analytical.py
+	@for method in gsph_wendland ssph_wendland disph_wendland gdisph_wendland; do \
+		if [ -d "$(SEDOV_RESULTS)/$$method" ]; then \
+			echo "Processing $$method..."; \
+			python3 $(SEDOV_SCRIPTS)/process_all_snapshots.py $(SEDOV_RESULTS)/$$method; \
+		fi \
+	done
+	@echo ""
+	@echo "✓ All analytical comparison plots generated!"
+	@echo "📊 Plots saved in: $(SEDOV_RESULTS)/*/plots/"
+
+# Create comparison animation with 1D+2D plots
+sedov_compare_animate:
+	@echo "=========================================="
+	@echo "Generating Animations (1D + 2D Spatial)"
+	@echo "=========================================="
+	@mkdir -p $(SEDOV_RESULTS)/animations $(SEDOV_RESULTS)/comparison
+	@chmod +x $(SEDOV_SCRIPTS)/generate_all_animations.py
+	@if [ -d "$(SEDOV_RESULTS)/gsph_wendland" ] || [ -d "$(SEDOV_RESULTS)/disph_wendland" ]; then \
+		echo "Creating animations with 1D radial + 2D spatial plots..."; \
+		python3 $(SEDOV_SCRIPTS)/generate_all_animations.py \
+			--results-dir $(SEDOV_RESULTS) \
+			--fps 5; \
+		echo ""; \
+		echo "✓ Animations complete!"; \
+		echo "🎬 $(SEDOV_RESULTS)/animations/"; \
+		echo "📷 $(SEDOV_RESULTS)/comparison/"; \
+	else \
+		echo "❌ No results found. Run 'make sedov_compare_run' first."; \
+		exit 1; \
+	fi
+
+# Generate 2D spatial x-y plots
+sedov_compare_2d:
+	@echo "=========================================="
+	@echo "Generating 2D Spatial Visualizations"
+	@echo "=========================================="
+	@chmod +x $(SEDOV_SCRIPTS)/plot_2d_spatial.py
+	@for method in gsph_wendland ssph_wendland disph_wendland gdisph_wendland; do \
+		if [ -d "$(SEDOV_RESULTS)/$$method" ]; then \
+			echo "Processing $$method (2D x-y plots)..."; \
+			mkdir -p $(SEDOV_RESULTS)/$$method/plots_2d; \
+			for snapshot in $(SEDOV_RESULTS)/$$method/snapshot_*.csv; do \
+				if [ -f "$$snapshot" ]; then \
+					basename=$$(basename $$snapshot .csv); \
+					output=$(SEDOV_RESULTS)/$$method/plots_2d/$${basename}_2d.png; \
+					python3 $(SEDOV_SCRIPTS)/plot_2d_spatial.py $$snapshot -o $$output --no-show; \
+				fi \
+			done; \
+			echo "✓ 2D plots for $$method complete"; \
+		fi \
+	done
+	@echo ""
+	@echo "✓ All 2D spatial plots generated!"
+	@echo "📊 Plots saved in: $(SEDOV_RESULTS)/*/plots_2d/"
+
+# Clean comparison results
+sedov_compare_clean:
+	@echo "Cleaning Sedov comparison results..."
+	@rm -rf $(SEDOV_RESULTS)/gsph_wendland $(SEDOV_RESULTS)/ssph_wendland \
+	        $(SEDOV_RESULTS)/disph_wendland $(SEDOV_RESULTS)/gdisph_wendland \
+	        $(SEDOV_RESULTS)/comparison
+	@echo "✓ Comparison results cleaned"
+
+# ============================================================================
+# Kernel Comparison Targets (Wendland vs Cubic Spline)
+# ============================================================================
+
+# Run all methods with both kernels + visualizations
+sedov_kernel_all: sedov_kernel_run sedov_kernel_viz sedov_compare_2d sedov_kernel_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Kernel Comparison Done!"
+	@echo "=========================================="
+
+# Run all four SPH methods with both Wendland and Cubic Spline kernels (8 total runs)
+sedov_kernel_run: build/sph
+	@echo "=========================================="
+	@echo "Kernel Comparison: Wendland vs Cubic Spline"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH"
+	@echo "Kernels: Wendland, Cubic Spline"
+	@echo "=========================================="
+	@echo ""
+	@echo "=== WENDLAND KERNEL RUNS ==="
+	@echo "[1/8] Running GSPH (Wendland)..."
+	@cp $(PRESET_DIR)/gsph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/gsph_wendland
+	@./build/sph sedov
+	@echo "✓ GSPH (Wendland) complete"
+	@echo ""
+	@echo "[2/8] Running SSPH (Wendland)..."
+	@cp $(PRESET_DIR)/ssph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/ssph_wendland
+	@./build/sph sedov
+	@echo "✓ SSPH (Wendland) complete"
+	@echo ""
+	@echo "[3/8] Running DISPH (Wendland)..."
+	@cp $(PRESET_DIR)/disph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/disph_wendland
+	@./build/sph sedov
+	@echo "✓ DISPH (Wendland) complete"
+	@echo ""
+	@echo "[4/8] Running GDISPH (Wendland)..."
+	@cp $(PRESET_DIR)/gdisph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/gdisph_wendland
+	@./build/sph sedov
+	@echo "✓ GDISPH (Wendland) complete"
+	@echo ""
+	@echo "=== CUBIC SPLINE KERNEL RUNS ==="
+	@echo "[5/8] Running GSPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/gsph_cubic.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/gsph_cubic
+	@./build/sph sedov
+	@echo "✓ GSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[6/8] Running SSPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/ssph_cubic.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/ssph_cubic
+	@./build/sph sedov
+	@echo "✓ SSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[7/8] Running DISPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/disph_cubic.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/disph_cubic
+	@./build/sph sedov
+	@echo "✓ DISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[8/8] Running GDISPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/gdisph_cubic.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/gdisph_cubic
+	@./build/sph sedov
+	@echo "✓ GDISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All kernel comparison simulations complete!"
+	@echo "=========================================="
+
+# Generate kernel comparison plots with analytical overlays
+sedov_kernel_viz:
+	@echo "=========================================="
+	@echo "Generating Kernel Comparison Plots"
+	@echo "=========================================="
+	@chmod +x $(SEDOV_SCRIPTS)/process_all_snapshots.py
+	@chmod +x $(SEDOV_SCRIPTS)/sedov_analytical.py
+	@for method in gsph_wendland ssph_wendland disph_wendland gdisph_wendland \
+	               gsph_cubic ssph_cubic disph_cubic gdisph_cubic; do \
+		if [ -d "$(SEDOV_RESULTS)/$$method" ]; then \
+			echo "Processing $$method..."; \
+			python3 $(SEDOV_SCRIPTS)/process_all_snapshots.py $(SEDOV_RESULTS)/$$method; \
+		fi \
+	done
+	@mkdir -p $(SEDOV_RESULTS)/kernel_comparison
+	@echo ""
+	@echo "✓ All analytical comparison plots generated!"
+	@echo "📊 Plots saved in: $(SEDOV_RESULTS)/*/plots/"
+
+# Create kernel comparison animation
+sedov_kernel_animate:
+	@echo "=========================================="
+	@echo "Generating Kernel Animations (1D + 2D)"
+	@echo "=========================================="
+	@mkdir -p $(SEDOV_RESULTS)/animations $(SEDOV_RESULTS)/comparison
+	@chmod +x $(SEDOV_SCRIPTS)/generate_all_animations.py
+	@if [ -d "$(SEDOV_RESULTS)/gsph_wendland" ] || [ -d "$(SEDOV_RESULTS)/gsph_cubic" ]; then \
+		echo "Creating animations for all kernel variants..."; \
+		python3 $(SEDOV_SCRIPTS)/generate_all_animations.py \
+			--results-dir $(SEDOV_RESULTS) \
+			--fps 5; \
+		echo ""; \
+		echo "✓ Animations complete!"; \
+		echo "🎬 $(SEDOV_RESULTS)/animations/"; \
+		echo "📷 $(SEDOV_RESULTS)/comparison/"; \
+	else \
+		echo "❌ Missing results. Run 'make sedov_kernel_run' first."; \
+		exit 1; \
+	fi
+
+# Clean kernel comparison results
+sedov_kernel_clean:
+	@echo "Cleaning kernel comparison results..."
+	@rm -rf $(SEDOV_RESULTS)/*_cubic $(SEDOV_RESULTS)/kernel_comparison
+	@echo "✓ Kernel comparison results cleaned"
+
+# Individual Method Targets
+
+# SSPH targets
+sedov_ssph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running SSPH (Wendland)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/ssph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/ssph_wendland
+	./build/sph sedov
+	@echo ""
+	@echo "✓ SSPH (Wendland) complete!"
+	@echo "📊 Output: $(SEDOV_RESULTS)/ssph_wendland/"
+
+sedov_ssph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running SSPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/ssph_cubic.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/ssph_cubic
+	./build/sph sedov
+	@echo ""
+	@echo "✓ SSPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(SEDOV_RESULTS)/ssph_cubic/"
+
+# DISPH targets
+sedov_disph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running DISPH (Wendland)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/disph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/disph_wendland
+	./build/sph sedov
+	@echo ""
+	@echo "✓ DISPH (Wendland) complete!"
+	@echo "📊 Output: $(SEDOV_RESULTS)/disph_wendland/"
+
+sedov_disph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running DISPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/disph_cubic.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/disph_cubic
+	./build/sph sedov
+	@echo ""
+	@echo "✓ DISPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(SEDOV_RESULTS)/disph_cubic/"
+
+# GDISPH targets
+sedov_gdisph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH (Wendland)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/gdisph_wendland.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/gdisph_wendland
+	./build/sph sedov
+	@echo ""
+	@echo "✓ GDISPH (Wendland) complete!"
+	@echo "📊 Output: $(SEDOV_RESULTS)/gdisph_wendland/"
+
+sedov_gdisph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/gdisph_cubic.json $(SEDOV_DIR)/sedov.json
+	@mkdir -p $(SEDOV_RESULTS)/gdisph_cubic
+	./build/sph sedov
+	@echo ""
+	@echo "✓ GDISPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(SEDOV_RESULTS)/gdisph_cubic/"

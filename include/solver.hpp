@@ -30,8 +30,9 @@ enum struct Sample {
     Evrard,
     EvrardColdCollapse,
     LaneEmden,
+    Sedov,
     DoNotUse,
-};
+};;
 
 class Solver {
     std::shared_ptr<SPHParameters>  m_param;
@@ -80,6 +81,7 @@ class Solver {
     void make_evrard();
     void make_evrard_cold_collapse();
     void make_lane_emden();
+    void make_sedov();
 
 public:
     Solver(int argc, char * argv[]);

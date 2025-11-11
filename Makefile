@@ -22,6 +22,8 @@ all:
 	@echo "  make pairing_help             # Pairing instability targets"
 	@echo "  make hydrostatic_help         # Hydrostatic test targets"
 	@echo "  make khi_help                 # Kelvin-Helmholtz instability targets"
+	@echo "  make gresho_help              # Gresho-Chan vortex targets"
+	@echo "  make sedov_help               # Sedov blast wave targets"
 	@echo ""
 	@false
 
@@ -41,3 +43,9 @@ help: all
 
 # Kelvin-Helmholtz Instability preset-based system
 -include sample/khi/Makefile.khi
+
+# Gresho-Chan Vortex preset-based system
+-include sample/gresho_chan_vortex/Makefile.gresho
+
+# Sedov Blast Wave preset-based system
+-include sample/sedov/Makefile.sedov

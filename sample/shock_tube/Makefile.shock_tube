@@ -4,10 +4,11 @@
 #   make shock_tube_run                                # Run Sod shock tube test (SSPH)
 #   make shock_tube_resume                             # Resume from latest snapshot
 #   make shock_tube_resume CHECKPOINT=snapshot_0005.csv # Resume from specific snapshot
+#   make shock_tube_animate                            # Generate plots and animation
 #   make shock_tube_clean                              # Clean results
 #
 # Multi-Method Comparison:
-#   make shock_tube_compare_run                        # Run GSPH, SSPH, DISPH simulations
+#   make shock_tube_compare_run                        # Run GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara
 #   make shock_tube_compare_viz                        # Generate comparison plots
 #   make shock_tube_compare_animate                    # Generate comparison animation
 #   make shock_tube_compare_all                        # Run all methods + visualizations
@@ -147,7 +148,7 @@ shock_tube_help:
 	@echo "  shock_tube_clean   - Clean results"
 	@echo ""
 	@echo "Multi-Method Comparison Targets:"
-	@echo "  shock_tube_compare_run     - Run all 5 SPH methods (GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara)"
+	@echo "  shock_tube_compare_run     - Run all 5 SPH methods"
 	@echo "  shock_tube_compare_viz     - Generate comparison plots"
 	@echo "  shock_tube_compare_animate - Generate comparison animation"
 	@echo "  shock_tube_compare_all     - Run all + generate visualizations"
@@ -264,23 +265,11 @@ shock_tube_compare_animate:
 shock_tube_compare_all: shock_tube_compare_run shock_tube_compare_viz shock_tube_compare_animate
 	@echo ""
 	@echo "=========================================="
-	@echo "✓ Full Comparison Study Complete!"
+	@echo "✓ Complete Comparison Workflow Done!"
 	@echo "=========================================="
-	@echo "📁 All outputs saved to: $(RESULTS_DIR)/"
-	@echo ""
-	@echo "Generated files:"
-	@echo "  Data:"
-	@echo "    $(RESULTS_DIR)/gsph/snapshot_*.csv"
-	@echo "    $(RESULTS_DIR)/ssph/snapshot_*.csv"
-	@echo "    $(RESULTS_DIR)/disph/snapshot_*.csv"
-	@echo "    $(RESULTS_DIR)/gdisph/snapshot_*.csv"
-	@echo "  Comparison Plots:"
-	@ls $(RESULTS_DIR)/comparison/*.png 2>/dev/null | sed 's/^/    /' || true
-	@echo "  Comparison Animation:"
-	@ls $(RESULTS_DIR)/comparison/*.gif 2>/dev/null | sed 's/^/    /' || true
 
 # Clean all comparison results
 shock_tube_compare_clean:
-	@echo "Cleaning all comparison results..."
-	@rm -rf $(RESULTS_DIR)/gsph $(RESULTS_DIR)/ssph $(RESULTS_DIR)/disph $(RESULTS_DIR)/gdisph $(RESULTS_DIR)/comparison
-	@echo "✓ Comparison results cleaned"
+	@echo "Cleaning all shock tube comparison results..."
+	@rm -rf $(RESULTS_DIR)/gsph $(RESULTS_DIR)/ssph $(RESULTS_DIR)/disph $(RESULTS_DIR)/gdisph $(RESULTS_DIR)/gdisph_balsara $(RESULTS_DIR)/comparison
+	@echo "✓ All comparison results cleaned"

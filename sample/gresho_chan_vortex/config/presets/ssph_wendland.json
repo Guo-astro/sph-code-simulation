@@ -1,5 +1,5 @@
 {
-    "outputDirectory" : "sample/gresho_chan_vortex/results/disph_wendland",
+    "outputDirectory" : "sample/gresho_chan_vortex/results/ssph_wendland",
     "endTime" : 3.0,
     "avAlpha" : 1.0,
     "neighborNumber" : 50,
@@ -11,5 +11,5 @@
     "periodic" : true,
     "rangeMax" : [0.5, 0.5],
     "rangeMin" : [-0.5, -0.5],
-    "SPHType" : "disph"
+    "SPHType" : "ssph"
 }

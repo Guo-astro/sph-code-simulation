@@ -1,0 +1,378 @@
+# Gresho-Chan Vortex Test - Makefile
+#
+# Single Method Usage:
+#   make gresho_run                                # Run default (GSPH + Cubic Spline)
+#   make gresho_clean                              # Clean results
+#
+# Multi-Method Comparison:
+#   make gresho_compare_run                        # Run all 5 SPH methods (Cubic Spline)
+#   make gresho_compare_viz                        # Generate comparison plots
+#   make gresho_compare_animate                    # Generate comparison animation
+#   make gresho_compare_all                        # Run all methods + visualizations
+#   make gresho_compare_clean                      # Clean comparison results
+#
+# Kernel Comparison:
+#   make gresho_kernel_run                         # Run all 5 methods with both kernels (10 runs)
+#   make gresho_kernel_viz                         # Generate kernel comparison plots
+#   make gresho_kernel_animate                     # Generate kernel comparison animation
+#   make gresho_kernel_all                         # Run all + visualizations
+#   make gresho_kernel_clean                       # Clean kernel comparison results
+
+# Paths
+GRESHO_DIR := sample/gresho_chan_vortex
+GRESHO_CONFIG := $(GRESHO_DIR)/config
+PRESET_DIR := $(GRESHO_CONFIG)/presets
+GRESHO_RESULTS := $(GRESHO_DIR)/results
+GRESHO_SCRIPTS := $(GRESHO_DIR)/scripts
+
+.PHONY: gresho_help gresho_run gresho_clean \
+        gresho_compare_run gresho_compare_viz gresho_compare_animate gresho_compare_all gresho_compare_clean \
+        gresho_kernel_run gresho_kernel_viz gresho_kernel_animate gresho_kernel_all gresho_kernel_clean \
+        gresho_gsph_wendland gresho_ssph_wendland gresho_disph_wendland gresho_gdisph_wendland gresho_balsara_wendland \
+        gresho_gsph_cubic gresho_ssph_cubic gresho_disph_cubic gresho_gdisph_cubic gresho_balsara_cubic
+
+# Default run (GSPH with Cubic Spline)
+gresho_run: gresho_gsph_cubic
+
+# Help
+gresho_help:
+	@echo "=========================================="
+	@echo "Gresho-Chan Vortex Test"
+	@echo "=========================================="
+	@echo ""
+	@echo "Single Method Targets:"
+	@echo "  gresho_run                    - Run default (GSPH + Cubic Spline)"
+	@echo "  gresho_clean                  - Remove all results"
+	@echo ""
+	@echo "Multi-Method Comparison (Cubic Spline kernel):"
+	@echo "  gresho_compare_run            - Run all 5 SPH methods"
+	@echo "  gresho_compare_viz            - Generate comparison plots"
+	@echo "  gresho_compare_animate        - Generate comparison animation"
+	@echo "  gresho_compare_all            - Run all + visualizations"
+	@echo "  gresho_compare_clean          - Clean comparison results"
+	@echo ""
+	@echo "Kernel Comparison (5 methods × 2 kernels = 10 runs):"
+	@echo "  gresho_kernel_run             - Run all 10 simulations"
+	@echo "  gresho_kernel_viz             - Generate kernel comparison plots"
+	@echo "  gresho_kernel_animate         - Generate kernel comparison animation"
+	@echo "  gresho_kernel_all             - Run all + visualizations"
+	@echo "  gresho_kernel_clean           - Clean kernel comparison results"
+	@echo ""
+	@echo "Individual Method Targets:"
+	@echo "  gresho_gsph_wendland          - GSPH with Wendland"
+	@echo "  gresho_gsph_cubic             - GSPH with Cubic Spline"
+	@echo "  gresho_ssph_wendland          - SSPH with Wendland"
+	@echo "  gresho_ssph_cubic             - SSPH with Cubic Spline"
+	@echo "  gresho_disph_wendland         - DISPH with Wendland"
+	@echo "  gresho_disph_cubic            - DISPH with Cubic Spline"
+	@echo "  gresho_gdisph_wendland        - GDISPH with Wendland"
+	@echo "  gresho_gdisph_cubic           - GDISPH with Cubic Spline"
+	@echo "  gresho_balsara_wendland       - GDISPH+Balsara with Wendland"
+	@echo "  gresho_balsara_cubic          - GDISPH+Balsara with Cubic Spline"
+	@echo ""
+
+# Clean results
+gresho_clean:
+	@echo "Cleaning Gresho-Chan vortex results..."
+	@rm -rf $(GRESHO_RESULTS)
+	@echo "✓ Cleaned!"
+
+# ============================================================================
+# Multi-Method Comparison Targets (Cubic Spline Kernel)
+# ============================================================================
+
+# Run all comparisons + visualizations
+gresho_compare_all: gresho_compare_run gresho_compare_viz gresho_compare_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Comparison Workflow Done!"
+	@echo "=========================================="
+
+# Run all five SPH methods with Cubic Spline kernel
+gresho_compare_run: build/sph
+	@echo "=========================================="
+	@echo "Gresho-Chan Multi-Method Comparison"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "=========================================="
+	@echo ""
+	@echo "[1/5] Running GSPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/gsph_cubic.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gsph
+	@./build/sph gresho_chan_vortex
+	@echo "✓ GSPH complete"
+	@echo ""
+	@echo "[2/5] Running SSPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/ssph_cubic.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/ssph
+	@./build/sph gresho_chan_vortex
+	@echo "✓ SSPH complete"
+	@echo ""
+	@echo "[3/5] Running DISPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/disph_cubic.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/disph
+	@./build/sph gresho_chan_vortex
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "[4/5] Running GDISPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/gdisph_cubic.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gdisph
+	@./build/sph gresho_chan_vortex
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "[5/5] Running GDISPH+Balsara (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/gdisph_balsara_cubic.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gdisph_balsara
+	@./build/sph gresho_chan_vortex
+	@echo "✓ GDISPH+Balsara complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All simulations complete!"
+	@echo "=========================================="
+
+# Generate comparison plots
+gresho_compare_viz:
+	@echo "=========================================="
+	@echo "Generating Comparison Plots"
+	@echo "=========================================="
+	@if [ ! -d "$(GRESHO_RESULTS)/gsph" ]; then \
+		echo "❌ ERROR: Missing results directories"; \
+		echo "Run 'make gresho_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(GRESHO_RESULTS)/comparison
+	@python3 $(GRESHO_SCRIPTS)/compare_gresho.py $(GRESHO_RESULTS) $(GRESHO_RESULTS)/comparison
+	@echo ""
+	@echo "✓ Comparison plots generated!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/comparison/"
+
+# Generate comparison animation
+gresho_compare_animate:
+	@echo "=========================================="
+	@echo "Generating Comparison Animation"
+	@echo "=========================================="
+	@if [ ! -d "$(GRESHO_RESULTS)/gsph" ]; then \
+		echo "❌ ERROR: Missing results directories"; \
+		echo "Run 'make gresho_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(GRESHO_RESULTS)/comparison
+	@python3 $(GRESHO_SCRIPTS)/animate_gresho.py $(GRESHO_RESULTS) $(GRESHO_RESULTS)/comparison/comparison_animation.gif
+	@echo ""
+	@echo "✓ Animation complete!"
+	@echo "🎬 Output: $(GRESHO_RESULTS)/comparison/comparison_animation.gif"
+
+# Clean comparison results
+gresho_compare_clean:
+	@echo "Cleaning Gresho-Chan comparison results..."
+	@rm -rf $(GRESHO_RESULTS)/gsph $(GRESHO_RESULTS)/ssph $(GRESHO_RESULTS)/disph $(GRESHO_RESULTS)/gdisph $(GRESHO_RESULTS)/gdisph_balsara $(GRESHO_RESULTS)/comparison
+	@echo "✓ Comparison results cleaned"
+
+# ============================================================================
+# Kernel Comparison Targets (Wendland vs Cubic Spline)
+# ============================================================================
+
+# Run all methods with both kernels + visualizations
+gresho_kernel_all: gresho_kernel_run gresho_kernel_viz gresho_kernel_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Kernel Comparison Done!"
+	@echo "=========================================="
+
+# Run all five SPH methods with both kernels (10 total runs)
+gresho_kernel_run: build/sph
+	@echo "=========================================="
+	@echo "Kernel Comparison: Wendland vs Cubic Spline"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "Kernels: Cubic Spline, Wendland"
+	@echo "=========================================="
+	@echo ""
+	@echo "=== CUBIC SPLINE KERNEL RUNS ==="
+	@$(MAKE) gresho_compare_run
+	@echo ""
+	@echo "=== WENDLAND KERNEL RUNS ==="
+	@echo "[6/10] Running GSPH (Wendland)..."
+	@cp $(PRESET_DIR)/gsph_wendland.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gsph_wendland
+	@./build/sph gresho_chan_vortex
+	@echo "✓ GSPH (Wendland) complete"
+	@echo ""
+	@echo "[7/10] Running SSPH (Wendland)..."
+	@cp $(PRESET_DIR)/ssph_wendland.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/ssph_wendland
+	@./build/sph gresho_chan_vortex
+	@echo "✓ SSPH (Wendland) complete"
+	@echo ""
+	@echo "[8/10] Running DISPH (Wendland)..."
+	@cp $(PRESET_DIR)/disph_wendland.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/disph_wendland
+	@./build/sph gresho_chan_vortex
+	@echo "✓ DISPH (Wendland) complete"
+	@echo ""
+	@echo "[9/10] Running GDISPH (Wendland)..."
+	@cp $(PRESET_DIR)/gdisph_wendland.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gdisph_wendland
+	@./build/sph gresho_chan_vortex
+	@echo "✓ GDISPH (Wendland) complete"
+	@echo ""
+	@echo "[10/10] Running GDISPH+Balsara (Wendland)..."
+	@cp $(PRESET_DIR)/gdisph_balsara_wendland.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gdisph_balsara_wendland
+	@./build/sph gresho_chan_vortex
+	@echo "✓ GDISPH+Balsara (Wendland) complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All kernel comparison simulations complete!"
+	@echo "=========================================="
+
+# Generate kernel comparison plots
+gresho_kernel_viz:
+	@echo "=========================================="
+	@echo "Generating Kernel Comparison Plots"
+	@echo "=========================================="
+	@mkdir -p $(GRESHO_RESULTS)/kernel_comparison
+	@chmod +x $(GRESHO_SCRIPTS)/compare_kernels.py
+	@python3 $(GRESHO_SCRIPTS)/compare_kernels.py $(GRESHO_RESULTS) $(GRESHO_RESULTS)/kernel_comparison
+	@echo ""
+	@echo "✓ Kernel comparison plots generated!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/kernel_comparison/"
+
+# Generate kernel comparison animation
+gresho_kernel_animate:
+	@echo "=========================================="
+	@echo "Generating Kernel Comparison Animation"
+	@echo "=========================================="
+	@mkdir -p $(GRESHO_RESULTS)/kernel_comparison
+	@chmod +x $(GRESHO_SCRIPTS)/animate_kernel_comparison.py
+	@python3 $(GRESHO_SCRIPTS)/animate_kernel_comparison.py $(GRESHO_RESULTS) $(GRESHO_RESULTS)/kernel_comparison/kernel_comparison.gif
+	@echo ""
+	@echo "✓ Animation complete!"
+	@echo "🎬 Output: $(GRESHO_RESULTS)/kernel_comparison/kernel_comparison.gif"
+
+# Clean kernel comparison results
+gresho_kernel_clean:
+	@echo "Cleaning kernel comparison results..."
+	@rm -rf $(GRESHO_RESULTS)/*_wendland $(GRESHO_RESULTS)/kernel_comparison
+	@echo "✓ Kernel comparison results cleaned"
+
+# ============================================================================
+# Individual Method Targets
+# ============================================================================
+# Individual simulations - GSPH
+gresho_gsph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running GSPH with Wendland kernel"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/gsph_wendland.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gsph_wendland
+	./build/sph gresho_chan_vortex
+	@echo ""
+	@echo "✓ GSPH (Wendland) complete!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/gsph_wendland/"
+
+gresho_gsph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running GSPH with Cubic Spline kernel"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/gsph_cubic.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gsph
+	./build/sph gresho_chan_vortex
+	@echo ""
+	@echo "✓ GSPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/gsph/"
+
+# Individual simulations - SSPH
+gresho_ssph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running SSPH with Wendland kernel"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/ssph_wendland.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/ssph_wendland
+	./build/sph gresho_chan_vortex
+	@echo ""
+	@echo "✓ SSPH (Wendland) complete!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/ssph_wendland/"
+
+gresho_ssph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running SSPH with Cubic Spline kernel"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/ssph_cubic.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/ssph
+	./build/sph gresho_chan_vortex
+	@echo ""
+	@echo "✓ SSPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/ssph/"
+
+# Individual simulations - DISPH
+gresho_disph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running DISPH with Wendland kernel"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/disph_wendland.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/disph_wendland
+	./build/sph gresho_chan_vortex
+	@echo ""
+	@echo "✓ DISPH (Wendland) complete!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/disph_wendland/"
+
+gresho_disph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running DISPH with Cubic Spline kernel"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/disph_cubic.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/disph
+	./build/sph gresho_chan_vortex
+	@echo ""
+	@echo "✓ DISPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/disph/"
+
+# Individual simulations - GDISPH
+gresho_gdisph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH with Wendland kernel"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/gdisph_wendland.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gdisph_wendland
+	./build/sph gresho_chan_vortex
+	@echo ""
+	@echo "✓ GDISPH (Wendland) complete!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/gdisph_wendland/"
+
+gresho_gdisph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH with Cubic Spline kernel"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/gdisph_cubic.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gdisph
+	./build/sph gresho_chan_vortex
+	@echo ""
+	@echo "✓ GDISPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/gdisph/"
+
+# Individual simulations - GDISPH+Balsara
+gresho_balsara_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH+Balsara with Wendland kernel"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/gdisph_balsara_wendland.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gdisph_balsara_wendland
+	./build/sph gresho_chan_vortex
+	@echo ""
+	@echo "✓ GDISPH+Balsara (Wendland) complete!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/gdisph_balsara_wendland/"
+
+gresho_balsara_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH+Balsara with Cubic Spline kernel"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/gdisph_balsara_cubic.json $(GRESHO_DIR)/gresho_chan_vortex.json
+	@mkdir -p $(GRESHO_RESULTS)/gdisph_balsara
+	./build/sph gresho_chan_vortex
+	@echo ""
+	@echo "✓ GDISPH+Balsara (Cubic Spline) complete!"
+	@echo "📊 Output: $(GRESHO_RESULTS)/gdisph_balsara/"
