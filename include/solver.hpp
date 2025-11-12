@@ -23,6 +23,10 @@ class Module;
 
 enum struct Sample {
     ShockTube,
+    ShockTube2D,
+    Vacuum,
+    StrongShock,
+    PressureEquilibrium,
     GreshoChanVortex,
     PairingInstability,
     HydroStatic,
@@ -74,6 +78,10 @@ class Solver {
     std::unordered_map<std::string, boost::any> m_sample_parameters;
 
     void make_shock_tube();
+    void make_shock_tube_2d();
+    void make_vacuum();
+    void make_strong_shock();
+    void make_pressure_equilibrium();
     void make_gresho_chan_vortex();
     void make_pairing_instability();
     void make_hydrostatic();

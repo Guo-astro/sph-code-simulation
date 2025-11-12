@@ -12,18 +12,32 @@ sph\.exe\.stackdump
 *.vcxproj.user
 
 parameters\.json
+
+# Auto-generated active config files (copied from config/presets/ by Makefiles)
 sample/shock_tube/shock_tube.json
+sample/shock_tube_2d/shock_tube_2d.json
+sample/sedov/sedov.json
+sample/khi/khi.json
+sample/gresho_chan_vortex/gresho_chan_vortex.json
+sample/hydrostatic/hydrostatic.json
+sample/evrard/evrard.json
+sample/pairing_instability/pairing_instability.json
+sample/vacuum/vacuum.json
+sample/strong_shock/strong_shock.json
+sample/pressure_equilibrium/pressure_equilibrium.json
+
+# Sample test results
 sample/shock_tube/results/
-
+sample/shock_tube_2d/results/
 sample/gresho_chan_vortex/results/
-
 sample/hydrostatic/results/
-
 sample/khi/results/
-
 sample/evrard/results/
-
 sample/pairing_instability/results/
+sample/sedov/results/
+sample/vacuum/results/
+sample/strong_shock/results/
+sample/pressure_equilibrium/results/
 
 build/
 

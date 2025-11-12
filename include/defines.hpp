@@ -2,7 +2,12 @@
 
 #include <cmath>
 
-#define DIM 2
+// DIM must be injected via CMake: cmake -DSPH_DIM=1/2/3 ..
+// This ensures dimension is explicitly set per build configuration
+#ifndef DIM
+#error "DIM not defined! Please configure CMake with: cmake -DSPH_DIM=1 .. (or 2, or 3)"
+#endif
+
 typedef double real;
 
 #ifndef M_PI

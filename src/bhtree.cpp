@@ -122,6 +122,15 @@ int BHTree::neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor
     int max_neighbors = neighbor_list.size();
     m_root.neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, m_periodic.get());
 
+    // CRITICAL DEBUG: Log the values to see what's happening
+    if(n_neighbor > max_neighbors || n_neighbor < 0) {
+        std::cerr << "[DEBUG] OVERFLOW! particle=" << p_i.id 
+                  << " n_neighbor=" << n_neighbor 
+                  << " max_neighbors=" << max_neighbors 
+                  << " list.size()=" << neighbor_list.size() << std::endl;
+        THROW_ERROR("n_neighbor (", n_neighbor, ") exceeds max_neighbors (", max_neighbors, ") for particle ", p_i.id);
+    }
+
     const auto & pos_i = p_i.pos;
     std::sort(neighbor_list.begin(), neighbor_list.begin() + n_neighbor, [&](const int a, const int b) {
         const vec_t r_ia = m_periodic->calc_r_ij(pos_i, particles[a].pos);

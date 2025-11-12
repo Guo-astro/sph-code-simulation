@@ -1,0 +1,519 @@
+# 2D Shock Tube Makefile Targets - Multi-Method Comparison System
+#
+# Single Method Usage:
+#   make shock_tube_2d_run                         # Run default (GSPH + Wendland)
+#   make shock_tube_2d_plot_all                    # Generate analytical overlay plots
+#   make shock_tube_2d_clean                       # Clean results
+#
+# Multi-Method Comparison (5 SPH types, Wendland kernel):
+#   make shock_tube_2d_compare_run                 # Run all 5 methods
+#   make shock_tube_2d_compare_viz                 # Generate 1D analytical comparison plots
+#   make shock_tube_2d_compare_2d                  # Generate 2D spatial x-y plots
+#   make shock_tube_2d_compare_animate             # Create 1D+2D animations with analytical overlay
+#   make shock_tube_2d_compare_all                 # Run all + visualizations + animations
+#   make shock_tube_2d_compare_clean               # Clean comparison results
+#
+# Kernel Comparison (5 SPH × 2 kernels = 10 variants):
+#   make shock_tube_2d_kernel_run                  # Run all 10 simulations
+#   make shock_tube_2d_kernel_viz                  # Generate all plots
+#   make shock_tube_2d_kernel_animate              # Create animations for all variants
+#   make shock_tube_2d_kernel_all                  # Run all + visualizations + animations
+#   make shock_tube_2d_kernel_clean                # Clean kernel comparison results
+
+SHOCK_TUBE_2D_DIR := sample/shock_tube_2d
+SHOCK_TUBE_2D_CONFIG := $(SHOCK_TUBE_2D_DIR)/config
+SHOCK_TUBE_2D_PRESET_DIR := $(SHOCK_TUBE_2D_CONFIG)/presets
+SHOCK_TUBE_2D_RESULTS := $(SHOCK_TUBE_2D_DIR)/results
+SHOCK_TUBE_2D_SCRIPTS := $(SHOCK_TUBE_2D_DIR)/scripts
+
+.PHONY: shock_tube_2d_help shock_tube_2d_run shock_tube_2d_gsph_wendland shock_tube_2d_gsph_cubic \
+        shock_tube_2d_plot shock_tube_2d_plot_all shock_tube_2d_clean \
+        shock_tube_2d_compare_all shock_tube_2d_compare_run shock_tube_2d_compare_viz \
+        shock_tube_2d_compare_2d shock_tube_2d_compare_animate shock_tube_2d_compare_clean \
+        shock_tube_2d_kernel_all shock_tube_2d_kernel_run shock_tube_2d_kernel_viz \
+        shock_tube_2d_kernel_animate shock_tube_2d_kernel_clean \
+        shock_tube_2d_ssph_wendland shock_tube_2d_disph_wendland shock_tube_2d_gdisph_wendland \
+        shock_tube_2d_balsara_wendland shock_tube_2d_ssph_cubic shock_tube_2d_disph_cubic \
+        shock_tube_2d_gdisph_cubic shock_tube_2d_balsara_cubic
+
+# Help
+shock_tube_2d_help:
+	@echo "=========================================="
+	@echo "2D Shock Tube Test"
+	@echo "=========================================="
+	@echo ""
+	@echo "Single Method Targets:"
+	@echo "  shock_tube_2d_run                 - Run default (GSPH + Wendland)"
+	@echo "  shock_tube_2d_plot_all            - Generate analytical overlay plots"
+	@echo "  shock_tube_2d_clean               - Remove all results"
+	@echo ""
+	@echo "Multi-Method Comparison (Wendland kernel):"
+	@echo "  shock_tube_2d_compare_run         - Run GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "  shock_tube_2d_compare_viz         - Generate 1D analytical comparison plots"
+	@echo "  shock_tube_2d_compare_2d          - Generate 2D spatial x-y plots"
+	@echo "  shock_tube_2d_compare_animate     - Create animations (1D+2D with analytical overlay)"
+	@echo "  shock_tube_2d_compare_all         - Run all + visualizations + animations"
+	@echo "  shock_tube_2d_compare_clean       - Clean comparison results"
+	@echo ""
+	@echo "Kernel Comparison (5 methods × 2 kernels):"
+	@echo "  shock_tube_2d_kernel_run          - Run all 10 simulations"
+	@echo "  shock_tube_2d_kernel_viz          - Generate kernel comparison plots"
+	@echo "  shock_tube_2d_kernel_animate      - Create animations for all variants"
+	@echo "  shock_tube_2d_kernel_all          - Run all + visualizations + animations"
+	@echo "  shock_tube_2d_kernel_clean        - Clean kernel comparison results"
+	@echo ""
+
+# Default run
+shock_tube_2d_run: shock_tube_2d_gsph_wendland
+
+# GSPH with Wendland kernel
+shock_tube_2d_gsph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running 2D Shock Tube - GSPH (Wendland)"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^#define DIM 2" include/defines.hpp; then \
+		echo "✓ DIM=2 build detected"; \
+	else \
+		echo "❌ ERROR: 2D shock tube requires DIM=2 build"; \
+		echo ""; \
+		echo "Current build is configured for DIM=$$(grep '^#define DIM' include/defines.hpp | awk '{print $$3}')."; \
+		echo "2D shock tube is a 2D test case and requires DIM=2."; \
+		echo ""; \
+		echo "To rebuild for 2D:"; \
+		echo "  sed -i '' 's/#define DIM [0-9]/#define DIM 2/' include/defines.hpp"; \
+		echo "  cd build && make -j8 && cd .."; \
+		echo ""; \
+		exit 1; \
+	fi
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gsph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gsph_wendland
+	./build/sph shock_tube_2d
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📊 Output: $(SHOCK_TUBE_2D_RESULTS)/gsph_wendland/"
+
+# GSPH with Cubic Spline kernel
+shock_tube_2d_gsph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running 2D Shock Tube - GSPH (Cubic Spline)"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^#define DIM 2" include/defines.hpp; then \
+		echo "✓ DIM=2 build detected"; \
+	else \
+		echo "❌ ERROR: 2D shock tube requires DIM=2 build"; \
+		exit 1; \
+	fi
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gsph_cubic.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gsph_cubic
+	./build/sph shock_tube_2d
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📊 Output: $(SHOCK_TUBE_2D_RESULTS)/gsph_cubic/"
+
+# Plot single snapshot with analytical solution
+shock_tube_2d_plot:
+	@echo "=========================================="
+	@echo "Plotting 2D Shock Tube Analytical Comparison"
+	@echo "=========================================="
+	@chmod +x $(SHOCK_TUBE_2D_SCRIPTS)/shock_tube_2d_analytical.py
+	@if [ -f "$(SHOCK_TUBE_2D_RESULTS)/gsph_wendland/snapshot_0020.csv" ]; then \
+		python3 $(SHOCK_TUBE_2D_SCRIPTS)/shock_tube_2d_analytical.py $(SHOCK_TUBE_2D_RESULTS)/gsph_wendland/snapshot_0020.csv \
+			-o $(SHOCK_TUBE_2D_RESULTS)/gsph_wendland/shock_tube_2d_comparison.png --no-show; \
+		echo "✓ Plot saved to $(SHOCK_TUBE_2D_RESULTS)/gsph_wendland/shock_tube_2d_comparison.png"; \
+	else \
+		echo "❌ No snapshots found. Run 'make shock_tube_2d_run' first."; \
+		exit 1; \
+	fi
+
+# Process all snapshots with analytical overlay
+shock_tube_2d_plot_all:
+	@echo "=========================================="
+	@echo "Processing All Snapshots"
+	@echo "=========================================="
+	@chmod +x $(SHOCK_TUBE_2D_SCRIPTS)/process_all_snapshots.py
+	@chmod +x $(SHOCK_TUBE_2D_SCRIPTS)/shock_tube_2d_analytical.py
+	@if [ -d "$(SHOCK_TUBE_2D_RESULTS)/gsph_wendland" ]; then \
+		python3 $(SHOCK_TUBE_2D_SCRIPTS)/process_all_snapshots.py $(SHOCK_TUBE_2D_RESULTS)/gsph_wendland; \
+		echo ""; \
+		echo "✓ All plots generated!"; \
+		echo "📊 Output: $(SHOCK_TUBE_2D_RESULTS)/gsph_wendland/plots/"; \
+	else \
+		echo "❌ Results directory not found. Run 'make shock_tube_2d_run' first."; \
+		exit 1; \
+	fi
+
+# Cleanup
+shock_tube_2d_clean:
+	@echo "Cleaning 2D shock tube results..."
+	@rm -rf $(SHOCK_TUBE_2D_RESULTS)
+	@echo "✓ Cleaned!"
+
+# ============================================================================
+# Multi-Method Comparison Targets (Wendland Kernel)
+# ============================================================================
+
+# Run all comparisons + visualizations + animations
+shock_tube_2d_compare_all: shock_tube_2d_compare_run shock_tube_2d_compare_viz shock_tube_2d_compare_2d shock_tube_2d_compare_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Comparison Workflow Done!"
+	@echo "=========================================="
+
+# Run all five SPH methods with Wendland kernel
+shock_tube_2d_compare_run: build/sph
+	@echo "=========================================="
+	@echo "2D Shock Tube Multi-Method Comparison"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^#define DIM 2" include/defines.hpp; then \
+		echo "✓ DIM=2 build detected"; \
+	else \
+		echo "❌ ERROR: 2D shock tube requires DIM=2 build"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "[1/5] Running GSPH (Wendland)..."
+	@echo "----------------------------------------"
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gsph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gsph_wendland
+	@./build/sph shock_tube_2d
+	@echo "✓ GSPH complete"
+	@echo ""
+	@echo "[2/5] Running SSPH (Wendland)..."
+	@echo "----------------------------------------"
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/ssph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/ssph_wendland
+	@./build/sph shock_tube_2d
+	@echo "✓ SSPH complete"
+	@echo ""
+	@echo "[3/5] Running DISPH (Wendland)..."
+	@echo "----------------------------------------"
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/disph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/disph_wendland
+	@./build/sph shock_tube_2d
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "[4/5] Running GDISPH (Wendland)..."
+	@echo "----------------------------------------"
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gdisph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gdisph_wendland
+	@./build/sph shock_tube_2d
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "[5/5] Running GDISPH+Balsara (Wendland)..."
+	@echo "----------------------------------------"
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gdisph_balsara_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gdisph_balsara_wendland
+	@./build/sph shock_tube_2d
+	@echo "✓ GDISPH+Balsara complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All simulations complete!"
+	@echo "=========================================="
+
+# Generate analytical comparison plots for all methods
+shock_tube_2d_compare_viz:
+	@echo "=========================================="
+	@echo "Generating Analytical Comparison Plots"
+	@echo "=========================================="
+	@chmod +x $(SHOCK_TUBE_2D_SCRIPTS)/process_all_snapshots.py
+	@chmod +x $(SHOCK_TUBE_2D_SCRIPTS)/shock_tube_2d_analytical.py
+	@for method in gsph_wendland ssph_wendland disph_wendland gdisph_wendland gdisph_balsara_wendland; do \
+		if [ -d "$(SHOCK_TUBE_2D_RESULTS)/$$method" ]; then \
+			echo "Processing $$method..."; \
+			python3 $(SHOCK_TUBE_2D_SCRIPTS)/process_all_snapshots.py $(SHOCK_TUBE_2D_RESULTS)/$$method; \
+		fi \
+	done
+	@echo ""
+	@echo "✓ All analytical comparison plots generated!"
+	@echo "📊 Plots saved in: $(SHOCK_TUBE_2D_RESULTS)/*/plots/"
+
+# Create comparison animation with 1D+2D plots
+shock_tube_2d_compare_animate:
+	@echo "=========================================="
+	@echo "Generating Animations (1D + 2D Spatial)"
+	@echo "=========================================="
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/animations $(SHOCK_TUBE_2D_RESULTS)/comparison
+	@chmod +x $(SHOCK_TUBE_2D_SCRIPTS)/generate_all_animations.py
+	@if [ -d "$(SHOCK_TUBE_2D_RESULTS)/gsph_wendland" ] || [ -d "$(SHOCK_TUBE_2D_RESULTS)/disph_wendland" ]; then \
+		echo "Creating animations with 1D analytical + 2D spatial plots..."; \
+		python3 $(SHOCK_TUBE_2D_SCRIPTS)/generate_all_animations.py \
+			--results-dir $(SHOCK_TUBE_2D_RESULTS) \
+			--fps 5; \
+		echo ""; \
+		echo "✓ Animations complete!"; \
+		echo "🎬 $(SHOCK_TUBE_2D_RESULTS)/animations/"; \
+		echo "📷 $(SHOCK_TUBE_2D_RESULTS)/comparison/"; \
+	else \
+		echo "❌ No results found. Run 'make shock_tube_2d_compare_run' first."; \
+		exit 1; \
+	fi
+
+# Generate 2D spatial x-y plots
+shock_tube_2d_compare_2d:
+	@echo "=========================================="
+	@echo "Generating 2D Spatial Visualizations"
+	@echo "=========================================="
+	@chmod +x $(SHOCK_TUBE_2D_SCRIPTS)/plot_2d_spatial.py
+	@for method in gsph_wendland ssph_wendland disph_wendland gdisph_wendland gdisph_balsara_wendland; do \
+		if [ -d "$(SHOCK_TUBE_2D_RESULTS)/$$method" ]; then \
+			echo "Processing $$method (2D x-y plots)..."; \
+			mkdir -p $(SHOCK_TUBE_2D_RESULTS)/$$method/plots_2d; \
+			for snapshot in $(SHOCK_TUBE_2D_RESULTS)/$$method/snapshot_*.csv; do \
+				if [ -f "$$snapshot" ]; then \
+					basename=$$(basename $$snapshot .csv); \
+					output=$(SHOCK_TUBE_2D_RESULTS)/$$method/plots_2d/$${basename}_2d.png; \
+					python3 $(SHOCK_TUBE_2D_SCRIPTS)/plot_2d_spatial.py $$snapshot -o $$output --no-show; \
+				fi \
+			done; \
+			echo "✓ 2D plots for $$method complete"; \
+		fi \
+	done
+	@echo ""
+	@echo "✓ All 2D spatial plots generated!"
+	@echo "📊 Plots saved in: $(SHOCK_TUBE_2D_RESULTS)/*/plots_2d/"
+
+# Clean comparison results
+shock_tube_2d_compare_clean:
+	@echo "Cleaning 2D shock tube comparison results..."
+	@rm -rf $(SHOCK_TUBE_2D_RESULTS)/gsph_wendland $(SHOCK_TUBE_2D_RESULTS)/ssph_wendland \
+	        $(SHOCK_TUBE_2D_RESULTS)/disph_wendland $(SHOCK_TUBE_2D_RESULTS)/gdisph_wendland \
+	        $(SHOCK_TUBE_2D_RESULTS)/gdisph_balsara_wendland $(SHOCK_TUBE_2D_RESULTS)/comparison
+	@echo "✓ Comparison results cleaned"
+
+# ============================================================================
+# Kernel Comparison Targets (Wendland vs Cubic Spline)
+# ============================================================================
+
+# Run all methods with both kernels + visualizations
+shock_tube_2d_kernel_all: shock_tube_2d_kernel_run shock_tube_2d_kernel_viz shock_tube_2d_compare_2d shock_tube_2d_kernel_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Kernel Comparison Done!"
+	@echo "=========================================="
+
+# Run all five SPH methods with both Wendland and Cubic Spline kernels (10 total runs)
+shock_tube_2d_kernel_run: build/sph
+	@echo "=========================================="
+	@echo "Kernel Comparison: Wendland vs Cubic Spline"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "Kernels: Wendland, Cubic Spline"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^#define DIM 2" include/defines.hpp; then \
+		echo "✓ DIM=2 build detected"; \
+	else \
+		echo "❌ ERROR: 2D shock tube requires DIM=2 build"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "=== WENDLAND KERNEL RUNS ==="
+	@echo "[1/10] Running GSPH (Wendland)..."
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gsph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gsph_wendland
+	@./build/sph shock_tube_2d
+	@echo "✓ GSPH (Wendland) complete"
+	@echo ""
+	@echo "[2/10] Running SSPH (Wendland)..."
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/ssph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/ssph_wendland
+	@./build/sph shock_tube_2d
+	@echo "✓ SSPH (Wendland) complete"
+	@echo ""
+	@echo "[3/10] Running DISPH (Wendland)..."
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/disph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/disph_wendland
+	@./build/sph shock_tube_2d
+	@echo "✓ DISPH (Wendland) complete"
+	@echo ""
+	@echo "[4/10] Running GDISPH (Wendland)..."
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gdisph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gdisph_wendland
+	@./build/sph shock_tube_2d
+	@echo "✓ GDISPH (Wendland) complete"
+	@echo ""
+	@echo "[5/10] Running GDISPH+Balsara (Wendland)..."
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gdisph_balsara_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gdisph_balsara_wendland
+	@./build/sph shock_tube_2d
+	@echo "✓ GDISPH+Balsara (Wendland) complete"
+	@echo ""
+	@echo "=== CUBIC SPLINE KERNEL RUNS ==="
+	@echo "[6/10] Running GSPH (Cubic Spline)..."
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gsph_cubic.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gsph_cubic
+	@./build/sph shock_tube_2d
+	@echo "✓ GSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[7/10] Running SSPH (Cubic Spline)..."
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/ssph_cubic.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/ssph_cubic
+	@./build/sph shock_tube_2d
+	@echo "✓ SSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[8/10] Running DISPH (Cubic Spline)..."
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/disph_cubic.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/disph_cubic
+	@./build/sph shock_tube_2d
+	@echo "✓ DISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[9/10] Running GDISPH (Cubic Spline)..."
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gdisph_cubic.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gdisph_cubic
+	@./build/sph shock_tube_2d
+	@echo "✓ GDISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[10/10] Running GDISPH+Balsara (Cubic Spline)..."
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gdisph_balsara_cubic.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gdisph_balsara_cubic
+	@./build/sph shock_tube_2d
+	@echo "✓ GDISPH+Balsara (Cubic Spline) complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All kernel comparison simulations complete!"
+	@echo "=========================================="
+
+# Generate kernel comparison plots with analytical overlays
+shock_tube_2d_kernel_viz:
+	@echo "=========================================="
+	@echo "Generating Kernel Comparison Plots"
+	@echo "=========================================="
+	@chmod +x $(SHOCK_TUBE_2D_SCRIPTS)/process_all_snapshots.py
+	@chmod +x $(SHOCK_TUBE_2D_SCRIPTS)/shock_tube_2d_analytical.py
+	@for method in gsph_wendland ssph_wendland disph_wendland gdisph_wendland gdisph_balsara_wendland \
+	               gsph_cubic ssph_cubic disph_cubic gdisph_cubic gdisph_balsara_cubic; do \
+		if [ -d "$(SHOCK_TUBE_2D_RESULTS)/$$method" ]; then \
+			echo "Processing $$method..."; \
+			python3 $(SHOCK_TUBE_2D_SCRIPTS)/process_all_snapshots.py $(SHOCK_TUBE_2D_RESULTS)/$$method; \
+		fi \
+	done
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/kernel_comparison
+	@echo ""
+	@echo "✓ All analytical comparison plots generated!"
+	@echo "📊 Plots saved in: $(SHOCK_TUBE_2D_RESULTS)/*/plots/"
+
+# Create kernel comparison animation
+shock_tube_2d_kernel_animate:
+	@echo "=========================================="
+	@echo "Generating Kernel Animations (1D + 2D)"
+	@echo "=========================================="
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/animations $(SHOCK_TUBE_2D_RESULTS)/comparison
+	@chmod +x $(SHOCK_TUBE_2D_SCRIPTS)/generate_all_animations.py
+	@if [ -d "$(SHOCK_TUBE_2D_RESULTS)/gsph_wendland" ] || [ -d "$(SHOCK_TUBE_2D_RESULTS)/gsph_cubic" ]; then \
+		echo "Creating animations for all kernel variants..."; \
+		python3 $(SHOCK_TUBE_2D_SCRIPTS)/generate_all_animations.py \
+			--results-dir $(SHOCK_TUBE_2D_RESULTS) \
+			--fps 5; \
+		echo ""; \
+		echo "✓ Animations complete!"; \
+		echo "🎬 $(SHOCK_TUBE_2D_RESULTS)/animations/"; \
+		echo "📷 $(SHOCK_TUBE_2D_RESULTS)/comparison/"; \
+	else \
+		echo "❌ Missing results. Run 'make shock_tube_2d_kernel_run' first."; \
+		exit 1; \
+	fi
+
+# Clean kernel comparison results
+shock_tube_2d_kernel_clean:
+	@echo "Cleaning kernel comparison results..."
+	@rm -rf $(SHOCK_TUBE_2D_RESULTS)/*_cubic $(SHOCK_TUBE_2D_RESULTS)/kernel_comparison
+	@echo "✓ Kernel comparison results cleaned"
+
+# ============================================================================
+# Individual Method Targets
+# ============================================================================
+
+# SSPH targets
+shock_tube_2d_ssph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running SSPH (Wendland)..."
+	@echo "=========================================="
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/ssph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/ssph_wendland
+	./build/sph shock_tube_2d
+	@echo ""
+	@echo "✓ SSPH (Wendland) complete!"
+	@echo "📊 Output: $(SHOCK_TUBE_2D_RESULTS)/ssph_wendland/"
+
+shock_tube_2d_ssph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running SSPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/ssph_cubic.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/ssph_cubic
+	./build/sph shock_tube_2d
+	@echo ""
+	@echo "✓ SSPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(SHOCK_TUBE_2D_RESULTS)/ssph_cubic/"
+
+# DISPH targets
+shock_tube_2d_disph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running DISPH (Wendland)..."
+	@echo "=========================================="
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/disph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/disph_wendland
+	./build/sph shock_tube_2d
+	@echo ""
+	@echo "✓ DISPH (Wendland) complete!"
+	@echo "📊 Output: $(SHOCK_TUBE_2D_RESULTS)/disph_wendland/"
+
+shock_tube_2d_disph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running DISPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/disph_cubic.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/disph_cubic
+	./build/sph shock_tube_2d
+	@echo ""
+	@echo "✓ DISPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(SHOCK_TUBE_2D_RESULTS)/disph_cubic/"
+
+# GDISPH targets
+shock_tube_2d_gdisph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH (Wendland)..."
+	@echo "=========================================="
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gdisph_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gdisph_wendland
+	./build/sph shock_tube_2d
+	@echo ""
+	@echo "✓ GDISPH (Wendland) complete!"
+	@echo "📊 Output: $(SHOCK_TUBE_2D_RESULTS)/gdisph_wendland/"
+
+shock_tube_2d_gdisph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gdisph_cubic.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gdisph_cubic
+	./build/sph shock_tube_2d
+	@echo ""
+	@echo "✓ GDISPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(SHOCK_TUBE_2D_RESULTS)/gdisph_cubic/"
+
+# GDISPH+Balsara targets
+shock_tube_2d_balsara_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH+Balsara (Wendland)..."
+	@echo "=========================================="
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gdisph_balsara_wendland.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gdisph_balsara_wendland
+	./build/sph shock_tube_2d
+	@echo ""
+	@echo "✓ GDISPH+Balsara (Wendland) complete!"
+	@echo "📊 Output: $(SHOCK_TUBE_2D_RESULTS)/gdisph_balsara_wendland/"
+
+shock_tube_2d_balsara_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH+Balsara (Cubic Spline)..."
+	@echo "=========================================="
+	@cp -f $(SHOCK_TUBE_2D_PRESET_DIR)/gdisph_balsara_cubic.json $(SHOCK_TUBE_2D_DIR)/shock_tube_2d.json
+	@mkdir -p $(SHOCK_TUBE_2D_RESULTS)/gdisph_balsara_cubic
+	./build/sph shock_tube_2d
+	@echo ""
+	@echo "✓ GDISPH+Balsara (Cubic Spline) complete!"
+	@echo "📊 Output: $(SHOCK_TUBE_2D_RESULTS)/gdisph_balsara_cubic/"

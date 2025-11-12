@@ -35,6 +35,9 @@ help: all
 # Shock Tube preset-based system
 -include sample/shock_tube/Makefile.shock_tube
 
+# Shock Tube preset-based system
+-include sample/shock_tube_2d/Makefile.shock_tube_2d
+
 # Pairing Instability preset-based system
 -include sample/pairing_instability/Makefile.pairing_instability
 
@@ -49,3 +52,6 @@ help: all
 
 # Sedov Blast Wave preset-based system
 -include sample/sedov/Makefile.sedov
+
+# Vacuum Test preset-based system
+-include sample/vacuum/Makefile.vacuum

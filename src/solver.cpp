@@ -187,6 +187,19 @@ void Solver::read_parameterfile(const char * filename)
         pt::read_json("sample/shock_tube/shock_tube.json", input);
         m_sample = Sample::ShockTube;
         m_sample_parameters["N"] = input.get<int>("N", 100);
+    } else if(name_str == "shock_tube_2d") {
+        pt::read_json("sample/shock_tube_2d/shock_tube_2d.json", input);
+        m_sample = Sample::ShockTube2D;
+        m_sample_parameters["Nx"] = input.get<int>("Nx", 200);
+        m_sample_parameters["Ny"] = input.get<int>("Ny", 40);
+    } else if(name_str == "vacuum") {
+        pt::read_json("sample/vacuum/vacuum.json", input);
+        m_sample = Sample::Vacuum;
+        m_sample_parameters["N"] = input.get<int>("N", 800);
+    } else if(name_str == "strong_shock") {
+        pt::read_json("sample/strong_shock/strong_shock.json", input);
+        m_sample = Sample::StrongShock;
+        m_sample_parameters["N"] = input.get<int>("N", 800);
     } else if(name_str == "gresho_chan_vortex") {
         pt::read_json("sample/gresho_chan_vortex/gresho_chan_vortex.json", input);
         m_sample = Sample::GreshoChanVortex;
@@ -927,6 +940,10 @@ void Solver::make_initial_condition()
     switch(m_sample) {
 #define MAKE_SAMPLE(a, b) case a: std::cout << "Calling make_" #b "()" << std::endl; std::cout.flush(); make_##b(); break
         MAKE_SAMPLE(Sample::ShockTube, shock_tube);
+        MAKE_SAMPLE(Sample::ShockTube2D, shock_tube_2d);
+        MAKE_SAMPLE(Sample::Vacuum, vacuum);
+        MAKE_SAMPLE(Sample::StrongShock, strong_shock);
+        MAKE_SAMPLE(Sample::PressureEquilibrium, pressure_equilibrium);
         MAKE_SAMPLE(Sample::GreshoChanVortex, gresho_chan_vortex);
         MAKE_SAMPLE(Sample::PairingInstability, pairing_instability);
         MAKE_SAMPLE(Sample::HydroStatic, hydrostatic);

@@ -6,6 +6,7 @@
 // References: Sedov (1959), Kamm & Timmes (2007)
 
 #include "../../include/solver.hpp"
+#include "../../include/exception.hpp"
 #include <cmath>
 
 namespace sph {

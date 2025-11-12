@@ -1,0 +1,30 @@
+{
+  "outputDirectory": "sample/vacuum/results/gdisph_balsara_cubic",
+  "startTime": 0.0,
+  "endTime": 0.14154,
+  "outputTime": 0.01,
+  "energyTime": 0.01,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "avAlpha": 1.0,
+  "neighborNumber": 5.2,
+  "gamma": 1.4,
+  "kernel": "cubic_spline",
+  "N": 800,
+  "periodic": true,
+  "rangeMax": [1.5],
+  "rangeMin": [-0.5],
+  "SPHType": "gdisph",
+  "balsaraSwitch": true
+}

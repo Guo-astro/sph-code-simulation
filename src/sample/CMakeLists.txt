@@ -7,6 +7,10 @@ target_sources(sph
         khi.cpp
         lane_emden.cpp
         pairing_instability.cpp
+        pressure_equilibrium.cpp
         sedov.cpp
         shock_tube.cpp
+        shock_tube_2d.cpp
+        strong_shock.cpp
+        vacuum.cpp
     )

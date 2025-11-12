@@ -1,0 +1,503 @@
+# 1D Vacuum Test Makefile - Multi-Method Comparison System
+#
+# Complete Workflow (One-Shot Command):
+#   make vacuum_all                                # Run EVERYTHING: all comparisons, kernel tests, visualizations, animations
+#
+# Single Method Usage:
+#   make vacuum_run                                # Run default (GSPH + Cubic Spline)
+#   make vacuum_plot_all                           # Generate analytical overlay plots
+#   make vacuum_clean                              # Clean results
+#
+# Multi-Method Comparison (5 SPH types, Cubic Spline kernel):
+#   make vacuum_compare_run                        # Run all 5 methods
+#   make vacuum_compare_viz                        # Generate analytical comparison plots
+#   make vacuum_compare_animate                    # Create animations
+#   make vacuum_compare_all                        # Run all + visualizations + animations
+#   make vacuum_compare_clean                      # Clean comparison results
+#
+# Kernel Comparison (5 SPH × 2 kernels = 10 variants):
+#   make vacuum_kernel_run                         # Run all 10 simulations
+#   make vacuum_kernel_viz                         # Generate all plots
+#   make vacuum_kernel_animate                     # Create animations for all variants
+#   make vacuum_kernel_all                         # Run all + visualizations + animations
+#   make vacuum_kernel_clean                       # Clean kernel comparison results
+
+VACUUM_DIR := sample/vacuum
+VACUUM_CONFIG := $(VACUUM_DIR)/config
+PRESET_DIR := $(VACUUM_CONFIG)/presets
+VACUUM_RESULTS := $(VACUUM_DIR)/results
+VACUUM_SCRIPTS := $(VACUUM_DIR)/scripts
+
+.PHONY: vacuum_help vacuum_run vacuum_plot vacuum_plot_all vacuum_clean vacuum_all \
+        vacuum_compare_all vacuum_compare_run vacuum_compare_viz vacuum_compare_animate vacuum_compare_clean \
+        vacuum_kernel_all vacuum_kernel_run vacuum_kernel_viz vacuum_kernel_animate vacuum_kernel_clean \
+        vacuum_gsph_wendland vacuum_gsph_cubic vacuum_ssph_wendland vacuum_ssph_cubic \
+        vacuum_disph_wendland vacuum_disph_cubic vacuum_gdisph_wendland vacuum_gdisph_cubic \
+        vacuum_balsara_wendland vacuum_balsara_cubic vacuum_check_dim
+
+# Vacuum test requires DIM=1
+VACUUM_REQUIRED_DIM := 1
+
+# Check and rebuild with correct dimension if needed
+vacuum_check_dim:
+	@echo "Checking build dimension..."
+	@CURRENT_DIM=$$(grep "^SPH_DIM:" build/CMakeCache.txt 2>/dev/null | cut -d= -f2 || echo "2"); \
+	if [ "$$CURRENT_DIM" != "$(VACUUM_REQUIRED_DIM)" ]; then \
+		echo "🔧 Current build: DIM=$$CURRENT_DIM, Required: DIM=$(VACUUM_REQUIRED_DIM)"; \
+		echo "🔨 Reconfiguring build..."; \
+		cd build && cmake -DSPH_DIM=$(VACUUM_REQUIRED_DIM) .. && make -j8; \
+		echo "✓ Build ready for DIM=$(VACUUM_REQUIRED_DIM)"; \
+	else \
+		echo "✓ Build already configured for DIM=$(VACUUM_REQUIRED_DIM)"; \
+	fi
+
+# Help
+vacuum_help:
+	@echo "=========================================="
+	@echo "1D Vacuum Test"
+	@echo "=========================================="
+	@echo ""
+	@echo "🚀 Complete Workflow:"
+	@echo "  vacuum_all                    - Run EVERYTHING (all methods, kernels, plots, animations)"
+	@echo ""
+	@echo "Single Method Targets:"
+	@echo "  vacuum_run                    - Run default (GSPH + Cubic Spline)"
+	@echo "  vacuum_plot_all               - Generate analytical overlay plots"
+	@echo "  vacuum_clean                  - Remove all results"
+	@echo ""
+	@echo "Multi-Method Comparison (Cubic Spline kernel):"
+	@echo "  vacuum_compare_run            - Run GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "  vacuum_compare_viz            - Generate analytical comparison plots"
+	@echo "  vacuum_compare_animate        - Create animations"
+	@echo "  vacuum_compare_all            - Run all + visualizations + animations"
+	@echo "  vacuum_compare_clean          - Clean comparison results"
+	@echo ""
+	@echo "Kernel Comparison (5 methods × 2 kernels):"
+	@echo "  vacuum_kernel_run             - Run all 10 simulations"
+	@echo "  vacuum_kernel_viz             - Generate kernel comparison plots"
+	@echo "  vacuum_kernel_animate         - Create animations for all variants"
+	@echo "  vacuum_kernel_all             - Run all + visualizations + animations"
+	@echo "  vacuum_kernel_clean           - Clean kernel comparison results"
+	@echo ""
+
+# Default run
+vacuum_run: vacuum_gsph_cubic
+
+# ============================================================================
+# COMPLETE WORKFLOW - ONE-SHOT COMMAND
+# ============================================================================
+
+# Run everything: multi-method comparison + kernel comparison + all visualizations
+vacuum_all: vacuum_compare_all vacuum_kernel_all
+	@echo ""
+	@echo "=========================================="
+	@echo "🎉 COMPLETE VACUUM TEST WORKFLOW DONE! 🎉"
+	@echo "=========================================="
+	@echo ""
+	@echo "Summary:"
+	@echo "  ✓ Multi-method comparison (5 SPH methods, Cubic Spline)"
+	@echo "  ✓ Kernel comparison (5 SPH methods × 2 kernels = 10 runs)"
+	@echo "  ✓ All analytical comparison plots generated"
+	@echo "  ✓ All animations created"
+	@echo ""
+	@echo "Results location: $(VACUUM_RESULTS)/"
+	@echo ""
+
+# ============================================================================
+# SINGLE METHOD TARGETS
+# ============================================================================
+
+# GSPH with Wendland kernel
+vacuum_gsph_wendland: vacuum_check_dim
+	@echo "=========================================="
+	@echo "Running 1D Vacuum Test - GSPH (Wendland)"
+	@echo "=========================================="
+	@echo "⚠️  WARNING: Wendland C4 kernel does not support DIM=1"
+	@echo "Use Cubic Spline kernel instead: make vacuum_gsph_cubic"
+	@exit 1
+
+# GSPH with Cubic Spline kernel
+vacuum_gsph_cubic: vacuum_check_dim
+	@echo "=========================================="
+	@echo "Running 1D Vacuum Test - GSPH (Cubic Spline)"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/vacuum_gsph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gsph_cubic
+	@./build/sph vacuum
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📊 Output: $(VACUUM_RESULTS)/gsph_cubic/"
+
+# Plot single snapshot with analytical solution
+vacuum_plot:
+	@echo "=========================================="
+	@echo "Plotting Vacuum Test Analytical Comparison"
+	@echo "=========================================="
+	@chmod +x $(VACUUM_SCRIPTS)/vacuum_analytical.py
+	@if [ -f "$(VACUUM_RESULTS)/gsph_wendland/snapshot_0014.csv" ]; then \
+		python3 $(VACUUM_SCRIPTS)/vacuum_analytical.py $(VACUUM_RESULTS)/gsph_wendland/snapshot_0014.csv \
+			-o $(VACUUM_RESULTS)/gsph_wendland/vacuum_comparison.png --no-show; \
+		echo "✓ Plot saved to $(VACUUM_RESULTS)/gsph_wendland/vacuum_comparison.png"; \
+	else \
+		echo "❌ No snapshots found. Run 'make vacuum_run' first."; \
+		exit 1; \
+	fi
+
+# Process all snapshots with analytical overlay
+vacuum_plot_all:
+	@echo "=========================================="
+	@echo "Processing All Snapshots"
+	@echo "=========================================="
+	@chmod +x $(VACUUM_SCRIPTS)/process_all_snapshots.py
+	@chmod +x $(VACUUM_SCRIPTS)/vacuum_analytical.py
+	@if [ -d "$(VACUUM_RESULTS)/gsph_wendland" ]; then \
+		python3 $(VACUUM_SCRIPTS)/process_all_snapshots.py $(VACUUM_RESULTS)/gsph_wendland; \
+		echo ""; \
+		echo "✓ All plots generated!"; \
+		echo "📊 Output: $(VACUUM_RESULTS)/gsph_wendland/plots/"; \
+	else \
+		echo "❌ Results directory not found. Run 'make vacuum_run' first."; \
+		exit 1; \
+	fi
+
+# Cleanup
+vacuum_clean:
+	@echo "Cleaning vacuum test results..."
+	@rm -rf $(VACUUM_RESULTS)
+	@echo "✓ Cleaned!"
+
+# ============================================================================
+# Multi-Method Comparison Targets (Cubic Spline Kernel)
+# Note: Wendland C4 kernel does not support 1D, so we use Cubic Spline
+# ============================================================================
+
+# Run all comparisons + visualizations + animations
+vacuum_compare_all: vacuum_compare_run vacuum_compare_viz vacuum_compare_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Comparison Workflow Done!"
+	@echo "=========================================="
+
+# Run all five SPH methods with Cubic Spline kernel
+vacuum_compare_run: vacuum_check_dim
+	@echo "=========================================="
+	@echo "1D Vacuum Test Multi-Method Comparison"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "Kernel: Cubic Spline (Wendland not supported in 1D)"
+	@echo "=========================================="
+	@echo ""
+	@echo "[1/5] Running GSPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/vacuum_gsph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gsph_cubic
+	@./build/sph vacuum
+	@echo "✓ GSPH complete"
+	@echo ""
+	@echo "[2/5] Running SSPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/vacuum_ssph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/ssph_cubic
+	@./build/sph vacuum
+	@echo "✓ SSPH complete"
+	@echo ""
+	@echo "[3/5] Running DISPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/vacuum_disph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/disph_cubic
+	@./build/sph vacuum
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "[4/5] Running GDISPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/vacuum_gdisph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gdisph_cubic
+	@./build/sph vacuum
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "[5/5] Running GDISPH+Balsara (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/vacuum_gdisph_balsara_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gdisph_balsara_cubic
+	@./build/sph vacuum
+	@echo "✓ GDISPH+Balsara complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All simulations complete!"
+	@echo "=========================================="
+
+# Generate analytical comparison plots for all methods
+vacuum_compare_viz:
+	@echo "=========================================="
+	@echo "Generating Analytical Comparison Plots"
+	@echo "=========================================="
+	@chmod +x $(VACUUM_SCRIPTS)/process_all_snapshots.py
+	@chmod +x $(VACUUM_SCRIPTS)/vacuum_analytical.py
+	@for method in gsph_cubic ssph_cubic disph_cubic gdisph_cubic gdisph_balsara_cubic; do \
+		if [ -d "$(VACUUM_RESULTS)/$$method" ]; then \
+			echo "Processing $$method..."; \
+			python3 $(VACUUM_SCRIPTS)/process_all_snapshots.py $(VACUUM_RESULTS)/$$method; \
+		fi \
+	done
+	@mkdir -p $(VACUUM_RESULTS)/comparison
+	@chmod +x $(VACUUM_SCRIPTS)/compare_vacuum_methods.py
+	@echo "Generating multi-method comparison..."
+	@python3 $(VACUUM_SCRIPTS)/compare_vacuum_methods.py \
+		--results-dir $(VACUUM_RESULTS) \
+		--snapshot 14 \
+		-o $(VACUUM_RESULTS)/comparison/vacuum_multi_method_comparison.png \
+		--no-show
+	@echo ""
+	@echo "✓ All analytical comparison plots generated!"
+	@echo "📊 Plots saved in: $(VACUUM_RESULTS)/*/plots/"
+	@echo "📊 Comparison: $(VACUUM_RESULTS)/comparison/"
+
+# Create animations
+vacuum_compare_animate:
+	@echo "=========================================="
+	@echo "Generating Animations"
+	@echo "=========================================="
+	@mkdir -p $(VACUUM_RESULTS)/animations
+	@chmod +x $(VACUUM_SCRIPTS)/generate_animation.py
+	@for method in gsph_cubic ssph_cubic disph_cubic gdisph_cubic gdisph_balsara_cubic; do \
+		if [ -d "$(VACUUM_RESULTS)/$$method/plots" ]; then \
+			echo "Creating animation for $$method..."; \
+			python3 $(VACUUM_SCRIPTS)/generate_animation.py $(VACUUM_RESULTS)/$$method \
+				-o $(VACUUM_RESULTS)/animations/$${method}_vacuum.gif --fps 5; \
+		fi \
+	done
+	@echo ""
+	@echo "✓ Animations complete!"
+	@echo "🎬 $(VACUUM_RESULTS)/animations/"
+
+# Clean comparison results
+vacuum_compare_clean:
+	@echo "Cleaning vacuum test comparison results..."
+	@rm -rf $(VACUUM_RESULTS)/gsph_cubic $(VACUUM_RESULTS)/ssph_cubic \
+	        $(VACUUM_RESULTS)/disph_cubic $(VACUUM_RESULTS)/gdisph_cubic \
+	        $(VACUUM_RESULTS)/gdisph_balsara_cubic $(VACUUM_RESULTS)/comparison
+	@echo "✓ Comparison results cleaned"
+
+# ============================================================================
+# Kernel Comparison Targets (Wendland vs Cubic Spline)
+# ============================================================================
+
+# Run all methods with both kernels + visualizations
+vacuum_kernel_all: vacuum_kernel_run vacuum_kernel_viz vacuum_kernel_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Kernel Comparison Done!"
+	@echo "=========================================="
+
+# Run all five SPH methods with both Wendland and Cubic Spline kernels (10 total runs)
+vacuum_kernel_run: vacuum_check_dim
+	@echo "=========================================="
+	@echo "Kernel Comparison: Wendland vs Cubic Spline"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "Kernels: Wendland, Cubic Spline"
+	@echo "=========================================="
+	@echo ""
+	@echo "=== WENDLAND KERNEL RUNS ==="
+	@echo "[1/10] Running GSPH (Wendland)..."
+	@cp $(PRESET_DIR)/vacuum_gsph_wendland.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gsph_wendland
+	@./build/sph vacuum
+	@echo "✓ GSPH (Wendland) complete"
+	@echo ""
+	@echo "[2/10] Running SSPH (Wendland)..."
+	@cp $(PRESET_DIR)/vacuum_ssph_wendland.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/ssph_wendland
+	@./build/sph vacuum
+	@echo "✓ SSPH (Wendland) complete"
+	@echo ""
+	@echo "[3/10] Running DISPH (Wendland)..."
+	@cp $(PRESET_DIR)/vacuum_disph_wendland.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/disph_wendland
+	@./build/sph vacuum
+	@echo "✓ DISPH (Wendland) complete"
+	@echo ""
+	@echo "[4/10] Running GDISPH (Wendland)..."
+	@cp $(PRESET_DIR)/vacuum_gdisph_wendland.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gdisph_wendland
+	@./build/sph vacuum
+	@echo "✓ GDISPH (Wendland) complete"
+	@echo ""
+	@echo "[5/10] Running GDISPH+Balsara (Wendland)..."
+	@cp $(PRESET_DIR)/vacuum_gdisph_balsara_wendland.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gdisph_balsara_wendland
+	@./build/sph vacuum
+	@echo "✓ GDISPH+Balsara (Wendland) complete"
+	@echo ""
+	@echo "=== CUBIC SPLINE KERNEL RUNS ==="
+	@echo "[6/10] Running GSPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/vacuum_gsph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gsph_cubic
+	@./build/sph vacuum
+	@echo "✓ GSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[7/10] Running SSPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/vacuum_ssph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/ssph_cubic
+	@./build/sph vacuum
+	@echo "✓ SSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[8/10] Running DISPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/vacuum_disph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/disph_cubic
+	@./build/sph vacuum
+	@echo "✓ DISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[9/10] Running GDISPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/vacuum_gdisph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gdisph_cubic
+	@./build/sph vacuum
+	@echo "✓ GDISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[10/10] Running GDISPH+Balsara (Cubic Spline)..."
+	@cp $(PRESET_DIR)/vacuum_gdisph_balsara_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gdisph_balsara_cubic
+	@./build/sph vacuum
+	@echo "✓ GDISPH+Balsara (Cubic Spline) complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All kernel comparison simulations complete!"
+	@echo "=========================================="
+
+# Generate kernel comparison plots with analytical overlays
+vacuum_kernel_viz:
+	@echo "=========================================="
+	@echo "Generating Kernel Comparison Plots"
+	@echo "=========================================="
+	@chmod +x $(VACUUM_SCRIPTS)/process_all_snapshots.py
+	@chmod +x $(VACUUM_SCRIPTS)/vacuum_analytical.py
+	@for method in gsph_wendland ssph_wendland disph_wendland gdisph_wendland gdisph_balsara_wendland \
+	               gsph_cubic ssph_cubic disph_cubic gdisph_cubic gdisph_balsara_cubic; do \
+		if [ -d "$(VACUUM_RESULTS)/$$method" ]; then \
+			echo "Processing $$method..."; \
+			python3 $(VACUUM_SCRIPTS)/process_all_snapshots.py $(VACUUM_RESULTS)/$$method; \
+		fi \
+	done
+	@mkdir -p $(VACUUM_RESULTS)/kernel_comparison
+	@echo ""
+	@echo "✓ All analytical comparison plots generated!"
+	@echo "📊 Plots saved in: $(VACUUM_RESULTS)/*/plots/"
+
+# Create kernel comparison animations
+vacuum_kernel_animate:
+	@echo "=========================================="
+	@echo "Generating Kernel Animations"
+	@echo "=========================================="
+	@mkdir -p $(VACUUM_RESULTS)/animations
+	@chmod +x $(VACUUM_SCRIPTS)/generate_animation.py
+	@for method in gsph_wendland ssph_wendland disph_wendland gdisph_wendland gdisph_balsara_wendland \
+	               gsph_cubic ssph_cubic disph_cubic gdisph_cubic gdisph_balsara_cubic; do \
+		if [ -d "$(VACUUM_RESULTS)/$$method/plots" ]; then \
+			echo "Creating animation for $$method..."; \
+			python3 $(VACUUM_SCRIPTS)/generate_animation.py $(VACUUM_RESULTS)/$$method \
+				-o $(VACUUM_RESULTS)/animations/$${method}_vacuum.gif --fps 5; \
+		fi \
+	done
+	@echo ""
+	@echo "✓ Animations complete!"
+	@echo "🎬 $(VACUUM_RESULTS)/animations/"
+
+# Clean kernel comparison results
+vacuum_kernel_clean:
+	@echo "Cleaning kernel comparison results..."
+	@rm -rf $(VACUUM_RESULTS)/*_cubic $(VACUUM_RESULTS)/kernel_comparison
+	@echo "✓ Kernel comparison results cleaned"
+
+# ============================================================================
+# Individual Method Targets
+# ============================================================================
+
+# SSPH targets
+vacuum_ssph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running SSPH (Wendland)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/vacuum_ssph_wendland.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/ssph_wendland
+	./build/sph vacuum
+	@echo ""
+	@echo "✓ SSPH (Wendland) complete!"
+	@echo "📊 Output: $(VACUUM_RESULTS)/ssph_wendland/"
+
+vacuum_ssph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running SSPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/vacuum_ssph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/ssph_cubic
+	./build/sph vacuum
+	@echo ""
+	@echo "✓ SSPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(VACUUM_RESULTS)/ssph_cubic/"
+
+# DISPH targets
+vacuum_disph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running DISPH (Wendland)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/vacuum_disph_wendland.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/disph_wendland
+	./build/sph vacuum
+	@echo ""
+	@echo "✓ DISPH (Wendland) complete!"
+	@echo "📊 Output: $(VACUUM_RESULTS)/disph_wendland/"
+
+vacuum_disph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running DISPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/vacuum_disph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/disph_cubic
+	./build/sph vacuum
+	@echo ""
+	@echo "✓ DISPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(VACUUM_RESULTS)/disph_cubic/"
+
+# GDISPH targets
+vacuum_gdisph_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH (Wendland)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/vacuum_gdisph_wendland.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gdisph_wendland
+	./build/sph vacuum
+	@echo ""
+	@echo "✓ GDISPH (Wendland) complete!"
+	@echo "📊 Output: $(VACUUM_RESULTS)/gdisph_wendland/"
+
+vacuum_gdisph_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/vacuum_gdisph_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gdisph_cubic
+	./build/sph vacuum
+	@echo ""
+	@echo "✓ GDISPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(VACUUM_RESULTS)/gdisph_cubic/"
+
+# GDISPH+Balsara targets
+vacuum_balsara_wendland: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH+Balsara (Wendland)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/vacuum_gdisph_balsara_wendland.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gdisph_balsara_wendland
+	./build/sph vacuum
+	@echo ""
+	@echo "✓ GDISPH+Balsara (Wendland) complete!"
+	@echo "📊 Output: $(VACUUM_RESULTS)/gdisph_balsara_wendland/"
+
+vacuum_balsara_cubic: build/sph
+	@echo "=========================================="
+	@echo "Running GDISPH+Balsara (Cubic Spline)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/vacuum_gdisph_balsara_cubic.json $(VACUUM_DIR)/vacuum.json
+	@mkdir -p $(VACUUM_RESULTS)/gdisph_balsara_cubic
+	./build/sph vacuum
+	@echo ""
+	@echo "✓ GDISPH+Balsara (Cubic Spline) complete!"
+	@echo "📊 Output: $(VACUUM_RESULTS)/gdisph_balsara_cubic/"
