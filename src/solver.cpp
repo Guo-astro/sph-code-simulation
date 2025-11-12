@@ -730,12 +730,16 @@ void Solver::initialize()
                 // Set velocity to zero (constraint)
                 particles[i].vel[0] = 0.0;
                 particles[i].vel[1] = 0.0;
+#if DIM == 3
                 particles[i].vel[2] = 0.0;
+#endif
                 
                 // Integrate position using net acceleration: Δx = ½at²
                 particles[i].pos[0] += 0.5 * particles[i].acc[0] * dt_relax * dt_relax;
                 particles[i].pos[1] += 0.5 * particles[i].acc[1] * dt_relax * dt_relax;
+#if DIM == 3
                 particles[i].pos[2] += 0.5 * particles[i].acc[2] * dt_relax * dt_relax;
+#endif
                 
                 periodic->apply(particles[i].pos);
             }

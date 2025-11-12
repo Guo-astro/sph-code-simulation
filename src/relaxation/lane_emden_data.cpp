@@ -4,6 +4,7 @@
 #include <sstream>
 #include <cmath>
 #include <iostream>
+#include <algorithm>  // For std::lower_bound
 
 namespace sph
 {
@@ -70,15 +71,20 @@ real LaneEmdenData::get_theta(real xi) const
     if(xi >= m_xi_1) return 0.0;
     if(xi <= 0.0) return 1.0;
     
-    // Linear interpolation
-    for(size_t i = 0; i < m_xi_array.size() - 1; ++i) {
-        if(xi >= m_xi_array[i] && xi < m_xi_array[i+1]) {
-            const real frac = (xi - m_xi_array[i]) / (m_xi_array[i+1] - m_xi_array[i]);
-            return m_theta_array[i] * (1.0 - frac) + m_theta_array[i+1] * frac;
-        }
-    }
+    // Binary search for interpolation interval (O(log n) vs O(n))
+    auto it = std::lower_bound(m_xi_array.begin(), m_xi_array.end(), xi);
     
-    return 0.0;  // Beyond data range
+    // Handle edge cases
+    if(it == m_xi_array.end()) return 0.0;  // Beyond data range
+    if(it == m_xi_array.begin()) return m_theta_array[0];  // At or before first point
+    
+    // Get indices for interpolation
+    size_t i1 = std::distance(m_xi_array.begin(), it);
+    size_t i0 = i1 - 1;
+    
+    // Linear interpolation between points
+    const real frac = (xi - m_xi_array[i0]) / (m_xi_array[i1] - m_xi_array[i0]);
+    return m_theta_array[i0] * (1.0 - frac) + m_theta_array[i1] * frac;
 }
 
 real LaneEmdenData::dtheta_dxi(real xi) const
@@ -90,15 +96,20 @@ real LaneEmdenData::dtheta_dxi(real xi) const
     if(xi >= m_xi_1) return 0.0;
     if(xi <= 0.0) return 0.0;  // dθ/dξ = 0 at center
     
-    // Linear interpolation
-    for(size_t i = 0; i < m_xi_array.size() - 1; ++i) {
-        if(xi >= m_xi_array[i] && xi < m_xi_array[i+1]) {
-            const real frac = (xi - m_xi_array[i]) / (m_xi_array[i+1] - m_xi_array[i]);
-            return m_dtheta_array[i] * (1.0 - frac) + m_dtheta_array[i+1] * frac;
-        }
-    }
+    // Binary search for interpolation interval (O(log n) vs O(n))
+    auto it = std::lower_bound(m_xi_array.begin(), m_xi_array.end(), xi);
     
-    return 0.0;  // Beyond data range
+    // Handle edge cases
+    if(it == m_xi_array.end()) return 0.0;  // Beyond data range
+    if(it == m_xi_array.begin()) return m_dtheta_array[0];  // At or before first point
+    
+    // Get indices for interpolation
+    size_t i1 = std::distance(m_xi_array.begin(), it);
+    size_t i0 = i1 - 1;
+    
+    // Linear interpolation between points
+    const real frac = (xi - m_xi_array[i0]) / (m_xi_array[i1] - m_xi_array[i0]);
+    return m_dtheta_array[i0] * (1.0 - frac) + m_dtheta_array[i1] * frac;
 }
 
 } // namespace sph

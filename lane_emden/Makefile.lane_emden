@@ -65,17 +65,17 @@ lane_emden_run: build/sph
 	@echo "=========================================="
 	@echo "Checking build configuration..."
 	@CURRENT_DIM=$$(grep "^SPH_DIM:STRING=" build/CMakeCache.txt | cut -d= -f2); \
-	if [ "$$CURRENT_DIM" = "3" ]; then \
-		echo "✓ DIM=3 build detected"; \
+	PRESET_DIM=$$(python3 -c "import json; print(json.load(open('$(PRESET_DIR)/$(PRESET).json'))['dimension'])"); \
+	if [ "$$CURRENT_DIM" = "$$PRESET_DIM" ]; then \
+		echo "✓ DIM=$$CURRENT_DIM build matches preset dimension"; \
 	else \
-		echo "❌ ERROR: Lane-Emden requires DIM=3 build"; \
+		echo "❌ ERROR: Build dimension mismatch"; \
 		echo ""; \
-		echo "Current build is configured for DIM=$$CURRENT_DIM"; \
-		echo "Lane-Emden is a 3D test case and requires DIM=3."; \
+		echo "Current build: DIM=$$CURRENT_DIM"; \
+		echo "Preset requires: DIM=$$PRESET_DIM"; \
 		echo ""; \
-		echo "To rebuild for 3D:"; \
-		echo "  cd build && cmake -DSPH_DIM=3 .. && make -j8 && cd .."; \
-		echo ""; \
+		echo "To rebuild for DIM=$$PRESET_DIM:"; \
+		echo "  cd build && cmake -DSPH_DIM=$$PRESET_DIM .. && make -j8 && cd .."; \
 		exit 1; \
 	fi
 	@if [ -n "$(RELAX_STEPS)" ]; then \
@@ -106,14 +106,17 @@ lane_emden_relax: build/sph
 	@echo "=========================================="
 	@echo "Checking build configuration..."
 	@CURRENT_DIM=$$(grep "^SPH_DIM:STRING=" build/CMakeCache.txt | cut -d= -f2); \
-	if [ "$$CURRENT_DIM" = "3" ]; then \
-		echo "✓ DIM=3 build detected"; \
+	PRESET_DIM=$$(python3 -c "import json; print(json.load(open('$(PRESET_DIR)/$(PRESET).json'))['dimension'])"); \
+	if [ "$$CURRENT_DIM" = "$$PRESET_DIM" ]; then \
+		echo "✓ DIM=$$CURRENT_DIM build matches preset dimension"; \
 	else \
-		echo "❌ ERROR: Lane-Emden requires DIM=3 build"; \
+		echo "❌ ERROR: Build dimension mismatch"; \
 		echo ""; \
-		echo "Current build is configured for DIM=$$CURRENT_DIM"; \
-		echo "To rebuild for 3D:"; \
-		echo "  cd build && cmake -DSPH_DIM=3 .. && make -j8 && cd .."; \
+		echo "Current build: DIM=$$CURRENT_DIM"; \
+		echo "Preset requires: DIM=$$PRESET_DIM"; \
+		echo ""; \
+		echo "To rebuild for DIM=$$PRESET_DIM:"; \
+		echo "  cd build && cmake -DSPH_DIM=$$PRESET_DIM .. && make -j8 && cd .."; \
 		exit 1; \
 	fi
 	@if [ -n "$(RELAX_STEPS)" ]; then \
@@ -203,14 +206,16 @@ lane_emden_compare_run: build/sph
 	@echo "=========================================="
 	@echo "Checking build configuration..."
 	@CURRENT_DIM=$$(grep "^SPH_DIM:STRING=" build/CMakeCache.txt | cut -d= -f2); \
-	if [ "$$CURRENT_DIM" = "3" ]; then \
-		echo "✓ DIM=3 build detected"; \
+	PRESET_DIM=$$(python3 -c "import json; print(json.load(open('$(PRESET_DIR)/$(PRESET).json'))['dimension'])"); \
+	if [ "$$CURRENT_DIM" = "$$PRESET_DIM" ]; then \
+		echo "✓ DIM=$$CURRENT_DIM build matches preset dimension"; \
 	else \
-		echo "❌ ERROR: Lane-Emden requires DIM=3 build"; \
+		echo "❌ ERROR: Build dimension mismatch"; \
 		echo ""; \
-		echo "Current build is configured for DIM=$$CURRENT_DIM"; \
-		echo "To rebuild for 3D:"; \
-		echo "  cd build && cmake -DSPH_DIM=3 .. && make -j8 && cd .."; \
+		echo "Current build: DIM=$$CURRENT_DIM"; \
+		echo "Preset $(PRESET) requires: DIM=$$PRESET_DIM"; \
+		echo "To rebuild for DIM=$$PRESET_DIM:"; \
+		echo "  cd build && cmake -DSPH_DIM=$$PRESET_DIM .. && make -j8 && cd .."; \
 		exit 1; \
 	fi
 	@echo ""

@@ -33,6 +33,8 @@ help: all
 
 # Lane-Emden preset-based system
 -include lane_emden/Makefile.lane_emden
+-include lane_emden/2d/Makefile.2d
+-include lane_emden/3d/Makefile.3d
 
 # Shock Tube preset-based system
 -include sample/shock_tube/Makefile.shock_tube

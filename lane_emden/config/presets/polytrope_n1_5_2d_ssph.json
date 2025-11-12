@@ -1,5 +1,5 @@
 {
-  "name": "polytrope_n1_5_2d",
+  "name": "polytrope_n1.5_2d",
   "description": "2D n=1.5 polytrope (\u03b3=5/3) - For testing and cylindrical problems",
   "dimension": 2,
   "use_case": "Fast testing, cylindrical symmetry problems, disk simulations",
@@ -11,7 +11,7 @@
     "gravitational_constant": 1.0
   },
   "initial_conditions": {
-    "data_file": "lane_emden/data/numerical_solutions/2d/n1.5.dat",
+    "data_file": "lane_emden/results/polytrope_n1_5_2d/snapshot_final.csv",
     "particle_count": 3600,
     "distribution": "polar_grid"
   },
@@ -25,12 +25,12 @@
   "simulation": {
     "end_time": 5.0,
     "output_time": 0.05,
-    "output_directory": "lane_emden/results/polytrope_n1_5_2d"
+    "output_directory": "lane_emden/results/polytrope_n1_5_2d/comparison/ssph"
   },
   "numerical": {
     "neighbor_number": 50,
     "kernel": "wendland",
-    "sph_type": "disph",
+    "sph_type": "ssph",
     "use_gravity": true,
     "periodic": false,
     "iterative_smoothing_length": false,

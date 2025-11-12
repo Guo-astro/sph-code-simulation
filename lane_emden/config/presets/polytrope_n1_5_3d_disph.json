@@ -12,14 +12,14 @@
     "notes": "Most common for stellar interiors with convective envelopes"
   },
   "initial_conditions": {
-    "data_file": "lane_emden/data/numerical_solutions/3d/n1.5.dat",
+    "data_file": "lane_emden/results/polytrope_n1_5_3d/snapshot_final.csv",
     "particle_count": 5400,
     "distribution": "fibonacci_sphere",
     "shells": 30
   },
   "relaxation": {
-    "enabled": true,
-    "steps": 100000,
+    "enabled": false,
+    "steps": 100,
     "convergence_threshold": 1e-06,
     "output_frequency": 5000,
     "damping_factor": 0.0
@@ -36,12 +36,12 @@
   "simulation": {
     "end_time": 5.0,
     "output_time": 0.05,
-    "output_directory": "lane_emden/results/polytrope_n1.5_3d"
+    "output_directory": "lane_emden/results/polytrope_n1_5_3d/comparison/disph"
   },
   "numerical": {
     "neighbor_number": 50,
     "kernel": "wendland",
-    "sph_type": "ssph",
+    "sph_type": "disph",
     "use_gravity": false,
     "periodic": false,
     "iterative_smoothing_length": false,

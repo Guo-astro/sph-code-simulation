@@ -42,7 +42,10 @@ void BHTree::initialize(std::shared_ptr<SPHParameters> param)
 
 void BHTree::resize(const int particle_num, const int tree_size)
 {
-    assert(m_nodes.get() == nullptr);
+    // Allow re-initialization by resetting nodes if already allocated
+    if(m_nodes.get() != nullptr) {
+        m_nodes.reset();
+    }
 
     m_node_size = particle_num * tree_size;
     m_nodes = std::shared_ptr<BHNode>(new BHNode[m_node_size], std::default_delete<BHNode[]>());

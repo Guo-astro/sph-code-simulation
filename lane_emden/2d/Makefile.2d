@@ -1,0 +1,402 @@
+# Lane-Emden 2D Makefile Targets - Multi-Method Benchmark System
+#
+# Single Method Usage:
+#   make lane_emden_2d_run           # Run Lane-Emden 2D (SSPH, no relaxation)
+#   make lane_emden_2d_clean         # Clean results
+#
+# Multi-Method Comparison (10,000 Relaxation Steps):
+#   make lane_emden_2d_compare_run     # Run all 5 SPH methods with relaxation
+#   make lane_emden_2d_compare_viz     # Generate comparison plots
+#   make lane_emden_2d_compare_animate # Generate comparison animations  
+#   make lane_emden_2d_compare_all     # Run all methods + plots + animations
+#   make lane_emden_2d_compare_clean   # Clean comparison results
+
+# Default preset
+LANE_EMDEN_2D_PRESET ?= polytrope_n1_5_ssph
+
+# Paths
+LANE_EMDEN_2D_DIR = lane_emden/2d
+LANE_EMDEN_2D_PRESET_DIR = $(LANE_EMDEN_2D_DIR)/config/presets
+LANE_EMDEN_2D_RESULTS_DIR = $(LANE_EMDEN_2D_DIR)/results
+SAMPLE_DIR = sample/lane_emden
+
+.PHONY: lane_emden_2d_run lane_emden_2d_clean lane_emden_2d_help \
+        lane_emden_2d_compare_run lane_emden_2d_compare_viz \
+        lane_emden_2d_compare_animate lane_emden_2d_compare_all lane_emden_2d_compare_clean
+
+# Run Lane-Emden 2D test
+lane_emden_2d_run: build/sph
+	@echo "=========================================="
+	@echo "Lane-Emden 2D Test: $(LANE_EMDEN_2D_PRESET)"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^SPH_DIM:STRING=2" build/CMakeCache.txt 2>/dev/null; then \
+		echo "✓ DIM=2 build detected"; \
+	else \
+		echo "❌ ERROR: Lane-Emden 2D test requires DIM=2 build"; \
+		echo ""; \
+		echo "Current build is configured for DIM=$$(grep '^SPH_DIM:STRING=' build/CMakeCache.txt 2>/dev/null | cut -d= -f2 || echo 'unknown')."; \
+		echo "Lane-Emden 2D is a 2D disk test case and requires DIM=2."; \
+		echo ""; \
+		echo "To rebuild for 2D:"; \
+		echo "  cd build && cmake -DSPH_DIM=2 .. && make -j8 && cd .."; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "⚠️  Note: 2D relaxation disabled (segfault issue)"
+	@echo "Using analytical initial conditions directly"
+	@echo ""
+	@echo "Applying preset configuration..."
+	@python3 -c "import json; \
+		preset = json.load(open('$(LANE_EMDEN_2D_PRESET_DIR)/$(LANE_EMDEN_2D_PRESET).json')); \
+		config = { \
+			'outputDirectory': preset['simulation']['output_directory'], \
+			'startTime': 0.0, \
+			'endTime': preset['simulation']['end_time'], \
+			'outputTime': preset['simulation']['output_time'], \
+			'energyTime': preset['simulation']['output_time'], \
+			'checkpoint': preset['checkpoint'], \
+			'output': preset.get('output', {'formats': [{'type': 'csv', 'precision': 16}], 'enableEnergyFile': True}), \
+			'avAlpha': preset['artificial_viscosity']['alpha'], \
+			'useBalsaraSwitch': preset['artificial_viscosity']['use_balsara_switch'], \
+			'useTimeDependentAV': preset['artificial_viscosity']['use_time_dependent_av'], \
+			'neighborNumber': preset['numerical']['neighbor_number'], \
+			'leafParticleNumber': preset['numerical']['leaf_particle_number'], \
+			'gamma': preset['physics']['adiabatic_index'], \
+			'kernel': preset['numerical']['kernel'], \
+			'N': preset['initial_conditions']['shells'], \
+			'periodic': preset['numerical']['periodic'], \
+			'useGravity': preset['numerical']['use_gravity'], \
+			'G': preset['physics']['gravitational_constant'], \
+			'SPHType': preset['numerical']['sph_type'], \
+			'iterativeSmoothingLength': preset['numerical']['iterative_smoothing_length'], \
+			'useRelaxation': False, \
+			'relaxationSteps': 0, \
+			'relaxationOutputFreq': 1000, \
+			'relaxationOnly': False \
+		}; \
+		json.dump(config, open('$(SAMPLE_DIR)/lane_emden.json', 'w'), indent=2)"
+	@echo "Output directory:"
+	@grep -o '"outputDirectory"[[:space:]]*:[[:space:]]*"[^"]*"' $(SAMPLE_DIR)/lane_emden.json | sed 's/.*: *"\(.*\)"/  📁 \1/'
+	@echo "Creating results directory..."
+	@mkdir -p $(LANE_EMDEN_2D_RESULTS_DIR)/polytrope_n1_5
+	@chmod +x scripts/run_with_progress.py
+	@python3 scripts/run_with_progress.py "Lane-Emden 2D (SSPH)" ./build/sph lane_emden
+	@echo "📁 Results saved to: $(LANE_EMDEN_2D_RESULTS_DIR)/polytrope_n1_5/"
+
+# Clean results
+lane_emden_2d_clean:
+	@echo "Cleaning Lane-Emden 2D test results..."
+	@rm -rf $(LANE_EMDEN_2D_RESULTS_DIR)/polytrope_n1_5
+	@echo "✓ Results cleaned"
+
+# Help
+lane_emden_2d_help:
+	@echo "Lane-Emden 2D Test Makefile Targets"
+	@echo "===================================="
+	@echo ""
+	@echo "Single Method Targets:"
+	@echo "  lane_emden_2d_run     - Run Lane-Emden 2D test (SSPH)"
+	@echo "  lane_emden_2d_clean   - Clean results"
+	@echo ""
+	@echo "Multi-Method Comparison Targets:"
+	@echo "  lane_emden_2d_compare_run     - Run all 5 SPH methods with 10,000 relaxation steps"
+	@echo "  lane_emden_2d_compare_viz     - Generate comparison plots"
+	@echo "  lane_emden_2d_compare_animate - Generate comparison animations"
+	@echo "  lane_emden_2d_compare_all     - Run all methods + plots + animations"
+	@echo "  lane_emden_2d_compare_clean   - Clean all comparison results"
+
+# ============================================================================
+# Multi-Method Comparison Targets
+# ============================================================================
+
+# Run all five SPH methods (SSPH, GSPH, DISPH, GDISPH, GDISPH+Balsara) with 10,000 relaxation steps
+lane_emden_2d_compare_run: build/sph
+	@echo "=========================================="
+	@echo "Lane-Emden 2D Multi-Method Comparison"
+	@echo "Running: SSPH, GSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "Relaxation: 10,000 steps (relaxation_only mode)"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "^SPH_DIM:STRING=2" build/CMakeCache.txt 2>/dev/null; then \
+		echo "✓ DIM=2 build detected"; \
+	else \
+		echo "❌ ERROR: Lane-Emden 2D test requires DIM=2 build"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "[1/5] Running SSPH simulation..."
+	@echo "----------------------------------------"
+	@python3 -c "import json; \
+		preset = json.load(open('$(LANE_EMDEN_2D_PRESET_DIR)/benchmark_ssph.json')); \
+		flat = { \
+			'outputDirectory': preset['output']['directory'], \
+			'startTime': preset['simulation']['start_time'], \
+			'endTime': preset['simulation']['end_time'], \
+			'outputTime': preset['simulation']['output_time'], \
+			'energyTime': preset['simulation']['energy_time'], \
+			'SPHType': preset['sph']['type'], \
+			'kernel': preset['sph']['kernel'], \
+			'gamma': preset['physics']['gamma'], \
+			'neighborNumber': preset['physics']['neighbor_number'], \
+			'useGravity': preset['physics']['use_gravity'], \
+			'G': preset['physics']['G'], \
+			'N': preset['simulation']['particle_count'], \
+			'avAlpha': preset['artificial_viscosity']['alpha'], \
+			'useBalsaraSwitch': preset['artificial_viscosity']['use_balsara_switch'], \
+			'useTimeDependentAV': preset['artificial_viscosity']['use_time_dependent_av'], \
+			'cflSound': preset['cfl']['sound'], \
+			'cflForce': preset['cfl']['force'], \
+			'maxTreeLevel': preset['tree']['max_level'], \
+			'leafParticleNumber': preset['tree']['leaf_particle_number'], \
+			'iterativeSmoothingLength': preset['sph']['iterative_smoothing_length'], \
+			'useRelaxation': preset['relaxation']['use_relaxation'], \
+			'relaxationSteps': preset['relaxation']['steps'], \
+			'relaxationOutputFreq': preset['relaxation']['output_freq'], \
+			'relaxationOnly': preset['relaxation']['relaxation_only'], \
+			'output': {'formats': preset['output']['formats'], 'enableEnergyFile': preset['output']['enable_energy_file']}, \
+			'units': preset['units'] \
+		}; \
+		json.dump(flat, open('$(SAMPLE_DIR)/lane_emden.json', 'w'), indent=2)"
+	@mkdir -p $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/ssph
+	@chmod +x scripts/run_with_progress.py
+	@python3 scripts/run_with_progress.py "[1/5] SSPH" ./build/sph lane_emden
+	@echo ""
+	@echo "[2/5] Running GSPH simulation..."
+	@echo "----------------------------------------"
+	@python3 -c "import json; \
+		preset = json.load(open('$(LANE_EMDEN_2D_PRESET_DIR)/benchmark_gsph.json')); \
+		flat = { \
+			'outputDirectory': preset['output']['directory'], \
+			'startTime': preset['simulation']['start_time'], \
+			'endTime': preset['simulation']['end_time'], \
+			'outputTime': preset['simulation']['output_time'], \
+			'energyTime': preset['simulation']['energy_time'], \
+			'SPHType': preset['sph']['type'], \
+			'kernel': preset['sph']['kernel'], \
+			'use2ndOrderGSPH': preset['sph']['use_2nd_order_gsph'], \
+			'gamma': preset['physics']['gamma'], \
+			'neighborNumber': preset['physics']['neighbor_number'], \
+			'useGravity': preset['physics']['use_gravity'], \
+			'G': preset['physics']['G'], \
+			'N': preset['simulation']['particle_count'], \
+			'avAlpha': preset['artificial_viscosity']['alpha'], \
+			'useBalsaraSwitch': preset['artificial_viscosity']['use_balsara_switch'], \
+			'useTimeDependentAV': preset['artificial_viscosity']['use_time_dependent_av'], \
+			'cflSound': preset['cfl']['sound'], \
+			'cflForce': preset['cfl']['force'], \
+			'maxTreeLevel': preset['tree']['max_level'], \
+			'leafParticleNumber': preset['tree']['leaf_particle_number'], \
+			'iterativeSmoothingLength': preset['sph']['iterative_smoothing_length'], \
+			'useRelaxation': preset['relaxation']['use_relaxation'], \
+			'relaxationSteps': preset['relaxation']['steps'], \
+			'relaxationOutputFreq': preset['relaxation']['output_freq'], \
+			'relaxationOnly': preset['relaxation']['relaxation_only'], \
+			'output': {'formats': preset['output']['formats'], 'enableEnergyFile': preset['output']['enable_energy_file']}, \
+			'units': preset['units'] \
+		}; \
+		json.dump(flat, open('$(SAMPLE_DIR)/lane_emden.json', 'w'), indent=2)"
+	@mkdir -p $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/gsph
+	@python3 scripts/run_with_progress.py "[2/5] GSPH" ./build/sph lane_emden
+	@echo ""
+	@echo "[3/5] Running DISPH simulation..."
+	@echo "----------------------------------------"
+	@python3 -c "import json; \
+		preset = json.load(open('$(LANE_EMDEN_2D_PRESET_DIR)/benchmark_disph.json')); \
+		flat = { \
+			'outputDirectory': preset['output']['directory'], \
+			'startTime': preset['simulation']['start_time'], \
+			'endTime': preset['simulation']['end_time'], \
+			'outputTime': preset['simulation']['output_time'], \
+			'energyTime': preset['simulation']['energy_time'], \
+			'SPHType': preset['sph']['type'], \
+			'kernel': preset['sph']['kernel'], \
+			'gamma': preset['physics']['gamma'], \
+			'neighborNumber': preset['physics']['neighbor_number'], \
+			'useGravity': preset['physics']['use_gravity'], \
+			'G': preset['physics']['G'], \
+			'N': preset['simulation']['particle_count'], \
+			'avAlpha': preset['artificial_viscosity']['alpha'], \
+			'useBalsaraSwitch': preset['artificial_viscosity']['use_balsara_switch'], \
+			'useTimeDependentAV': preset['artificial_viscosity']['use_time_dependent_av'], \
+			'cflSound': preset['cfl']['sound'], \
+			'cflForce': preset['cfl']['force'], \
+			'maxTreeLevel': preset['tree']['max_level'], \
+			'leafParticleNumber': preset['tree']['leaf_particle_number'], \
+			'iterativeSmoothingLength': preset['sph']['iterative_smoothing_length'], \
+			'useRelaxation': preset['relaxation']['use_relaxation'], \
+			'relaxationSteps': preset['relaxation']['steps'], \
+			'relaxationOutputFreq': preset['relaxation']['output_freq'], \
+			'relaxationOnly': preset['relaxation']['relaxation_only'], \
+			'output': {'formats': preset['output']['formats'], 'enableEnergyFile': preset['output']['enable_energy_file']}, \
+			'units': preset['units'] \
+		}; \
+		json.dump(flat, open('$(SAMPLE_DIR)/lane_emden.json', 'w'), indent=2)"
+	@mkdir -p $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/disph
+	@python3 scripts/run_with_progress.py "[3/5] DISPH" ./build/sph lane_emden
+	@echo ""
+	@echo "[4/5] Running GDISPH simulation..."
+	@echo "----------------------------------------"
+	@python3 -c "import json; \
+		preset = json.load(open('$(LANE_EMDEN_2D_PRESET_DIR)/benchmark_gdisph.json')); \
+		flat = { \
+			'outputDirectory': preset['output']['directory'], \
+			'startTime': preset['simulation']['start_time'], \
+			'endTime': preset['simulation']['end_time'], \
+			'outputTime': preset['simulation']['output_time'], \
+			'energyTime': preset['simulation']['energy_time'], \
+			'SPHType': preset['sph']['type'], \
+			'kernel': preset['sph']['kernel'], \
+			'use2ndOrderGSPH': preset['sph']['use_2nd_order_gsph'], \
+			'gamma': preset['physics']['gamma'], \
+			'neighborNumber': preset['physics']['neighbor_number'], \
+			'useGravity': preset['physics']['use_gravity'], \
+			'G': preset['physics']['G'], \
+			'N': preset['simulation']['particle_count'], \
+			'avAlpha': preset['artificial_viscosity']['alpha'], \
+			'useBalsaraSwitch': preset['artificial_viscosity']['use_balsara_switch'], \
+			'useTimeDependentAV': preset['artificial_viscosity']['use_time_dependent_av'], \
+			'cflSound': preset['cfl']['sound'], \
+			'cflForce': preset['cfl']['force'], \
+			'maxTreeLevel': preset['tree']['max_level'], \
+			'leafParticleNumber': preset['tree']['leaf_particle_number'], \
+			'iterativeSmoothingLength': preset['sph']['iterative_smoothing_length'], \
+			'useRelaxation': preset['relaxation']['use_relaxation'], \
+			'relaxationSteps': preset['relaxation']['steps'], \
+			'relaxationOutputFreq': preset['relaxation']['output_freq'], \
+			'relaxationOnly': preset['relaxation']['relaxation_only'], \
+			'output': {'formats': preset['output']['formats'], 'enableEnergyFile': preset['output']['enable_energy_file']}, \
+			'units': preset['units'] \
+		}; \
+		json.dump(flat, open('$(SAMPLE_DIR)/lane_emden.json', 'w'), indent=2)"
+	@mkdir -p $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/gdisph
+	@python3 scripts/run_with_progress.py "[4/5] GDISPH" ./build/sph lane_emden
+	@echo ""
+	@echo "[5/5] Running GDISPH+Balsara simulation..."
+	@echo "----------------------------------------"
+	@python3 -c "import json; \
+		preset = json.load(open('$(LANE_EMDEN_2D_PRESET_DIR)/benchmark_gdisph_balsara.json')); \
+		flat = { \
+			'outputDirectory': preset['output']['directory'], \
+			'startTime': preset['simulation']['start_time'], \
+			'endTime': preset['simulation']['end_time'], \
+			'outputTime': preset['simulation']['output_time'], \
+			'energyTime': preset['simulation']['energy_time'], \
+			'SPHType': preset['sph']['type'], \
+			'kernel': preset['sph']['kernel'], \
+			'use2ndOrderGSPH': preset['sph']['use_2nd_order_gsph'], \
+			'gamma': preset['physics']['gamma'], \
+			'neighborNumber': preset['physics']['neighbor_number'], \
+			'useGravity': preset['physics']['use_gravity'], \
+			'G': preset['physics']['G'], \
+			'N': preset['simulation']['particle_count'], \
+			'avAlpha': preset['artificial_viscosity']['alpha'], \
+			'useBalsaraSwitch': preset['artificial_viscosity']['use_balsara_switch'], \
+			'useTimeDependentAV': preset['artificial_viscosity']['use_time_dependent_av'], \
+			'cflSound': preset['cfl']['sound'], \
+			'cflForce': preset['cfl']['force'], \
+			'maxTreeLevel': preset['tree']['max_level'], \
+			'leafParticleNumber': preset['tree']['leaf_particle_number'], \
+			'iterativeSmoothingLength': preset['sph']['iterative_smoothing_length'], \
+			'useRelaxation': preset['relaxation']['use_relaxation'], \
+			'relaxationSteps': preset['relaxation']['steps'], \
+			'relaxationOutputFreq': preset['relaxation']['output_freq'], \
+			'relaxationOnly': preset['relaxation']['relaxation_only'], \
+			'output': {'formats': preset['output']['formats'], 'enableEnergyFile': preset['output']['enable_energy_file']}, \
+			'units': preset['units'] \
+		}; \
+		json.dump(flat, open('$(SAMPLE_DIR)/lane_emden.json', 'w'), indent=2)"
+	@mkdir -p $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/gdisph_balsara
+	@python3 scripts/run_with_progress.py "[5/5] GDISPH+Balsara" ./build/sph lane_emden
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All simulations complete!"
+	@echo "=========================================="
+
+# Generate comparison plots
+lane_emden_2d_compare_viz:
+	@echo "=========================================="
+	@echo "Generating Comparison Plots"
+	@echo "=========================================="
+	@if [ ! -d "$(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/ssph" ]; then \
+		echo "❌ ERROR: Missing results directories"; \
+		echo "Run 'make lane_emden_2d_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison
+	@echo "Generating relaxation comparison plots..."
+	@chmod +x lane_emden/scripts/visualization/compare_lane_emden.py
+	@python3 lane_emden/scripts/visualization/compare_lane_emden.py \
+		--ssph $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/ssph \
+		--gsph $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/gsph \
+		--disph $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/disph \
+		--gdisph $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/gdisph \
+		--gdisph-balsara $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/gdisph_balsara \
+		--output $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison \
+		--polytrope-index 1.5 \
+		--dimension 2
+	@echo ""
+	@echo "✓ Comparison plots generated!"
+	@echo "📊 Output: $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison/"
+
+# Generate comparison animations
+lane_emden_2d_compare_animate:
+	@echo "=========================================="
+	@echo "Generating Comparison Animations"
+	@echo "=========================================="
+	@if [ ! -d "$(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/ssph" ]; then \
+		echo "❌ ERROR: Missing results directories"; \
+		echo "Run 'make lane_emden_2d_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison
+	@echo "Generating SSPH animation..."
+	@chmod +x lane_emden/scripts/visualization/animate_lane_emden.py
+	@python3 lane_emden/scripts/visualization/animate_lane_emden.py \
+		--input $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/ssph \
+		--output $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison/relaxation_ssph.gif \
+		--polytrope-index 1.5 \
+		--dimension 2
+	@echo "Generating GSPH animation..."
+	@python3 lane_emden/scripts/visualization/animate_lane_emden.py \
+		--input $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/gsph \
+		--output $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison/relaxation_gsph.gif \
+		--polytrope-index 1.5 \
+		--dimension 2
+	@echo "Generating DISPH animation..."
+	@python3 lane_emden/scripts/visualization/animate_lane_emden.py \
+		--input $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/disph \
+		--output $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison/relaxation_disph.gif \
+		--polytrope-index 1.5 \
+		--dimension 2
+	@echo "Generating GDISPH animation..."
+	@python3 lane_emden/scripts/visualization/animate_lane_emden.py \
+		--input $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/gdisph \
+		--output $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison/relaxation_gdisph.gif \
+		--polytrope-index 1.5 \
+		--dimension 2
+	@echo "Generating GDISPH+Balsara animation..."
+	@python3 lane_emden/scripts/visualization/animate_lane_emden.py \
+		--input $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/gdisph_balsara \
+		--output $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison/relaxation_gdisph_balsara.gif \
+		--polytrope-index 1.5 \
+		--dimension 2
+	@echo ""
+	@echo "✓ All animations complete!"
+	@echo "🎬 Output: $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison/"
+
+# Run all comparisons and generate all visualizations
+lane_emden_2d_compare_all: lane_emden_2d_compare_run lane_emden_2d_compare_viz lane_emden_2d_compare_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Comparison Workflow Done!"
+	@echo "=========================================="
+	@echo "📁 Results: $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/"
+	@echo "📊 Plots: $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison/"
+	@echo "🎬 Animations: $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5/comparison/"
+
+# Clean all comparison results
+lane_emden_2d_compare_clean:
+	@echo "Cleaning all Lane-Emden 2D comparison results..."
+	@rm -rf $(LANE_EMDEN_2D_RESULTS_DIR)/benchmark_n1_5
+	@echo "✓ All comparison results cleaned"

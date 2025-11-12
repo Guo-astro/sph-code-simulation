@@ -1,36 +1,39 @@
 {
-  "outputDirectory": "lane_emden/results/polytrope_n1.5_3d",
+  "outputDirectory": "lane_emden/2d/results/benchmark_n1_5/gsph",
+  "startTime": 0.0,
   "endTime": 5.0,
-  "outputTime": 0.05,
-  "avAlpha": 1.0,
+  "outputTime": 0.1,
+  "energyTime": 0.01,
+  "SPHType": "gsph",
+  "kernel": "cubic_spline",
+  "use2ndOrderGSPH": true,
+  "gamma": 1.66666666666667,
   "neighborNumber": 50,
-  "useBalsaraSwitch": true,
-  "useTimeDependentAV": true,
-  "useArtificialConductivity": false,
-  "leafParticleNumber": 32,
-  "gamma": 1.6666666666666667,
-  "kernel": "wendland",
-  "N": 30,
-  "periodic": false,
   "useGravity": false,
   "G": 1.0,
-  "SPHType": "ssph",
-  "iterativeSmoothingLength": false,
+  "N": 100,
+  "avAlpha": 1.0,
+  "useBalsaraSwitch": false,
+  "useTimeDependentAV": false,
+  "cflSound": 0.3,
+  "cflForce": 0.125,
+  "maxTreeLevel": 20,
+  "leafParticleNumber": 1,
+  "iterativeSmoothingLength": true,
   "useRelaxation": true,
-  "relaxationSteps": 1000000,
-  "relaxationOutputFreq": 5000,
+  "relaxationSteps": 10000,
+  "relaxationOutputFreq": 100,
   "relaxationOnly": true,
   "output": {
     "formats": [
       {
         "type": "csv",
         "precision": 16
-      },
-      {
-        "type": "hdf5",
-        "compression": 6
       }
     ],
     "enableEnergyFile": true
+  },
+  "units": {
+    "type": "CODE"
   }
 }

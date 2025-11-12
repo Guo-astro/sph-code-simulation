@@ -1,15 +1,14 @@
 {
-  "name": "polytrope_n1_5_3d",
-  "description": "3D n=1.5 polytrope (\u03b3=5/3, monatomic ideal gas) - Standard stellar model",
+  "name": "polytrope_n1_5_ssph_3d",
+  "description": "3D n=1.5 polytrope (γ=5/3) SSPH - Stellar model",
   "dimension": 3,
-  "use_case": "Main sequence stars, stellar structure calculations",
+  "use_case": "3D stellar structure with Standard SPH",
   "physics": {
     "polytropic_index": 1.5,
     "adiabatic_index": 1.6666666666666667,
     "total_mass": 1.0,
     "radius": 1.0,
-    "gravitational_constant": 1.0,
-    "notes": "Most common for stellar interiors with convective envelopes"
+    "gravitational_constant": 1.0
   },
   "initial_conditions": {
     "data_file": "lane_emden/data/numerical_solutions/3d/n1.5.dat",
@@ -19,30 +18,39 @@
   },
   "relaxation": {
     "enabled": true,
-    "steps": 100000,
+    "steps": 10000,
     "convergence_threshold": 1e-06,
-    "output_frequency": 5000,
+    "output_frequency": 1000,
     "damping_factor": 0.0
   },
   "checkpoint": {
-    "enabled": true,
+    "enabled": false,
     "saveInterval": 1000,
-    "directory": "lane_emden/results/polytrope_n1.5_3d/checkpoints",
-    "saveOnExit": true,
+    "directory": "lane_emden/3d/results/polytrope_n1_5/checkpoints",
+    "saveOnExit": false,
     "maxCheckpoints": 5,
-    "autoResume": true,
+    "autoResume": false,
     "resumeFile": ""
   },
   "simulation": {
     "end_time": 5.0,
     "output_time": 0.05,
-    "output_directory": "lane_emden/results/polytrope_n1.5_3d"
+    "output_directory": "lane_emden/3d/results/polytrope_n1_5"
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
   },
   "numerical": {
     "neighbor_number": 50,
     "kernel": "wendland",
     "sph_type": "ssph",
-    "use_gravity": false,
+    "use_gravity": true,
     "periodic": false,
     "iterative_smoothing_length": false,
     "leaf_particle_number": 32

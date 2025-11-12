@@ -1,0 +1,61 @@
+{
+  "comment": "Lane-Emden 2D Benchmark - SSPH Method",
+  "description": "Standard SPH (density-energy formulation) for n=1.5 polytrope benchmark",
+  
+  "simulation": {
+    "dimension": 2,
+    "particle_count": 100,
+    "start_time": 0.0,
+    "end_time": 5.0,
+    "output_time": 0.1,
+    "energy_time": 0.01
+  },
+  
+  "physics": {
+    "gamma": 1.66666666666667,
+    "neighbor_number": 50,
+    "use_gravity": false,
+    "G": 1.0
+  },
+  
+  "sph": {
+    "type": "ssph",
+    "kernel": "cubic_spline",
+    "iterative_smoothing_length": true
+  },
+  
+  "artificial_viscosity": {
+    "alpha": 1.0,
+    "use_balsara_switch": false,
+    "use_time_dependent_av": false
+  },
+  
+  "cfl": {
+    "sound": 0.3,
+    "force": 0.125
+  },
+  
+  "tree": {
+    "max_level": 20,
+    "leaf_particle_number": 1
+  },
+  
+  "relaxation": {
+    "use_relaxation": true,
+    "steps": 10000,
+    "output_freq": 100,
+    "relaxation_only": true
+  },
+  
+  "output": {
+    "directory": "lane_emden/2d/results/benchmark_n1_5/ssph",
+    "formats": [
+      {"type": "csv", "precision": 16}
+    ],
+    "enable_energy_file": true
+  },
+  
+  "units": {
+    "type": "CODE"
+  }
+}

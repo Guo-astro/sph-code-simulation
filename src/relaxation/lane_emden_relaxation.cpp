@@ -18,7 +18,11 @@ LaneEmdenRelaxation::LaneEmdenRelaxation()
 void LaneEmdenRelaxation::initialize(const LaneEmdenRelaxationParams& params)
 {
     m_params = params;
+#if DIM == 2
+    m_data.load_from_file("data/lane_emden/n1.5_2d.dat");
+#else
     m_data.load_from_file("data/lane_emden/n1.5_3d.dat");
+#endif
     m_initialized = true;
     
     std::cout << "LaneEmdenRelaxation: Initialized with:" << std::endl;
@@ -97,7 +101,9 @@ vec_t LaneEmdenRelaxation::compute_relaxation_force(const SPHParticle& p) const
     const real r_inv = 1.0 / r;
     force[0] = -a_r * p.pos[0] * r_inv;  // Flip sign
     force[1] = -a_r * p.pos[1] * r_inv;
+#if DIM == 3
     force[2] = -a_r * p.pos[2] * r_inv;
+#endif
     
     return force;
 }
@@ -123,7 +129,9 @@ void LaneEmdenRelaxation::apply_relaxation(std::shared_ptr<Simulation> sim, real
         // This drives particles toward equilibrium positions
         particles[i].acc[0] -= relax_acc[0];
         particles[i].acc[1] -= relax_acc[1];
+#if DIM == 3
         particles[i].acc[2] -= relax_acc[2];
+#endif
         
         // NOTE: Velocities are zeroed in the solver loop, not here
     }
