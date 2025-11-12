@@ -19,6 +19,13 @@ void Solver::make_strong_shock()
 #if DIM != 1
     THROW_ERROR("DIM != 1");
 #else
+    // ============================================================================
+    // SSOT: Strong Shock Domain Configuration
+    // Domain: [-0.5, 0.5] (size = 1.0)
+    // This is the Single Source of Truth for the strong shock test domain.
+    // All configuration files and visualization scripts must match this domain.
+    // ============================================================================
+    
     const int N = boost::any_cast<int>(m_sample_parameters["N"]);
     const real domain_size = 1.0;  // Domain: [-0.5, 0.5]
     const real dx = domain_size / N;

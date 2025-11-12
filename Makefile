@@ -24,6 +24,8 @@ all:
 	@echo "  make khi_help                 # Kelvin-Helmholtz instability targets"
 	@echo "  make gresho_help              # Gresho-Chan vortex targets"
 	@echo "  make sedov_help               # Sedov blast wave targets"
+	@echo "  make vacuum_help              # Vacuum test targets"
+	@echo "  make strong_shock_help        # Strong shock test targets"
 	@echo ""
 	@false
 
@@ -55,3 +57,6 @@ help: all
 
 # Vacuum Test preset-based system
 -include sample/vacuum/Makefile.vacuum
+
+# Strong Shock Test preset-based system
+-include sample/strong_shock/Makefile.strong_shock

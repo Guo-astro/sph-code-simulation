@@ -1,0 +1,422 @@
+# 1D Strong Shock Test Makefile - Multi-Method Comparison System
+#
+# Complete Workflow (One-Shot Command):
+#   make strong_shock_all                          # Run EVERYTHING: all comparisons, kernel tests, visualizations, animations
+#
+# Single Method Usage:
+#   make strong_shock_run                          # Run default (GSPH + Cubic Spline)
+#   make strong_shock_clean                        # Clean results
+#
+# Multi-Method Comparison (5 SPH types, Cubic Spline kernel):
+#   make strong_shock_compare_run                  # Run all 5 methods
+#   make strong_shock_compare_viz                  # Generate comparison plots
+#   make strong_shock_compare_animate              # Create animations
+#   make strong_shock_compare_all                  # Run all + visualizations + animations
+#   make strong_shock_compare_clean                # Clean comparison results
+#
+# Kernel Comparison (5 SPH × 2 kernels = 10 variants):
+#   make strong_shock_kernel_run                   # Run all 10 simulations
+#   make strong_shock_kernel_viz                   # Generate all plots
+#   make strong_shock_kernel_animate               # Create animations for all variants
+#   make strong_shock_kernel_all                   # Run all + visualizations + animations
+#   make strong_shock_kernel_clean                 # Clean kernel comparison results
+
+STRONG_SHOCK_DIR := sample/strong_shock
+STRONG_SHOCK_CONFIG := $(STRONG_SHOCK_DIR)/config
+PRESET_DIR := $(STRONG_SHOCK_CONFIG)/presets
+STRONG_SHOCK_RESULTS := $(STRONG_SHOCK_DIR)/results
+STRONG_SHOCK_SCRIPTS := $(STRONG_SHOCK_DIR)/scripts
+
+.PHONY: strong_shock_help strong_shock_run strong_shock_clean strong_shock_all \
+        strong_shock_compare_all strong_shock_compare_run strong_shock_compare_viz strong_shock_compare_animate strong_shock_compare_clean \
+        strong_shock_kernel_all strong_shock_kernel_run strong_shock_kernel_viz strong_shock_kernel_animate strong_shock_kernel_clean \
+        strong_shock_gsph_wendland strong_shock_gsph_cubic strong_shock_ssph_wendland strong_shock_ssph_cubic \
+        strong_shock_disph_wendland strong_shock_disph_cubic strong_shock_gdisph_wendland strong_shock_gdisph_cubic \
+        strong_shock_balsara_wendland strong_shock_balsara_cubic strong_shock_check_dim
+
+# Strong shock test requires DIM=1
+STRONG_SHOCK_REQUIRED_DIM := 1
+
+# Check and rebuild with correct dimension if needed
+strong_shock_check_dim:
+	@echo "Checking build dimension..."
+	@CURRENT_DIM=$$(grep "^SPH_DIM:" build/CMakeCache.txt 2>/dev/null | cut -d= -f2 || echo "2"); \
+	if [ "$$CURRENT_DIM" != "$(STRONG_SHOCK_REQUIRED_DIM)" ]; then \
+		echo "🔧 Current build: DIM=$$CURRENT_DIM, Required: DIM=$(STRONG_SHOCK_REQUIRED_DIM)"; \
+		echo "🔨 Reconfiguring build..."; \
+		cd build && cmake -DSPH_DIM=$(STRONG_SHOCK_REQUIRED_DIM) .. && make -j8; \
+		echo "✓ Build ready for DIM=$(STRONG_SHOCK_REQUIRED_DIM)"; \
+	else \
+		echo "✓ Build already configured for DIM=$(STRONG_SHOCK_REQUIRED_DIM)"; \
+	fi
+
+# Help
+strong_shock_help:
+	@echo "=========================================="
+	@echo "1D Strong Shock Test (P_ratio = 10,000)"
+	@echo "=========================================="
+	@echo ""
+	@echo "🚀 Complete Workflow:"
+	@echo "  strong_shock_all              - Run EVERYTHING (all methods, kernels, plots, animations)"
+	@echo ""
+	@echo "Single Method Targets:"
+	@echo "  strong_shock_run              - Run default (GSPH + Cubic Spline)"
+	@echo "  strong_shock_clean            - Remove all results"
+	@echo ""
+	@echo "Multi-Method Comparison (Cubic Spline kernel):"
+	@echo "  strong_shock_compare_run      - Run GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "  strong_shock_compare_viz      - Generate comparison plots"
+	@echo "  strong_shock_compare_animate  - Create animations"
+	@echo "  strong_shock_compare_all      - Run all + visualizations + animations"
+	@echo "  strong_shock_compare_clean    - Clean comparison results"
+	@echo ""
+	@echo "Kernel Comparison (5 methods × 2 kernels):"
+	@echo "  strong_shock_kernel_run       - Run all 10 simulations"
+	@echo "  strong_shock_kernel_viz       - Generate kernel comparison plots"
+	@echo "  strong_shock_kernel_animate   - Create animations for all variants"
+	@echo "  strong_shock_kernel_all       - Run all + visualizations + animations"
+	@echo "  strong_shock_kernel_clean     - Clean kernel comparison results"
+	@echo ""
+
+# Default run
+strong_shock_run: strong_shock_gsph_cubic
+
+# ============================================================================
+# COMPLETE WORKFLOW - ONE-SHOT COMMAND
+# ============================================================================
+
+# Run everything: multi-method comparison + kernel comparison + all visualizations
+strong_shock_all: strong_shock_compare_all strong_shock_kernel_all
+	@echo ""
+	@echo "=========================================="
+	@echo "🎉 COMPLETE STRONG SHOCK TEST WORKFLOW DONE! 🎉"
+	@echo "=========================================="
+	@echo ""
+	@echo "Summary:"
+	@echo "  ✓ Multi-method comparison (5 SPH methods, Cubic Spline)"
+	@echo "  ✓ Kernel comparison (5 SPH methods × 2 kernels = 10 runs)"
+	@echo "  ✓ All comparison plots generated"
+	@echo "  ✓ All animations created"
+	@echo ""
+	@echo "Results location: $(STRONG_SHOCK_RESULTS)/"
+	@echo ""
+
+# ============================================================================
+# SINGLE METHOD TARGETS
+# ============================================================================
+
+# GSPH with Wendland kernel
+strong_shock_gsph_wendland: strong_shock_check_dim
+	@echo "=========================================="
+	@echo "Running 1D Strong Shock Test - GSPH (Wendland)"
+	@echo "=========================================="
+	@echo "⚠️  WARNING: Wendland C4 kernel does not support DIM=1"
+	@echo "Use Cubic Spline kernel instead: make strong_shock_gsph_cubic"
+	@exit 1
+
+# GSPH with Cubic Spline kernel
+strong_shock_gsph_cubic: strong_shock_check_dim
+	@echo "=========================================="
+	@echo "Running 1D Strong Shock Test - GSPH (Cubic Spline)"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/strong_shock_gsph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/gsph_cubic
+	@./build/sph strong_shock
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📊 Output: $(STRONG_SHOCK_RESULTS)/gsph_cubic/"
+
+# Cleanup
+strong_shock_clean:
+	@echo "Cleaning strong shock test results..."
+	@rm -rf $(STRONG_SHOCK_RESULTS)
+	@echo "✓ Cleaned!"
+
+# ============================================================================
+# Multi-Method Comparison Targets (Cubic Spline Kernel)
+# Note: Wendland C4 kernel does not support 1D, so we use Cubic Spline
+# ============================================================================
+
+# Run all comparisons + visualizations + animations
+strong_shock_compare_all: strong_shock_compare_run strong_shock_compare_viz strong_shock_compare_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Comparison Workflow Done!"
+	@echo "=========================================="
+
+# Run all five SPH methods with Cubic Spline kernel
+strong_shock_compare_run: strong_shock_check_dim
+	@echo "=========================================="
+	@echo "1D Strong Shock Test Multi-Method Comparison"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "Kernel: Cubic Spline (Wendland not supported in 1D)"
+	@echo "Pressure Ratio: 10,000 (P_left/P_right)"
+	@echo "=========================================="
+	@echo ""
+	@echo "[1/5] Running GSPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/strong_shock_gsph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/gsph_cubic
+	@./build/sph strong_shock
+	@echo "✓ GSPH complete"
+	@echo ""
+	@echo "[2/5] Running SSPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/strong_shock_ssph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/ssph_cubic
+	@./build/sph strong_shock
+	@echo "✓ SSPH complete"
+	@echo ""
+	@echo "[3/5] Running DISPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/strong_shock_disph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/disph_cubic
+	@./build/sph strong_shock
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "[4/5] Running GDISPH (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/strong_shock_gdisph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/gdisph_cubic
+	@./build/sph strong_shock
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "[5/5] Running GDISPH+Balsara (Cubic Spline)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/strong_shock_gdisph_balsara_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/gdisph_balsara_cubic
+	@./build/sph strong_shock
+	@echo "✓ GDISPH+Balsara complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All simulations complete!"
+	@echo "=========================================="
+
+# Generate comparison plots for all methods
+strong_shock_compare_viz:
+	@echo "=========================================="
+	@echo "Generating Comparison Plots"
+	@echo "=========================================="
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/comparison
+	@if [ -x "$(STRONG_SHOCK_SCRIPTS)/compare_methods.py" ]; then \
+		chmod +x $(STRONG_SHOCK_SCRIPTS)/compare_methods.py; \
+		python3 $(STRONG_SHOCK_SCRIPTS)/compare_methods.py \
+			--results-dir $(STRONG_SHOCK_RESULTS) \
+			-o $(STRONG_SHOCK_RESULTS)/comparison/strong_shock_comparison.png \
+			--no-show; \
+		echo "✓ Comparison plots generated!"; \
+		echo "📊 $(STRONG_SHOCK_RESULTS)/comparison/"; \
+	else \
+		echo "⚠️  Visualization script not found: $(STRONG_SHOCK_SCRIPTS)/compare_methods.py"; \
+		echo "📁 Creating basic directory structure..."; \
+	fi
+	@echo ""
+	@echo "Generating analytical solution overlays..."
+	@chmod +x $(STRONG_SHOCK_SCRIPTS)/process_all_snapshots.py
+	@chmod +x $(STRONG_SHOCK_SCRIPTS)/strong_shock_analytical.py
+	@for method in gsph_cubic ssph_cubic disph_cubic gdisph_cubic gdisph_balsara_cubic; do \
+		if [ -d "$(STRONG_SHOCK_RESULTS)/$$method" ]; then \
+			echo "Processing $$method..."; \
+			python3 $(STRONG_SHOCK_SCRIPTS)/process_all_snapshots.py $(STRONG_SHOCK_RESULTS)/$$method; \
+		fi \
+	done
+	@echo ""
+	@echo "✓ All analytical overlays generated!"
+
+# Create animations
+strong_shock_compare_animate:
+	@echo "=========================================="
+	@echo "Generating Animations"
+	@echo "=========================================="
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/animations
+	@if [ -x "$(STRONG_SHOCK_SCRIPTS)/generate_animation.py" ]; then \
+		chmod +x $(STRONG_SHOCK_SCRIPTS)/generate_animation.py; \
+		for method in gsph_cubic ssph_cubic disph_cubic gdisph_cubic gdisph_balsara_cubic; do \
+			if [ -d "$(STRONG_SHOCK_RESULTS)/$$method" ]; then \
+				echo "Creating animation for $$method..."; \
+				python3 $(STRONG_SHOCK_SCRIPTS)/generate_animation.py $(STRONG_SHOCK_RESULTS)/$$method \
+					-o $(STRONG_SHOCK_RESULTS)/animations/$${method}_strong_shock.gif --fps 5; \
+			fi \
+		done; \
+		echo ""; \
+		echo "✓ Animations complete!"; \
+		echo "🎬 $(STRONG_SHOCK_RESULTS)/animations/"; \
+	else \
+		echo "⚠️  Animation script not found: $(STRONG_SHOCK_SCRIPTS)/generate_animation.py"; \
+		echo "📁 Creating basic directory structure..."; \
+	fi
+
+# Clean comparison results
+strong_shock_compare_clean:
+	@echo "Cleaning strong shock test comparison results..."
+	@rm -rf $(STRONG_SHOCK_RESULTS)/gsph_cubic $(STRONG_SHOCK_RESULTS)/ssph_cubic \
+	        $(STRONG_SHOCK_RESULTS)/disph_cubic $(STRONG_SHOCK_RESULTS)/gdisph_cubic \
+	        $(STRONG_SHOCK_RESULTS)/gdisph_balsara_cubic $(STRONG_SHOCK_RESULTS)/comparison
+	@echo "✓ Comparison results cleaned"
+
+# ============================================================================
+# Kernel Comparison Targets (Wendland vs Cubic Spline)
+# Note: Wendland C4 not supported in 1D, so these will skip Wendland runs
+# ============================================================================
+
+# Run all methods with both kernels + visualizations
+strong_shock_kernel_all: strong_shock_kernel_run strong_shock_kernel_viz strong_shock_kernel_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Kernel Comparison Done!"
+	@echo "=========================================="
+
+# Run all five SPH methods with Cubic Spline kernel (Wendland not available in 1D)
+strong_shock_kernel_run: strong_shock_check_dim
+	@echo "=========================================="
+	@echo "Kernel Comparison: Cubic Spline Only"
+	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
+	@echo "Note: Wendland kernel not supported in 1D"
+	@echo "=========================================="
+	@echo ""
+	@echo "=== CUBIC SPLINE KERNEL RUNS ==="
+	@echo "[1/5] Running GSPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/strong_shock_gsph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/gsph_cubic
+	@./build/sph strong_shock
+	@echo "✓ GSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[2/5] Running SSPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/strong_shock_ssph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/ssph_cubic
+	@./build/sph strong_shock
+	@echo "✓ SSPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[3/5] Running DISPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/strong_shock_disph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/disph_cubic
+	@./build/sph strong_shock
+	@echo "✓ DISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[4/5] Running GDISPH (Cubic Spline)..."
+	@cp $(PRESET_DIR)/strong_shock_gdisph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/gdisph_cubic
+	@./build/sph strong_shock
+	@echo "✓ GDISPH (Cubic Spline) complete"
+	@echo ""
+	@echo "[5/5] Running GDISPH+Balsara (Cubic Spline)..."
+	@cp $(PRESET_DIR)/strong_shock_gdisph_balsara_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/gdisph_balsara_cubic
+	@./build/sph strong_shock
+	@echo "✓ GDISPH+Balsara (Cubic Spline) complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All kernel comparison simulations complete!"
+	@echo "=========================================="
+
+# Generate kernel comparison plots
+strong_shock_kernel_viz:
+	@echo "=========================================="
+	@echo "Generating Kernel Comparison Plots"
+	@echo "=========================================="
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/kernel_comparison
+	@if [ -x "$(STRONG_SHOCK_SCRIPTS)/compare_methods.py" ]; then \
+		python3 $(STRONG_SHOCK_SCRIPTS)/compare_methods.py \
+			--results-dir $(STRONG_SHOCK_RESULTS) \
+			-o $(STRONG_SHOCK_RESULTS)/kernel_comparison/strong_shock_kernel_comparison.png \
+			--no-show; \
+		echo "✓ All comparison plots generated!"; \
+		echo "📊 Plots saved in: $(STRONG_SHOCK_RESULTS)/kernel_comparison/"; \
+	else \
+		echo "⚠️  Visualization script not found"; \
+	fi
+
+# Create kernel comparison animations
+strong_shock_kernel_animate:
+	@echo "=========================================="
+	@echo "Generating Kernel Animations"
+	@echo "=========================================="
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/animations
+	@if [ -x "$(STRONG_SHOCK_SCRIPTS)/generate_animation.py" ]; then \
+		for method in gsph_cubic ssph_cubic disph_cubic gdisph_cubic gdisph_balsara_cubic; do \
+			if [ -d "$(STRONG_SHOCK_RESULTS)/$$method" ]; then \
+				echo "Creating animation for $$method..."; \
+				python3 $(STRONG_SHOCK_SCRIPTS)/generate_animation.py $(STRONG_SHOCK_RESULTS)/$$method \
+					-o $(STRONG_SHOCK_RESULTS)/animations/$${method}_strong_shock.gif --fps 5; \
+			fi \
+		done; \
+		echo ""; \
+		echo "✓ Animations complete!"; \
+		echo "🎬 $(STRONG_SHOCK_RESULTS)/animations/"; \
+	else \
+		echo "⚠️  Animation script not found"; \
+	fi
+
+# Clean kernel comparison results
+strong_shock_kernel_clean:
+	@echo "Cleaning kernel comparison results..."
+	@rm -rf $(STRONG_SHOCK_RESULTS)/*_cubic $(STRONG_SHOCK_RESULTS)/kernel_comparison
+	@echo "✓ Kernel comparison results cleaned"
+
+# ============================================================================
+# Individual Method Targets
+# ============================================================================
+
+# SSPH targets
+strong_shock_ssph_wendland: strong_shock_check_dim
+	@echo "⚠️  WARNING: Wendland C4 kernel does not support DIM=1"
+	@exit 1
+
+strong_shock_ssph_cubic: strong_shock_check_dim
+	@echo "=========================================="
+	@echo "Running SSPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/strong_shock_ssph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/ssph_cubic
+	@./build/sph strong_shock
+	@echo ""
+	@echo "✓ SSPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(STRONG_SHOCK_RESULTS)/ssph_cubic/"
+
+# DISPH targets
+strong_shock_disph_wendland: strong_shock_check_dim
+	@echo "⚠️  WARNING: Wendland C4 kernel does not support DIM=1"
+	@exit 1
+
+strong_shock_disph_cubic: strong_shock_check_dim
+	@echo "=========================================="
+	@echo "Running DISPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/strong_shock_disph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/disph_cubic
+	@./build/sph strong_shock
+	@echo ""
+	@echo "✓ DISPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(STRONG_SHOCK_RESULTS)/disph_cubic/"
+
+# GDISPH targets
+strong_shock_gdisph_wendland: strong_shock_check_dim
+	@echo "⚠️  WARNING: Wendland C4 kernel does not support DIM=1"
+	@exit 1
+
+strong_shock_gdisph_cubic: strong_shock_check_dim
+	@echo "=========================================="
+	@echo "Running GDISPH (Cubic Spline)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/strong_shock_gdisph_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/gdisph_cubic
+	@./build/sph strong_shock
+	@echo ""
+	@echo "✓ GDISPH (Cubic Spline) complete!"
+	@echo "📊 Output: $(STRONG_SHOCK_RESULTS)/gdisph_cubic/"
+
+# GDISPH+Balsara targets
+strong_shock_balsara_wendland: strong_shock_check_dim
+	@echo "⚠️  WARNING: Wendland C4 kernel does not support DIM=1"
+	@exit 1
+
+strong_shock_balsara_cubic: strong_shock_check_dim
+	@echo "=========================================="
+	@echo "Running GDISPH+Balsara (Cubic Spline)..."
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/strong_shock_gdisph_balsara_cubic.json $(STRONG_SHOCK_DIR)/strong_shock.json
+	@mkdir -p $(STRONG_SHOCK_RESULTS)/gdisph_balsara_cubic
+	@./build/sph strong_shock
+	@echo ""
+	@echo "✓ GDISPH+Balsara (Cubic Spline) complete!"
+	@echo "📊 Output: $(STRONG_SHOCK_RESULTS)/gdisph_balsara_cubic/"
