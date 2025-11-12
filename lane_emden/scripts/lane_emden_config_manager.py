@@ -21,7 +21,7 @@ import shutil
 
 # Directory paths relative to script location
 SCRIPT_DIR = Path(__file__).parent
-LANE_EMDEN_ROOT = SCRIPT_DIR / "lane_emden"
+LANE_EMDEN_ROOT = SCRIPT_DIR.parent  # Go up one level from scripts/ to lane_emden/
 PRESETS_DIR = LANE_EMDEN_ROOT / "config" / "presets"
 TEMPLATES_DIR = LANE_EMDEN_ROOT / "config" / "templates"
 DATA_DIR = LANE_EMDEN_ROOT / "data" / "numerical_solutions"
@@ -74,21 +74,31 @@ class ConfigManager:
             
             name = config.get("name", preset_file.stem)
             desc = config.get("description", "No description")
-            dim = config.get("dimension", "?")
-            n = config["physics"].get("polytropic_index", "?")
-            gamma = config["physics"].get("adiabatic_index", "?")
             
-            print(f"📋 {name}")
-            print(f"   Dimension: {dim}D | n={n} | γ={gamma:.3f}")
-            print(f"   {desc}")
-            
-            if verbose:
-                relax_steps = config["relaxation"].get("steps", "?")
-                particles = config["initial_conditions"].get("particle_count", "?")
-                print(f"   Relaxation: {relax_steps} steps | Particles: {particles}")
-                use_case = config.get("use_case", "")
-                if use_case:
-                    print(f"   Use case: {use_case}")
+            # Handle both full presets and resume presets
+            if "physics" in config:
+                dim = config.get("dimension", "?")
+                n = config["physics"].get("polytropic_index", "?")
+                gamma = config["physics"].get("adiabatic_index", "?")
+                
+                print(f"📋 {name}")
+                print(f"   Dimension: {dim}D | n={n} | γ={gamma:.3f}")
+                print(f"   {desc}")
+                
+                if verbose:
+                    relax_steps = config.get("relaxation", {}).get("steps", "?")
+                    particles = config.get("initial_conditions", {}).get("particle_count", "?")
+                    print(f"   Relaxation: {relax_steps} steps | Particles: {particles}")
+                    use_case = config.get("use_case", "")
+                    if use_case:
+                        print(f"   Use case: {use_case}")
+            else:
+                # Resume preset - simpler format
+                print(f"📋 {name}")
+                print(f"   {desc}")
+                if verbose and "checkpoint" in config:
+                    resume_file = config["checkpoint"].get("resumeFile", "?")
+                    print(f"   Resume from: {resume_file}")
             
             print()
     

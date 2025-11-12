@@ -19,7 +19,7 @@
   },
   "relaxation": {
     "enabled": true,
-    "steps": 40000,
+    "steps": 1000000,
     "convergence_threshold": 1e-06,
     "output_frequency": 5000,
     "damping_factor": 0.0

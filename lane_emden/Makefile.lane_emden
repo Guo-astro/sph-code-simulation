@@ -1,13 +1,24 @@
-# Lane-Emden Makefile Targets - Single Source of Truth System
+# Lane-Emden Makefile Targets - Relaxation + Multi-Method Comparison System
 #
 # Single Method Usage:
-#   make lane_emden                                    # Run with default preset (polytrope_n1_5_3d)
-#   make lane_emden PRESET=polytrope_n1_5_3d          # Run with specific preset
-#   make lane_emden RELAX_STEPS=10000                  # Override relaxation steps
-#   make lane_emden_relax_only                         # Run relaxation only (no evolution)
-#   make lane_emden_resume                             # Resume from latest checkpoint
-#   make lane_emden_animate                            # Generate animation
+#   make lane_emden_run                                # Run with default preset (polytrope_n1_5_3d)
+#   make lane_emden_run PRESET=polytrope_n1_5_3d      # Run with specific preset
 #   make lane_emden_clean                              # Clean results
+#
+# Relaxation Workflow:
+#   make lane_emden_relax                              # Run relaxation only (prepare initial conditions)
+#   make lane_emden_relax RELAX_STEPS=10000           # Override relaxation steps
+#   make lane_emden_resume                             # Resume from latest checkpoint
+#
+# Multi-Method Comparison (After Relaxation):
+#   make lane_emden_compare_run                        # Run all 4 SPH methods (SSPH, GSPH, DISPH, GDISPH)
+#   make lane_emden_compare_viz                        # Generate comparison plots
+#   make lane_emden_compare_animate                    # Generate comparison animation
+#   make lane_emden_compare_all                        # Run all methods + visualizations
+#   make lane_emden_compare_clean                      # Clean comparison results
+#
+# Complete Workflow:
+#   make lane_emden_workflow                           # Relaxation + Multi-Method Comparison + Viz
 #
 # Management:
 #   make lane_emden_list                               # List available presets
@@ -15,25 +26,58 @@
 #   make lane_emden_create NAME=... N=... DIM=...      # Create new preset
 #   make lane_emden_help                               # Show help
 
-# Default preset if not specified (only for lane_emden targets)
-ifeq ($(filter shock_tube%,$(MAKECMDGOALS)),)
+# Default preset if not specified
 PRESET ?= polytrope_n1_5_3d
-endif
 
 # Paths
 LANE_EMDEN_DIR = lane_emden
 CONFIG_MANAGER = python3 $(LANE_EMDEN_DIR)/scripts/lane_emden_config_manager.py
+PRESET_DIR = $(LANE_EMDEN_DIR)/config/presets
 RESULTS_DIR = $(LANE_EMDEN_DIR)/results
+SCRIPTS_DIR = $(LANE_EMDEN_DIR)/scripts
 
-.PHONY: lane_emden lane_emden_relax lane_emden_relax_only lane_emden_resume \
+.PHONY: lane_emden_run lane_emden_relax lane_emden_resume \
         lane_emden_list lane_emden_validate lane_emden_create lane_emden_help \
-        lane_emden_animate lane_emden_clean
+        lane_emden_animate lane_emden_clean \
+        lane_emden_compare_run lane_emden_compare_viz lane_emden_compare_animate \
+        lane_emden_compare_all lane_emden_compare_clean lane_emden_workflow
+
+# ============================================================================
+# Legacy Aliases
+# ============================================================================
+lane_emden: lane_emden_run
+lane_emden_relax_only: lane_emden_relax
+
+# ============================================================================
+# Legacy Aliases
+# ============================================================================
+lane_emden: lane_emden_run
+lane_emden_relax_only: lane_emden_relax
+
+# ============================================================================
+# Single Method Targets
+# ============================================================================
 
 # Run simulation (relaxation + evolution)
-lane_emden: build/sph
+lane_emden_run: build/sph
 	@echo "=========================================="
 	@echo "Lane-Emden: $(PRESET)"
 	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@CURRENT_DIM=$$(grep "^SPH_DIM:STRING=" build/CMakeCache.txt | cut -d= -f2); \
+	if [ "$$CURRENT_DIM" = "3" ]; then \
+		echo "✓ DIM=3 build detected"; \
+	else \
+		echo "❌ ERROR: Lane-Emden requires DIM=3 build"; \
+		echo ""; \
+		echo "Current build is configured for DIM=$$CURRENT_DIM"; \
+		echo "Lane-Emden is a 3D test case and requires DIM=3."; \
+		echo ""; \
+		echo "To rebuild for 3D:"; \
+		echo "  cd build && cmake -DSPH_DIM=3 .. && make -j8 && cd .."; \
+		echo ""; \
+		exit 1; \
+	fi
 	@if [ -n "$(RELAX_STEPS)" ]; then \
 		echo "Updating relaxation steps to $(RELAX_STEPS)..."; \
 		$(CONFIG_MANAGER) update --preset $(PRESET) --relax-steps $(RELAX_STEPS); \
@@ -51,11 +95,27 @@ lane_emden: build/sph
 	@echo "📁 Results saved to:"
 	@python3 -c "import json; print('   ' + json.load(open('sample/lane_emden/lane_emden.json'))['outputDirectory'])"
 
-# Run ONLY relaxation (no evolution)
-lane_emden_relax_only: build/sph
+# ============================================================================
+# Relaxation Workflow Targets
+# ============================================================================
+
+# Run ONLY relaxation (prepare initial conditions for hydrodynamic runs)
+lane_emden_relax: build/sph
 	@echo "=========================================="
 	@echo "Lane-Emden Relaxation Only: $(PRESET)"
 	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@CURRENT_DIM=$$(grep "^SPH_DIM:STRING=" build/CMakeCache.txt | cut -d= -f2); \
+	if [ "$$CURRENT_DIM" = "3" ]; then \
+		echo "✓ DIM=3 build detected"; \
+	else \
+		echo "❌ ERROR: Lane-Emden requires DIM=3 build"; \
+		echo ""; \
+		echo "Current build is configured for DIM=$$CURRENT_DIM"; \
+		echo "To rebuild for 3D:"; \
+		echo "  cd build && cmake -DSPH_DIM=3 .. && make -j8 && cd .."; \
+		exit 1; \
+	fi
 	@if [ -n "$(RELAX_STEPS)" ]; then \
 		echo "Updating relaxation steps to $(RELAX_STEPS)..."; \
 		$(CONFIG_MANAGER) update --preset $(PRESET) --relax-steps $(RELAX_STEPS); \
@@ -77,9 +137,14 @@ lane_emden_relax_only: build/sph
 	@echo "✓ Relaxation complete!"
 	@echo "📁 Results saved to:"
 	@python3 -c "import json; print('   ' + json.load(open('sample/lane_emden/lane_emden.json'))['outputDirectory'])"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  - Run multi-method comparison: make lane_emden_compare_all"
+	@echo "  - Or run individual method: make lane_emden_compare_ssph"
 
-# Legacy alias
-lane_emden_relax: lane_emden
+	@echo "Next steps:"
+	@echo "  - Run multi-method comparison: make lane_emden_compare_all"
+	@echo "  - Or run individual method: make lane_emden_compare_ssph"
 
 # Resume from checkpoint
 lane_emden_resume: build/sph
@@ -126,6 +191,178 @@ lane_emden_resume: build/sph
 		echo "📁 Results saved to: $(LANE_EMDEN_DIR)/results/polytrope_n1.5_3d"; \
 	fi
 
+# ============================================================================
+# Multi-Method Comparison Targets (After Relaxation)
+# ============================================================================
+
+# Run all four SPH methods (SSPH, GSPH, DISPH, GDISPH) using relaxed initial conditions
+lane_emden_compare_run: build/sph
+	@echo "=========================================="
+	@echo "Lane-Emden Multi-Method Comparison"
+	@echo "Running: SSPH, GSPH, DISPH, GDISPH"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@CURRENT_DIM=$$(grep "^SPH_DIM:STRING=" build/CMakeCache.txt | cut -d= -f2); \
+	if [ "$$CURRENT_DIM" = "3" ]; then \
+		echo "✓ DIM=3 build detected"; \
+	else \
+		echo "❌ ERROR: Lane-Emden requires DIM=3 build"; \
+		echo ""; \
+		echo "Current build is configured for DIM=$$CURRENT_DIM"; \
+		echo "To rebuild for 3D:"; \
+		echo "  cd build && cmake -DSPH_DIM=3 .. && make -j8 && cd .."; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "Checking for relaxed initial conditions..."
+	@if [ ! -f "$(RESULTS_DIR)/$(PRESET)/snapshot_final.csv" ]; then \
+		echo "❌ ERROR: No relaxed initial conditions found"; \
+		echo ""; \
+		echo "Run relaxation first:"; \
+		echo "  make lane_emden_relax PRESET=$(PRESET) RELAX_STEPS=10000"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "✓ Found relaxed initial conditions: $(RESULTS_DIR)/$(PRESET)/snapshot_final.csv"
+	@echo ""
+	@echo "[1/4] Running SSPH simulation..."
+	@echo "----------------------------------------"
+	@python3 -c "import json; \
+		preset = json.load(open('$(PRESET_DIR)/$(PRESET).json')); \
+		preset['numerical']['sph_type'] = 'ssph'; \
+		preset['simulation']['output_directory'] = '$(RESULTS_DIR)/$(PRESET)/comparison/ssph'; \
+		preset['relaxation']['enabled'] = False; \
+		preset['initial_conditions']['data_file'] = '$(RESULTS_DIR)/$(PRESET)/snapshot_final.csv'; \
+		json.dump(preset, open('$(PRESET_DIR)/$(PRESET)_ssph.json', 'w'), indent=2)"
+	@$(CONFIG_MANAGER) apply --preset $(PRESET)_ssph
+	@mkdir -p $(RESULTS_DIR)/$(PRESET)/comparison/ssph
+	@./build/sph lane_emden
+	@echo "✓ SSPH complete"
+	@echo ""
+	@echo "[2/4] Running GSPH simulation..."
+	@echo "----------------------------------------"
+	@python3 -c "import json; \
+		preset = json.load(open('$(PRESET_DIR)/$(PRESET).json')); \
+		preset['numerical']['sph_type'] = 'gsph'; \
+		preset['simulation']['output_directory'] = '$(RESULTS_DIR)/$(PRESET)/comparison/gsph'; \
+		preset['relaxation']['enabled'] = False; \
+		preset['initial_conditions']['data_file'] = '$(RESULTS_DIR)/$(PRESET)/snapshot_final.csv'; \
+		json.dump(preset, open('$(PRESET_DIR)/$(PRESET)_gsph.json', 'w'), indent=2)"
+	@$(CONFIG_MANAGER) apply --preset $(PRESET)_gsph
+	@mkdir -p $(RESULTS_DIR)/$(PRESET)/comparison/gsph
+	@./build/sph lane_emden
+	@echo "✓ GSPH complete"
+	@echo ""
+	@echo "[3/4] Running DISPH simulation..."
+	@echo "----------------------------------------"
+	@python3 -c "import json; \
+		preset = json.load(open('$(PRESET_DIR)/$(PRESET).json')); \
+		preset['numerical']['sph_type'] = 'disph'; \
+		preset['simulation']['output_directory'] = '$(RESULTS_DIR)/$(PRESET)/comparison/disph'; \
+		preset['relaxation']['enabled'] = False; \
+		preset['initial_conditions']['data_file'] = '$(RESULTS_DIR)/$(PRESET)/snapshot_final.csv'; \
+		json.dump(preset, open('$(PRESET_DIR)/$(PRESET)_disph.json', 'w'), indent=2)"
+	@$(CONFIG_MANAGER) apply --preset $(PRESET)_disph
+	@mkdir -p $(RESULTS_DIR)/$(PRESET)/comparison/disph
+	@./build/sph lane_emden
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "[4/4] Running GDISPH simulation..."
+	@echo "----------------------------------------"
+	@python3 -c "import json; \
+		preset = json.load(open('$(PRESET_DIR)/$(PRESET).json')); \
+		preset['numerical']['sph_type'] = 'gdisph'; \
+		preset['simulation']['output_directory'] = '$(RESULTS_DIR)/$(PRESET)/comparison/gdisph'; \
+		preset['relaxation']['enabled'] = False; \
+		preset['initial_conditions']['data_file'] = '$(RESULTS_DIR)/$(PRESET)/snapshot_final.csv'; \
+		json.dump(preset, open('$(PRESET_DIR)/$(PRESET)_gdisph.json', 'w'), indent=2)"
+	@$(CONFIG_MANAGER) apply --preset $(PRESET)_gdisph
+	@mkdir -p $(RESULTS_DIR)/$(PRESET)/comparison/gdisph
+	@./build/sph lane_emden
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All simulations complete!"
+	@echo "=========================================="
+
+# Generate comparison plots
+lane_emden_compare_viz:
+	@echo "=========================================="
+	@echo "Generating Comparison Plots"
+	@echo "=========================================="
+	@if [ ! -d "$(RESULTS_DIR)/$(PRESET)/comparison/ssph" ]; then \
+		echo "❌ ERROR: Missing results directories"; \
+		echo "Run 'make lane_emden_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(RESULTS_DIR)/$(PRESET)/comparison/plots
+	@chmod +x $(SCRIPTS_DIR)/visualization/compare_lane_emden.py 2>/dev/null || true
+	@python3 $(SCRIPTS_DIR)/visualization/compare_lane_emden.py \
+		$(RESULTS_DIR)/$(PRESET)/comparison \
+		$(RESULTS_DIR)/$(PRESET)/comparison/plots
+	@echo ""
+	@echo "✓ Comparison plots generated!"
+	@echo "📊 Output: $(RESULTS_DIR)/$(PRESET)/comparison/plots/"
+
+# Generate comparison animation
+lane_emden_compare_animate:
+	@echo "=========================================="
+	@echo "Generating Comparison Animation"
+	@echo "=========================================="
+	@if [ ! -d "$(RESULTS_DIR)/$(PRESET)/comparison/ssph" ]; then \
+		echo "❌ ERROR: Missing results directories"; \
+		echo "Run 'make lane_emden_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(RESULTS_DIR)/$(PRESET)/comparison/animations
+	@chmod +x $(SCRIPTS_DIR)/visualization/animate_lane_emden.py 2>/dev/null || true
+	@python3 $(SCRIPTS_DIR)/visualization/animate_lane_emden.py \
+		$(RESULTS_DIR)/$(PRESET)/comparison \
+		$(RESULTS_DIR)/$(PRESET)/comparison/animations/comparison_animation.gif
+	@echo ""
+	@echo "✓ Animation complete!"
+	@echo "🎬 Output: $(RESULTS_DIR)/$(PRESET)/comparison/animations/comparison_animation.gif"
+
+# Run all comparisons and generate all visualizations
+lane_emden_compare_all: lane_emden_compare_run lane_emden_compare_viz lane_emden_compare_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Comparison Workflow Done!"
+	@echo "=========================================="
+
+# Clean comparison results (keep relaxed initial conditions)
+lane_emden_compare_clean:
+	@echo "Cleaning Lane-Emden comparison results..."
+	@rm -rf $(RESULTS_DIR)/$(PRESET)/comparison
+	@rm -f $(PRESET_DIR)/$(PRESET)_ssph.json
+	@rm -f $(PRESET_DIR)/$(PRESET)_gsph.json
+	@rm -f $(PRESET_DIR)/$(PRESET)_disph.json
+	@rm -f $(PRESET_DIR)/$(PRESET)_gdisph.json
+	@echo "✓ Comparison results cleaned (relaxed ICs preserved)"
+
+# ============================================================================
+# Complete Workflow Target
+# ============================================================================
+
+# Run complete workflow: Relaxation -> Multi-Method Comparison -> Visualizations
+lane_emden_workflow: lane_emden_relax lane_emden_compare_all
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete Lane-Emden Workflow Done!"
+	@echo "=========================================="
+	@echo "📁 All results in: $(RESULTS_DIR)/$(PRESET)/"
+	@echo "  - Relaxed ICs:     snapshot_final.csv"
+	@echo "  - SSPH results:    comparison/ssph/"
+	@echo "  - GSPH results:    comparison/gsph/"
+	@echo "  - DISPH results:   comparison/disph/"
+	@echo "  - GDISPH results:  comparison/gdisph/"
+	@echo "  - Plots:           comparison/plots/"
+	@echo "  - Animations:      comparison/animations/"
+
+# ============================================================================
+# Management Targets
+# ============================================================================
+
 # Clean results
 lane_emden_clean:
 	@echo "Cleaning Lane-Emden results..."
@@ -141,12 +378,16 @@ lane_emden_animate:
 		preset = json.load(open('$(LANE_EMDEN_DIR)/config/presets/$(PRESET).json')); \
 		outdir = preset['simulation']['output_directory']; \
 		print('Data directory: ' + outdir)"
-	@python3 $(LANE_EMDEN_DIR)/scripts/visualization/make_lane_emden_animation.py \
+	@chmod +x $(SCRIPTS_DIR)/visualization/make_lane_emden_animation.py 2>/dev/null || true
+	@python3 $(SCRIPTS_DIR)/visualization/make_lane_emden_animation.py \
 		$$(python3 -c "import json; print(json.load(open('$(LANE_EMDEN_DIR)/config/presets/$(PRESET).json'))['simulation']['output_directory'])") \
 		lane_emden_$(PRESET)
 	@echo ""
 	@echo "✓ Animation complete!"
 	@echo "📁 Check current directory for:"
+	@echo "   lane_emden_$(PRESET)_animation.gif"
+	@echo "   lane_emden_$(PRESET)_final.png"
+
 	@echo "   lane_emden_$(PRESET)_animation.gif"
 	@echo "   lane_emden_$(PRESET)_final.png"
 
@@ -193,33 +434,56 @@ lane_emden_help:
 	@echo "============================"
 	@echo ""
 	@echo "Single Method Targets:"
-	@echo "  lane_emden                         - Run with default preset (polytrope_n1_5_3d)"
-	@echo "  lane_emden PRESET=...              - Run with specific preset"
-	@echo "  lane_emden RELAX_STEPS=10000       - Override relaxation steps"
-	@echo "  lane_emden_relax_only              - Run relaxation only (no evolution)"
-	@echo "  lane_emden_resume                  - Resume from latest checkpoint"
-	@echo "  lane_emden_animate                 - Generate animation"
-	@echo "  lane_emden_clean                   - Clean results"
+	@echo "  lane_emden_run                         - Run with default preset (polytrope_n1_5_3d)"
+	@echo "  lane_emden_run PRESET=...              - Run with specific preset"
+	@echo "  lane_emden_clean                       - Clean results"
+	@echo ""
+	@echo "Relaxation Workflow:"
+	@echo "  lane_emden_relax                       - Run relaxation only (prepare initial conditions)"
+	@echo "  lane_emden_relax RELAX_STEPS=10000     - Override relaxation steps"
+	@echo "  lane_emden_resume                      - Resume from latest checkpoint"
+	@echo ""
+	@echo "Multi-Method Comparison (After Relaxation):"
+	@echo "  lane_emden_compare_run                 - Run all 4 SPH methods (SSPH, GSPH, DISPH, GDISPH)"
+	@echo "  lane_emden_compare_viz                 - Generate comparison plots"
+	@echo "  lane_emden_compare_animate             - Generate comparison animation"
+	@echo "  lane_emden_compare_all                 - Run all methods + visualizations"
+	@echo "  lane_emden_compare_clean               - Clean comparison results"
+	@echo ""
+	@echo "Complete Workflow:"
+	@echo "  lane_emden_workflow                    - Relaxation + Multi-Method + Viz (complete)"
 	@echo ""
 	@echo "Management Targets:"
-	@echo "  lane_emden_list                    - List all presets"
-	@echo "  lane_emden_validate PRESET=...     - Validate preset"
+	@echo "  lane_emden_list                        - List all presets"
+	@echo "  lane_emden_validate PRESET=...         - Validate preset"
 	@echo "  lane_emden_create NAME=... N=... DIM=... - Create new preset"
+	@echo "  lane_emden_animate                     - Generate animation from results"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make lane_emden"
-	@echo "  make lane_emden PRESET=polytrope_n3_3d"
-	@echo "  make lane_emden RELAX_STEPS=10000"
-	@echo "  make lane_emden_resume"
-	@echo "  make lane_emden_resume CHECKPOINT=snapshot_0009.csv"
-	@echo "  make lane_emden_animate PRESET=polytrope_n3_3d"
+	@echo ""
+	@echo "Basic Usage:"
+	@echo "  make lane_emden_run                    # Single run"
+	@echo "  make lane_emden_relax RELAX_STEPS=10000 # Prepare ICs"
+	@echo ""
+	@echo "Multi-Method Comparison Workflow:"
+	@echo "  make lane_emden_relax RELAX_STEPS=10000 # Step 1: Relax"
+	@echo "  make lane_emden_compare_all            # Step 2: Compare all methods"
+	@echo ""
+	@echo "Complete Automated Workflow:"
+	@echo "  make lane_emden_workflow RELAX_STEPS=10000  # Does everything"
+	@echo ""
+	@echo "With Different Preset:"
+	@echo "  make lane_emden_workflow PRESET=polytrope_n1_5_2d RELAX_STEPS=5000"
+	@echo ""
+	@echo "Create Custom Preset:"
 	@echo "  make lane_emden_create NAME=custom_n3_3d N=3.0 DIM=3"
 	@echo ""
-	@echo "Direct config management (recommended):"
+	@echo "Direct config management (advanced):"
 	@echo "  python3 lane_emden/scripts/lane_emden_config_manager.py list"
 	@echo "  python3 lane_emden/scripts/lane_emden_config_manager.py update --preset polytrope_n1_5_3d --relax-steps 10000"
 	@echo "  python3 lane_emden/scripts/lane_emden_config_manager.py apply --preset polytrope_n1_5_3d"
 	@echo ""
 	@echo "Available presets:"
 	@$(CONFIG_MANAGER) list
+
 

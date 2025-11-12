@@ -69,83 +69,156 @@ class VacuumRiemannSolver:
         gm1 = gamma - 1.0
         gp1 = gamma + 1.0
         
-        # Two rarefaction waves moving apart
-        # Left rarefaction: head moves at v_L - c_L, tail at v_L + c_L
-        x_head_L = x0 + (self.v_L - self.c_L) * t
-        x_tail_L = x0 + self.v_L * t + self.c_L * t
-        
-        # Right rarefaction: tail at v_R - c_R, head at v_R + c_R  
-        x_tail_R = x0 + self.v_R * t - self.c_R * t
-        x_head_R = x0 + (self.v_R + self.c_R) * t
-        
-        # Left uniform region (unaffected by rarefaction)
-        mask_L_uniform = x <= x_head_L
-        rho[mask_L_uniform] = self.rho_L
-        v[mask_L_uniform] = self.v_L
-        P[mask_L_uniform] = self.P_L
-        
-        # Left rarefaction fan
-        # For rarefaction: ρ/ρ_L = (c/c_L)^(2/(γ-1))
-        # velocity relation: v - v_L = 2/(γ-1) * (c - c_L)
-        # characteristic: dx/dt = v - c
-        mask_L_fan = (x > x_head_L) & (x < x_tail_L)
-        if np.any(mask_L_fan):
-            # In rarefaction fan: x/t = v - c is constant along characteristics
-            # For left-moving rarefaction: x/t = v - c
-            # Solving: v = 2/(γ+1) * [(γ-1)/2 * v_L + c_L + (x-x0)/t]
-            #          c = 2/(γ+1) * [c_L + (γ-1)/2 * (v_L - (x-x0)/t)]
-            xi = (x[mask_L_fan] - x0) / t
-            c = 2.0 / gp1 * (self.c_L + gm1 / 2.0 * (self.v_L - xi))
-            v[mask_L_fan] = 2.0 / gp1 * (gm1 / 2.0 * self.v_L + self.c_L + xi)
-            rho[mask_L_fan] = self.rho_L * (c / self.c_L) ** (2.0 / gm1)
-            P[mask_L_fan] = self.P_L * (c / self.c_L) ** (2.0 * gamma / gm1)
-        
-        # Central region (between the two rarefaction waves)
-        # If v_R - v_L > 2/(γ-1)*(c_L + c_R), vacuum forms
-        # Otherwise, there's a low-density intermediate state
-        mask_center = (x >= x_tail_L) & (x <= x_tail_R)
-        if np.any(mask_center):
-            # Check if vacuum condition is met
-            vacuum_criterion = self.v_R - self.v_L - 2.0 / gm1 * (self.c_L + self.c_R)
-            if vacuum_criterion > 0:
-                # True vacuum - use thermodynamically consistent floor values
+        # If t == 0, return initial conditions
+        if t <= 0.0:
+            rho = np.where(x <= x0, self.rho_L, self.rho_R)
+            v = np.where(x <= x0, self.v_L, self.v_R)
+            P = np.where(x <= x0, self.P_L, self.P_R)
+            e = P / (rho * gm1)
+            return rho, v, P, e
+
+        # Self-similar variable
+        xi_all = (x - x0) / t
+
+        # Two rarefaction waves moving apart (characteristic speeds in xi = x/t)
+        # Initialize to right (default) state to guarantee full coverage
+        rho[:] = self.rho_R
+        v[:] = self.v_R
+        P[:] = self.P_R
+
+        # Check vacuum formation first
+        vacuum_criterion = self.v_R - self.v_L - 2.0 / gm1 * (self.c_L + self.c_R)
+
+        if vacuum_criterion > 0:
+            # True vacuum: fans expand into center; compute fan edges using original relations
+            x_head_L = x0 + (self.v_L - self.c_L) * t
+            x_tail_L = x0 + (self.v_L + 2.0 * self.c_L / gm1) * t
+            x_tail_R = x0 + (self.v_R - 2.0 * self.c_R / gm1) * t
+            x_head_R = x0 + (self.v_R + self.c_R) * t
+            # Convert to xi boundaries
+            xi_tail_L = (x_tail_L - x0) / t
+            xi_tail_R = (x_tail_R - x0) / t
+
+            # Left uniform region
+            mask_L_uniform = xi_all <= xi_head_L
+            rho[mask_L_uniform] = self.rho_L
+            v[mask_L_uniform] = self.v_L
+            P[mask_L_uniform] = self.P_L
+
+            # Left rarefaction fan (xi in (xi_head_L, xi_tail_L))
+            mask_L_fan = (xi_all > xi_head_L) & (xi_all < xi_tail_L)
+            if np.any(mask_L_fan):
+                xi = xi_all[mask_L_fan]
+                c = 2.0 / gp1 * (self.c_L + gm1 / 2.0 * (self.v_L - xi))
+                c = np.maximum(c, 1e-10)
+                v[mask_L_fan] = 2.0 / gp1 * (gm1 / 2.0 * self.v_L + self.c_L + xi)
+                rho[mask_L_fan] = self.rho_L * (c / self.c_L) ** (2.0 / gm1)
+                P[mask_L_fan] = self.P_L * (c / self.c_L) ** (2.0 * gamma / gm1)
+
+            # Central vacuum region between xi_tail_R and xi_tail_L
+            mask_center = (xi_all >= xi_tail_R) & (xi_all <= xi_tail_L)
+            if np.any(mask_center):
                 rho_floor = 1e-10
-                # Use isentropic relation: P/P_0 = (ρ/ρ_0)^γ to maintain consistency
                 P[mask_center] = self.P_L * (rho_floor / self.rho_L) ** gamma
                 rho[mask_center] = rho_floor
                 v[mask_center] = 0.0
-            else:
-                # Intermediate state with v_* and P_* = 0 (or very small)
-                # The two rarefaction tails meet
-                # v_* = 0.5 * (v_L + v_R) + (c_L - c_R) / gm1
-                # For symmetric case (c_L = c_R): v_* = (v_L + v_R) / 2
-                v_star = 0.5 * (self.v_L + self.v_R) + (self.c_L - self.c_R) / gm1
+
+            # Right rarefaction fan
+            mask_R_fan = (xi_all > xi_tail_R) & (xi_all < xi_head_R)
+            if np.any(mask_R_fan):
+                xi = xi_all[mask_R_fan]
+                c = 2.0 / gp1 * (self.c_R - gm1 / 2.0 * (self.v_R - xi))
+                c = np.maximum(c, 1e-10)
+                v[mask_R_fan] = 2.0 / gp1 * (gm1 / 2.0 * self.v_R - self.c_R + xi)
+                rho[mask_R_fan] = self.rho_R * (c / self.c_R) ** (2.0 / gm1)
+                P[mask_R_fan] = self.P_R * (c / self.c_R) ** (2.0 * gamma / gm1)
+
+            # Right uniform region
+            mask_R_uniform = xi_all >= xi_head_R
+            rho[mask_R_uniform] = self.rho_R
+            v[mask_R_uniform] = self.v_R
+            P[mask_R_uniform] = self.P_R
+            # Compute internal energy safely
+            # Sanity check: ensure every point has been assigned a non-negative density
+            zero_count = int((rho == 0.0).sum())
+            if zero_count:
+                print(f"Warning: {zero_count} analytic points unassigned - filling with right state")
+                rho[rho == 0.0] = self.rho_R
+                v[rho == 0.0] = self.v_R
+                P[rho == 0.0] = self.P_R
+
+            rho_safe = np.maximum(rho, 1e-10)
+            e = P / (rho_safe * gm1)
+            e = np.maximum(e, 0.0)
+            return rho, v, P, e
+        else:
+            # No vacuum: compute star (intermediate) state using Riemann invariants
+            # From Toro Section 4.3.2, Equation 4.53:
+            # c_* = (c_L + c_R)/2 - (γ-1)/4 * (v_R - v_L)
+            c_star = 0.5 * (self.c_L + self.c_R) - gm1 / 4.0 * (self.v_R - self.v_L)
+            c_star = max(c_star, 1e-10)
+            # From left rarefaction relation: v_* = v_L + 2/(γ-1)*(c_L - c_*)
+            v_star = self.v_L + 2.0 / gm1 * (self.c_L - c_star)
+            rho_star = self.rho_L * (c_star / self.c_L) ** (2.0 / gm1)
+            P_star = self.P_L * (c_star / self.c_L) ** (2.0 * gamma / gm1)
+
+            # Characteristic boundaries in xi
+            xi_tail_L = v_star - c_star
+            xi_tail_R = v_star + c_star
+            xi_head_L = self.v_L - self.c_L
+            xi_head_R = self.v_R + self.c_R
+
+            # Left uniform
+            mask_L_uniform = xi_all <= xi_head_L
+            rho[mask_L_uniform] = self.rho_L
+            v[mask_L_uniform] = self.v_L
+            P[mask_L_uniform] = self.P_L
+
+            # Left fan
+            mask_L_fan = (xi_all > xi_head_L) & (xi_all < xi_tail_L)
+            if np.any(mask_L_fan):
+                xi = xi_all[mask_L_fan]
+                c = 2.0 / gp1 * (self.c_L + gm1 / 2.0 * (self.v_L - xi))
+                c = np.maximum(c, 1e-10)
+                v[mask_L_fan] = 2.0 / gp1 * (gm1 / 2.0 * self.v_L + self.c_L + xi)
+                rho[mask_L_fan] = self.rho_L * (c / self.c_L) ** (2.0 / gm1)
+                P[mask_L_fan] = self.P_L * (c / self.c_L) ** (2.0 * gamma / gm1)
+
+            # Central constant star region
+            mask_center = (xi_all >= xi_tail_L) & (xi_all <= xi_tail_R)
+            if np.any(mask_center):
+                rho[mask_center] = rho_star
                 v[mask_center] = v_star
-                rho_floor = 1e-10
-                # Use isentropic relation for thermodynamic consistency
-                P[mask_center] = self.P_L * (rho_floor / self.rho_L) ** gamma
-                rho[mask_center] = rho_floor
-        
-        # Right rarefaction fan
-        # For right-moving rarefaction: x/t = v + c
-        mask_R_fan = (x > x_tail_R) & (x < x_head_R)
-        if np.any(mask_R_fan):
-            xi = (x[mask_R_fan] - x0) / t
-            c = 2.0 / gp1 * (self.c_R - gm1 / 2.0 * (self.v_R - xi))
-            v[mask_R_fan] = 2.0 / gp1 * (gm1 / 2.0 * self.v_R - self.c_R + xi)
-            rho[mask_R_fan] = self.rho_R * (c / self.c_R) ** (2.0 / gm1)
-            P[mask_R_fan] = self.P_R * (c / self.c_R) ** (2.0 * gamma / gm1)
-        
-        # Right uniform region
-        mask_R_uniform = x >= x_head_R
-        rho[mask_R_uniform] = self.rho_R
-        v[mask_R_uniform] = self.v_R
-        P[mask_R_uniform] = self.P_R
-        
-        # Compute internal energy: e = P / (rho * (gamma - 1))
-        e = P / (rho * gm1)
-        
-        return rho, v, P, e
+                P[mask_center] = P_star
+
+            # Right fan
+            mask_R_fan = (xi_all > xi_tail_R) & (xi_all < xi_head_R)
+            if np.any(mask_R_fan):
+                xi = xi_all[mask_R_fan]
+                c = 2.0 / gp1 * (self.c_R - gm1 / 2.0 * (self.v_R - xi))
+                c = np.maximum(c, 1e-10)
+                v[mask_R_fan] = 2.0 / gp1 * (gm1 / 2.0 * self.v_R - self.c_R + xi)
+                rho[mask_R_fan] = self.rho_R * (c / self.c_R) ** (2.0 / gm1)
+                P[mask_R_fan] = self.P_R * (c / self.c_R) ** (2.0 * gamma / gm1)
+
+            # Right uniform
+            mask_R_uniform = xi_all >= xi_head_R
+            rho[mask_R_uniform] = self.rho_R
+            v[mask_R_uniform] = self.v_R
+            P[mask_R_uniform] = self.P_R
+            # Compute internal energy safely
+            # Sanity check: ensure every point has been assigned a non-negative density
+            zero_count = int((rho == 0.0).sum())
+            if zero_count:
+                print(f"Warning: {zero_count} analytic points unassigned - filling with right state")
+                rho[rho == 0.0] = self.rho_R
+                v[rho == 0.0] = self.v_R
+                P[rho == 0.0] = self.P_R
+
+            rho_safe = np.maximum(rho, 1e-10)
+            e = P / (rho_safe * gm1)
+            e = np.maximum(e, 0.0)
+            return rho, v, P, e
 
 
 def read_snapshot(filename):

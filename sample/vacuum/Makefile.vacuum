@@ -24,7 +24,7 @@
 
 VACUUM_DIR := sample/vacuum
 VACUUM_CONFIG := $(VACUUM_DIR)/config
-PRESET_DIR := $(VACUUM_CONFIG)/presets
+VACUUM_PRESET_DIR := $(VACUUM_CONFIG)/presets
 VACUUM_RESULTS := $(VACUUM_DIR)/results
 VACUUM_SCRIPTS := $(VACUUM_DIR)/scripts
 
