@@ -28,6 +28,8 @@
 #include "gsph/g_fluid_force.hpp"
 #include "gdisph/gd_pre_interaction.hpp"
 #include "gdisph/gd_fluid_force.hpp"
+#include "srgsph/sr_pre_interaction.hpp"
+#include "srgsph/sr_fluid_force.hpp"
 
 // relaxation
 #include "relaxation/lane_emden_relaxation.hpp"
@@ -95,6 +97,14 @@ Solver::Solver(int argc, char * argv[])
         } else {
             WRITE_LOG << "SPH type: Godunov Density-Independent SPH (1st order)";
         }
+        break;
+    case SPHType::SRGSPH:
+        if(m_param->srgsph.is_2nd_order) {
+            WRITE_LOG << "SPH type: Special Relativistic Godunov SPH (2nd order)";
+        } else {
+            WRITE_LOG << "SPH type: Special Relativistic Godunov SPH (1st order)";
+        }
+        WRITE_LOG << "* Speed of light c = " << m_param->srgsph.c_speed;
         break;
     }
 
@@ -267,6 +277,8 @@ void Solver::read_parameterfile(const char * filename)
         m_param->type = SPHType::GSPH;
     } else if(sph_type == "gdisph") {
         m_param->type = SPHType::GDISPH;
+    } else if(sph_type == "srgsph") {
+        m_param->type = SPHType::SRGSPH;
     } else {
         THROW_ERROR("Unknown SPH type");
     }
@@ -354,6 +366,16 @@ void Solver::read_parameterfile(const char * filename)
     // GSPH
     if(m_param->type == SPHType::GSPH) {
         m_param->gsph.is_2nd_order = input.get<bool>("use2ndOrderGSPH", true);
+    }
+    
+    // SRGSPH
+    if(m_param->type == SPHType::SRGSPH) {
+        m_param->srgsph.is_2nd_order = input.get<bool>("use2ndOrderSRGSPH", true);
+        m_param->srgsph.c_speed = input.get<real>("cSpeed", 1.0);
+        m_param->srgsph.c_shock = input.get<real>("cShock", 3.0);
+        m_param->srgsph.c_cd = input.get<real>("cContactDiscontinuity", 1.0);
+        m_param->srgsph.eta = input.get<real>("etaSmoothingLength", 1.0);
+        m_param->srgsph.c_smooth = input.get<real>("cSmoothGradient", 2.0);
     }
     
     // Relaxation (for Lane-Emden)
@@ -615,11 +637,14 @@ void Solver::initialize()
     } else if(m_param->type == SPHType::GDISPH) {
         m_pre = std::make_shared<gdisph::PreInteraction>();
         m_fforce = std::make_shared<gdisph::FluidForce>();
+    } else if(m_param->type == SPHType::SRGSPH) {
+        m_pre = std::make_shared<srgsph::PreInteraction>();
+        m_fforce = std::make_shared<srgsph::FluidForce>();
     }
     m_gforce = std::make_shared<GravityForce>();
 
-    // GSPH and GDISPH require gradient arrays for MUSCL
-    if(m_param->type == SPHType::GSPH || m_param->type == SPHType::GDISPH) {
+    // GSPH, GDISPH, and SRGSPH require gradient arrays for MUSCL
+    if(m_param->type == SPHType::GSPH || m_param->type == SPHType::GDISPH || m_param->type == SPHType::SRGSPH) {
         std::vector<std::string> names;
         names.push_back("grad_density");
         names.push_back("grad_pressure");

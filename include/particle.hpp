@@ -27,6 +27,16 @@ public:
 
     real phi = 0.0; // potential
 
+    // Special Relativistic variables (only used when SPHType == SRGSPH)
+    vec_t S;         // canonical momentum (S = γHv)
+    real e;          // canonical energy (e = γH - P/(Nc²))
+    real N;          // baryon number density (lab frame)
+    real gamma_lor;  // Lorentz factor γ = 1/√(1-v²/c²)
+    real enthalpy;   // specific enthalpy H
+    real nu;         // baryon number in particle
+    vec_t dS;        // dS/dt (time derivative of canonical momentum)
+    real de;         // de/dt (time derivative of canonical energy)
+
     int id;
     int neighbor;
     SPHParticle *next = nullptr;

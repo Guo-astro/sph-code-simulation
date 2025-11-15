@@ -25,4 +25,5 @@ target_sources(sph
 add_subdirectory(disph)
 add_subdirectory(gsph)
 add_subdirectory(gdisph)
+add_subdirectory(srgsph)
 add_subdirectory(kernel)

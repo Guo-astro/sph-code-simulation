@@ -10,6 +10,7 @@ enum struct SPHType {
     DISPH,
     GSPH,
     GDISPH,
+    SRGSPH,  // Special Relativistic GSPH
 };
 
 enum struct KernelType {
@@ -77,6 +78,15 @@ struct SPHParameters {
     struct GSPH {
         bool is_2nd_order;
     } gsph;
+
+    struct SRGSPH {
+        bool is_2nd_order;        // Enable MUSCL reconstruction
+        real c_speed;             // Speed of light (default: 1.0)
+        real c_shock;             // Shock detection parameter (default: 3.0)
+        real c_cd;                // Contact discontinuity parameter (default: 1.0)
+        real eta;                 // Smoothing length parameter (default: 1.0)
+        real c_smooth;            // Smoothing length gradient smoother (default: 2.0)
+    } srgsph;
 };
 
 }
