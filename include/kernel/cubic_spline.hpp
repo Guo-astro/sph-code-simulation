@@ -39,6 +39,7 @@ public:
         const real h_ = h * 0.5;
         const real q = r / h_;
         const real c = -sigma_cubic / (powh(h_) * h_ * r) * (0.75 * sqr(0.5 * (2.0 - q + std::abs(2.0 - q))) - 3.0 * sqr(0.5 * (1.0 - q + std::abs(1.0 - q))));
+        
         return rij * c;
     }
 

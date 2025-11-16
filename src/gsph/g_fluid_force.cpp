@@ -21,7 +21,12 @@ void FluidForce::initialize(std::shared_ptr<SPHParameters> param)
     m_is_2nd_order = param->gsph.is_2nd_order;
     m_gamma = param->physics.gamma;
 
-    hll_solver();
+    // Select Riemann solver based on configuration
+    if(param->gsph.riemann_solver == RiemannSolverType::ITERATIVE) {
+        iterative_solver();
+    } else {
+        hll_solver();
+    }
 }
 
 // van Leer (1979) limiter
@@ -195,6 +200,106 @@ void FluidForce::hll_solver()
         
         vstar = (c5 - c4) * c3;
         pstar = (c1 * c5 - c2 * c4) * c3;
+    };
+}
+
+// Iterative Riemann solver from van Leer (1997) 
+// Implementation based on PySPH's van_leer function
+// Reference: https://github.com/pypr/pysph/blob/main/pysph/sph/gas_dynamics/riemann_solver.py
+void FluidForce::iterative_solver()
+{
+    m_solver = [&](const real left[], const real right[], real & pstar, real & vstar) {
+        // Left and right states (a = left, b = right)
+        const real u_l   = left[0];   // velocity
+        const real rho_l = left[1];   // density
+        const real p_l   = left[2];   // pressure
+        // left[3] is sound speed from state, but we compute Lagrangian sound speed below
+        
+        const real u_r   = right[0];
+        const real rho_r = right[1];
+        const real p_r   = right[2];
+        // right[3] is sound speed from state, but we compute Lagrangian sound speed below
+
+        // Check for negative values
+        if (rho_l < 0.0 || rho_r < 0.0 || p_l < 0.0 || p_r < 0.0) {
+            pstar = 0.0;
+            vstar = 0.0;
+            return;
+        }
+
+        // Constants
+        const real gamma2 = 1.0 + m_gamma;
+        const real gamma1 = 0.5 * gamma2 / m_gamma;
+        const real smallp = 1e-25;
+        
+        // Specific volumes
+        const real V_l = 1.0 / rho_l;
+        const real V_r = 1.0 / rho_r;
+        
+        // Lagrangian sound speeds
+        const real cl = std::sqrt(m_gamma * p_l * rho_l);
+        const real cr = std::sqrt(m_gamma * p_r * rho_r);
+        
+        // Initial guess for pstar
+        real pstar_guess = p_r - p_l - cr * (u_r - u_l);
+        pstar_guess = p_l + pstar_guess * cl / (cl + cr);
+        pstar_guess = std::max(pstar_guess, smallp);
+        
+        // Newton-Raphson iteration
+        const int max_iter = 20;
+        const real tol = 1e-6;
+        real pstar_iter = pstar_guess;
+        bool converged = false;
+        
+        for (int iter = 0; iter < max_iter; ++iter) {
+            const real pstar_old = pstar_iter;
+            
+            // Left wave impedance
+            real w_l = 1.0 + gamma1 * (pstar_iter - p_l) / p_l;
+            w_l = cl * std::sqrt(w_l);
+            
+            // Right wave impedance  
+            real w_r = 1.0 + gamma1 * (pstar_iter - p_r) / p_r;
+            w_r = cr * std::sqrt(w_r);
+            
+            // Left derivative
+            real z_l = 4.0 * V_l * w_l * w_l;
+            z_l = -z_l * w_l / (z_l - gamma2 * (pstar_iter - p_l));
+            
+            // Right derivative
+            real z_r = 4.0 * V_r * w_r * w_r;
+            z_r = z_r * w_r / (z_r - gamma2 * (pstar_iter - p_r));
+            
+            // Intermediate velocities
+            const real ustar_l = u_l - (pstar_iter - p_l) / w_l;
+            const real ustar_r = u_r + (pstar_iter - p_r) / w_r;
+            
+            // Newton-Raphson update
+            pstar_iter = pstar_iter + (ustar_r - ustar_l) * (z_l * z_r) / (z_r - z_l);
+            pstar_iter = std::max(smallp, pstar_iter);
+            
+            // Check convergence
+            converged = (std::abs(pstar_iter - pstar_old) / pstar_iter < tol);
+            if (converged) {
+                break;
+            }
+        }
+        
+        // Recalculate wave impedances with final pstar
+        real w_l = 1.0 + gamma1 * (pstar_iter - p_l) / p_l;
+        w_l = cl * std::sqrt(w_l);
+        
+        real w_r = 1.0 + gamma1 * (pstar_iter - p_r) / p_r;
+        w_r = cr * std::sqrt(w_r);
+        
+        // Calculate averaged ustar
+        const real ustar_l = u_l - (pstar_iter - p_l) / w_l;
+        const real ustar_r = u_r + (pstar_iter - p_r) / w_r;
+        const real ustar = 0.5 * (ustar_l + ustar_r);
+        
+        // Return results
+        pstar = pstar_iter;
+        vstar = ustar;
     };
 }
 

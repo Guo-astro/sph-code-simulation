@@ -1,0 +1,3695 @@
+Mon. Not. R. Astron. Soc. 340, 73–90 (2003)
+
+Implementations and tests of Godunov-type particle hydrodynamics
+S.-H. Cha † and A. P. Whitworth
+Department of Physics and Astronomy, Cardiff University, Cardiff CF2 3YB
+
+Accepted 2002 November 8. Received 2002 October 1; in original form 2002 March 4
+
+Godunov-type particle hydrodynamics (GPH) is described. GPH inherits many good features
+from smoothed particle hydrodynamics (SPH), but it uses a Riemann solver to obtain the
+hydrodynamic acceleration and the rate of change of the internal energy of each particle. The
+grid-free nature of GPH converts a multidimensional problem into a locally one-dimensional
+problem, so that one only has to solve a one-dimensional Riemann problem, even in a globally
+three-dimensional situation. By virtue of the Riemann solver, it is unnecessary to introduce
+artificial viscosity in GPH. We have derived four different versions of GPH, and have performed
+a von Neumann stability analysis to understand the nature of GPH. GPH is stable for all
+wavelengths, while SPH is unstable for certain wavelengths. We have also performed eight
+tests in order to evaluate the performance of GPH. The results show that GPH can describe shock
+waves without artificial viscosity and prevents particle penetration. Furthermore, GPH shows
+better performance than SPH in a test involving velocity shear. GPH is easily implemented
+from SPH by simple replacement of the artificial viscosity with a Riemann solver, and appears
+to have some useful advantages over standard SPH.
+Key words: hydrodynamics – methods: numerical.
+
+1 INTRODUCTION
+Smoothed particle hydrodynamics (SPH) (Gingold & Monaghan
+1977; Lucy 1977) is a grid-free, fully three-dimensional Lagrangian
+method, and therefore it is a powerful technique for simulating irregularly shaped gravitational hydrodynamics. The principle of SPH is
+that a ‘smoothed particle’ can represent the physical properties of a
+fluid element. The ‘smoothed particles’ are made by averaging the
+physical quantities of the fluid elements over an extended volume
+using a kernel function.
+The equations of SPH can be derived directly from the equations
+of Lagrangian hydrodynamics:
+Dρ
+t = −ρ∇ · v,
+D
+Dv
+1
+= − ∇ P,
+Dt
+ρ
+Du
+P
+= − ∇ · v,
+Dt
+ρ
+
+(1)
+
+(3)
+
+cha@astro.umontreal.ca (S-HC); Anthony. Whitworth@
+astro.cf.ac.uk (APW)
+†Present address: Départment de Physique, Université de Montréal, C.P.
+6128, Succ. Centre-ville, Montréal, Québec, H3C 3J7, Canada.
+
+C 2003 RAS
+
+
+vi
+mj
+=−
+t
+
+
+
+j
+
+Pj
+Pi
++ 2 + i j
+ρi2
+ρj
+
+
+
+
+
+∇i W (r i − r j ; h i j ),
+
+(4)
+
+
+
+u i
+Pi
+1
+Pj
+=
+mj
++ 2 + i j (vi − v j ) · ∇i W (r i − r j ; h i j ),
+t
+2
+ρi2
+ρj
+j
+(5)
+and the second form (SPH 2) is
+
+
+vi
+mj
+= −2
+t
+
+
+
+u i 
+mj
+=
+t
+j
+
+Pi P j
+
+ρi ρ j
+
+j
+
+(2)
+
+where D/Dt ≡ ∂/∂t + v · ∇, u is the specific internal energy and all
+other variables have their usual meanings. There are various forms
+ E-mail:
+
+for the equations of SPH that exactly conserve momentum and total
+energy. However, we will treat only the two most widely used forms,
+and these two forms will be used in the implementation of Godunovtype particle hydrodynamics (GPH). The first form (SPH 1) is
+
+
+
+Pi P j
+
+ρi ρ j
+
+
+
+1
++ i j
+2
+
+
+1
++ i j
+2
+
+
+
+∇i W (r i − r j ; h i j ),
+
+(6)
+
+
+
+vi − v j · ∇i W (r i − r j ; h i j ),
+(7)
+
+where ∇i = d/dr i , h ij = (h i + h j )/2 and W is a kernel function. Here
+i j is an artificial viscosity term that will be explained later. The i–j
+symmetric form of equations (4)–(7) guarantees the conservation of
+linear momentum, angular momentum and total energy.
+Many different kernel functions have been proposed (Gingold
+& Monaghan 1977, 1982; Wood 1981; Monaghan & Lattanzio
+1984; Monaghan 1992). The spatial accuracy of SPH is determined
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+ABSTRACT
+
+74
+
+S.-H. Cha and A. P. Whitworth
+
+by the kernel, and second-order accuracy is achieved by using
+spherically symmetric kernels. However, equations (4)–(7) have
+only first-order accuracy in time, so a two-step evolution algorithm is
+needed, such as the predictor–corrector or the second-order Runge–
+Kutta method.
+1.1 Artificial viscosity and particle penetration
+SPH uses an artificial viscosity, i j , optimized to treat shock waves.
+It is composed of linear and quadratic terms, and is only turned on
+when two particles are approaching:
+
+
+
+ρ̄i j
+
+0
+
+when µi j < 0,
+
+(8)
+
+otherwise,
+
+where µi j = (h i j vi j · r i j )/(ri2j + 0.01h i2j ), vi j = vi − v j , r i j = r i −
+r j , c̄i j = 12 (ci + c j ), ρ̄i j = 12 (ρi + ρ j ) and c is the speed of sound. α
+
+and β in equation (8) are free parameters to regulate the strength of
+artificial viscosity. The term 0.01h i2j in the denominator of i j is to
+avoid singularity when r i ≃ r j , but it is not critical since normally
+|r i − r j |  h ij (Whitehurst 1995; Monaghan 1997).
+In standard SPH, some form of artificial viscosity is essential for
+treating shock waves. However, even with artificial viscosity there
+can be an unacceptable level of particle penetration. Additionally,
+the commonly used form of artificial viscosity defined in equation (8) corrupts the simulation of flows in which there is velocity
+shear (for example, differentially rotating discs or obliquely colliding clouds) by giving rise to a very large effective shear viscosity.
+There have been several attempts to refine the artificial viscosity
+defined in equation (8) so as to avoid these problems. Monaghan
+(1989) proposed correcting the velocity of an individual particle
+by adding the kernel-averaged mean of the relative velocities of its
+neighbours. This improved the treatment of shocks. Balsara (1995)
+introduced a coefficient that greatly reduced µi j unless (−∇ · v) was
+large, positive and much greater than |∇ × v|. This alleviated the
+shear problem in some situations. Watkins et al. (1996) solved the
+Navier–Stokes equations directly using less noisy forms of (∇ × v)i
+and (∇ · v)i . Morris & Monaghan (1997) explored a time-dependent
+coefficient α, which became large wherever (−∇ · v) was (or had
+recently been) large, and then quickly decayed back to a small residual value. However, all of these attempts have met with only partial
+success.
+Evidently, the best method to avoid the side-effects of artificial
+viscosity in SPH is to eliminate the need for artificial viscosity. GPH
+does not need artificial viscosity, and can describe shock waves.
+Therefore, the side-effects of artificial viscosity in SPH do not appear
+in GPH.
+1.2 The stability of SPH
+Von Neumann stability analysis for SPH (Monaghan 1989;
+Balsara 1995; Morris 1996a,b) shows that it is unstable to negative stress, especially at the critical wavenumber π/x (where x
+is the mean distance between particles). Artificial viscosity damps
+this instability, but cannot suppress the instability completely.
+The instability can also be reduced by a suitable choice of kernel.
+Morris (1996a,b) suggests that higher-order kernels should reduce
+the instability better than standard kernels such as the exponential (Wood 1981), Gaussian (Gingold & Monaghan 1977), superGaussian (Gingold & Monaghan 1982; Monaghan 1992) and M4
+(Monaghan & Lattanzio 1984) kernels.
+
+1.3 Godunov-type particle hydrodynamics
+GPH is a hybrid scheme combining SPH with a Godunov-type upwind scheme. It was initially suggested by Inutsuka (1994, 1999
+and unpublished); Inutsuka & Imaeda (2001) (see also Cha 2002).
+Inutsuka proposed two different methods. We call the first one ‘the
+imaginary particle method’ (Inutsuka 1994 and unpublished) because it uses imaginary particles to estimate the hydrodynamic force
+and the rate of change of the internal energy. The second one is an
+improved method to solve the Riemann problem between each pair
+of interacting particles (Inutsuka 1999; Inutsuka & Imaeda 2001).
+A detailed description and the results of many tests for each version
+of GPH are presented in Cha (2002).
+1.4 Plan of this paper
+We analyse the treatment of shock waves by numerical schemes in
+Section 2 and we describe the implementation of GPH in Section 3.
+The von Neumann stability analyses for SPH and GPH are presented
+in Section 4. We have performed eight tests, and the results are
+presented in Section 5. The discussion and summary are given in
+Section 6.
+2 S H O C K WAV E S A N D D I S S I PAT I O N
+IN THE NUMERICAL SCHEME
+Shock waves are a common phenomenon in astrophysical hydrodynamics. Once a shock wave occurs, all physical quantities – such
+as density, pressure and velocity – change rapidly across the shock
+front. In reality, the thickness of a shock layer is a few times the
+mean free path of the gas particles at the temperature of the shock.
+The thickness of the shock layer is normally negligible compared
+with the size of the whole system, and so the shock front is in effect
+a discontinuity in the physical quantities. Equations (1)–(3) are able
+to describe continuous regions (i.e. regions in which all physical
+quantities change smoothly), but they have great difficulty in the
+description of discontinuities such as shock waves. Another characteristic of a shock wave is that it increases the entropy of the
+gas, while other discontinuous structures (i.e. rarefaction waves and
+contact discontinuities) are isentropic (Landau & Lifshitz 1998).
+Various methods have been proposed to treat shock waves. One
+of them is artificial viscosity, which was proposed by von Neumann
+& Richtmyer (1950). The artificial viscosity of von Neumann &
+Richtmyer is quadratic in the velocity divergence and consequently
+the shock thickness is approximately independent of the shock
+strength. Von Neumann & Richtmyer also proved that a shock
+smeared out by artificial viscosity travels with exactly the same
+speed as a discontinuous one would, and produces exactly the same
+entropy increase (Richtmyer & Morton 1967).
+SPH uses a slightly different artificial viscosity (e.g. Monaghan
+1992). The artificial viscosity normally used in SPH is composed
+of both linear and quadratic terms in the velocity divergence. The
+linear and quadratic terms are sensitive to small and large (negative) velocity divergence, respectively. However, although artificial
+viscosity is a good method for treating shock waves, it has some undesirable side-effects in systems with velocity shear. Furthermore,
+artificial viscosity sometimes permits particle penetration in SPH
+(Monaghan 1989).
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+i j =
+
+
+2
+ −α c̄i j µi j + βµi j
+
+We will present the von Neumann stability analyses for SPH
+and GPH in Section 4, and will show that GPH is stable for all
+wavelengths.
+
+Godunov-type particle hydrodynamics
+Godunov (1959) suggested a new method for one-dimensional
+hydrodynamic problems with shock waves. The history of the
+Godunov scheme is well described in Hirsch (1989, 1997), van
+Leer (1999) and Godunov (1999). The Godunov method is based on
+Lagrangian hydrodynamics, and works by using a Riemann solver
+to calculate a numerical flux at the border of each cell. By virtue of
+the Riemann solver, a time-independent, space-centred numerical
+flux is obtained. Extra numerical dissipation is not needed, even if
+there are shock waves in the system, because the Riemann solver
+can exactly describe all the waves (i.e. shock waves and rarefaction
+waves) that occur between two adjacent fluids.
+
+ 
+
+u i
+m j v∗ − ṙ i∗
+=
+t
+
+
+
+j
+
+P∗
+ρ 2 (r )
+
+
+
+∂
+∂
+−
+∂r i
+∂r j
+
+75
+
+
+
+× W (r − r i , h)W (r − r j , h) dr ,
+
+(16)
+
+where v is the resultant velocity of the Riemann solver and ṙ i∗ is the
+time-averaged value of ṙ i [≡ (ṙ in + ṙ in+1 )/2]. The derivation of equa∗
+
+tions (13)–(16) is given in Inutsuka & Imaeda (2001), Monaghan
+(2002), Springel & Hernquist (2002), and described more fully in
+Cha (2002).
+3.2 The iterative Riemann solver
+
+3.1 The equations of GPH
+The simplest way to combine SPH and the Riemann problem is to
+replace P i and P j with P ∗ , the resultant pressure of the Riemann
+solver, in equations (4)–(7). This replacement will not affect the
+conservation of total momentum and energy (Cha 2002). The replacement can be made in either of the two widely used forms of
+SPH described in equations (4)–(7), to give
+Case 1 (from SPH 1):
+
+
+vi
+=−
+m j P∗
+t
+j
+
+1
+u i
+=
+m j P∗
+t
+2
+j
+
+
+
+
+1
+1
++ 2
+2
+ρi
+ρj
+1
+1
++ 2
+ρi2
+ρj
+
+The Riemann solver determines the overall efficiency (accuracy and
+speed) of the Godunov scheme. Although there are many numerical
+Riemann solvers (e.g. Toro 1999 and references therein), we have
+used the one proposed by van Leer (1997). It is faster than the
+traditional method of Godunov (e.g. Richtmyer & Morton 1967).
+We briefly describe the Riemann solver of van Leer (1997) here,
+because it is at the heart of GPH.
+First, the Lagrangian shock speed (≡W ) is defined by
+
+W =
+
+
+∇i W (r i − r j ; h i j ),
+
+(9)
+
+
+(vi − v j ) · ∇i W (r i − r j ; h i j ).
+(10)
+
+Case 2 (from SPH 2):
+
+vi
+P∗
+= −2
+mj
+∇i W (r i − r j ; h i j ),
+t
+ρi ρ j
+
+(11)
+
+
+
+γ − 1
+2γ
+
+Z=
+
+
+2
+ 2W
+
+
+(12)
+
+Case 3:
+
+vi
+1 ∂
+m j P∗ 2
+W (r i − r j , h i )
+=−
+t
+ρi ∂r i
+
+
+
+P
+
+∗(n+1)
+
+=P
+
+∗(n)
+
+−
+
+Z b(n) Z a(n) va∗(n) − vb∗(n)
+
+
+
+Z b(n) + Z a(n)
+
+(19)
+
+until P ∗(n+1) differs by less than 1.5 percent from P ∗(n) . Here the
+subscripts a and b denote two adjacent fluids. At every iteration, v ∗
+should be updated by
+va∗(n) = va +
+
+P ∗(n) − Pa
+,
+Wa
+
+(20)
+
+vb∗(n) = vb −
+
+P ∗(n) − Pb
+.
+Wb
+
+(21)
+
+v∗ =
+
+Z b vb∗ + Z a va∗
+.
+Zb + Za
+
+(22)
+
+Ca Pb + Cb Pa − Ca Cb (va − vb )
+.
+Ca + Cb
+
+(14)
+
+P ∗(1) =
+
+(15)
+
+In order to reduce numerical oscillation, P ∗ is iterated only if P ∗(1)
+differs by more than 1 percent from P a and P b , and in order to
+prevent divergence of the iteration, a pressure protection is also
+used (van Leer 1997). The divergence of iterative Riemann solvers
+will be discussed further in Section 5.5.
+
+Case 4:
+
+  P∗  ∂
+∂
+vi
+=−
+mj
+−
+t
+ρ 2 (r ) ∂r i
+∂r j
+j
+
+
+C 2003 RAS, MNRAS 340, 73–90
+
+(18)
+
+An initial estimate of P ∗ is needed to start the iteration. It is given
+by
+
+j
+
+× W (r − r i , h)W (r − r j , h) dr ,
+
+otherwise.
+
+The final velocity can be derived from
+(13)
+
+
+
+ 1 ∂
+u i
+=
+m j P ∗ v∗ − ṙ i∗
+W (r i − r j , h i )
+t
+ρi2 ∂r i
+1 ∂
+W (r i − r j , h j ) .
+ρ 2j ∂r i
+
+(17)
+
+when P ∗ ⩾ P,
+
+W
+
+C(P ∗ /P)[1−(γ −1)/2γ ]
+
+j
+
++
+
+W 2 + C2
+
+P is then found by iteration using
+
+Note that there is no artificial viscosity term in equations (9)–(12).
+Inutsuka & Imaeda (2001) have proposed new formulations for
+SPH. More recently, Monaghan (2002) and Springel & Hernquist
+(2002) have derived the same formulations. The replacements can
+also be made in these new formulations, to give
+
+1 ∂
+W (r i − r j , h j ) ,
+ρ 2j ∂r i
+
+otherwise,
+
+∗
+
+j
+
++
+
+1 − P ∗ /P
+C
+1 − (P ∗ /P)(γ −1)/2γ
+
+where γ is the
+√ ratio of specific heats and C is the Lagrangian speed
+of sound (≡ γ Pρ). Post-shock values are indicated∗ by an asterisk
+in equation (17). Next, the tangential slope, Z (≡ dP
+) is calculated
+dv ∗
+from the Lagrangian shock speed,
+
+j
+
+
+u i
+P∗
+=
+mj
+(vi − v j ) · ∇i W (r i − r j ; h i j ).
+t
+ρi ρ j
+
+1/2
+ 
+γ + 1 P∗ − P
+
+
+when P ∗ ⩾ P,
+C 1 + 2γ
+P
+
+(23)
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+3 I M P L E M E N TAT I O N O F G P H
+
+76
+
+S.-H. Cha and A. P. Whitworth
+
+characteristics
+
+the difference between SPH and GPH, the equations of motion are
+linearized.
+The linearized form of P ∗ ( ρ1a + ρ1b ) is obtained by substituting
+P = P 0 + δ P and ρ = ρ 0 + δ ρ to give
+
+t = to + ∆t
+
+
+
+P∗
+
+t
+
+1
+1
++
+ρa
+ρb
+
+
+
+≃2
+
+P0
+δ Pb
+δ Pa
++ 2C1 2 + 2(1 − C1 ) 2
+ρ0
+ρ0
+ρ0
+
+− 2P0
+
+x
+
+δρa + δρb
+.
+ρ03
+
+(28)
+
+We can compare this with the linearized form of SPH,
+
+cs ∆t
+
+b
+
+1− x
+2 ab
+Figure 1. A diagram to show the concept of an upstream scheme. The
+Riemann invariant is constant along the characteristics [solid (or dotted)
+line], so the two filled circles connected by the solid line have the same
+physical quantities. The upstream scheme uses the value at the filled circle
+rather than the arithmetic mean of values at a and b.
+
+3.3 The isothermal Riemann solver
+
+(24)
+
+P ∗ − c 2 ρR
+= vR + √ ∗ s .
+(25)
+P ρR
+√
+A quadratic for P ∗ is derived by eliminating v ∗ between equations (24) and (25),
+√
+√
+√
+(26)
+P ∗ − (vL − vR )X P ∗ − c2 X ( ρL + ρR ) = 0,
+√
+√
+√ √
+where X = ρL ρR /( ρL + ρR ). The positive solution of the
+quadratic is accepted, and is given by
+
+ 2
+1
+2
+
+∗
+
+P =
++
+
+
+
+
+
+The only difference between equations (28) and (29) is the middle
+term. The difference is
+δ Pa − δ Pb
+SPH,GPH = (2C1 − 1)
+.
+(30)
+ρ02
+If C1 = 12 , i.e. P ∗ is the arithmetic mean of P a and P b , then the
+motion equation of GPH is identical to that of SPH. Another special
+case is P a = P b . In this case, there is no hydrodynamic acceleration
+between a and b, and GPH and SPH describe the same situation.
+4 S TA B I L I T Y A N A LY S E S
+
+For an isothermal gas, the non-iterative Riemann solver proposed
+by Balsara (1994) can be used, and this is obviously faster than an
+iterative Riemann solver.
+The post-shock velocity, v ∗ is given by
+P ∗ − c2 ρL
+v ∗ = vL − √ ∗ s ,
+P ρL
+
+(29)
+
+In order to understand GPH more precisely, the von Neumann stability analysis (e.g. Richtmyer & Morton 1967) has been applied
+to isothermal hydrodynamics. The von Neumann stability analysis was originally applied to finite-difference methods (FDMs), and
+subsequently also to SPH (Monaghan 1989; Balsara 1995; Morris
+1996a).
+The stability analysis presented here is for case 1 (SPH 1). However, the linearized forms of cases 1–3 are identical, so there are no
+differences in the stability analyses of cases 1–3. It is unclear how to
+linearize case 4, but we presume that there are no major differences
+between the stability analyses of cases 1–3 and 4. We will explain
+the reason for this presumption in Section 5.1.
+First of all, the stability analysis of isothermal SPH without artificial viscosity will be presented for reference. We will then repeat the analysis for the cases of SPH with artificial viscosity, and
+GPH.
+
+X (vL − vR )
+
+√
+√ 2
+X 2 (vL − vR )2 + 4cs2 X ( ρL + ρR ) .
+
+4.1 SPH without artificial viscosity
+(27)
+
+v ∗ can then be derived from equation (24) (or equation 25).
+
+For simplicity, we initially consider a system where all particles
+have the same mass (≡ M) and are equally spaced:
+xa = ax,
+
+(31)
+
+ρa = ρ0 ,
+
+(32)
+
+The physical interpretation of the replacements in equations (9)–
+(16) is simple. The hydrodynamic motion of particle a is determined by the pressure distribution of its environment.1 GPH uses
+the evolved value, P ∗ (at t = t 0 + t) instead of P a and P b (at
+t = t 0 ). Fig. 1 shows the concept of upstream schemes such as
+GPH. If the pressure varies linearly from r a to r b , P ∗ can be expressed by C 1 P a + (1 − C 1 )P b , where C 1 is a constant. To see
+
+va = 0,
+
+(33)
+
+ua = u0.
+
+(34)
+
+ρa = ρ0 + Reiφa
+
+(≡ ρ0 + δρa ),
+
+(36)
+
+1 We will use particle indices a and b instead of i and j in Sections 3.4
+
+va = 0 + V e
+
+(≡ 0 + δva ),
+
+(37)
+
+and 4, because the particle index i can be confused with the imaginary
+number i.
+
+u a = u 0 + U eiφa
+
+(≡ u 0 + δu a ),
+
+(38)
+
+3.4 A simple comparison between the equations
+of SPH and GPH
+
+A small perturbation is then added to the system,
+xa = ax + X eiφa
+
+iφa
+
+(≡ ax + δxa ),
+
+(35)
+
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+Pa
+Pb
+P0
+δ Pa + δ Pb
+δρa + δρb
++ 2 ≃2
++
+− 2P0
+.
+2
+ρa2
+ρ
+ρb
+ρ0
+ρ03
+0
+
+t = to
+
+a
+
+Godunov-type particle hydrodynamics
+where φ a = κax − ωt, and κ and ω are, respectively, the wavenumber and angular velocity of the initial perturbation.
+The equations of SPH without artificial viscosity are given by
+dxa
+= va ,
+dt
+
+Wa,b ,
+ρa = M
+
+
+dva
+= −M
+dt
+b
+
+(39)
+
+
+
+b
+
+Pb
+Pa
++ 2
+ρa2
+ρb
+
+
+
+(41)
+
+where W a,b is W (x a − x b , h) and all h-values are assumed constant.
+To close the system, the equation of state,
+(42)
+
+is used. Here cs is the isothermal speed of sound.
+When linearized, equations (39)–(41) reduce to
+V
+i,
+ω 
+∂ Wa,b
+R = MX
+(1 − eiφb−a )
+,
+∂ xa
+b
+R
+∂ Wa,b
+M cs2 
+− (1 + eiφb−a )
+V =
+iω ρ0
+ρ0
+∂ xa
+X=
+
+(43)
+(44)
+
+b
+
+2
+ωSPH
+=M
+
+ρ0
+
+
+
+
+
+(45)
+
+b
+
+× (1 + e
+
+
+
+−
+
+iφb−a
+
+M 
+ρ0
+
+2
+ωSPH
+=−
+
++
+
+Mcs
+ρ
+
+2Mcs2
+ρ0
+
+2 
+b
+
+
+
+∂ Wa,b
+sin[(b − a)κx]
+∂ xa
+
+{1 − cos[(b − a)κx]}
+
+b
+
+(1 − eiφb−a )
+
+b
+
+∂ Wa,b
+∂ xa
+
+
+
+∂ Wa,b
+∂ 2 Wa,b
+)
++ 2(1 − eiφb−a )
+∂ xa
+∂ xa2
+
+
+.
+
+(46)
+
+considers three different methods for estimating
+Morris (1996a)
+i(b−a)κx
+n
+n
+
+2
+
+∂ 2 Wa,b
+.
+∂ xa2
+
+(51)
+
+In order to understand equation (51), we have to recall the initial perturbation, which is of the form ei(κ x−ωt) . So the wavelength
+(≡ λ), period (≡ T ) and speed of propagation (≡ v) of the initial
+perturbation are given by
+2π
+λ=
+,
+(52)
+κ
+2π
+,
+(53)
+T =
+ω
+λ
+ω
+v=
+(54)
+=
+(≡ cs ),
+T
+κ
+respectively. If the angular velocity, ω is changed to ω (≡ ωR +iωI ),
+the change to the initial wave is given by
+ei(κ x−ωR t−iωI t) = eωI t ei(κ x−ωR t) .
+
+∂ 2 Wa,b
+,
+∂ xa2
+
+where φ b−a = κ(b − a) x. The dispersion relation for SPH without artificial viscosity is derived from the combination of equations (43)–(45):
+cs2
+
+
+
+(55)
+
+The imaginary part, ωI , gives the ‘change of amplitude’, i.e. the
+error in the amplitude,
+E R = eωI t .
+
+(56)
+
+The real part, ωR , gives the ‘change of phase’, i.e. the error in the
+phase,
+|ω − ωR |
+E =
+.
+(57)
+ω
+If ωI is smaller than 0, the error in the amplitude will decrease.
+Equation (51) has only a phase error because there is only a real
+term. Fig. 2 shows E  from equation (51). SPH without artificial
+viscosity is always stable because w2SPH is positive for all κ and h.
+
+] (∂ W a,b /∂ x a ), but we have used only the two
+b [1 ± e
+methods given below.
+(i) The simple integral approximation, i.e.
+f (x) dx,
+
+
+
+ ∂ n Wa,b
+
+b
+
+∂ xan
+
+1 ± ei(b−a)κx
+
+≃
+
+
+
+a
+
+f (a) ≃
+
+∞
+
+±(iκ)n
+Ŵ (b − a, k),
+x
+
+−∞
+
+(47)
+
+where Ŵ (b − a, k) is the Fourier transform of W a,b .
+(ii) Direct summation with an even kernel function gives
+
+
+
+1 ± ei(b−a)κx
+
+b
+
+ ∂ Wa,b
+∂ xa
+
+
+
+ ∂ 2 Wa,b
+
+b
+
+∂ xa2
+
+1 ± ei(b−a)κx
+
+≃±
+
+
+b
+
+≃
+
+
+b
+
+i sin[(b − a)κx]
+
+∂ Wa,b
+,
+∂ xa
+(48)
+
+{1 ± cos[(b − a)κx]}
+
+∂ 2 Wa,b
+.
+∂ xa2
+(49)
+
+The simple integral approximation is not exact, but it is useful
+when one wants to know the asymptotic behaviour of equation (46).
+In the long-wavelength limit (i.e. κ → 0), Ŵ (b − a, k) approaches
+unity, and equation (46) becomes
+2
+ωSPH
+= cs2 κ 2 ,
+
+(50)
+
+where we assume ρx ≃ M. This is identical to the dispersion
+relation of a sound wave.
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Figure 2. Phase error contours for isothermal SPH without artificial viscosity. There is no unstable region at any wavelength because ω2 SPH is always
+positive. M = 1 and x = 1 are used in this plot. The number of neighbours is three to five in the range of 1.0 < h < 1.5. With these h-values, E 
+approaches 0 in the long-wavelength limit.
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+P = cs2 ρ
+
++ 2X (1 − eiφb−a )
+
+To investigate equation (46) more exactly, direct summation is
+applied. We have used the M4 kernel in the analyses. In this case,
+equation (46) becomes
+
+(40)
+∂ Wa,b
+,
+∂ xa
+
+77
+
+78
+
+S.-H. Cha and A. P. Whitworth
+
+4.2 SPH with artificial viscosity
+Although the artificial viscosity of SPH is composed of both a linear term (the α-term) and a quadratic term (the β-term), only the
+s h (va −vb )(x a −x b )
+α-term [≡ ρ2αc
+] is used when we derive the dispera +ρb (x a −x b )2 +0.01h 2
+sion relation of SPH with artificial viscosity, because the β-term is of
+second order. Also, we follow Morris (1996a) in applying artificial
+viscosity to both approaching and receding pairs of particles.
+The dispersion relation for this case is given by
+c2
+2
+ωSPH,AV
+=M s
+ρ0
+
+
+
+
+
+
+
+M
+−
+ρ0
+
+b
+
++M
+
+(1 − e
+
+iφb−a
+
+b
+
+∂ Wa,b
+)
+∂ xa
+
+
+
+∂ Wa,b
+∂ 2 Wa,b
++ 2(1 − eiφb−a )
+∂ xa
+∂ xa2
+
+
+
+ 1 − eiφb−a ∂ Wa,b
+cs
+αh
+ω i.
+ρ0
+(b − a)x ∂ xa
+
+(58)
+
+b
+
+Equation (58) can be expressed in a more concise form by substituting for ω2SPH from equation (51)
+2
+ωSPH,AV
+
+
+cs
+−iM αh
+ρ0
+b
+
+
+
+1 − cos[k(b − a)x] ∂ Wa,b
+(b − a)x
+∂ xa
+
+2
+× ωSPH,AV − ωSPH
+= 0.
+
+
+
+(59)
+
+Equation (59) has an extra term relative to equation (51), and the
+root of the equation is given by
+ωSPH,AV =
+
+ibSPH,AV ±
+
+
+
+2
+2
+−bSPH,AV
++ 4ωSPH
+
+2
+
+,
+
+Figure 4. Amplitude error contours for isothermal SPH with artificial viscosity on the (κ, α) plane. bSPH,AV is always negative, so the amplitude of
+the initial perturbation decays with time. The contours show the values at
+the time, t = 1, i.e. just after one period of the wave. The amplitude error
+depends very weakly on α in the stable region. This means that provided α
+is set in the stable region, the value of α is not very critical.
+
+4.3 GPH
+(60)
+
+ 1−cos[k(b−a)x] ∂ Wa,b
+
+where bSPH,AV is M ρcs0 αh b
+.
+(b−a)x
+∂ xa
+The artificial viscosity gives not only a phase difference but also
+a damping to the system because the imaginary term, bSPH,AV , is
+always negative. E  and E R from equation (60) are shown in Figs 3
+and 4, respectively. Note that there is an unstable region in the contours of E  , where the argument of the square root in equation (60)
+is negative.
+
+The isothermal Riemann problem has a functional form for P ∗ given
+by equation (27), and its linearized form is
+
+
+
+P∗
+
+1
+1
++ 2
+ρa2
+ρb
+
+
+
+=
+
+cs
+cs
+(δva − δvb ) + 2cs − (δρa + δρb )
+ρ0
+ρ0
+
+=
+
+cs
+V eiφa (1 − eiφb−a ) + 2cs
+ρ0
+−
+
+cs iφa
+Re (1 + eiφb−a ) .
+ρ0
+
+(61)
+
+With equations (43), (44) and (61), the dispersion relation of isothermal GPH becomes
+c2
+2
+ωGPH
+=M s
+ρ0
+
+
+b
+
+× (1 + e
+−M
+
+
+
+
+
+M
+−
+ρ0
+
+iφb−a
+
+
+
+(1 − e
+
+iφb−a
+
+b
+
+∂ Wa,b
+)
+∂ xa
+
+
+
+∂ Wa,b
+∂ 2 Wa,b
+)
++ 2(1 − eiφb−a )
+∂ xa
+∂ xa2
+
+cs 
+∂ Wa,b
+(1 − eiφb−a )
+ωi.
+ρ0
+∂ xa
+
+
+
+(62)
+
+b
+
+Equation (62) can again be simplified by substituting for ω2SPH from
+equation (51),
+2
+ωGPH
++M
+
+cs 
+ρ0
+
+
+
+sin[k(b − a)x]
+
+b
+
+and ωGPH is then
+Figure 3. Phase error contours for isothermal SPH with artificial viscosity.
+α is set to 1. The region filled by black in the upper to middle area is the
+unstable region. In this region, ω2SPH,AV is smaller than 0.
+
+ωGPH =
+
+−bGPH ±
+
+∂ Wa,b
+∂ xa
+
+
+
+2
+ωGPH − ωSPH
+= 0,
+
+(63)
+
+
+
+2
+2
+bGPH
++ 4ωSPH
+,
+2
+
+(64)
+
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+× (1 + eiφb−a )
+
+
+
+Godunov-type particle hydrodynamics
+
+79
+
+1.002
+
+1
+
+0.998
+
+0.002
+
+-0.002
+-0.6
+
+Figure 5. Phase error contours for isothermal GPH. At all wavelengths,
+ω2GPH is positive, and the general trend is similar to the case of SPH without
+artificial viscosity.
+
+
+
+∂W
+
+where bGPH is M ρcs0
+sin[k(b − a)x] ∂ xa,b
+. ωGPH has no imagb
+a
+inary part, so GPH does not give any damping to the system. Furthermore, ω2GPH is always positive, so there is no unstable region.
+The phase error of isothermal GPH is shown in Fig. 5.
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+Figure 6. The isothermal sound wave propagation test for GPH case 1.
+These are density and velocity profiles. Positive velocity means propagation
+away from the centre and negative velocity means propagation towards the
+centre. Each wave is shown at two times, t = 0.2 and 0.8. The shape of
+the wave becomes more dispersive with time, as predicted by the stability
+analysis. Each wave component of the initial perturbation propagates with a
+different velocity. This is the reason why the shape of the wave is distorted.
+
+1.002
+
+5 TESTS
+Here we describe eight tests. The first four demonstrate that GPH
+can treat sound and shock waves at least as well as SPH. The next
+three show that GPH can also handle strong rarefaction waves, that
+GPH does not suffer from penetration and that GPH can handle shear
+properly. The final test shows the overall performance of GPH.
+
+1
+
+0.998
+
+0.002
+
+5.1 Description of an isothermal sound wave
+To verify the errors discussed in the previous section, numerical calculations of sound wave propagation have been performed. Initially,
+the system is homogeneous, and a Gaussian velocity perturbation is
+given in the centre of the system. The amplitude of the perturbation
+is 0.01 in terms of the isothermal speed of sound. The perturbation
+propagates at the isothermal speed of sound (which is set to 1.0),
+and the wave is reflected at the boundary of the system because we
+have used a mirror boundary condition.
+We have performed this test for cases 1–4 of GPH and for SPH,
+and there are no major differences between the results for the different versions of GPH. This is the reason why we presume that
+the stability of case 4 is the same as cases 1–3. Figs 6–10 show the
+results for each version of GPH and for SPH. The results for GPH
+look better than those for SPH, because the distortion of the wave
+is less serious with GPH. We have used constant h in this test. Note
+that GPH is only first order in time while SPH is second order in
+time.
+5.2 The shock tube test (Sod test)
+The shock tube problem is widely used to test the performance of
+numerical codes (Sod 1978). There are five distinct regions in this
+
+C 2003 RAS, MNRAS 340, 73–90
+
+0
+
+-0.002
+-0.6
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+Figure 7. The isothermal sound wave propagation test for GPH case 2.
+
+test, and four boundaries separating these regions. The performance
+of numerical codes can be estimated by comparing the numerical
+and analytic results at the boundaries.
+
+5.2.1 Initial conditions
+The initial conditions shown in Table 1 are used in the shock tube
+tests. The calculation domain is divided into two parts, and the lefthand side is hotter and denser than the right-hand side. There is one
+rarefaction wave and one shock wave in this test. γ is set to 1.4 and
+t end is 0.17. 250 (200 + 50) particles have been used in this test.
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+0
+
+80
+
+S.-H. Cha and A. P. Whitworth
+
+1.002
+
+1
+
+1
+
+0.998
+
+0.998
+
+0.002
+
+0.002
+
+0
+
+0
+
+-0.002
+-0.6
+
+-0.002
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+Figure 8. The isothermal sound wave propagation test for GPH case 3.
+
+-0.6
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+Figure 10. The isothermal sound wave propagation test for SPH. One can
+readily see that the distortion of SPH is larger than that of GPH. Note that
+SPH is second order while GPH is only first order in time.
+Table 1. Initial conditions for the shock tube test. This test is described in detail in Courant & Friedrichs (1976) and Sod (1978).
+γ = 1.4 and t end = 0.17. 200 and 50 particles have been used on the
+left- and right-hand side of the contact discontinuity, respectively.
+
+1.002
+
+1
+
+Physical properties
+0.998
+
+Left-hand side value
+
+Right-hand side value
+
+1.0
+0.0
+1.0
+
+0.25
+0.0
+0.1795
+
+ρ
+v
+P
+
+0.002
+
+describes the detailed structure of a strong blast wave propagating
+into a uniform density medium.
+0
+
+5.3.1 Initial conditions
+-0.002
+-0.6
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+The initial conditions shown in Table 2 are used in this test. The
+pressure contrast is 3 × 1010 . 250 particles are used. γ is set to 1.4
+and t end is 5 × 10−3 .
+
+Figure 9. The isothermal sound wave propagation test for GPH case 4.
+
+5.3.2 Results
+5.2.2 Results
+Figs 11–14 show the results obtained with each version of GPH.
+There is no significant difference between the various versions of
+GPH. All numerical results reproduce the analytic solution very
+well. However, there is a broken feature at the contact discontinuity
+owing to the steep gradients there. Monaghan (1997) discusses this
+broken feature in detail. The broken features of cases 3 and 4 are
+less severe than those of cases 1 and 2. There is a smoothed feature
+in the vicinity of the head (and tail) of the rarefaction wave. This is
+a characteristic property of first-order schemes.
+
+The fluid on the left drives a strong compression wave into the fluid
+on the right, and this compression wave leaves a very rarefied region in its wake. The material swept-up by the strong compression
+wave is concentrated in a narrow region between the shock front
+and the contact discontinuity, so the density in this region increases
+dramatically. The performance of the numerical code can be evaluated by its ability to model this high-density region accurately.
+Figs 15–18 show the results for this test. The scaling of the density,
+pressure and specific internal energy in these figures is logarithmic.
+Although there is a smoothed feature at the head of the rarefaction
+wave, cases 1–4 follow the analytic solution well. The broken feature around the contact discontinuity is caused by the steep gradients
+in the initial conditions there.
+
+5.3 The strong blast wave test
+The strong blast wave test is similar to the Sod test, but the pressure
+contrast between the left- and right-hand side is more severe than
+in the Sod test. There is no density contrast initially, so this test
+
+5.4 The isothermal shock tube tests
+If the cooling time-scale of a system is much shorter than the dynamical time-scale and the equilibrium temperature is independent
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+1.002
+
+Godunov-type particle hydrodynamics
+
+81
+
+1
+
+1
+0.6
+
+0.6
+0.8
+
+0.8
+
+0.4
+
+0.4
+
+0.6
+
+0.6
+
+0.2
+
+0.2
+
+0.4
+
+0.4
+
+0
+
+0
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+-0.4
+
+0.4
+
+1
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+1
+2.4
+
+2.4
+
+0.8
+
+0.8
+
+2
+
+0.4
+
+0.2
+-0.2
+
+0
+
+0.2
+
+0.4
+
+2
+
+0.4
+
+0.2
+
+1.8
+-0.4
+
+2.2
+
+0.6
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+Figure 11. The shock tube test for GPH case 1. All the major features
+(including the rarefaction wave, the contact discontinuity and the shock
+wave) follow very well the analytic solution represented by the solid line
+(dots are the numerical results). There is a broken feature at the contact
+discontinuity, and this is caused by the steep gradients there. There is a
+smoothed feature at the head of rarefaction wave, because GPH is a firstorder scheme.
+
+1.8
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+Figure 13. The shock tube test for GPH case 3. The broken feature in the
+vicinity of the contact discontinuity is less serious than that of case 1 (or
+case 2), especially in the pressure plot. There are smoothed features in the
+head and tail of the rarefaction wave.
+
+1
+0.6
+0.8
+0.4
+
+1
+
+0.6
+0.6
+0.2
+
+0.8
+
+0.4
+0.4
+0
+
+0.6
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+0.2
+0.4
+1
+0
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+2.4
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+0.8
+2.2
+
+0.6
+
+1
+2.4
+
+2
+
+0.4
+
+0.8
+2.2
+
+0.6
+
+0.2
+
+1.8
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+2
+
+0.4
+
+0.2
+
+1.8
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+Figure 14. The shock tube test for GPH case 4. This is very similar to the
+results for case 3, but case 4 consumes more CPU time than case 3 (for the
+details of the implementation of case 4, see Inutsuka & Imaeda 2001; Cha
+2002).
+
+Figure 12. The shock tube test for GPH case 2. This is very similar to the
+results for case 1.
+
+of the density, one can assume that the system is isothermal. This
+is often a good approximation in the interstellar medium. The early
+stages of cloud contraction are also a good example of isothermal
+hydrodynamics. In order to test the isothermal Riemann solver introduced in Section 3.3, we have performed isothermal shock tube
+tests. Isothermal GPH is faster than normal GPH because it uses a
+non-iterative Riemann solver.
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Table 2. Initial conditions for the strong blast wave test. This is
+similar to the Sod test, but more severe. 250 particles are used. γ is
+set to 1.4 and t end is 5 × 10−3 . Note the high pressure contrast and
+the uniform density.
+Physical properties
+ρ
+v
+P
+
+Left-hand side value
+
+Right-hand side value
+
+1.0
+0.0
+3 × 103
+
+1.0
+0.0
+1 × 10−7
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+2.2
+
+0.6
+
+82
+
+S.-H. Cha and A. P. Whitworth
+0.8
+
+0.8
+
+30
+
+0.6
+0.4
+
+30
+
+0.6
+0.4
+
+20
+
+0.2
+
+20
+
+0.2
+
+10
+
+0
+-0.2
+
+-0.2
+
+0
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+Figure 15. The strong blast wave test for GPH case 1. There is a very
+thin and dense region between the shock front and the contact discontinuity.
+Case 1 cannot describe this region exactly. The density of this region is
+underestimated by a few percent. Also there is a ripple in the vicinity of
+the contact discontinuity. The scaling of the density, pressure and specific
+internal energy is logarithmic.
+
+0.6
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-4
+-6
+-0.2
+
+0
+
+0.2
+
+0.4
+
+Figure 17. The strong blast wave test for GPH case 3. The density plot is
+better than for case 1 (or 2), and the ripple at the contact discontinuity is less
+severe. The shock front at x ≃ 0.2 is cleaner than for cases 1 or 2.
+0.8
+30
+
+20
+
+0.2
+10
+
+0
+
+0.4
+
+0.4
+
+0
+
+0.4
+30
+
+0.2
+
+-2
+
+0.6
+0.8
+
+0
+
+2
+
+-0.4
+
+0.4
+
+-0.2
+
+20
+-0.2
+
+0.2
+0
+-0.2
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+4
+
+0
+-0.4
+
+0
+-0.4
+
+10
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-4
+-6
+
+-6
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-6
+
+-2
+-0.4
+
+-4
+
+-0.4
+
+-4
+
+0
+
+-4
+
+0.4
+
+-2
+
+2
+
+0
+
+0.2
+
+0
+
+-2
+
+-2
+
+0
+
+2
+
+4
+
+2
+
+-0.2
+
+4
+
+2
+0
+
+4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-6
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+Figure 16. The strong blast wave test for GPH case 2. The density plot
+is worse than case 1. There is a ripple at the contact discontinuity and an
+overshoot at the shock front on the velocity plot.
+
+Figure 18. The strong blast wave test for GPH case 4. These results are
+apparently very similar to the results for case 3.
+
+profile. There is no density change across the contact discontinuity in the isothermal shock tube test. All versions of GPH show a
+very clean pressure profile, and there are no significant differences
+between the numerical and analytical solutions.
+
+5.4.1 Initial conditions
+Initial conditions for the isothermal shock tube test are shown in
+Table 3. The initial conditions are very similar to those for the adiabatic Sod test, but the speed of sounds on the left- and right-hand
+side are the same. 250 particles are used in this test, and t end is 0.17.
+5.4.2 Results
+Figs 19–22 show the results for this test. The major difference between the adiabatic and isothermal shock tube tests is the density
+
+5.5 The Sjögreen test for low-density flows
+The iterative Riemann solver described in Section 3.2 sometimes
+fails to find P ∗ (or v ∗ ) in very low-density flows. If there are two
+strong rarefaction waves (or one rarefaction wave), then a very lowdensity region (fluid cavity) is created, and the iterative Riemann
+solver diverges. The divergence may occur in the middle of iteration
+or in the first estimate of P ∗ .
+Godunov (1959) (see also Richtmyer & Morton 1967) has a prescription to fix this problem. According to Godunov’s prescription,
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+-0.2
+
+-0.4
+
+4
+
+-6
+
+-6
+-0.4
+
+0.4
+
+-4
+
+-4
+
+-6
+
+0.2
+
+-2
+
+-2
+
+-4
+
+0
+
+0
+
+0
+
+-2
+
+-0.2
+
+2
+
+2
+
+0
+
+0
+-0.4
+
+4
+
+4
+
+2
+
+10
+
+0
+
+Godunov-type particle hydrodynamics
+Table 3. Initial conditions for the isothermal shock tube test. The
+√
+isothermal speed of sound (≡ P/ρ) should be constant throughout
+the calculation domain. 250 particles are used in this test, and t end
+is 0.17.
+Physical properties
+
+Left-hand side value
+
+Right-hand side value
+
+1.0
+0.0
+1.0
+
+0.25
+0.0
+0.25
+
+83
+
+1
+0.6
+0.8
+0.4
+0.6
+0.2
+
+ρ
+v
+P
+
+0.4
+0
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+1
+
+1
+0.6
+
+0.4
+
+0.6
+
+0.6
+0.2
+
+0.4
+
+0.4
+0
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+1
+
+Figure 21. The isothermal shock tube test for GPH case 3.
+
+0.8
+
+1
+0.6
+
+0.6
+
+0.8
+0.4
+
+0.4
+
+0.6
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.2
+
+0.4
+
+0.4
+0
+
+Figure 19. The isothermal shock tube test for GPH case 1. There is no
+significant difference between the numerical result and the analytic solution.
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+1
+1
+
+0.8
+
+0.6
+0.8
+
+0.6
+
+0.4
+0.6
+
+0.4
+0.2
+0.4
+0
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+Figure 22. The isothermal shock tube test for GPH case 4.
+1
+
+Table 4. Initial conditions for the Sjögreen test. There is no contrast
+in the density and pressure, but the two fluids are moving away from
+each other. Consequently, a very low-density region is created in
+the vicinity of the initial contact front. The iterative Riemann solver
+sometimes fails to find P ∗ (or v ∗ ) in this situation. A special treatment
+is needed to fix this divergence, and this test shows the effect of this
+treatment. γ = 1.4 and t end = 0.18.
+
+0.8
+
+0.6
+
+0.4
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+Physical properties
+Figure 20. The isothermal shock tube test for GPH case 2.
+
+in the case of divergence (which is a very rare occurrence), the
+pressure value, P ∗ , should be replaced with another value. The replacement is explained in detail in Richtmyer & Morton (1967).
+Another possible solution to this problem is to use non-iterative
+Riemann solvers (Dukowicz 1985; Dai & Woodward 1995; Roe
+1997) or to add pressure protection to prevent negative values of P ∗
+
+C 2003 RAS, MNRAS 340, 73–90
+
+ρ
+v
+P
+
+Left-hand side value
+
+Right-hand side value
+
+1.0
+−2.0
+0.4
+
+1.0
+2.0
+0.4
+
+(van Leer 1997). We have used the pressure protection method in
+all versions of GPH.
+In order to examine GPH in a very low-density situation, we
+have performed the test of two rarefaction waves that are moving
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+0.8
+
+0.8
+
+84
+
+S.-H. Cha and A. P. Whitworth
+2
+
+2
+
+1
+
+1
+1
+
+0.5
+
+1
+
+0.5
+
+0
+
+0
+
+-1
+
+-1
+
+0
+
+0
+-2
+-0.5
+
+0
+
+0.5
+
+-2
+-0.5
+
+0
+
+0.5
+
+-0.5
+
+0
+
+0.5
+
+1
+
+-0.5
+
+0
+
+0.5
+
+-0.5
+
+0
+
+0.5
+
+1
+
+0.4
+
+0.4
+
+0.2
+
+0.8
+
+0.6
+
+0.2
+
+0.6
+
+0.4
+
+0.4
+
+0
+
+0
+0.2
+-0.5
+
+0
+
+0.5
+
+0.2
+-0.5
+
+0
+
+0.5
+
+Figure 23. The Sjögreen test for GPH case 1. The iterative Riemann solver
+with pressure protection works well in the very low-density region owing to
+the receding fluids. However, there is an error in the vicinity of x = 0 (initial
+contact front) on the energy plot.
+
+-0.5
+
+0
+
+0.5
+
+Figure 25. The Sjögreen test using GPH case 3. Note the error on the energy
+plot.
+2
+1
+1
+
+2
+0.5
+
+1
+
+0
+
+1
+-1
+0.5
+
+0
+
+0
+
+-2
+-0.5
+
+-1
+
+0
+
+0.5
+
+-0.5
+
+0
+
+0.5
+
+-0.5
+
+0
+
+0.5
+
+0
+-2
+-0.5
+
+0
+
+0.5
+
+1
+-0.5
+
+0
+
+0.5
+
+0.4
+0.8
+
+1
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+0.2
+
+0.4
+0
+
+0.6
+
+0.2
+-0.5
+
+0.4
+
+0
+
+0.5
+
+0
+0.2
+-0.5
+
+0
+
+0.5
+
+-0.5
+
+0
+
+0.5
+
+Figure 24. The Sjögreen test for GPH case 2. Note the error on the energy
+plot.
+
+away from each other. This test is called the 123 test (Toro 1999)
+or Sjögreen test (Einfeldt et al. 1991; Monaghan 1997). There is
+a very low-density region in this test because of the two receding
+rarefaction waves, and the different versions of GPH are tested to
+see how well they describe the flow cavity.
+5.5.1 Initial conditions
+Initial conditions for the Sjögreen test are shown in Table 4. The
+only difference between the left- and right-hand side is the velocity.
+The two sides are moving away from each other to make a flow
+cavity. γ = 1.4 and t end = 0.18 are used in this test.
+
+Figure 26. The Sjögreen test using GPH case 4. Note the error on the energy
+plot.
+
+5.5.2 Results
+Figs 23–26 show the results for this test. The divergence of the
+iterative Riemann solver is cured by pressure protection, and GPH
+is able to describe the flow cavity. However, there is a significant
+error in the vicinity of the initial contact front, especially on the
+energy plot.
+We suspect that the failure of Godunov-type schemes in the flow
+cavity is not an incurable error. It is probably the fault of the iterative
+Riemann solver, in which case it might be avoided with the use of
+a different Riemann solver. We hope to explorer this possibility in
+the future.
+5.6 Flow-collision test
+In order to check the effectiveness of the Riemann solver used
+in GPH, flow-collision tests have been performed. We have also
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+0.8
+
+Godunov-type particle hydrodynamics
+performed an SPH calculation with the same initial conditions for
+comparison. Two fluids that have the same density and pressure are
+approaching each other. We have performed two cases. One is subsonic (v app /cs = 0.6), and the other is supersonic (v app /cs = 1.2).
+Here v app and cs are the approach velocity and speed of sound, re-
+
+0.15
+
+0.15
+
+0.14
+
+0.14
+
+0.13
+
+0.13
+
+0.12
+
+0.12
+
+85
+
+spectively. α = 1 and β = 2 are used in the SPH calculation. γ is
+1.0. t end is 0.05 in the supersonic case and 0.1 in the subsonic case.
+5.6.1 Results
+Fig. 27 shows the results of SPH and GPH (case 3). All of them
+are good because there is no particle penetration. We see that the
+1
+0.8
+0.6
+
+0.11
+
+0.11
+
+0.1
+-0.1
+
+0.1
+-0.1
+
+-0.05
+
+0
+
+0.05
+
+0.1
+
+0.2
+
+-0.05
+
+GPH (subsonic)
+
+0
+
+0.05
+
+0.1
+
+0
+
+SPH (subsonic)
+
+0.15
+
+0.15
+
+0.14
+
+0.14
+
+0.13
+
+0.13
+
+0.12
+
+0.12
+
+0.11
+
+0.11
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+2
+
+1.5
+
+0.1
+-0.1
+
+-0.05
+
+0
+
+0.05
+
+0.1
+
+1
+
+0.5
+
+0.1
+-0.1
+
+GPH (supersonic)
+
+-0.05
+
+0
+
+0.05
+
+0.1
+
+0
+
+SPH (supersonic)
+
+Figure 27. Subsonic (upper row) and supersonic (lower row) flow-collision
+tests for SPH and GPH (case 3). There is no particle penetration across the
+contact discontinuity in either SPH or GPH.
+
+1
+
+1
+
+0.8
+
+0.8
+
+0.6
+
+0.6
+
+0.4
+
+0.4
+
+0.2
+
+0.2
+
+0
+
+0
+
+Figure 29. The growth of the mass of the central core and the mass accretion
+rate. Time and mass are scaled by t collapse and M c , respectively. This is
+the result obtained using GPH case 3. The straight line in the upper panel
+is the analytic solution and the curved line is the numerical result. The
+numerical results diverge from the similarity solution after 0.7 t collapse , but
+the difference is not very large. There is no significant error in the results.
+
+1
+0.8
+0.6
+0.4
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+0
+
+1
+
+1
+
+0.8
+
+0.8
+
+0.6
+
+0.6
+
+0.4
+
+0.4
+
+0.2
+
+0.2
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+0.2
+0
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+2
+
+1.5
+
+1
+
+0
+
+0.5
+
+0
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+0
+
+Figure 28. Test for velocity shear. The panel in the top left-hand side shows
+the initial conditions for this test. There is no density or pressure difference
+in the system, but the two fluids are moving in opposite directions along
+y-axis. The other panels are snapshots at t = 6. One can see easily that the
+result of GPH is better than that of SPH.
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Figure 30. The same plots as in Fig. 29, but this is the result obtained
+using SPH. Note the bigger difference between the numerical and analytic
+solutions, as compared with the result using GPH.
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+0.4
+
+86
+
+S.-H. Cha and A. P. Whitworth
+
+Riemann solver prevents particle penetration effectively in the subsonic and supersonic flow collision.
+5.7 Test for velocity shear
+Artificial viscosity is introduced in SPH to regulate shock waves.
+The switch to detect shock waves is vi j · r i j . If vi j · r i j is less than
+0, particles i and j are approaching, and the artificial viscosity is
+turned on. Although artificial viscosity is fairly effective for treating
+Table 5. Physical properties of SIS used in the test of SIS
+collapse. 50 000 particles have been used in this test.
+Physical quantity
+
+Value
+
+Mc
+Rc
+Tc
+√
+cs (≡ kT c/m̄)
+ρ edge [ ≡ ρ(R c )]
+P edge (≡ cs 2 ρ edge )
+R sink
+m0
+t collapse
+
+1.0M
+10−2 pc
+57.3219 K
+4.635 86 × 104 cm s−1
+5.387 73 × 10−18 g cm−3
+1.157 89 × 10−8 dyne cm−2
+0.03 R c
+0.975
+1.365 32 × 1012 s
+
+shock waves, it has an undesirable side-effect. If there is velocity
+shear, the switch turns the artificial viscosity on, even though there
+is no shock wave. A typical case of this situation is a differentially
+rotating system. The artificial viscosity is turned on unnecessarily,
+and brakes the differential rotation.
+In order to compare GPH and SPH in a system that has velocity
+shear, we have performed the following test. The top left-hand panel
+of Fig. 28 shows the initial conditions. There is no contrast in density
+and pressure, but two adjacent fluids move in opposite directions
+along the y-axis. The initial velocity is given by
+(vx , v y ) = (0, sin 2πx).
+
+(65)
+
+Periodic boundary conditions are used in the x- and y-directions.
+α = 1 and β = 2 are used in the calculation using SPH.
+5.7.1 Results
+The results at t = 6 are shown in Fig. 28. One can see that the result
+using SPH is much more disordered than that using GPH. Since
+in this test an inviscid flow is assumed, and since there is no initial perturbation, Kelvin–Helmholtz instability should not, strictly
+speaking, be expected. The reason for the generation of disorder in
+the SPH result is that artificial viscosity is activated unnecessarily
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+Figure 31. r i · vi plot obtained using GPH case 3. The big ripple in the tail is caused by the initial shrinking of the model cloud. See the text for details.
+Overall the analytic solution is reproduced well.
+
+Godunov-type particle hydrodynamics
+
+87
+
+by the velocity shear. Much less disorder is generated in the GPH
+result because the Riemann solver gives rise to much less numerical
+diffusion. In a companion paper (Cha & Whitworth 2003) we report several GPH simulations of rotating cloud collapses, including
+initial conditions that involve differential rotation. In all cases the
+spurious transport of angular momentum is negligible.
+5.8 Collapse of a singular isothermal sphere
+GPH is composed of many parts, not only the Riemann solver but
+also the variable-h sizing routine, the gravity calculation and so on. A
+tree-code is also an essential part of GPH. In order to verify the real
+performance of GPH, a three-dimensional astrophysical problem
+should be performed. We have performed the collapse of a singular
+isothermal sphere (SIS), and compared the result with the analytic
+solution derived by Shu (1977).
+
+5.8.2 Results
+
+5.8.1 Initial condition
+The SIS is the limiting case of an isothermal sphere. It has an infinite
+density at its centre, and its internal structure is given by
+ρ(r ) =
+
+cs2 −2
+r ,
+2πG
+
+M(r ) =
+
+The collapse of an SIS is described by the ‘expansion wave solution’ given by Shu (1977). We will omit a detailed description of
+this solution. The physical quantities and the initial configuration
+for the SIS collapse test are given in Table 5. 50 000 particles have
+been used in the test. The SIS has a singular point at the centre,
+and the singular point is represented by a sink particle (see Bate,
+Bonnell & Price 1995 and Cha 2002 for details of how sink particles
+are treated).
+The SIS is in hydrostatic equilibrium, but it has a larger dimensionless radius ξ (=∞) than the ξ (=6.45) of the limiting stable
+Bonnor–Ebert sphere (Bonnor 1956; Ebert 1956). Therefore, if there
+is a perturbation in the central region (Shu 1977 suggests molecule
+formation, for example), it starts collapsing. The singular point at
+the centre has infinite density, but it has finite mass. m 0 in Table 5
+shows the dimensionless mass of the singular point.
+
+2cs2
+r.
+G
+
+
+C 2003 RAS, MNRAS 340, 73–90
+
+(66)
+
+Figs 29–34 show the results of the collapse of the SIS performed
+using GPH (case 3) and SPH. Solid lines represent the similarity
+solution found by Shu (1977) and dots are the numerical results.
+Figs 29 and 30 show the mass of the central core (the mass of the
+sink particle in the centre) and the mass accretion rate. The SIS has
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+Figure 32. r i · vi plot obtained using SPH. This shows more dispersion than was obtained using GPH.
+
+88
+
+S.-H. Cha and A. P. Whitworth
+-14
+
+-14
+
+-15
+
+-15
+
+-16
+
+-16
+
+-17
+
+-17
+15
+
+15.5
+
+16
+
+16.5
+
+-14
+
+-15
+
+-15
+
+-16
+
+-16
+
+-17
+
+-17
+15
+
+15.5
+
+16
+
+16.5
+
+-14
+
+-14
+
+-15
+
+-15
+
+-16
+
+-16
+
+-17
+
+-17
+15
+
+15.5
+
+16
+
+16.5
+
+15.5
+
+16
+
+16.5
+
+15
+
+15.5
+
+16
+
+16.5
+
+15
+
+15.5
+
+16
+
+16.5
+
+Figure 33. Density plots obtained using GPH case 3. The numerical results agree well with the analytic solution. The scaling of each axis is logarithmic.
+
+a constant accretion rate during t collapse = GM c /m 0 c3s , where M c is
+the mass of the SIS. The numerical results reproduce the analytic
+solution well. Our model cloud has a finite radius, so the later part
+of the plot cannot follow the analytic solution. There is no gross
+difference between the results of SPH and GPH, but the results of
+GPH are closer to the analytic solution.
+Figs 31 and 32 show r i · vi . The big ripple in the outer part is
+caused by the initial shrinking of the model cloud. GPH shows less
+dispersion than SPH, especially at the head of the rarefaction wave.
+Figs 33 and 34 show the density profiles obtained using GPH and
+SPH. The scaling is logarithmic. There is no significant error in the
+results.
+6 D I S C U S S I O N A N D S U M M A RY
+We have described GPH, a new hybrid scheme combining SPH with
+a Godunov-type upwind scheme. Von Neumann stability analyses
+have been performed for isothermal SPH and GPH, and the results
+show that GPH is always stable at all wavelengths. Various tests
+have also been performed using GPH and SPH. The test results
+show that GPH can describe shock waves without artificial viscosity. The tests also show that particle penetration does not occur in
+GPH. Furthermore, GPH shows better results than SPH in a prob-
+
+lem with velocity shear. In order to fix the divergence of the iterative
+Riemann solver in divergent flows, we have used a simple pressure
+protection algorithm. With this pressure protection, GPH appears
+able to describe very low-density flows.
+There appears to be very little difference between the four different implementations of GPH that we have described and tested here.
+The inference is that the different implementations are essentially
+equivalent, at least as far as the tests that we have preformed here
+are concerned. We have a small preference for case 3, on the basis
+of the strong blast-wave test (Section 5.3), but we cannot be certain
+that a new test might not favour one of the other implementations.
+GPH has other advantages beyond those described above. GPH
+uses a one-dimensional Riemann solver only. It is extremely hard
+to make multidimensional Riemann solvers (Dai & Woodward
+1995, 1997; Schecter, Marchesin & Plohr 1996; Monaghan 1997).
+Therefore, most multidimensional upstream schemes use a onedimensional Riemann solver, with the operator splitting method (e.g.
+Press et al. 1992), i.e. a one-dimensional Riemann solver is used in
+each direction successively. However, in GPH, all hydrodynamical
+interactions between particles are calculated on the line joining the
+particles, and so no multidimensional treatment is needed.
+GPH inherits the Lagrangian nature of SPH, so Eulerian remapping processes are unnecessary, while multidimensional FDMs have
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+-14
+
+15
+
+Godunov-type particle hydrodynamics
+-14
+
+-14
+
+-15
+
+-15
+
+-16
+
+-16
+
+-17
+
+-17
+15
+
+15.5
+
+16
+
+16.5
+
+-14
+
+-15
+
+-15
+
+-16
+
+-16
+
+-17
+
+-17
+15
+
+15.5
+
+16
+
+16.5
+
+-14
+
+-14
+
+-15
+
+-15
+
+-16
+
+-16
+
+-17
+
+-17
+15
+
+15.5
+
+16
+
+16.5
+
+15.5
+
+16
+
+16.5
+
+15
+
+15.5
+
+16
+
+16.5
+
+15
+
+15.5
+
+16
+
+16.5
+
+Figure 34. Density plots obtained using SPH.
+
+to include a Eulerian remapping process. The Eulerian remapping
+process is a quite expensive part of multidimensional FDMs.
+GPH is free from any geometrical effects because it is a gridfree Lagrangian scheme. Eulerian grid methods have some difficulties in curvilinear coordinate systems, for example, curvature
+effects, errors along the axes and at the origin, and inconsistency
+of the centre of volume and mass (Mönchmeyer & Müller 1989;
+Icke 1991; Blondin & Lufkin 1993). GPH avoids these problems
+automatically.
+We also note that both the four implementations of GPH that we
+have described and tested here, and the SPH code that we have used
+for comparison, use multiple particle time-steps. However, whereas
+the SPH code used for comparison is second order in time (as are
+all the stable SPH codes of which we are aware), the implementations of GPH are only first order in time. Therefore, the extra CPU
+overhead arising from the Riemann solver in GPH is more than offset by the need to perform twice as many treewalks (looking for
+neighbours) in SPH. Consequently, GPH only takes approximately
+70 percent of the CPU time of standard SPH for the same problem.
+The performance of the Godunov scheme is determined by the efficiency of the Riemann solver used. There has been considerable
+progress in solving the Riemann problem mathematically, and many
+methods have been proposed, including both approximate and ex
+C 2003 RAS, MNRAS 340, 73–90
+
+act Riemann solvers (Dukowicz 1985; Toro 1989; Dai & Woodward
+1995; Schecter et al. 1996; Tabak 1996; Toumi & Kumbaro 1996;
+Ivings, Causon & Toro 1998; Roe 1997).
+GPH is easily implemented from SPH by simple replacement of
+the artificial viscosity with a Riemann solver, and shows equal or
+better performance in a variety of tests.
+
+REFERENCES
+Balsara D.S., 1994, ApJ, 420, 197
+Balsara D.S., 1995, J. Comp. Phys., 121, 357
+Bate M.R., Bonnell I.A., Price N.M., 1995, MNRAS, 277, 362
+Blondin J.M., Lufkin E.A., 1993, ApJS, 88, 589
+Bonnor W.B., 1956, MNRAS, 116, 351
+Cha S.-H., 2002, PhD thesis, Cardiff Univ.
+Cha S.-H., Whitworth A.P., 2003, MNRAS, 340, 91
+Courant R., Friedrichs K.O., 1976, Supersonic Flow and Shock Waves.
+Springer-Verlag, New York
+Dai W., Woodward P.R., 1995, J. Comp. Phys., 121, 51
+Dai W., Woodward P.R., 1997, J. Comp. Phys., 134, 261
+Dukowicz J.K., 1985, J. Comp. Phys., 61, 119
+Ebert R., 1956, Zs. Ap., 37, 217
+Einfeldt B., Munz C.D., Roe P.L., Sjögreen B., 1991, J. Comp. Phys., 92,
+273
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+-14
+
+15
+
+89
+
+90
+
+S.-H. Cha and A. P. Whitworth
+Morris J.P., 1996b, Publ. Astron. Soc. Aust., 13, 97
+Morris J.P., Monaghan J.J., 1997, J. Comp. Phys., 136, 41
+Press W.H., Teukolsky S.A., Vettering W.T., Flannery B.P., 1992, Numerical
+Recipes, 2nd edn. Cambridge Univ. Press, Cambridge
+Richtmyer R.D., Morton K.W., 1967, in L. Bers R., Courant J.J.S., eds,
+Difference Methods for Initial-Value Problems, 2nd edn, Interscience
+Tracts in Pure and Applied Mathematics No. 4 Wiley, New York
+Roe P.L., 1997, J. Comp. Phys., 135, 250
+Schecter S., Marchesin D., Plohr B.J., 1996, J. Diff. Eqn., 126, 303
+Shu F.H., 1977, ApJ, 214, 488
+Sod G.A., 1978, J. Comp. Phys., 27, 1
+Springel V., Hernquist L., 2002, MNRAS, 333, 649
+Tabak E.G., 1996, J. Comp. Phys., 124, 383
+Toro E.F., 1989, Int. J. Numer. Methods Fluids, 9, 1145
+Toro E.F., 1999, Riemann Solvers and Numerical Methods for Fluid
+Dynamics, 2nd edn. Springer-Verlag, Berlin
+Toumi I., Kumbaro K., 1996, J. Comp. Phys., 124, 286
+van Leer B., 1997, J. Comp. Phys., 135, 229
+van Leer B., 1999, J. Comp. Phys., 153, 1
+von Neumann J., Richtmyer R.D., 1950, J. Appl. Phys., 21, 232
+Watkins S.J., Bhattal A.S., Francis N., Turner J.A., Whitworth A.P., 1996,
+A&AS, 119, 177
+Whitehurst R., 1995, MNRAS, 277, 655
+Wood D., 1981, MNRAS, 194, 201
+This paper has been typeset from a TEX/LATEX file prepared by the author.
+
+
+C 2003 RAS, MNRAS 340, 73–90
+
+Downloaded from https://academic.oup.com/mnras/article/340/1/73/1130605 by guest on 12 November 2025
+
+Gingold R., Monaghan J.J., 1977, MNRAS, 181, 375
+Gingold R.A., Monaghan J.J., 1982, J. Comp. Phys., 46, 429
+Godunov S.K., 1959, Zh. Vychisl. Mat. Mat. Fiz., 47, 271
+Godunov S.K., 1999, J. Comp. Phys., 153, 6
+Hirsch C., 1989, Numerical Computation of Internal and External Flows,
+1st edn. John Wiley and Sons, Brussels
+Hirsch C., 1997, J. Comp. Phys., 135, 227
+Icke V., 1991, A&A, 251, 369
+Inutsuka S.-I., 1994, in Mem. S.A. It., Vol. 65, pp. 1027–1031
+Inutsuka S.-I., 1999, in Shoken M., Miyama Kohji Tomisaka T.H., eds,
+Astrophysics and Space Science Library, Vol. 240, Numerical Astrophysics, Proc. Int. Conf. on Numerical Astrophysics 1998, NAP98.
+Kluwer, Dordrecht, pp. 367–374
+Inutsuka S.-I., Imaeda Y., 2001, Comp. Fluid Dynam. J., 9, 316
+Ivings M.J., Causon D.M., Toro E.F., 1998, Int. J. Numer. Methods Fluids,
+28, 395
+Landau L., Lifshitz E., 1998, Fluid Mechanics, 2nd edn. ButterworthHeinemann, Oxford
+Lucy L.B., 1977, AJ, 82, 1013
+Monaghan J.J., 1989, J. Comp. Phys., 82, 1
+Monaghan J.J., 1992, A&AR, 30, 543
+Monaghan J.J., 1997, J. Comp. Phys., 136, 298
+Monaghan J., 2002, astro-ph/0204118
+Monaghan J.J., Lattanzio J.C., 1984, Publ. Astron. Soc. Aust., 5, 493
+Mönchmeyer R., Müller E., 1989, A&A, 88, 594
+Morris J.P., 1996a, PhD thesis, Monash Univ.
+
+

@@ -1,0 +1,32 @@
+{
+  "outputDirectory": "sample/shock_tube/results/gsph_hll",
+  "startTime": 0.0,
+  "endTime": 0.2,
+  "outputTime": 0.01,
+  "energyTime": 0.01,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "sample": "shock_tube",
+  "avAlpha": 1.0,
+  "neighborNumber": 4,
+  "gamma": 1.4,
+  "kernel": "cubic_spline",
+  "N": 400,
+  "periodic": false,
+  "rangeMax": [1.5],
+  "rangeMin": [-0.5],
+  "SPHType": "gsph",
+  "use2ndOrderGSPH": true,
+  "riemannSolver": "hll"
+}

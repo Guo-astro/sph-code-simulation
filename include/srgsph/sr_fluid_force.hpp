@@ -32,10 +32,41 @@ class FluidForce : public sph::FluidForce {
     std::function<void(const real[], const real[], real & pstar, real & vstar)> m_solver;
 
     /**
-     * Setup exact Riemann solver for special relativity
-     * Based on Pons et al. (2000) or simplified HLL/HLLC
+     * Setup exact Riemann solver (Pons et al. 2000)
+     * Exact solution for special relativistic hydrodynamics
+     * with arbitrary tangential velocities and ideal gas EOS.
      */
     void exact_riemann_solver();
+    
+    /**
+     * Compute post-shock velocity using Rankine-Hugoniot relations
+     * @param p_a Pressure ahead of shock
+     * @param rho_a Density ahead of shock
+     * @param h_a Specific enthalpy ahead of shock
+     * @param vx_a Normal velocity ahead of shock
+     * @param W_a Lorentz factor ahead of shock
+     * @param p_b Pressure behind shock
+     * @param is_left True for left-propagating shock
+     * @return Post-shock normal velocity
+     */
+    real compute_shock_velocity(const real p_a, const real rho_a, const real h_a,
+                                const real vx_a, const real W_a, const real p_b,
+                                const bool is_left) const;
+    
+    /**
+     * Compute post-rarefaction velocity by integrating ODE
+     * @param p_a Pressure ahead of rarefaction
+     * @param rho_a Density ahead of rarefaction
+     * @param h_a Specific enthalpy ahead of rarefaction
+     * @param vx_a Normal velocity ahead of rarefaction
+     * @param cs_a Sound speed ahead of rarefaction
+     * @param p_b Pressure behind rarefaction
+     * @param is_left True for left-propagating rarefaction
+     * @return Post-rarefaction normal velocity
+     */
+    real compute_rarefaction_velocity(const real p_a, const real rho_a, const real h_a,
+                                      const real vx_a, const real cs_a, const real p_b,
+                                      const bool is_left) const;
 
 public:
     void initialize(std::shared_ptr<SPHParameters> param) override;

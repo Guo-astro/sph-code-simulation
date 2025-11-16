@@ -16,6 +16,7 @@ class FluidForce : public sph::FluidForce {
     std::function<void(const real[], const real[], real & pstar, real & vstar)> m_solver;
 
     void hll_solver();
+    void iterative_solver();  // van Leer (1997) iterative Riemann solver
 public:
     void initialize(std::shared_ptr<SPHParameters> param) override;
     void calculation(std::shared_ptr<Simulation> sim) override;

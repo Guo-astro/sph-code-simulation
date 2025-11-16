@@ -5,6 +5,7 @@
 #include "bhtree.hpp"
 #include "kernel/cubic_spline.hpp"
 #include "kernel/wendland_kernel.hpp"
+#include "kernel/gaussian_kernel.hpp"
 
 namespace sph
 {
@@ -15,6 +16,8 @@ Simulation::Simulation(std::shared_ptr<SPHParameters> param)
         m_kernel = std::make_shared<Spline::Cubic>();
     } else if(param->kernel == KernelType::WENDLAND) {
         m_kernel = std::make_shared<Wendland::C4Kernel>();
+    } else if(param->kernel == KernelType::GAUSSIAN) {
+        m_kernel = std::make_shared<Gaussian::Gauss>();
     } else {
         THROW_ERROR("kernel is unknown.");
     }

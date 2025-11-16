@@ -152,9 +152,10 @@ PrimitiveVariables conserved_to_primitive(
     prim.pressure = (gamma_eos - 1.0) * prim.density * c2 * (prim.enthalpy - 1.0) / gamma_eos;
     
     // 6. Compute sound speed
-    // c_s² = γ_c P / (ρh)  where ρ = γn, h = H (relativistic enthalpy)
-    const real rho = N;  // Lab frame density
-    prim.sound_speed = std::sqrt(gamma_eos * prim.pressure / (rho * prim.enthalpy));
+    // From paper (after Eq. 66): c_s² = (Γ-1)(H-1)/H
+    // where Γ = gamma_eos (ratio of specific heats)
+    // and H is the specific enthalpy per baryon
+    prim.sound_speed = std::sqrt((gamma_eos - 1.0) * (prim.enthalpy - 1.0) / prim.enthalpy);
     
     return prim;
 }

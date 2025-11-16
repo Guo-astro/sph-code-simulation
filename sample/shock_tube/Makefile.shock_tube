@@ -7,6 +7,14 @@
 #   make shock_tube_animate                            # Generate plots and animation
 #   make shock_tube_clean                              # Clean results
 #
+# Riemann Solver Comparison:
+#   make shock_tube_iterative_run                      # Run GSPH with iterative solver
+#   make shock_tube_iterative_animate                  # Animate iterative solver results
+#   make shock_tube_iterative_all                      # Run iterative + visualize (one-shot)
+#   make shock_tube_hll_run                            # Run GSPH with HLL solver
+#   make shock_tube_hll_animate                        # Animate HLL solver results
+#   make shock_tube_riemann_compare                    # Compare HLL vs Iterative
+#
 # Multi-Method Comparison:
 #   make shock_tube_compare_run                        # Run GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara
 #   make shock_tube_compare_viz                        # Generate comparison plots
@@ -21,12 +29,14 @@ endif
 
 # Paths
 SHOCK_TUBE_DIR = sample/shock_tube
-PRESET_DIR = $(SHOCK_TUBE_DIR)/config/presets
-RESULTS_DIR = $(SHOCK_TUBE_DIR)/results
+SHOCK_TUBE_PRESET_DIR = $(SHOCK_TUBE_DIR)/config/presets
+SHOCK_TUBE_RESULTS_DIR = $(SHOCK_TUBE_DIR)/results
 
 .PHONY: shock_tube_run shock_tube_resume shock_tube_clean shock_tube_help shock_tube_animate \
         shock_tube_compare_run shock_tube_compare_viz shock_tube_compare_animate \
-        shock_tube_compare_all shock_tube_compare_clean
+        shock_tube_compare_all shock_tube_compare_clean \
+        shock_tube_iterative_run shock_tube_iterative_animate shock_tube_iterative_all \
+        shock_tube_hll_run shock_tube_hll_animate shock_tube_riemann_compare
 
 # Run shock tube simulation
 shock_tube_run: build/sph
@@ -34,36 +44,33 @@ shock_tube_run: build/sph
 	@echo "Shock Tube: $(PRESET)"
 	@echo "=========================================="
 	@echo "Checking build configuration..."
-	@if grep -q "^#define DIM 1" include/defines.hpp; then \
+	@if grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
 		echo "✓ DIM=1 build detected"; \
 	else \
 		echo "❌ ERROR: Shock tube requires DIM=1 build"; \
 		echo ""; \
-		echo "Current build is configured for DIM=3 (3D simulations)."; \
 		echo "Shock tube is a 1D test case and requires DIM=1."; \
 		echo ""; \
 		echo "To rebuild for 1D:"; \
-		echo "  sed -i '' 's/#define DIM 3/#define DIM 1/' include/defines.hpp"; \
-		echo "  cd build && make -j8 && cd .."; \
+		echo "  cd build && cmake -DSPH_DIM=1 .. && make -j8 && cd .."; \
 		echo ""; \
 		echo "To restore 3D build after shock tube:"; \
-		echo "  sed -i '' 's/#define DIM 1/#define DIM 3/' include/defines.hpp"; \
-		echo "  cd build && make -j8 && cd .."; \
+		echo "  cd build && cmake -DSPH_DIM=3 .. && make -j8 && cd .."; \
 		echo ""; \
 		echo "See sample/shock_tube/README.md for details."; \
 		exit 1; \
 	fi
 	@echo "Applying preset configuration..."
-	@cp $(PRESET_DIR)/$(PRESET).json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@cp $(SHOCK_TUBE_PRESET_DIR)/$(PRESET).json $(SHOCK_TUBE_DIR)/shock_tube.json
 	@echo "Output directory:"
 	@python3 -c "import json; print('  📁 ' + json.load(open('$(SHOCK_TUBE_DIR)/shock_tube.json'))['outputDirectory'])"
 	@echo "Creating results directory..."
-	@mkdir -p $(RESULTS_DIR)
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)
 	@echo "Running simulation..."
 	./build/sph shock_tube
 	@echo ""
 	@echo "✓ Simulation complete!"
-	@echo "📁 Results saved to: $(RESULTS_DIR)"
+	@echo "📁 Results saved to: $(SHOCK_TUBE_RESULTS_DIR)"
 
 # Resume from checkpoint
 shock_tube_resume: build/sph
@@ -71,7 +78,7 @@ shock_tube_resume: build/sph
 	@echo "Shock Tube Resume from Checkpoint"
 	@echo "=========================================="
 	@echo "Checking build configuration..."
-	@if grep -q "^#define DIM 1" include/defines.hpp; then \
+	@if grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
 		echo "✓ DIM=1 build detected"; \
 	else \
 		echo "❌ ERROR: Shock tube requires DIM=1 build"; \
@@ -80,9 +87,9 @@ shock_tube_resume: build/sph
 	fi
 	@if [ -z "$(CHECKPOINT)" ]; then \
 		echo "No CHECKPOINT specified, finding latest snapshot..."; \
-		LATEST=$$(ls -t $(RESULTS_DIR)/snapshot_*.csv 2>/dev/null | head -1); \
+		LATEST=$$(ls -t $(SHOCK_TUBE_RESULTS_DIR)/snapshot_*.csv 2>/dev/null | head -1); \
 		if [ -z "$$LATEST" ]; then \
-			echo "ERROR: No snapshots found in $(RESULTS_DIR)/"; \
+			echo "ERROR: No snapshots found in $(SHOCK_TUBE_RESULTS_DIR)/"; \
 			echo ""; \
 			echo "Usage:"; \
 			echo "  make shock_tube_resume                              # Use latest snapshot"; \
@@ -99,7 +106,7 @@ shock_tube_resume: build/sph
 		python3 -c "import json; \
 			resume_config = { \
 				'checkpoint': {'resumeFile': '$(CHECKPOINT)'}, \
-				'outputDirectory': '$(RESULTS_DIR)', \
+				'outputDirectory': '$(SHOCK_TUBE_RESULTS_DIR)', \
 				'endTime': 0.4, \
 				'outputTime': 0.01 \
 			}; \
@@ -110,13 +117,13 @@ shock_tube_resume: build/sph
 		./build/sph shock_tube; \
 		echo ""; \
 		echo "✓ Resumed simulation complete!"; \
-		echo "📁 Results saved to: $(RESULTS_DIR)"; \
+		echo "📁 Results saved to: $(SHOCK_TUBE_RESULTS_DIR)"; \
 	fi
 
 # Clean results
 shock_tube_clean:
 	@echo "Cleaning shock tube results..."
-	@rm -rf $(RESULTS_DIR)
+	@rm -rf $(SHOCK_TUBE_RESULTS_DIR)
 	@echo "✓ Results cleaned"
 
 # Visualize results
@@ -124,17 +131,17 @@ shock_tube_animate:
 	@echo "=========================================="
 	@echo "Visualizing Shock Tube Results"
 	@echo "=========================================="
-	@if [ ! -d "$(RESULTS_DIR)" ] || [ -z "$$(ls -A $(RESULTS_DIR)/snapshot_*.csv 2>/dev/null)" ]; then \
-		echo "ERROR: No results found in $(RESULTS_DIR)/"; \
+	@if [ ! -d "$(SHOCK_TUBE_RESULTS_DIR)" ] || [ -z "$$(ls -A $(SHOCK_TUBE_RESULTS_DIR)/snapshot_*.csv 2>/dev/null)" ]; then \
+		echo "ERROR: No results found in $(SHOCK_TUBE_RESULTS_DIR)/"; \
 		echo "Run 'make shock_tube_run' first to generate data."; \
 		exit 1; \
 	fi
-	@echo "Data directory: $(RESULTS_DIR)"
-	@python3 $(SHOCK_TUBE_DIR)/scripts/visualize_shock_tube.py $(RESULTS_DIR) shock_tube_sod
+	@echo "Data directory: $(SHOCK_TUBE_RESULTS_DIR)"
+	@python3 $(SHOCK_TUBE_DIR)/scripts/visualize_shock_tube.py $(SHOCK_TUBE_RESULTS_DIR) shock_tube_sod
 	@echo ""
 	@echo "✓ Visualization complete!"
-	@echo "📊 Generated files in $(RESULTS_DIR):"
-	@ls -lh $(RESULTS_DIR)/shock_tube_sod_*.png $(RESULTS_DIR)/shock_tube_sod_*.gif 2>/dev/null || true
+	@echo "📊 Generated files in $(SHOCK_TUBE_RESULTS_DIR):"
+	@ls -lh $(SHOCK_TUBE_RESULTS_DIR)/shock_tube_sod_*.png $(SHOCK_TUBE_RESULTS_DIR)/shock_tube_sod_*.gif 2>/dev/null || true
 
 # Help
 shock_tube_help:
@@ -147,6 +154,14 @@ shock_tube_help:
 	@echo "  shock_tube_animate - Generate plots and animation"
 	@echo "  shock_tube_clean   - Clean results"
 	@echo ""
+	@echo "Riemann Solver Comparison:"
+	@echo "  shock_tube_iterative_run     - Run GSPH with iterative Riemann solver"
+	@echo "  shock_tube_iterative_animate - Animate iterative solver results"
+	@echo "  shock_tube_iterative_all     - Run + animate iterative (one-shot)"
+	@echo "  shock_tube_hll_run           - Run GSPH with HLL Riemann solver"
+	@echo "  shock_tube_hll_animate       - Animate HLL solver results"
+	@echo "  shock_tube_riemann_compare   - Compare HLL vs Iterative solvers"
+	@echo ""
 	@echo "Multi-Method Comparison Targets:"
 	@echo "  shock_tube_compare_run     - Run all 5 SPH methods"
 	@echo "  shock_tube_compare_viz     - Generate comparison plots"
@@ -156,8 +171,140 @@ shock_tube_help:
 	@echo ""
 	@echo "Examples:"
 	@echo "  make shock_tube_run"
+	@echo "  make shock_tube_iterative_all"
 	@echo "  make shock_tube_compare_all"
 	@echo "  make shock_tube_resume CHECKPOINT=sample/shock_tube/results/snapshot_0005.csv"
+
+# ============================================================================
+# Riemann Solver Comparison Targets
+# ============================================================================
+
+# Run GSPH with iterative Riemann solver
+shock_tube_iterative_run: build/sph
+	@echo "=========================================="
+	@echo "Shock Tube: GSPH with Iterative Solver"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
+		echo "✓ DIM=1 build detected"; \
+	else \
+		echo "❌ ERROR: Shock tube requires DIM=1 build"; \
+		echo "See sample/shock_tube/README.md for details."; \
+		exit 1; \
+	fi
+	@echo "Applying GSPH iterative solver preset..."
+	@cp $(SHOCK_TUBE_PRESET_DIR)/shock_tube_1d_gsph_iterative.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative
+	@echo "Output directory: $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative"
+	@echo "Running simulation..."
+	@./build/sph shock_tube
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results saved to: $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative"
+
+# Animate iterative solver results
+shock_tube_iterative_animate:
+	@echo "=========================================="
+	@echo "Visualizing Iterative Solver Results"
+	@echo "=========================================="
+	@if [ ! -d "$(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative" ] || [ -z "$$(ls -A $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative/snapshot_*.csv 2>/dev/null)" ]; then \
+		echo "ERROR: No results found in $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative/"; \
+		echo "Run 'make shock_tube_iterative_run' first."; \
+		exit 1; \
+	fi
+	@echo "Data directory: $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative"
+	@python3 $(SHOCK_TUBE_DIR)/scripts/visualize_shock_tube.py $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative gsph_iterative
+	@echo ""
+	@echo "✓ Visualization complete!"
+	@echo "📊 Generated files in $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative:"
+	@ls -lh $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative/gsph_iterative_*.png $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative/gsph_iterative_*.gif 2>/dev/null || true
+
+# One-shot: run iterative solver and animate
+shock_tube_iterative_all: shock_tube_iterative_run shock_tube_iterative_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Iterative Solver Workflow Complete!"
+	@echo "=========================================="
+	@echo "📁 All results in: $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative/"
+
+# Run GSPH with HLL Riemann solver
+shock_tube_hll_run: build/sph
+	@echo "=========================================="
+	@echo "Shock Tube: GSPH with HLL Solver"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
+		echo "✓ DIM=1 build detected"; \
+	else \
+		echo "❌ ERROR: Shock tube requires DIM=1 build"; \
+		echo "See sample/shock_tube/README.md for details."; \
+		exit 1; \
+	fi
+	@echo "Applying GSPH HLL solver preset..."
+	@cp $(SHOCK_TUBE_PRESET_DIR)/shock_tube_1d_gsph_hll.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll
+	@echo "Output directory: $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll"
+	@echo "Running simulation..."
+	@./build/sph shock_tube
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results saved to: $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll"
+
+# Animate HLL solver results
+shock_tube_hll_animate:
+	@echo "=========================================="
+	@echo "Visualizing HLL Solver Results"
+	@echo "=========================================="
+	@if [ ! -d "$(SHOCK_TUBE_RESULTS_DIR)/gsph_hll" ] || [ -z "$$(ls -A $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll/snapshot_*.csv 2>/dev/null)" ]; then \
+		echo "ERROR: No results found in $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll/"; \
+		echo "Run 'make shock_tube_hll_run' first."; \
+		exit 1; \
+	fi
+	@echo "Data directory: $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll"
+	@python3 $(SHOCK_TUBE_DIR)/scripts/visualize_shock_tube.py $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll gsph_hll
+	@echo ""
+	@echo "✓ Visualization complete!"
+	@echo "📊 Generated files in $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll:"
+	@ls -lh $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll/gsph_hll_*.png $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll/gsph_hll_*.gif 2>/dev/null || true
+
+# Compare HLL vs Iterative Riemann solvers
+shock_tube_riemann_compare:
+	@echo "=========================================="
+	@echo "Riemann Solver Comparison: HLL vs Iterative"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
+		echo "✓ DIM=1 build detected"; \
+	else \
+		echo "❌ ERROR: Shock tube requires DIM=1 build"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "[1/2] Running HLL solver..."
+	@echo "----------------------------------------"
+	@cp $(SHOCK_TUBE_PRESET_DIR)/shock_tube_1d_gsph_hll.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll
+	@./build/sph shock_tube
+	@echo "✓ HLL complete"
+	@echo ""
+	@echo "[2/2] Running Iterative solver..."
+	@echo "----------------------------------------"
+	@cp $(SHOCK_TUBE_PRESET_DIR)/shock_tube_1d_gsph_iterative.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative
+	@./build/sph shock_tube
+	@echo "✓ Iterative complete"
+	@echo ""
+	@echo "Generating comparison plots..."
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/riemann_comparison
+	@python3 $(SHOCK_TUBE_DIR)/scripts/compare_riemann.py $(SHOCK_TUBE_RESULTS_DIR) $(SHOCK_TUBE_RESULTS_DIR)/riemann_comparison
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Riemann Solver Comparison Complete!"
+	@echo "=========================================="
+	@echo "Results directories:"
+	@echo "  📁 $(SHOCK_TUBE_RESULTS_DIR)/gsph_hll/"
+	@echo "  📁 $(SHOCK_TUBE_RESULTS_DIR)/gsph_iterative/"
+	@echo "  📊 $(SHOCK_TUBE_RESULTS_DIR)/riemann_comparison/"
 
 # ============================================================================
 # Multi-Method Comparison Targets
@@ -170,7 +317,7 @@ shock_tube_compare_run: build/sph
 	@echo "Running: GSPH, SSPH, DISPH, GDISPH, GDISPH+Balsara"
 	@echo "=========================================="
 	@echo "Checking build configuration..."
-	@if grep -q "^#define DIM 1" include/defines.hpp; then \
+	@if grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
 		echo "✓ DIM=1 build detected"; \
 	else \
 		echo "❌ ERROR: Shock tube requires DIM=1 build"; \
@@ -180,36 +327,36 @@ shock_tube_compare_run: build/sph
 	@echo ""
 	@echo "[1/5] Running GSPH simulation..."
 	@echo "----------------------------------------"
-	@cp $(PRESET_DIR)/shock_tube_1d_gsph.json $(SHOCK_TUBE_DIR)/shock_tube.json
-	@mkdir -p $(RESULTS_DIR)/gsph
+	@cp $(SHOCK_TUBE_PRESET_DIR)/shock_tube_1d_gsph.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/gsph
 	@./build/sph shock_tube
 	@echo "✓ GSPH complete"
 	@echo ""
 	@echo "[2/5] Running SSPH simulation..."
 	@echo "----------------------------------------"
-	@cp $(PRESET_DIR)/shock_tube_1d_ssph.json $(SHOCK_TUBE_DIR)/shock_tube.json
-	@mkdir -p $(RESULTS_DIR)/ssph
+	@cp $(SHOCK_TUBE_PRESET_DIR)/shock_tube_1d_ssph.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/ssph
 	@./build/sph shock_tube
 	@echo "✓ SSPH complete"
 	@echo ""
 	@echo "[3/5] Running DISPH simulation..."
 	@echo "----------------------------------------"
-	@cp $(PRESET_DIR)/shock_tube_1d_disph.json $(SHOCK_TUBE_DIR)/shock_tube.json
-	@mkdir -p $(RESULTS_DIR)/disph
+	@cp $(SHOCK_TUBE_PRESET_DIR)/shock_tube_1d_disph.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/disph
 	@./build/sph shock_tube
 	@echo "✓ DISPH complete"
 	@echo ""
 	@echo "[4/5] Running GDISPH simulation..."
 	@echo "----------------------------------------"
-	@cp $(PRESET_DIR)/shock_tube_1d_gdisph.json $(SHOCK_TUBE_DIR)/shock_tube.json
-	@mkdir -p $(RESULTS_DIR)/gdisph
+	@cp $(SHOCK_TUBE_PRESET_DIR)/shock_tube_1d_gdisph.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/gdisph
 	@./build/sph shock_tube
 	@echo "✓ GDISPH complete"
 	@echo ""
 	@echo "[5/5] Running GDISPH+Balsara simulation..."
 	@echo "----------------------------------------"
-	@cp $(PRESET_DIR)/shock_tube_1d_gdisph_balsara.json $(SHOCK_TUBE_DIR)/shock_tube.json
-	@mkdir -p $(RESULTS_DIR)/gdisph_balsara
+	@cp $(SHOCK_TUBE_PRESET_DIR)/shock_tube_1d_gdisph_balsara.json $(SHOCK_TUBE_DIR)/shock_tube.json
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/gdisph_balsara
 	@./build/sph shock_tube
 	@echo "✓ GDISPH+Balsara complete"
 	@echo ""
@@ -217,11 +364,11 @@ shock_tube_compare_run: build/sph
 	@echo "✓ All simulations complete!"
 	@echo "=========================================="
 	@echo "Results directories:"
-	@echo "  📁 $(RESULTS_DIR)/gsph/"
-	@echo "  📁 $(RESULTS_DIR)/ssph/"
-	@echo "  📁 $(RESULTS_DIR)/disph/"
-	@echo "  📁 $(RESULTS_DIR)/gdisph/"
-	@echo "  📁 $(RESULTS_DIR)/gdisph_balsara/"
+	@echo "  📁 $(SHOCK_TUBE_RESULTS_DIR)/gsph/"
+	@echo "  📁 $(SHOCK_TUBE_RESULTS_DIR)/ssph/"
+	@echo "  📁 $(SHOCK_TUBE_RESULTS_DIR)/disph/"
+	@echo "  📁 $(SHOCK_TUBE_RESULTS_DIR)/gdisph/"
+	@echo "  📁 $(SHOCK_TUBE_RESULTS_DIR)/gdisph_balsara/"
 	@echo ""
 	@echo "Next steps:"
 	@echo "  make shock_tube_compare_viz     - Generate comparison plots"
@@ -232,34 +379,34 @@ shock_tube_compare_viz:
 	@echo "=========================================="
 	@echo "Generating Comparison Plots"
 	@echo "=========================================="
-	@if [ ! -d "$(RESULTS_DIR)/gsph" ] || [ ! -d "$(RESULTS_DIR)/ssph" ] || [ ! -d "$(RESULTS_DIR)/disph" ]; then \
+	@if [ ! -d "$(SHOCK_TUBE_RESULTS_DIR)/gsph" ] || [ ! -d "$(SHOCK_TUBE_RESULTS_DIR)/ssph" ] || [ ! -d "$(SHOCK_TUBE_RESULTS_DIR)/disph" ]; then \
 		echo "ERROR: Missing results directories"; \
 		echo "Run 'make shock_tube_compare_run' first."; \
 		exit 1; \
 	fi
-	@mkdir -p $(RESULTS_DIR)/comparison
-	@python3 $(SHOCK_TUBE_DIR)/scripts/compare_shock_tube.py $(RESULTS_DIR) $(RESULTS_DIR)/comparison
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/comparison
+	@python3 $(SHOCK_TUBE_DIR)/scripts/compare_shock_tube.py $(SHOCK_TUBE_RESULTS_DIR) $(SHOCK_TUBE_RESULTS_DIR)/comparison
 	@echo ""
 	@echo "✓ Comparison plots generated!"
-	@echo "📊 Output: $(RESULTS_DIR)/comparison/"
-	@ls -lh $(RESULTS_DIR)/comparison/*.png 2>/dev/null || true
+	@echo "📊 Output: $(SHOCK_TUBE_RESULTS_DIR)/comparison/"
+	@ls -lh $(SHOCK_TUBE_RESULTS_DIR)/comparison/*.png 2>/dev/null || true
 
 # Generate comparison animation
 shock_tube_compare_animate:
 	@echo "=========================================="
 	@echo "Generating Comparison Animation"
 	@echo "=========================================="
-	@if [ ! -d "$(RESULTS_DIR)/gsph" ] || [ ! -d "$(RESULTS_DIR)/ssph" ] || [ ! -d "$(RESULTS_DIR)/disph" ] || [ ! -d "$(RESULTS_DIR)/gdisph" ]; then \
+	@if [ ! -d "$(SHOCK_TUBE_RESULTS_DIR)/gsph" ] || [ ! -d "$(SHOCK_TUBE_RESULTS_DIR)/ssph" ] || [ ! -d "$(SHOCK_TUBE_RESULTS_DIR)/disph" ] || [ ! -d "$(SHOCK_TUBE_RESULTS_DIR)/gdisph" ]; then \
 		echo "ERROR: Missing results directories"; \
 		echo "Run 'make shock_tube_compare_run' first."; \
 		exit 1; \
 	fi
-	@mkdir -p $(RESULTS_DIR)/comparison
-	@python3 $(SHOCK_TUBE_DIR)/scripts/animate_comparison.py $(RESULTS_DIR) $(RESULTS_DIR)/comparison/comparison_animation.gif
+	@mkdir -p $(SHOCK_TUBE_RESULTS_DIR)/comparison
+	@python3 $(SHOCK_TUBE_DIR)/scripts/animate_comparison.py $(SHOCK_TUBE_RESULTS_DIR) $(SHOCK_TUBE_RESULTS_DIR)/comparison/comparison_animation.gif
 	@echo ""
 	@echo "✓ Animation complete!"
-	@echo "🎬 Output: $(RESULTS_DIR)/comparison/comparison_animation.gif"
-	@ls -lh $(RESULTS_DIR)/comparison/*.gif 2>/dev/null || true
+	@echo "🎬 Output: $(SHOCK_TUBE_RESULTS_DIR)/comparison/comparison_animation.gif"
+	@ls -lh $(SHOCK_TUBE_RESULTS_DIR)/comparison/*.gif 2>/dev/null || true
 
 # Run all methods and generate all visualizations
 shock_tube_compare_all: shock_tube_compare_run shock_tube_compare_viz shock_tube_compare_animate
@@ -271,5 +418,5 @@ shock_tube_compare_all: shock_tube_compare_run shock_tube_compare_viz shock_tube
 # Clean all comparison results
 shock_tube_compare_clean:
 	@echo "Cleaning all shock tube comparison results..."
-	@rm -rf $(RESULTS_DIR)/gsph $(RESULTS_DIR)/ssph $(RESULTS_DIR)/disph $(RESULTS_DIR)/gdisph $(RESULTS_DIR)/gdisph_balsara $(RESULTS_DIR)/comparison
+	@rm -rf $(SHOCK_TUBE_RESULTS_DIR)/gsph $(SHOCK_TUBE_RESULTS_DIR)/ssph $(SHOCK_TUBE_RESULTS_DIR)/disph $(SHOCK_TUBE_RESULTS_DIR)/gdisph $(SHOCK_TUBE_RESULTS_DIR)/gdisph_balsara $(SHOCK_TUBE_RESULTS_DIR)/comparison
 	@echo "✓ All comparison results cleaned"

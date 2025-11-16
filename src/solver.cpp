@@ -30,6 +30,8 @@
 #include "gdisph/gd_fluid_force.hpp"
 #include "srgsph/sr_pre_interaction.hpp"
 #include "srgsph/sr_fluid_force.hpp"
+#include "srgsph/sr_timestep.hpp"
+#include "srgsph/sr_primitive_recovery.hpp"
 
 // relaxation
 #include "relaxation/lane_emden_relaxation.hpp"
@@ -90,6 +92,11 @@ Solver::Solver(int argc, char * argv[])
         } else {
             WRITE_LOG << "SPH type: Godunov SPH (1st order)";
         }
+        if(m_param->gsph.riemann_solver == RiemannSolverType::ITERATIVE) {
+            WRITE_LOG << "* Riemann solver: Iterative (van Leer 1997)";
+        } else {
+            WRITE_LOG << "* Riemann solver: HLL";
+        }
         break;
     case SPHType::GDISPH:
         if(m_param->gsph.is_2nd_order) {
@@ -142,6 +149,8 @@ Solver::Solver(int argc, char * argv[])
         WRITE_LOG << "* Cubic Spline";
     } else if(m_param->kernel == KernelType::WENDLAND) {
         WRITE_LOG << "* Wendland";
+    } else if(m_param->kernel == KernelType::GAUSSIAN) {
+        WRITE_LOG << "* Gaussian";
     } else {
         THROW_ERROR("kernel is unknown.");
     }
@@ -242,9 +251,49 @@ void Solver::read_parameterfile(const char * filename)
         pt::read_json("sample/sedov/sedov.json", input);
         m_sample = Sample::Sedov;
         m_sample_parameters["N"] = input.get<int>("N", 100);
+    } else if(name_str == "sr_sod") {
+        pt::read_json("sample/sr_sod/sr_sod.json", input);
+        m_sample = Sample::SRSod;
+        m_sample_parameters["N"] = input.get<int>("N", 50);
+        m_sample_parameters["different_nu"] = input.get<bool>("different_nu", false);
     } else {
         pt::read_json(filename, input);
-        m_sample = Sample::DoNotUse;
+        
+        // Try to read explicit sample type from JSON
+        std::string sample_type = input.get<std::string>("sample", "");
+        if (sample_type == "shock_tube") {
+            m_sample = Sample::ShockTube;
+            m_sample_parameters["N"] = input.get<int>("N", 100);
+        } else if (sample_type == "shock_tube_2d") {
+            m_sample = Sample::ShockTube2D;
+            m_sample_parameters["Nx"] = input.get<int>("Nx", 200);
+            m_sample_parameters["Ny"] = input.get<int>("Ny", 40);
+        } else if (sample_type == "vacuum") {
+            m_sample = Sample::Vacuum;
+            m_sample_parameters["N"] = input.get<int>("N", 800);
+        } else if (sample_type == "strong_shock") {
+            m_sample = Sample::StrongShock;
+            m_sample_parameters["N"] = input.get<int>("N", 800);
+        } else if (sample_type == "sedov") {
+            m_sample = Sample::Sedov;
+            m_sample_parameters["N"] = input.get<int>("N", 30);
+        } else {
+            // Try to infer sample type from SPH type and JSON content
+            std::string sph_type_check = input.get<std::string>("SPHType", "");
+            if(sph_type_check == "srgsph") {
+                // Check for SR-specific test names in the path
+                if(name_str.find("sr_sod") != std::string::npos || 
+                   name_str.find("sod") != std::string::npos) {
+                    m_sample = Sample::SRSod;
+                    m_sample_parameters["N"] = input.get<int>("N", 50);
+                    m_sample_parameters["different_nu"] = input.get<bool>("different_nu", false);
+                } else {
+                    m_sample = Sample::DoNotUse;
+                }
+            } else {
+                m_sample = Sample::DoNotUse;
+            }
+        }
     }
 
     m_output_dir = input.get<std::string>("outputDirectory");
@@ -320,6 +369,8 @@ void Solver::read_parameterfile(const char * filename)
         m_param->kernel = KernelType::CUBIC_SPLINE;
     } else if(kernel_name == "wendland") {
         m_param->kernel = KernelType::WENDLAND;
+    } else if(kernel_name == "gaussian") {
+        m_param->kernel = KernelType::GAUSSIAN;
     } else {
         THROW_ERROR("kernel is unknown.");
     }
@@ -366,6 +417,14 @@ void Solver::read_parameterfile(const char * filename)
     // GSPH
     if(m_param->type == SPHType::GSPH) {
         m_param->gsph.is_2nd_order = input.get<bool>("use2ndOrderGSPH", true);
+        
+        // Riemann solver selection: "hll" or "iterative"
+        std::string riemann_solver_str = input.get<std::string>("riemannSolver", "hll");
+        if(riemann_solver_str == "iterative") {
+            m_param->gsph.riemann_solver = RiemannSolverType::ITERATIVE;
+        } else {
+            m_param->gsph.riemann_solver = RiemannSolverType::HLL;
+        }
     }
     
     // SRGSPH
@@ -638,6 +697,7 @@ void Solver::initialize()
         m_pre = std::make_shared<gdisph::PreInteraction>();
         m_fforce = std::make_shared<gdisph::FluidForce>();
     } else if(m_param->type == SPHType::SRGSPH) {
+        m_timestep = std::make_shared<srgsph::TimeStep>();  // Use SR timestep
         m_pre = std::make_shared<srgsph::PreInteraction>();
         m_fforce = std::make_shared<srgsph::FluidForce>();
     }
@@ -928,19 +988,76 @@ void Solver::predict()
 
     assert(p.size() == num);
 
+    // SR-GSPH uses different integration (conserved variables)
+    if(m_param->type == SPHType::SRGSPH) {
+        const real c_speed = m_param->srgsph.c_speed;
+        
+        // DIAGNOSTIC: Print force values at first few steps
+        static int step_count = 0;
+        if(step_count < 3) {
+            std::cerr << "\n=== STEP " << step_count << " FORCE DIAGNOSTIC ===" << std::endl;
+            for(int i = 0; i < std::min(5, num); ++i) {
+                std::cerr << "Particle " << i << ": S=" << std::abs(p[i].S) 
+                          << " dS/dt=" << std::abs(p[i].dS) 
+                          << " N=" << p[i].N << " nu=" << p[i].nu
+                          << " |dS|*dt=" << std::abs(p[i].dS * dt) << std::endl;
+            }
+            step_count++;
+        }
+        
 #pragma omp parallel for
-    for(int i = 0; i < num; ++i) {
-        // k -> k+1/2
-        p[i].vel_p = p[i].vel + p[i].acc * (0.5 * dt);
-        p[i].ene_p = p[i].ene + p[i].dene * (0.5 * dt);
+        for(int i = 0; i < num; ++i) {
+            // For SR-GSPH: Integrate conserved variables S and e
+            // Half-step for predictor (k -> k+1/2)
+            vec_t S_half = p[i].S + p[i].dS * (0.5 * dt);
+            real e_half = p[i].e + p[i].de * (0.5 * dt);
+            
+            // Full step for position and conserved variables (k -> k+1)
+            p[i].S += p[i].dS * dt;
+            p[i].e += p[i].de * dt;
+            
+            // Recover primitive variables at half-step for position update
+            auto prim_half = srgsph::PrimitiveRecovery::conserved_to_primitive(
+                S_half, e_half, p[i].N, gamma, c_speed
+            );
+            
+            // Update position using half-step velocity (drift)
+            p[i].pos += prim_half.vel * dt;
+            periodic->apply(p[i].pos);
+            
+            // Recover primitive variables at full step
+            auto prim_full = srgsph::PrimitiveRecovery::conserved_to_primitive(
+                p[i].S, p[i].e, p[i].N, gamma, c_speed
+            );
+            
+            // Store primitive variables for output and next step
+            p[i].vel = prim_full.vel;
+            p[i].vel_p = prim_half.vel;  // Store half-step velocity
+            // Internal energy: u = P/[(γ-1)ρ] for ideal gas EOS
+            p[i].ene = prim_full.pressure / ((gamma - 1.0) * prim_full.density);
+            p[i].ene_p = prim_half.pressure / ((gamma - 1.0) * prim_half.density);
+            p[i].pres = prim_full.pressure;
+            p[i].dens = prim_full.density;
+            p[i].sound = prim_full.sound_speed;
+            p[i].gamma_lor = prim_full.gamma_lor;
+            p[i].enthalpy = prim_full.enthalpy;
+        }
+    } else {
+        // Standard SPH integration
+#pragma omp parallel for
+        for(int i = 0; i < num; ++i) {
+            // k -> k+1/2
+            p[i].vel_p = p[i].vel + p[i].acc * (0.5 * dt);
+            p[i].ene_p = p[i].ene + p[i].dene * (0.5 * dt);
 
-        // k -> k+1
-        p[i].pos += p[i].vel_p * dt;
-        p[i].vel += p[i].acc * dt;
-        p[i].ene += p[i].dene * dt;
-        p[i].sound = std::sqrt(c_sound * p[i].ene);
+            // k -> k+1
+            p[i].pos += p[i].vel_p * dt;
+            p[i].vel += p[i].acc * dt;
+            p[i].ene += p[i].dene * dt;
+            p[i].sound = std::sqrt(c_sound * p[i].ene);
 
-        periodic->apply(p[i].pos);
+            periodic->apply(p[i].pos);
+        }
     }
 }
 
@@ -954,11 +1071,44 @@ void Solver::correct()
 
     assert(p.size() == num);
 
+    // SR-GSPH uses different correction (conserved variables)
+    if(m_param->type == SPHType::SRGSPH) {
+        const real c_speed = m_param->srgsph.c_speed;
+        
 #pragma omp parallel for
-    for(int i = 0; i < num; ++i) {
-        p[i].vel = p[i].vel_p + p[i].acc * (0.5 * dt);
-        p[i].ene = p[i].ene_p + p[i].dene * (0.5 * dt);
-        p[i].sound = std::sqrt(c_sound * p[i].ene);
+        for(int i = 0; i < num; ++i) {
+            // For SR-GSPH: Correct using half-step conserved variables
+            // Compute S and e at half-step from predictor
+            vec_t S_half = p[i].S - p[i].dS * (0.5 * dt);  // Reverse half-step
+            real e_half = p[i].e - p[i].de * (0.5 * dt);
+            
+            // Now apply corrector using new derivatives
+            p[i].S = S_half + p[i].dS * (0.5 * dt);
+            p[i].e = e_half + p[i].de * (0.5 * dt);
+            
+            // Recover primitive variables at corrected state
+            auto prim = sph::srgsph::PrimitiveRecovery::conserved_to_primitive(
+                p[i].S, p[i].e, p[i].N, gamma, c_speed
+            );
+            
+            // Update primitive variables
+            p[i].vel = prim.vel;
+            // Internal energy: u = P/[(γ-1)ρ] for ideal gas EOS
+            p[i].ene = prim.pressure / ((gamma - 1.0) * prim.density);
+            p[i].pres = prim.pressure;
+            p[i].dens = prim.density;
+            p[i].sound = prim.sound_speed;
+            p[i].gamma_lor = prim.gamma_lor;
+            p[i].enthalpy = prim.enthalpy;
+        }
+    } else {
+        // Standard SPH correction
+#pragma omp parallel for
+        for(int i = 0; i < num; ++i) {
+            p[i].vel = p[i].vel_p + p[i].acc * (0.5 * dt);
+            p[i].ene = p[i].ene_p + p[i].dene * (0.5 * dt);
+            p[i].sound = std::sqrt(c_sound * p[i].ene);
+        }
     }
 }
 
@@ -981,6 +1131,7 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::EvrardColdCollapse, evrard_cold_collapse);
         MAKE_SAMPLE(Sample::LaneEmden, lane_emden);
         MAKE_SAMPLE(Sample::Sedov, sedov);
+        MAKE_SAMPLE(Sample::SRSod, sr_sod);
         case Sample::DoNotUse:
 
             // サンプルを使わない場合はここを実装

@@ -1,0 +1,252 @@
+# SR-GSPH Test Suite Makefile - Single Source of Truth System
+#
+# Single Method Usage:
+#   make sr_sod_run                                    # Run SR Sod test (same ν)
+#   make sr_sod_diff_nu                                # Run with different baryon numbers
+#   make sr_blast_wave_run                             # Run standard blast wave
+#   make sr_strong_blast_run                           # Run strong blast wave
+#   make sr_ultra_relat_run                            # Run ultra-relativistic shock (v=0.9c)
+#   make sr_sod_clean                                  # Clean results
+#
+# Multi-Test Comparison:
+#   make sr_all_tests                                  # Run all SR test cases
+#   make sr_ultra_comparison                           # Compare ultra-relativistic runs (v=0.9, 0.99, 0.999)
+#   make sr_viz                                        # Generate all visualizations
+#   make sr_clean_all                                  # Clean all SR test results
+
+# Default preset
+PRESET ?= sr_sod_same_nu
+
+# Paths
+SR_SOD_DIR = sample/sr_sod
+PRESET_DIR = $(SR_SOD_DIR)/config/presets
+RESULTS_DIR = $(SR_SOD_DIR)/results
+SCRIPTS_DIR = $(SR_SOD_DIR)/scripts
+
+.PHONY: sr_sod_run sr_sod_diff_nu sr_blast_wave_run sr_strong_blast_run sr_ultra_relat_run \
+        sr_sod_clean sr_help sr_all_tests sr_ultra_comparison sr_viz sr_clean_all \
+        sr_check_dim
+
+# ============================================================================
+# Dimension Check
+# ============================================================================
+
+sr_check_dim:
+	@if ! grep -q "^#define DIM 1" include/defines.hpp; then \
+		echo "❌ ERROR: SR tests require DIM=1 build"; \
+		echo ""; \
+		echo "Current build is configured for DIM=3 (3D simulations)."; \
+		echo "SR tests are 1D and require DIM=1."; \
+		echo ""; \
+		echo "To rebuild for 1D:"; \
+		echo "  sed -i '' 's/#define DIM 3/#define DIM 1/' include/defines.hpp"; \
+		echo "  cd build && make -j8 && cd .."; \
+		echo ""; \
+		echo "To restore 3D build after testing:"; \
+		echo "  sed -i '' 's/#define DIM 1/#define DIM 3/' include/defines.hpp"; \
+		echo "  cd build && make -j8 && cd .."; \
+		exit 1; \
+	fi
+	@echo "✓ DIM=1 build detected"
+
+# ============================================================================
+# Individual Test Targets
+# ============================================================================
+
+# SR Sod shock tube (same baryon number)
+sr_sod_run: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "SR Sod Shock Tube (Same Baryon Number)"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/sr_sod_same_nu.json $(SR_SOD_DIR)/sr_sod.json
+	@echo "Output directory:"
+	@python3 -c "import json; print('  📁 ' + json.load(open('$(SR_SOD_DIR)/sr_sod.json'))['outputDirectory'])"
+	@mkdir -p $(RESULTS_DIR)/same_nu
+	@echo "Running simulation..."
+	@./build/sph sr_sod
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results: $(RESULTS_DIR)/same_nu/"
+
+# SR Sod with different baryon numbers
+sr_sod_diff_nu: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "SR Sod (Different Baryon Numbers)"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/sr_sod_diff_nu.json $(SR_SOD_DIR)/sr_sod.json
+	@mkdir -p $(RESULTS_DIR)/diff_nu
+	@echo "Running simulation..."
+	@./build/sph sr_sod
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results: $(RESULTS_DIR)/diff_nu/"
+
+# Standard blast wave
+sr_blast_wave_run: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "SR Standard Blast Wave"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/sr_blast_wave.json $(SR_SOD_DIR)/sr_blast_wave.json
+	@mkdir -p $(RESULTS_DIR)/blast_wave
+	@echo "Running simulation..."
+	@./build/sph sr_blast_wave
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results: $(RESULTS_DIR)/blast_wave/"
+
+# Strong blast wave
+sr_strong_blast_run: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "SR Strong Blast Wave"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/sr_strong_blast.json $(SR_SOD_DIR)/sr_strong_blast.json
+	@mkdir -p $(RESULTS_DIR)/strong_blast
+	@echo "Running simulation..."
+	@./build/sph sr_strong_blast
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results: $(RESULTS_DIR)/strong_blast/"
+
+# Ultra-relativistic shock (v=0.9c)
+sr_ultra_relat_run: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "Ultra-Relativistic Shock (v=0.9c)"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/sr_ultra_v090.json $(SR_SOD_DIR)/sr_ultra_relat.json
+	@mkdir -p $(RESULTS_DIR)/ultra_v090
+	@echo "Running simulation..."
+	@./build/sph sr_ultra_relat
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results: $(RESULTS_DIR)/ultra_v090/"
+
+# ============================================================================
+# Multi-Test Workflows
+# ============================================================================
+
+# Run all basic SR tests
+sr_all_tests: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "Running All SR Test Cases"
+	@echo "=========================================="
+	@echo ""
+	@echo "[1/5] SR Sod (same ν)..."
+	@echo "----------------------------------------"
+	@$(MAKE) sr_sod_run
+	@echo ""
+	@echo "[2/5] SR Sod (different ν)..."
+	@echo "----------------------------------------"
+	@$(MAKE) sr_sod_diff_nu
+	@echo ""
+	@echo "[3/5] Standard blast wave..."
+	@echo "----------------------------------------"
+	@$(MAKE) sr_blast_wave_run
+	@echo ""
+	@echo "[4/5] Strong blast wave..."
+	@echo "----------------------------------------"
+	@$(MAKE) sr_strong_blast_run
+	@echo ""
+	@echo "[5/5] Ultra-relativistic shock..."
+	@echo "----------------------------------------"
+	@$(MAKE) sr_ultra_relat_run
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All SR tests complete!"
+	@echo "=========================================="
+
+# Ultra-relativistic velocity comparison
+sr_ultra_comparison: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "Ultra-Relativistic Velocity Comparison"
+	@echo "Running: v=0.9c, 0.99c, 0.999c"
+	@echo "=========================================="
+	@echo ""
+	@echo "[1/3] v=0.9c (γ≈2.29)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/sr_ultra_v090.json $(SR_SOD_DIR)/sr_ultra_relat.json
+	@mkdir -p $(RESULTS_DIR)/ultra_v090
+	@./build/sph sr_ultra_relat
+	@echo "✓ v=0.9c complete"
+	@echo ""
+	@echo "[2/3] v=0.99c (γ≈7.09)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/sr_ultra_v099.json $(SR_SOD_DIR)/sr_ultra_relat.json
+	@mkdir -p $(RESULTS_DIR)/ultra_v099
+	@./build/sph sr_ultra_relat
+	@echo "✓ v=0.99c complete"
+	@echo ""
+	@echo "[3/3] v=0.999c (γ≈22.4)..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/sr_ultra_v0999.json $(SR_SOD_DIR)/sr_ultra_relat.json
+	@mkdir -p $(RESULTS_DIR)/ultra_v0999
+	@./build/sph sr_ultra_relat
+	@echo "✓ v=0.999c complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All ultra-relativistic tests complete!"
+	@echo "=========================================="
+	@echo "Results directories:"
+	@echo "  📁 $(RESULTS_DIR)/ultra_v090/"
+	@echo "  📁 $(RESULTS_DIR)/ultra_v099/"
+	@echo "  📁 $(RESULTS_DIR)/ultra_v0999/"
+
+# ============================================================================
+# Visualization Targets
+# ============================================================================
+
+sr_viz:
+	@echo "=========================================="
+	@echo "Generating SR Test Visualizations"
+	@echo "=========================================="
+	@if [ ! -d "$(RESULTS_DIR)/same_nu" ]; then \
+		echo "❌ ERROR: No results found. Run 'make sr_all_tests' first."; \
+		exit 1; \
+	fi
+	@echo "Visualizations will be implemented with Python scripts..."
+	@echo "📊 Placeholder for visualization generation"
+
+# ============================================================================
+# Clean Targets
+# ============================================================================
+
+sr_sod_clean:
+	@echo "Cleaning SR Sod results..."
+	@rm -rf $(RESULTS_DIR)/same_nu $(RESULTS_DIR)/diff_nu
+	@echo "✓ SR Sod results cleaned"
+
+sr_clean_all:
+	@echo "Cleaning all SR test results..."
+	@rm -rf $(RESULTS_DIR)
+	@echo "✓ All SR test results cleaned"
+
+# ============================================================================
+# Help
+# ============================================================================
+
+sr_help:
+	@echo "SR-GSPH Test Suite Makefile"
+	@echo "============================"
+	@echo ""
+	@echo "Individual Test Targets:"
+	@echo "  sr_sod_run         - SR Sod shock tube (same baryon number)"
+	@echo "  sr_sod_diff_nu     - SR Sod with different baryon numbers"
+	@echo "  sr_blast_wave_run  - Standard blast wave test"
+	@echo "  sr_strong_blast_run - Strong blast wave test"
+	@echo "  sr_ultra_relat_run - Ultra-relativistic shock (v=0.9c)"
+	@echo ""
+	@echo "Multi-Test Workflows:"
+	@echo "  sr_all_tests       - Run all 5 basic SR tests"
+	@echo "  sr_ultra_comparison - Compare v=0.9c, 0.99c, 0.999c"
+	@echo "  sr_viz             - Generate all visualizations"
+	@echo ""
+	@echo "Clean Targets:"
+	@echo "  sr_sod_clean       - Clean SR Sod results only"
+	@echo "  sr_clean_all       - Clean all SR test results"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make sr_sod_run"
+	@echo "  make sr_all_tests"
+	@echo "  make sr_ultra_comparison"
+	@echo ""
+	@echo "Note: All SR tests require DIM=1 build configuration."
+	@echo "      The build check will guide you if needed."

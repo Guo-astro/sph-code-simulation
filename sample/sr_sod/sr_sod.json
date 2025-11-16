@@ -1,0 +1,40 @@
+{
+  "outputDirectory": "sample/sr_sod/results",
+  "startTime": 0.0,
+  "endTime": 0.35,
+  "outputTime": 0.01,
+  "energyTime": 0.01,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "SPHType": "srgsph",
+  "use2ndOrderSRGSPH": false,
+  "cSpeed": 1.0,
+  "cShock": 3.0,
+  "cContactDiscontinuity": 1.0,
+  "etaSmoothingLength": 1.0,
+  "cSmoothGradient": 2.0,
+  "gamma": 1.666666667,
+  "kernel": "gaussian",
+  "iterativeSmoothingLength": false,
+  "neighborNumber": 50,
+  "N": 400,
+  "different_nu": false,
+  "periodic": false,
+  "rangeMax": [0.5],
+  "rangeMin": [-0.5],
+  "avAlpha": 1.0,
+  "useBalsaraSwitch": false,
+  "cflSound": 0.5,
+  "cflForce": 0.125
+}

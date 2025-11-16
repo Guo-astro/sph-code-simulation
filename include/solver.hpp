@@ -35,6 +35,7 @@ enum struct Sample {
     EvrardColdCollapse,
     LaneEmden,
     Sedov,
+    SRSod,
     DoNotUse,
 };;
 
@@ -90,6 +91,7 @@ class Solver {
     void make_evrard_cold_collapse();
     void make_lane_emden();
     void make_sedov();
+    void make_sr_sod();
 
 public:
     Solver(int argc, char * argv[]);

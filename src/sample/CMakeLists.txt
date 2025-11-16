@@ -11,6 +11,7 @@ target_sources(sph
         sedov.cpp
         shock_tube.cpp
         shock_tube_2d.cpp
+        sr_sod.cpp
         strong_shock.cpp
         vacuum.cpp
     )

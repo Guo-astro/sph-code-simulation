@@ -16,7 +16,13 @@ enum struct SPHType {
 enum struct KernelType {
     CUBIC_SPLINE,
     WENDLAND,
+    GAUSSIAN,
     UNKNOWN,
+};
+
+enum struct RiemannSolverType {
+    HLL,        // Harten-Lax-van Leer approximate solver (default, fast, non-iterative)
+    ITERATIVE,  // Iterative solver from van Leer (1997) / Cha & Whitworth (2003) (exact, slower)
 };
 
 struct SPHParameters {
@@ -77,6 +83,7 @@ struct SPHParameters {
 
     struct GSPH {
         bool is_2nd_order;
+        RiemannSolverType riemann_solver;  // Riemann solver type: HLL (default) or ITERATIVE
     } gsph;
 
     struct SRGSPH {
