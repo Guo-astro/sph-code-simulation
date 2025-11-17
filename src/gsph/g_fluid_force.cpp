@@ -24,6 +24,8 @@ void FluidForce::initialize(std::shared_ptr<SPHParameters> param)
     // Select Riemann solver based on configuration
     if(param->gsph.riemann_solver == RiemannSolverType::ITERATIVE) {
         iterative_solver();
+    } else if(param->gsph.riemann_solver == RiemannSolverType::KITAJIMA) {
+        kitajima_solver();
     } else {
         hll_solver();
     }
@@ -300,6 +302,110 @@ void FluidForce::iterative_solver()
         // Return results
         pstar = pstar_iter;
         vstar = ustar;
+    };
+}
+
+// Kitajima-style iterative Riemann solver
+// Non-relativistic adaptation inspired by Kitajima et al. (2025) methodology
+// Uses Newton-Raphson iteration with explicit shock/rarefaction wave treatment
+void FluidForce::kitajima_solver()
+{
+    m_solver = [&](const real left[], const real right[], real & pstar, real & vstar) {
+        const real u_l   = left[0];   // velocity
+        const real rho_l = left[1];   // density
+        const real p_l   = left[2];   // pressure
+        const real c_l   = left[3];   // sound speed
+        
+        const real u_r   = right[0];
+        const real rho_r = right[1];
+        const real p_r   = right[2];
+        const real c_r   = right[3];
+
+        // Check for negative values
+        if (rho_l < 0.0 || rho_r < 0.0 || p_l < 0.0 || p_r < 0.0) {
+            pstar = 0.0;
+            vstar = 0.0;
+            return;
+        }
+
+        const real smallp = 1e-25;
+        const real tol = 1e-6;
+        const int max_iter = 50;
+        
+        // Compute initial pressure guess using two-shock approximation
+        // Similar to PVRS (Primitive Variable Riemann Solver)
+        const real rho_avg = 0.5 * (rho_l + rho_r);
+        const real c_avg = 0.5 * (c_l + c_r);
+        real pstar_guess = 0.5 * (p_l + p_r) - 0.5 * (u_r - u_l) * rho_avg * c_avg;
+        pstar_guess = std::max(pstar_guess, smallp);
+        
+        // Helper lambda for computing post-wave state
+        auto get_velocity_jump = [&](const real p, const real p_k, const real rho_k, 
+                                      const real c_k, const real u_k, bool is_left) -> std::pair<real, real> {
+            const real sign = is_left ? -1.0 : 1.0;
+            real du_dp;  // derivative of velocity jump w.r.t. pressure
+            real du;     // velocity jump
+            
+            if (p > p_k) {
+                // Shock wave
+                // Rankine-Hugoniot relations
+                const real A = 2.0 / ((m_gamma + 1.0) * rho_k);
+                const real B = (m_gamma - 1.0) / (m_gamma + 1.0) * p_k;
+                const real sqrt_term = std::sqrt(A / (p + B));
+                
+                du = (p - p_k) * sqrt_term;
+                du_dp = sqrt_term * (1.0 - 0.5 * (p - p_k) / (p + B));
+            } else {
+                // Rarefaction wave
+                // Isentropic relations
+                const real gamma_exp = (m_gamma - 1.0) / (2.0 * m_gamma);
+                const real p_ratio = p / p_k;
+                const real factor = std::pow(p_ratio, gamma_exp) - 1.0;
+                
+                du = 2.0 * c_k / (m_gamma - 1.0) * factor;
+                du_dp = (1.0 / (m_gamma * p)) * std::pow(p_ratio, gamma_exp) * 2.0 * c_k / (m_gamma - 1.0);
+            }
+            
+            return {sign * du, sign * du_dp};
+        };
+        
+        // Newton-Raphson iteration to find pstar
+        real pstar_iter = pstar_guess;
+        bool converged = false;
+        
+        for (int iter = 0; iter < max_iter; ++iter) {
+            // Left wave contribution
+            auto [du_l, du_dp_l] = get_velocity_jump(pstar_iter, p_l, rho_l, c_l, u_l, true);
+            
+            // Right wave contribution  
+            auto [du_r, du_dp_r] = get_velocity_jump(pstar_iter, p_r, rho_r, c_r, u_r, false);
+            
+            // Function f(p) = u_l + du_l - (u_r + du_r) = 0
+            const real f = u_l + du_l - u_r - du_r;
+            const real df_dp = du_dp_l - du_dp_r;
+            
+            // Newton-Raphson update
+            const real pstar_new = pstar_iter - f / df_dp;
+            pstar_iter = std::max(pstar_new, smallp);
+            
+            // Check convergence
+            const real rel_change = std::abs(pstar_new - pstar_iter) / (pstar_iter + smallp);
+            if (rel_change < tol) {
+                converged = true;
+                break;
+            }
+        }
+        
+        // Compute star velocity
+        auto [du_l_final, _] = get_velocity_jump(pstar_iter, p_l, rho_l, c_l, u_l, true);
+        auto [du_r_final, __] = get_velocity_jump(pstar_iter, p_r, rho_r, c_r, u_r, false);
+        
+        const real vstar_l = u_l + du_l_final;
+        const real vstar_r = u_r + du_r_final;
+        
+        // Return results
+        pstar = pstar_iter;
+        vstar = 0.5 * (vstar_l + vstar_r);  // Average the two estimates
     };
 }
 

@@ -17,6 +17,7 @@ class FluidForce : public sph::FluidForce {
 
     void hll_solver();
     void iterative_solver();  // van Leer (1997) iterative Riemann solver
+    void kitajima_solver();   // Kitajima-style iterative solver with shock/rarefaction handling
 public:
     void initialize(std::shared_ptr<SPHParameters> param) override;
     void calculation(std::shared_ptr<Simulation> sim) override;

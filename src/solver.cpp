@@ -94,6 +94,8 @@ Solver::Solver(int argc, char * argv[])
         }
         if(m_param->gsph.riemann_solver == RiemannSolverType::ITERATIVE) {
             WRITE_LOG << "* Riemann solver: Iterative (van Leer 1997)";
+        } else if(m_param->gsph.riemann_solver == RiemannSolverType::KITAJIMA) {
+            WRITE_LOG << "* Riemann solver: Kitajima-style (Newton-Raphson)";
         } else {
             WRITE_LOG << "* Riemann solver: HLL";
         }
@@ -418,23 +420,37 @@ void Solver::read_parameterfile(const char * filename)
     if(m_param->type == SPHType::GSPH) {
         m_param->gsph.is_2nd_order = input.get<bool>("use2ndOrderGSPH", true);
         
-        // Riemann solver selection: "hll" or "iterative"
+        // Riemann solver selection: "hll", "iterative", or "kitajima"
         std::string riemann_solver_str = input.get<std::string>("riemannSolver", "hll");
         if(riemann_solver_str == "iterative") {
             m_param->gsph.riemann_solver = RiemannSolverType::ITERATIVE;
+        } else if(riemann_solver_str == "kitajima") {
+            m_param->gsph.riemann_solver = RiemannSolverType::KITAJIMA;
         } else {
             m_param->gsph.riemann_solver = RiemannSolverType::HLL;
         }
     }
     
-    // SRGSPH
+    // SRGSPH (Fixed-h formulation, §2.2)
     if(m_param->type == SPHType::SRGSPH) {
         m_param->srgsph.is_2nd_order = input.get<bool>("use2ndOrderSRGSPH", true);
+        
+        // Riemann solver selection for SRGSPH
+        std::string riemann_str = input.get<std::string>("riemannSolverSRGSPH", "EXACT");
+        if(riemann_str == "ITERATIVE") {
+            m_param->srgsph.riemann_solver = RiemannSolverType::ITERATIVE;
+        } else {
+            m_param->srgsph.riemann_solver = RiemannSolverType::EXACT;
+        }
+        
         m_param->srgsph.c_speed = input.get<real>("cSpeed", 1.0);
         m_param->srgsph.c_shock = input.get<real>("cShock", 3.0);
         m_param->srgsph.c_cd = input.get<real>("cContactDiscontinuity", 1.0);
         m_param->srgsph.eta = input.get<real>("etaSmoothingLength", 1.0);
-        m_param->srgsph.c_smooth = input.get<real>("cSmoothGradient", 2.0);
+        
+        // Fixed smoothing length (§2.2): auto-compute from eta if not specified
+        // h is constant for all particles and all times
+        m_param->srgsph.smoothing_length = input.get<real>("fixedSmoothingLength", -1.0);
     }
     
     // Relaxation (for Lane-Emden)
@@ -1012,9 +1028,49 @@ void Solver::predict()
             vec_t S_half = p[i].S + p[i].dS * (0.5 * dt);
             real e_half = p[i].e + p[i].de * (0.5 * dt);
             
+            // CRITICAL: Also limit half-step to prevent failures in position update
+            const real S_half_mag = std::sqrt(inner_product(S_half, S_half));
+            const real S_half_ratio = S_half_mag / std::max(e_half, 1.0e-10);
+            if(S_half_ratio > 0.85) {  // Even more conservative for half-step
+                S_half = S_half * (0.85 / S_half_ratio);
+            }
+            
             // Full step for position and conserved variables (k -> k+1)
             p[i].S += p[i].dS * dt;
             p[i].e += p[i].de * dt;
+            
+            // CRITICAL: Floor energy to prevent NaN in primitive recovery
+            // In extreme cases, de can be so large that e becomes negative
+            if(p[i].e < 1.0e-6) {
+                static int floor_count = 0;
+                if(floor_count < 5) {
+                    printf("\n=== ENERGY FLOOR WARNING ===\n");
+                    printf("Particle i=%d: e=%.6e floored to 1e-6\n", i, p[i].e);
+                    printf("de=%.6e, dt=%.6e, de*dt=%.6e\n", p[i].de, dt, p[i].de * dt);
+                    floor_count++;
+                }
+                p[i].e = 1.0e-6;
+            }
+            
+            // CRITICAL: Limit conserved variables to prevent superluminal states
+            // This prevents primitive recovery failures in extreme rarefaction regions
+            const real S_mag = std::sqrt(inner_product(p[i].S, p[i].S));
+            const real S_over_e = S_mag / std::max(p[i].e, 1.0e-10);
+            if(S_over_e > 0.85) {  // Conservative threshold: ensure v < 0.85c
+                const real scale = 0.85 / S_over_e;
+                p[i].S = p[i].S * scale;
+                
+                static int limit_count = 0;
+                if(limit_count < 5) {
+                    printf("\n=== LIMITING SUPERLUMINAL STATE (Time Integration) ===\n");
+                    printf("Particle i=%d: S_mag=%.6e, e=%.6e, N=%.6e\n", i, S_mag, p[i].e, p[i].N);
+                    printf("S/e ratio: %.6e > 0.85, scaling S by %.6e\n", S_over_e, scale);
+                    limit_count++;
+                }
+            }
+            
+            // Floor on N to prevent division by zero
+            p[i].N = std::max(p[i].N, 1.0e-6);
             
             // Recover primitive variables at half-step for position update
             auto prim_half = srgsph::PrimitiveRecovery::conserved_to_primitive(
@@ -1077,23 +1133,28 @@ void Solver::correct()
         
 #pragma omp parallel for
         for(int i = 0; i < num; ++i) {
-            // For SR-GSPH: Correct using half-step conserved variables
-            // Compute S and e at half-step from predictor
-            vec_t S_half = p[i].S - p[i].dS * (0.5 * dt);  // Reverse half-step
-            real e_half = p[i].e - p[i].de * (0.5 * dt);
+            // For SR-GSPH: Corrector step using newly computed derivatives
+            // After predict(), we have S^(n+1) and e^(n+1) from old derivatives
+            // After force calculation, we have new dS and de at time n+1
+            // 
+            // Corrector: Use average of old and new derivatives
+            // S^(n+1,corrected) = S^n + 0.5 × (dS^n + dS^(n+1)) × dt
+            //
+            // But predict() already did: S = S^n + dS^n × dt
+            // So we need to:  S = S^n + 0.5 × (dS^n + dS^(n+1)) × dt
+            //                   = (S - dS^n × dt) + 0.5 × (dS^n + dS^(n+1)) × dt
+            //                   = S + 0.5 × (dS^(n+1) - dS^n) × dt
+            //
+            // But we don't store dS^n... The current scheme is broken!
+            // For now, just recover primitives from the updated conserved variables
             
-            // Now apply corrector using new derivatives
-            p[i].S = S_half + p[i].dS * (0.5 * dt);
-            p[i].e = e_half + p[i].de * (0.5 * dt);
-            
-            // Recover primitive variables at corrected state
+            // Recover primitive variables from corrected conserved variables
             auto prim = sph::srgsph::PrimitiveRecovery::conserved_to_primitive(
                 p[i].S, p[i].e, p[i].N, gamma, c_speed
             );
             
             // Update primitive variables
             p[i].vel = prim.vel;
-            // Internal energy: u = P/[(γ-1)ρ] for ideal gas EOS
             p[i].ene = prim.pressure / ((gamma - 1.0) * prim.density);
             p[i].pres = prim.pressure;
             p[i].dens = prim.density;

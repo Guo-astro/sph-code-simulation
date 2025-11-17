@@ -26,6 +26,7 @@ all:
 	@echo "  make sedov_help               # Sedov blast wave targets"
 	@echo "  make vacuum_help              # Vacuum test targets"
 	@echo "  make strong_shock_help        # Strong shock test targets"
+	@echo "  make sr_help                  # SR-GSPH relativistic test targets"
 	@echo ""
 	@false
 
@@ -62,3 +63,6 @@ help: all
 
 # Strong Shock Test preset-based system
 -include sample/strong_shock/Makefile.strong_shock
+
+# SR-GSPH Relativistic Test preset-based system
+-include sample/sr_sod/Makefile.sr_sod

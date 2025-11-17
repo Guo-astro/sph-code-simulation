@@ -21,8 +21,10 @@ enum struct KernelType {
 };
 
 enum struct RiemannSolverType {
-    HLL,        // Harten-Lax-van Leer approximate solver (default, fast, non-iterative)
-    ITERATIVE,  // Iterative solver from van Leer (1997) / Cha & Whitworth (2003) (exact, slower)
+    HLL,        // Harten-Lax-van Leer approximate solver (default for GSPH, fast, non-iterative)
+    ITERATIVE,  // Iterative solver from van Leer (1997) (exact for ideal gas EOS)
+    EXACT,      // Exact Riemann solver (Kitajima formulation for SR-GSPH, Brent's method)
+    KITAJIMA,   // Kitajima-style iterative solver (Newton-Raphson with shock/rarefaction handling)
 };
 
 struct SPHParameters {
@@ -88,11 +90,12 @@ struct SPHParameters {
 
     struct SRGSPH {
         bool is_2nd_order;        // Enable MUSCL reconstruction
+        RiemannSolverType riemann_solver;  // Riemann solver type: EXACT (default) or ITERATIVE
         real c_speed;             // Speed of light (default: 1.0)
         real c_shock;             // Shock detection parameter (default: 3.0)
         real c_cd;                // Contact discontinuity parameter (default: 1.0)
         real eta;                 // Smoothing length parameter (default: 1.0)
-        real c_smooth;            // Smoothing length gradient smoother (default: 2.0)
+        real smoothing_length;    // Fixed smoothing length h (§2.2, constant for all particles)
     } srgsph;
 };
 
