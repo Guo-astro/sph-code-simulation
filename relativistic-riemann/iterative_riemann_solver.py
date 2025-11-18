@@ -26,7 +26,7 @@ class IterativeRiemannSolver:
     the velocity continuity condition across the contact discontinuity.
     """
     
-    def __init__(self, gamma_c, c=1.0, max_iter=100, tol=1e-10):
+    def __init__(self, gamma_c, c=1.0, max_iter=100, tol=1e-10, verbose=False):
         """
         Initialize solver.
         
@@ -35,11 +35,13 @@ class IterativeRiemannSolver:
             c: Speed of light (default=1.0 for natural units)
             max_iter: Maximum number of Newton-Raphson iterations
             tol: Convergence tolerance for pressure
+            verbose: Print detailed iteration information
         """
         self.gamma_c = gamma_c
         self.c = c
         self.max_iter = max_iter
         self.tol = tol
+        self.verbose = verbose
         
         # Left state
         self.nl = None  # Rest frame baryon number density
@@ -80,6 +82,7 @@ class IterativeRiemannSolver:
         self.iterations = 0
         self.pressure_history = []
         self.residual_history = []
+        self.convergence_info = {}  # Store detailed convergence information
         
     def set_initial_states(self, Pl, nl, vl, Pr, nr, vr):
         """
@@ -115,6 +118,7 @@ class IterativeRiemannSolver:
     def get_velocity_and_derivative(self, P, na, Pa, Ha, csa, va, gammaa, direction):
         """
         Compute post-wave velocity and its derivative with respect to pressure.
+        Uses adaptive finite difference for robust derivative calculation.
         
         Args:
             P: Post-wave pressure
@@ -165,14 +169,25 @@ class IterativeRiemannSolver:
             # Sound speed
             cs = np.sqrt(self.gamma_c * P / (n * H))
             
-            # Derivative dv/dP (using finite difference for simplicity in iterative solver)
-            dP = max(1e-8 * P, 1e-10)
+            # Adaptive finite difference for derivative
+            # Scale perturbation with pressure magnitude and convergence state
+            rel_p = max(abs(P - Pa) / Pa, 0.01)
+            dP = max(1e-8 * P * rel_p, 1e-12)
             P_pert = P + dP
             
             # Perturbed enthalpy
             a_pert = 1.0 + (self.gamma_c - 1.0) * (Pa - P_pert) / (self.gamma_c * P_pert)
             b_pert = 1.0 - a_pert
             c_term_pert = Ha * (Pa - P_pert) / na - Ha**2
+            
+            if c_term_pert > (b_pert**2 / (4.0 * a_pert)):
+                # Use smaller perturbation
+                dP = dP * 0.1
+                P_pert = P + dP
+                a_pert = 1.0 + (self.gamma_c - 1.0) * (Pa - P_pert) / (self.gamma_c * P_pert)
+                b_pert = 1.0 - a_pert
+                c_term_pert = Ha * (Pa - P_pert) / na - Ha**2
+            
             H_pert = (-b_pert + np.sqrt(b_pert**2 - 4.0 * a_pert * c_term_pert)) / (2.0 * a_pert)
             n_pert = self.gamma_c * P_pert / ((self.gamma_c - 1.0) * (H_pert - 1.0))
             
@@ -204,8 +219,9 @@ class IterativeRiemannSolver:
             v = c * (A - 1.0) / (A + 1.0)
             vshock = 0.0
             
-            # Derivative for rarefaction
-            dP = max(1e-8 * P, 1e-10)
+            # Adaptive derivative for rarefaction
+            rel_p = max(abs(P - Pa) / Pa, 0.01)
+            dP = max(1e-8 * P * rel_p, 1e-12)
             P_pert = P + dP
             n_pert = (P_pert / K)**(1.0 / self.gamma_c)
             u_pert = P_pert / ((self.gamma_c - 1.0) * n_pert)
@@ -224,6 +240,7 @@ class IterativeRiemannSolver:
     def iterate_pressure(self, P_guess):
         """
         Single Newton-Raphson iteration to improve pressure estimate.
+        Follows robust formulation inspired by classic Newtonian solver.
         
         Args:
             P_guess: Current pressure guess
@@ -242,44 +259,84 @@ class IterativeRiemannSolver:
             P_guess, self.nr, self.Pr, self.Hr, self.csr, 
             self.vr, self.gammar, 'R')
         
-        # Residual: velocity difference
+        # Residual: velocity difference (f = vls - vrs should be zero)
         f = self.vls - self.vrs
         
-        # Derivative of residual
+        # Derivative of residual with respect to pressure
         df_dP = dvl_dP - dvr_dP
         
-        # Newton-Raphson update
+        # Robust Newton-Raphson update with safeguards
         if abs(df_dP) < 1e-20:
-            # Avoid division by zero
+            # Derivative too small - likely at solution or singular point
             P_new = P_guess
             converged = True
         else:
-            P_new = P_guess - f / df_dP
+            # Standard Newton-Raphson step
+            delta_P = -f / df_dP
             
-            # Ensure pressure stays positive and reasonable
+            # Damping factor for stability (inspired by classic solver's implicit damping)
+            # Limit pressure change to prevent overshooting
+            max_factor = 2.0
+            if abs(delta_P) > max_factor * P_guess:
+                delta_P = max_factor * P_guess * np.sign(delta_P)
+            
+            P_new = P_guess + delta_P
+            
+            # Enforce physical bounds (similar to classic solver's smallp)
+            smallp = 1e-25
+            P_new = max(P_new, smallp)
             P_new = max(P_new, 0.01 * min(self.Pl, self.Pr))
-            P_new = min(P_new, 10.0 * max(self.Pl, self.Pr))
+            P_new = min(P_new, 100.0 * max(self.Pl, self.Pr))
             
-            # Check convergence
-            rel_change = abs(P_new - P_guess) / max(P_guess, 1e-10)
-            converged = rel_change < self.tol or abs(f) < self.tol
+            # Check convergence using both relative pressure change and residual
+            # (dual criterion like classic solver checking both iteration change and function value)
+            rel_change = abs(P_new - P_guess) / max(P_guess, smallp)
+            rel_residual = abs(f) / max(abs(self.vls), abs(self.vrs), 1e-10)
+            
+            converged = (rel_change < self.tol) or (rel_residual < self.tol)
         
         return P_new, f, converged
         
     def solve_star_pressure(self):
         """
         Iteratively solve for star pressure using Newton-Raphson method.
+        Uses robust initial guess based on acoustic approximation.
         
         Returns:
             Star pressure
         """
-        # Initial guess: arithmetic mean
-        P_guess = 0.5 * (self.Pl + self.Pr)
+        # Robust initial guess using acoustic approximation (inspired by classic solver)
+        # This is the relativistic equivalent of the Newtonian acoustic guess
+        c = self.c
+        
+        # Compute acoustic impedances (relativistic sound speeds times densities)
+        Zl = self.nl * self.csl  # Left acoustic impedance
+        Zr = self.nr * self.csr  # Right acoustic impedance
+        
+        # Acoustic approximation: P* = Pl + (Pr - Pl - Zr*(vr - vl)) * Zl/(Zl + Zr)
+        # This assumes small velocity difference and linear wave propagation
+        P_guess = self.Pr - self.Pl - Zr * (self.vr - self.vl)
+        P_guess = self.Pl + P_guess * Zl / (Zl + Zr)
+        
+        # Ensure initial guess is positive and reasonable
+        smallp = 1e-25
+        P_guess = max(P_guess, smallp)
+        P_guess = max(P_guess, 0.1 * min(self.Pl, self.Pr))
+        P_guess = min(P_guess, 10.0 * max(self.Pl, self.Pr))
         
         # Reset iteration tracking
         self.iterations = 0
         self.pressure_history = [P_guess]
         self.residual_history = []
+        
+        if self.verbose:
+            print(f"\n=== Robust Iterative Solver ===")
+            print(f"Initial states:")
+            print(f"  Left:  P={self.Pl:.6e}, n={self.nl:.6e}, v={self.vl:.6e}, cs={self.csl:.6e}")
+            print(f"  Right: P={self.Pr:.6e}, n={self.nr:.6e}, v={self.vr:.6e}, cs={self.csr:.6e}")
+            print(f"Acoustic impedances: Zl={Zl:.6e}, Zr={Zr:.6e}")
+            print(f"Initial guess: P*={P_guess:.6e}")
+            print(f"\nIteration history:")
         
         # Newton-Raphson iteration
         for i in range(self.max_iter):
@@ -289,7 +346,13 @@ class IterativeRiemannSolver:
             self.pressure_history.append(P_new)
             self.residual_history.append(abs(residual))
             
+            if self.verbose:
+                print(f"  {i+1:3d}: P*={P_new:.6e}, |Δv|={abs(residual):.3e}, "
+                      f"ΔP={abs(P_new-P_guess):.3e}")
+            
             if converged:
+                if self.verbose:
+                    print(f"✓ Converged in {self.iterations} iterations")
                 return P_new
             
             P_guess = P_new
@@ -298,6 +361,38 @@ class IterativeRiemannSolver:
         print(f"Warning: Maximum iterations ({self.max_iter}) reached")
         print(f"  Final residual: {abs(residual):.3e}")
         return P_new
+    
+    def get_convergence_diagnostics(self):
+        """
+        Get detailed convergence diagnostics.
+        
+        Returns:
+            Dictionary with convergence information
+        """
+        if len(self.pressure_history) < 2:
+            return {"error": "No iteration history available"}
+        
+        diagnostics = {
+            "iterations": self.iterations,
+            "initial_pressure": self.pressure_history[0],
+            "final_pressure": self.pressure_history[-1],
+            "pressure_change": abs(self.pressure_history[-1] - self.pressure_history[0]),
+            "final_residual": self.residual_history[-1] if self.residual_history else 0.0,
+            "convergence_rate": [],
+        }
+        
+        # Compute convergence rate (quadratic for Newton-Raphson in ideal case)
+        if len(self.residual_history) > 2:
+            rates = []
+            for i in range(1, len(self.residual_history) - 1):
+                if self.residual_history[i] > 1e-15:
+                    rate = np.log(self.residual_history[i+1]) - np.log(self.residual_history[i])
+                    rates.append(rate)
+            if rates:
+                diagnostics["convergence_rate"] = rates
+                diagnostics["avg_convergence_rate"] = np.mean(rates)
+        
+        return diagnostics
         
     def rarefaction(self, xi, na, Pa, ua, csa, va, direction):
         """
