@@ -1,25 +1,17 @@
-# SR-GSPH Test Suite Makefile - Single Source of Truth System
+# SR-GSPH Test Suite Makefile
 #
-# Quick Start (One-Shot):
-#   make sr_sod_all                                    # Run simulation + generate animation
+# Usage:
+#   make sr_sod                    # Run SR Sod + animation
+#   make sr_blast_wave             # Run standard blast wave + animation
+#   make sr_strong_blast           # Run strong blast wave + animation
+#   make sr_ultra_relat            # Run ultra-relativistic (v varies) + animation
+#   make sr_ultra_v090             # Run v=0.9c + animation
+#   make sr_ultra_v099             # Run v=0.99c + animation
+#   make sr_ultra_v0999            # Run v=0.999c + animation
 #
-# Single Method Usage:
-#   make sr_sod_run                                    # Run SR Sod test (same ν)
-#   make sr_sod_animate                                # Generate animation from results
-#   make sr_sod_diff_nu                                # Run with different baryon numbers
-#   make sr_blast_wave_run                             # Run standard blast wave
-#   make sr_strong_blast_run                           # Run strong blast wave
-#   make sr_ultra_relat_run                            # Run ultra-relativistic shock (v=0.9c)
-#   make sr_sod_clean                                  # Clean results
-#
-# Multi-Test Comparison:
-#   make sr_all_tests                                  # Run all SR test cases
-#   make sr_ultra_comparison                           # Compare ultra-relativistic runs (v=0.9, 0.99, 0.999)
-#   make sr_viz                                        # Generate all visualizations
-#   make sr_clean_all                                  # Clean all SR test results
-
-# Default preset
-PRESET ?= sr_sod_same_nu
+#   make sr_all                    # Run all 7 tests + animations
+#   make sr_clean                  # Clean all results
+#   make sr_help                   # Show help
 
 # Paths
 SR_SOD_DIR = sample/sr_sod
@@ -27,10 +19,8 @@ PRESET_DIR = $(SR_SOD_DIR)/config/presets
 RESULTS_DIR = $(SR_SOD_DIR)/results
 SCRIPTS_DIR = $(SR_SOD_DIR)/scripts
 
-.PHONY: sr_sod_run sr_sod_diff_nu sr_blast_wave_run sr_strong_blast_run sr_ultra_relat_run \
-        sr_sod_clean sr_help sr_all_tests sr_ultra_comparison sr_viz sr_clean_all \
-        sr_check_dim sr_sod_all sr_sod_animate sr_sod_iterative sr_sod_exact \
-        sr_solver_compare sr_solver_compare_viz
+.PHONY: sr_sod sr_blast_wave sr_strong_blast sr_ultra_relat sr_ultra_v090 sr_ultra_v099 sr_ultra_v0999 \
+        sr_all sr_clean sr_help sr_check_dim
 
 # ============================================================================
 # Dimension Check
@@ -40,339 +30,178 @@ sr_check_dim:
 	@if ! grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
 		echo "❌ ERROR: SR tests require DIM=1 build"; \
 		echo ""; \
-		echo "Current build is not configured for DIM=1 (1D simulations)."; \
-		echo "SR tests are 1D and require DIM=1."; \
-		echo ""; \
 		echo "To rebuild for 1D:"; \
 		echo "  cd build && cmake -DSPH_DIM=1 .. && make -j8 && cd .."; \
-		echo ""; \
-		echo "To restore 3D build after testing:"; \
-		echo "  cd build && cmake -DSPH_DIM=3 .. && make -j8 && cd .."; \
 		exit 1; \
 	fi
-	@echo "✓ DIM=1 build detected"
 
 # ============================================================================
-# Quick Start: One-Shot Run + Visualization
+# Individual Test Targets (Simulation + Animation)
 # ============================================================================
 
-# Complete workflow: run simulation and generate animation
-sr_sod_all: build/sph sr_check_dim
+# SR Sod shock tube
+sr_sod: build/sph sr_check_dim
 	@echo "=========================================="
-	@echo "SR Sod Complete Workflow"
-	@echo "  1. Run simulation"
-	@echo "  2. Generate animation"
+	@echo "SR Sod Shock Tube"
 	@echo "=========================================="
-	@echo ""
+	@cp $(PRESET_DIR)/sr_sod.json sr_sod.json
+	@mkdir -p $(RESULTS_DIR)/sharp
 	@echo "[1/2] Running simulation..."
-	@echo "=========================================="
-	@cp $(PRESET_DIR)/sr_sod_same_nu.json sr_sod.json
-	@echo "Configuration: sr_sod_same_nu.json"
-	@python3 -c "import json; cfg=json.load(open('sr_sod.json')); print(f\"  📁 Output: {cfg['outputDirectory']}\"); print(f\"  ⏱️  End time: {cfg['endTime']}s\"); print(f\"  📊 Particles: {cfg['N']*9} total\")"
-	@mkdir -p $(RESULTS_DIR)
 	@./build/sph sr_sod.json
-	@echo ""
 	@echo "✓ Simulation complete!"
 	@echo ""
 	@echo "[2/2] Generating animation..."
-	@echo "=========================================="
-	@chmod +x $(SCRIPTS_DIR)/visualize_sr_sod.py
-	@RESULTS_PATH=$$(python3 -c "import json; print(json.load(open('sr_sod.json'))['outputDirectory'])"); \
-	echo "Visualizing from: $$RESULTS_PATH"; \
-	python3 $(SCRIPTS_DIR)/visualize_sr_sod.py "$$RESULTS_PATH"
-	@echo ""
-	@echo "=========================================="
-	@echo "✓ Complete Workflow Done!"
-	@echo "=========================================="
-	@RESULTS_PATH=$$(python3 -c "import json; print(json.load(open('sr_sod.json'))['outputDirectory'])"); \
-	echo "📁 Results: $$RESULTS_PATH/"; \
-	echo "📊 Plots:"; \
-	ls -lh $$RESULTS_PATH/*.png 2>/dev/null | awk '{print "     " $$9 " (" $$5 ")"}' || true; \
-	if [ -f "$$RESULTS_PATH/sr_sod_evolution.gif" ]; then \
-		echo "🎬 Animation:"; \
-		ls -lh $$RESULTS_PATH/*.gif | awk '{print "     " $$9 " (" $$5 ")"}'; \
-	fi
-
-# Generate animation from existing results
-sr_sod_animate:
-	@echo "=========================================="
-	@echo "Generating SR Sod Animation"
-	@echo "=========================================="
-	@if [ ! -d "$(RESULTS_DIR)" ] || [ -z "$$(ls -A $(RESULTS_DIR)/snapshot*.csv 2>/dev/null)" ]; then \
-		echo "❌ ERROR: No snapshot files found in $(RESULTS_DIR)"; \
-		echo ""; \
-		echo "Run the simulation first:"; \
-		echo "  make sr_sod_run"; \
-		echo ""; \
-		echo "Or run complete workflow:"; \
-		echo "  make sr_sod_all"; \
-		exit 1; \
-	fi
-	@echo "Visualizing results from: $(RESULTS_DIR)"
-	@chmod +x $(SCRIPTS_DIR)/visualize_sr_sod.py
-	@python3 $(SCRIPTS_DIR)/visualize_sr_sod.py
-	@echo ""
+	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
+	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py $(RESULTS_DIR)/sharp
 	@echo "✓ Animation complete!"
-	@echo "📊 Output:"
-	@ls -lh $(RESULTS_DIR)/*.png $(RESULTS_DIR)/*.gif 2>/dev/null | awk '{print "     " $$9 " (" $$5 ")"}'
-
-# ============================================================================
-# Individual Test Targets
-# ============================================================================
-
-# SR Sod shock tube (same baryon number)
-sr_sod_run: build/sph sr_check_dim
-	@echo "=========================================="
-	@echo "SR Sod Shock Tube (Same Baryon Number)"
-	@echo "=========================================="
-	@cp $(PRESET_DIR)/sr_sod_same_nu.json $(SR_SOD_DIR)/sr_sod.json
-	@echo "Output directory:"
-	@python3 -c "import json; print('  📁 ' + json.load(open('$(SR_SOD_DIR)/sr_sod.json'))['outputDirectory'])"
-	@mkdir -p $(RESULTS_DIR)/same_nu
-	@echo "Running simulation..."
-	@./build/sph sr_sod
-	@echo ""
-	@echo "✓ Simulation complete!"
-	@echo "📁 Results: $(RESULTS_DIR)/same_nu/"
-
-# SR Sod with different baryon numbers
-sr_sod_diff_nu: build/sph sr_check_dim
-	@echo "=========================================="
-	@echo "SR Sod (Different Baryon Numbers)"
-	@echo "=========================================="
-	@cp $(PRESET_DIR)/sr_sod_diff_nu.json $(SR_SOD_DIR)/sr_sod.json
-	@mkdir -p $(RESULTS_DIR)/diff_nu
-	@echo "Running simulation..."
-	@./build/sph sr_sod
-	@echo ""
-	@echo "✓ Simulation complete!"
-	@echo "📁 Results: $(RESULTS_DIR)/diff_nu/"
+	@echo "📁 Results: $(RESULTS_DIR)/sharp/"
 
 # Standard blast wave
-sr_blast_wave_run: build/sph sr_check_dim
+sr_blast_wave: build/sph sr_check_dim
 	@echo "=========================================="
 	@echo "SR Standard Blast Wave"
 	@echo "=========================================="
-	@cp $(PRESET_DIR)/sr_blast_wave.json $(SR_SOD_DIR)/sr_blast_wave.json
+	@cp $(PRESET_DIR)/sr_blast_wave.json sr_sod.json
 	@mkdir -p $(RESULTS_DIR)/blast_wave
-	@echo "Running simulation..."
-	@./build/sph sr_blast_wave
-	@echo ""
+	@echo "[1/2] Running simulation..."
+	@./build/sph sr_sod.json
 	@echo "✓ Simulation complete!"
-	@echo "📁 Results: $(RESULTS_DIR)/blast_wave/"
+	@echo ""
+	@echo "[2/2] Generating animation..."
+	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
+	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
+	@echo "✓ Animation complete!"
+	@echo "� Results: $(RESULTS_DIR)/blast_wave/"
 
 # Strong blast wave
-sr_strong_blast_run: build/sph sr_check_dim
+sr_strong_blast: build/sph sr_check_dim
 	@echo "=========================================="
 	@echo "SR Strong Blast Wave"
 	@echo "=========================================="
-	@cp $(PRESET_DIR)/sr_strong_blast.json $(SR_SOD_DIR)/sr_strong_blast.json
+	@cp $(PRESET_DIR)/sr_strong_blast.json sr_sod.json
 	@mkdir -p $(RESULTS_DIR)/strong_blast
-	@echo "Running simulation..."
-	@./build/sph sr_strong_blast
-	@echo ""
+	@echo "[1/2] Running simulation..."
+	@./build/sph sr_sod.json
 	@echo "✓ Simulation complete!"
+	@echo ""
+	@echo "[2/2] Generating animation..."
+	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
+	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
+	@echo "✓ Animation complete!"
 	@echo "📁 Results: $(RESULTS_DIR)/strong_blast/"
 
-# Ultra-relativistic shock (v=0.9c)
-sr_ultra_relat_run: build/sph sr_check_dim
+# Ultra-relativistic shock (general)
+sr_ultra_relat: build/sph sr_check_dim
 	@echo "=========================================="
-	@echo "Ultra-Relativistic Shock (v=0.9c)"
+	@echo "Ultra-Relativistic Shock"
 	@echo "=========================================="
-	@cp $(PRESET_DIR)/sr_ultra_v090.json $(SR_SOD_DIR)/sr_ultra_relat.json
-	@mkdir -p $(RESULTS_DIR)/ultra_v090
-	@echo "Running simulation..."
-	@./build/sph sr_ultra_relat
-	@echo ""
+	@cp $(PRESET_DIR)/sr_ultra_relat.json sr_sod.json
+	@mkdir -p $(RESULTS_DIR)/ultra_relat
+	@echo "[1/2] Running simulation..."
+	@./build/sph sr_sod.json
 	@echo "✓ Simulation complete!"
+	@echo ""
+	@echo "[2/2] Generating animation..."
+	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
+	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
+	@echo "✓ Animation complete!"
+	@echo "📁 Results: $(RESULTS_DIR)/ultra_relat/"
+
+# Ultra-relativistic v=0.9c
+sr_ultra_v090: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "Ultra-Relativistic v=0.9c (γ≈2.29)"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/sr_ultra_v090.json sr_sod.json
+	@mkdir -p $(RESULTS_DIR)/ultra_v090
+	@echo "[1/2] Running simulation..."
+	@./build/sph sr_sod.json
+	@echo "✓ Simulation complete!"
+	@echo ""
+	@echo "[2/2] Generating animation..."
+	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
+	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
+	@echo "✓ Animation complete!"
 	@echo "📁 Results: $(RESULTS_DIR)/ultra_v090/"
 
-# SR Sod with ITERATIVE Riemann solver
-sr_sod_iterative: build/sph sr_check_dim
+# Ultra-relativistic v=0.99c
+sr_ultra_v099: build/sph sr_check_dim
 	@echo "=========================================="
-	@echo "SR Sod (ITERATIVE Solver)"
+	@echo "Ultra-Relativistic v=0.99c (γ≈7.09)"
 	@echo "=========================================="
-	@cp $(PRESET_DIR)/sr_sod_iterative.json sr_sod.json
-	@echo "Configuration: ITERATIVE Riemann solver"
-	@python3 -c "import json; cfg=json.load(open('sr_sod.json')); print(f\"  📁 Output: {cfg['outputDirectory']}\"); print(f\"  🔧 Solver: {cfg.get('riemannSolverSRGSPH', 'EXACT')}\"); print(f\"  📊 Particles: {cfg['N']*9}\")"
-	@mkdir -p $(RESULTS_DIR)/iterative
-	@./build/sph sr_sod.json
-	@echo ""
-	@echo "✓ Simulation complete!"
-	@echo "📁 Results: $(RESULTS_DIR)/iterative/"
-	@echo ""
-	@echo "Generating animation..."
-	@chmod +x $(SCRIPTS_DIR)/visualize_sr_sod.py
-	@python3 $(SCRIPTS_DIR)/visualize_sr_sod.py "$(RESULTS_DIR)/iterative"
-	@echo "✓ Animation complete!"
-
-# SR Sod with EXACT Riemann solver
-sr_sod_exact: build/sph sr_check_dim
-	@echo "=========================================="
-	@echo "SR Sod (EXACT Solver)"
-	@echo "=========================================="
-	@cp $(PRESET_DIR)/sr_sod_exact.json sr_sod.json
-	@echo "Configuration: EXACT Riemann solver (Kitajima)"
-	@python3 -c "import json; cfg=json.load(open('sr_sod.json')); print(f\"  📁 Output: {cfg['outputDirectory']}\"); print(f\"  🔧 Solver: {cfg.get('riemannSolverSRGSPH', 'EXACT')}\"); print(f\"  📊 Particles: {cfg['N']*9}\")"
-	@mkdir -p $(RESULTS_DIR)/exact
-	@./build/sph sr_sod.json
-	@echo ""
-	@echo "✓ Simulation complete!"
-	@echo "📁 Results: $(RESULTS_DIR)/exact/"
-	@echo ""
-	@echo "Generating animation..."
-	@chmod +x $(SCRIPTS_DIR)/visualize_sr_sod.py
-	@python3 $(SCRIPTS_DIR)/visualize_sr_sod.py "$(RESULTS_DIR)/exact"
-	@echo "✓ Animation complete!"
-
-# ============================================================================
-# Multi-Test Workflows
-# ============================================================================
-
-# Run all basic SR tests
-sr_all_tests: build/sph sr_check_dim
-	@echo "=========================================="
-	@echo "Running All SR Test Cases"
-	@echo "=========================================="
-	@echo ""
-	@echo "[1/5] SR Sod (same ν)..."
-	@echo "----------------------------------------"
-	@$(MAKE) sr_sod_run
-	@echo ""
-	@echo "[2/5] SR Sod (different ν)..."
-	@echo "----------------------------------------"
-	@$(MAKE) sr_sod_diff_nu
-	@echo ""
-	@echo "[3/5] Standard blast wave..."
-	@echo "----------------------------------------"
-	@$(MAKE) sr_blast_wave_run
-	@echo ""
-	@echo "[4/5] Strong blast wave..."
-	@echo "----------------------------------------"
-	@$(MAKE) sr_strong_blast_run
-	@echo ""
-	@echo "[5/5] Ultra-relativistic shock..."
-	@echo "----------------------------------------"
-	@$(MAKE) sr_ultra_relat_run
-	@echo ""
-	@echo "=========================================="
-	@echo "✓ All SR tests complete!"
-	@echo "=========================================="
-
-# Compare EXACT vs ITERATIVE Riemann solvers
-sr_solver_compare: build/sph sr_check_dim
-	@echo "=========================================="
-	@echo "Riemann Solver Comparison"
-	@echo "EXACT (Kitajima) vs ITERATIVE (van Leer)"
-	@echo "=========================================="
-	@echo ""
-	@echo "[1/2] Running EXACT solver..."
-	@echo "----------------------------------------"
-	@cp $(PRESET_DIR)/sr_sod_exact.json sr_sod.json
-	@mkdir -p $(RESULTS_DIR)/exact
-	@./build/sph sr_sod.json
-	@echo "✓ EXACT solver complete"
-	@echo ""
-	@echo "[2/2] Running ITERATIVE solver..."
-	@echo "----------------------------------------"
-	@cp $(PRESET_DIR)/sr_sod_iterative.json sr_sod.json
-	@mkdir -p $(RESULTS_DIR)/iterative
-	@./build/sph sr_sod.json
-	@echo "✓ ITERATIVE solver complete"
-	@echo ""
-	@echo "=========================================="
-	@echo "✓ Solver comparison complete!"
-	@echo "=========================================="
-	@echo "Results:"
-	@echo "  📁 EXACT:     $(RESULTS_DIR)/exact/"
-	@echo "  📁 ITERATIVE: $(RESULTS_DIR)/iterative/"
-
-# Generate visualizations comparing solvers
-sr_solver_compare_viz: sr_solver_compare
-	@echo ""
-	@echo "=========================================="
-	@echo "Generating Comparison Visualizations"
-	@echo "=========================================="
-	@echo ""
-	@echo "[1/2] EXACT solver animation..."
-	@chmod +x $(SCRIPTS_DIR)/visualize_sr_sod.py
-	@python3 $(SCRIPTS_DIR)/visualize_sr_sod.py "$(RESULTS_DIR)/exact"
-	@echo "✓ EXACT animation complete"
-	@echo ""
-	@echo "[2/2] ITERATIVE solver animation..."
-	@python3 $(SCRIPTS_DIR)/visualize_sr_sod.py "$(RESULTS_DIR)/iterative"
-	@echo "✓ ITERATIVE animation complete"
-	@echo ""
-	@echo "=========================================="
-	@echo "✓ All visualizations complete!"
-	@echo "=========================================="
-	@echo "Outputs:"
-	@ls -lh $(RESULTS_DIR)/exact/*.gif $(RESULTS_DIR)/iterative/*.gif 2>/dev/null | awk '{print "  " $$9 " (" $$5 ")"}'
-
-# Ultra-relativistic velocity comparison
-sr_ultra_comparison: build/sph sr_check_dim
-	@echo "=========================================="
-	@echo "Ultra-Relativistic Velocity Comparison"
-	@echo "Running: v=0.9c, 0.99c, 0.999c"
-	@echo "=========================================="
-	@echo ""
-	@echo "[1/3] v=0.9c (γ≈2.29)..."
-	@echo "----------------------------------------"
-	@cp $(PRESET_DIR)/sr_ultra_v090.json $(SR_SOD_DIR)/sr_ultra_relat.json
-	@mkdir -p $(RESULTS_DIR)/ultra_v090
-	@./build/sph sr_ultra_relat
-	@echo "✓ v=0.9c complete"
-	@echo ""
-	@echo "[2/3] v=0.99c (γ≈7.09)..."
-	@echo "----------------------------------------"
-	@cp $(PRESET_DIR)/sr_ultra_v099.json $(SR_SOD_DIR)/sr_ultra_relat.json
+	@cp $(PRESET_DIR)/sr_ultra_v099.json sr_sod.json
 	@mkdir -p $(RESULTS_DIR)/ultra_v099
-	@./build/sph sr_ultra_relat
-	@echo "✓ v=0.99c complete"
+	@echo "[1/2] Running simulation..."
+	@./build/sph sr_sod.json
+	@echo "✓ Simulation complete!"
 	@echo ""
-	@echo "[3/3] v=0.999c (γ≈22.4)..."
-	@echo "----------------------------------------"
-	@cp $(PRESET_DIR)/sr_ultra_v0999.json $(SR_SOD_DIR)/sr_ultra_relat.json
+	@echo "[2/2] Generating animation..."
+	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
+	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
+	@echo "✓ Animation complete!"
+	@echo "📁 Results: $(RESULTS_DIR)/ultra_v099/"
+
+# Ultra-relativistic v=0.999c
+sr_ultra_v0999: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "Ultra-Relativistic v=0.999c (γ≈22.4)"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/sr_ultra_v0999.json sr_sod.json
 	@mkdir -p $(RESULTS_DIR)/ultra_v0999
-	@./build/sph sr_ultra_relat
-	@echo "✓ v=0.999c complete"
+	@echo "[1/2] Running simulation..."
+	@./build/sph sr_sod.json
+	@echo "✓ Simulation complete!"
+	@echo ""
+	@echo "[2/2] Generating animation..."
+	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
+	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
+	@echo "✓ Animation complete!"
+	@echo "📁 Results: $(RESULTS_DIR)/ultra_v0999/"
+
+# ============================================================================
+# Multi-Test Workflow
+# ============================================================================
+
+# Run all 7 tests
+sr_all: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "Running All 7 SR Tests"
+	@echo "=========================================="
+	@echo ""
+	@echo "[1/7] SR Sod..."
+	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_sod
+	@echo ""
+	@echo "[2/7] Standard Blast Wave..."
+	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_blast_wave
+	@echo ""
+	@echo "[3/7] Strong Blast Wave..."
+	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_strong_blast
+	@echo ""
+	@echo "[4/7] Ultra-Relativistic (general)..."
+	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_ultra_relat
+	@echo ""
+	@echo "[5/7] Ultra v=0.9c..."
+	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_ultra_v090
+	@echo ""
+	@echo "[6/7] Ultra v=0.99c..."
+	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_ultra_v099
+	@echo ""
+	@echo "[7/7] Ultra v=0.999c..."
+	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_ultra_v0999
 	@echo ""
 	@echo "=========================================="
-	@echo "✓ All ultra-relativistic tests complete!"
+	@echo "✓ All 7 tests complete!"
 	@echo "=========================================="
-	@echo "Results directories:"
-	@echo "  📁 $(RESULTS_DIR)/ultra_v090/"
-	@echo "  📁 $(RESULTS_DIR)/ultra_v099/"
-	@echo "  📁 $(RESULTS_DIR)/ultra_v0999/"
 
 # ============================================================================
-# Visualization Targets
+# Clean Target
 # ============================================================================
 
-sr_viz:
-	@echo "=========================================="
-	@echo "Generating SR Test Visualizations"
-	@echo "=========================================="
-	@if [ ! -d "$(RESULTS_DIR)/same_nu" ]; then \
-		echo "❌ ERROR: No results found. Run 'make sr_all_tests' first."; \
-		exit 1; \
-	fi
-	@echo "Visualizations will be implemented with Python scripts..."
-	@echo "📊 Placeholder for visualization generation"
-
-# ============================================================================
-# Clean Targets
-# ============================================================================
-
-sr_sod_clean:
-	@echo "Cleaning SR Sod results..."
-	@rm -rf $(RESULTS_DIR)/same_nu $(RESULTS_DIR)/diff_nu
-	@echo "✓ SR Sod results cleaned"
-
-sr_clean_all:
+sr_clean:
 	@echo "Cleaning all SR test results..."
 	@rm -rf $(RESULTS_DIR)
-	@echo "✓ All SR test results cleaned"
+	@rm -f sr_sod.json
+	@echo "✓ Cleaned"
 
 # ============================================================================
 # Help
@@ -382,37 +211,21 @@ sr_help:
 	@echo "SR-GSPH Test Suite Makefile"
 	@echo "============================"
 	@echo ""
-	@echo "Quick Start:"
-	@echo "  sr_sod_all         - 🚀 Run simulation + generate animation (ONE COMMAND!)"
+	@echo "Individual Tests (run simulation + create animation):"
+	@echo "  make sr_sod          - SR Sod shock tube"
+	@echo "  make sr_blast_wave   - Standard blast wave"
+	@echo "  make sr_strong_blast - Strong blast wave"
+	@echo "  make sr_ultra_relat  - Ultra-relativistic (general)"
+	@echo "  make sr_ultra_v090   - Ultra-relativistic v=0.9c"
+	@echo "  make sr_ultra_v099   - Ultra-relativistic v=0.99c"
+	@echo "  make sr_ultra_v0999  - Ultra-relativistic v=0.999c"
 	@echo ""
-	@echo "Individual Test Targets:"
-	@echo "  sr_sod_run         - SR Sod shock tube (same baryon number)"
-	@echo "  sr_sod_animate     - Generate animation from existing results"
-	@echo "  sr_sod_diff_nu     - SR Sod with different baryon numbers"
-	@echo "  sr_blast_wave_run  - Standard blast wave test"
-	@echo "  sr_strong_blast_run - Strong blast wave test"
-	@echo "  sr_ultra_relat_run - Ultra-relativistic shock (v=0.9c)"
-	@echo ""
-	@echo "Riemann Solver Comparison:"
-	@echo "  sr_sod_iterative   - Run with ITERATIVE solver + animation"
-	@echo "  sr_sod_exact       - Run with EXACT solver + animation"
-	@echo "  sr_solver_compare  - Run both solvers (no animation)"
-	@echo "  sr_solver_compare_viz - Run both solvers + animations"
-	@echo ""
-	@echo "Multi-Test Workflows:"
-	@echo "  sr_all_tests       - Run all 5 basic SR tests"
-	@echo "  sr_ultra_comparison - Compare v=0.9c, 0.99c, 0.999c"
-	@echo "  sr_viz             - Generate all visualizations"
-	@echo ""
-	@echo "Clean Targets:"
-	@echo "  sr_sod_clean       - Clean SR Sod results only"
-	@echo "  sr_clean_all       - Clean all SR test results"
+	@echo "Batch Operations:"
+	@echo "  make sr_all          - Run all 7 tests"
+	@echo "  make sr_clean        - Clean all results"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make -f sample/sr_sod/Makefile.sr_sod sr_sod_all     # Quick start!"
-	@echo "  make -f sample/sr_sod/Makefile.sr_sod sr_sod_iterative"
-	@echo "  make -f sample/sr_sod/Makefile.sr_sod sr_solver_compare_viz"
-	@echo "  make -f sample/sr_sod/Makefile.sr_sod sr_all_tests"
+	@echo "  make -f sample/sr_sod/Makefile.sr_sod sr_sod"
+	@echo "  make -f sample/sr_sod/Makefile.sr_sod sr_all"
 	@echo ""
-	@echo "Note: All SR tests require DIM=1 build configuration."
-	@echo "      The build check will guide you if needed."
+	@echo "Note: Requires DIM=1 build configuration."

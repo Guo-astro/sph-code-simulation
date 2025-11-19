@@ -87,22 +87,16 @@ void Solver::make_sr_sod()
     } else {
         // Equal ν (Fig. 4 in paper - standard Sod test)
         // 
-        // With PERIODIC boundaries and FIXED global h:
-        // Use empirical kernel sum to determine ν
-        // Target: N_left = n_left = 1.0 in left region
+        // For VARIABLE smoothing length:
+        // Set ν based on particle spacing and density
+        // ν ≈ n × volume_per_particle = n × dx
         //
-        // Empirical kernel sum depends on particle spacing:
-        // For N=400 (3600 total): Σ W ≈ 3060
-        // For N=100 (900 total):  Σ W ≈ 765
-        // So: ν = n / Σ W
-        //
-        // For EQUAL ν test: both regions use same ν
-        // Base it on the left state density
-        
-        const real kernel_sum_estimate = 765.0;  // Empirical for N=100
-        const real nu_equal = n_left / kernel_sum_estimate;
-        nu_left = nu_equal;
-        nu_right = nu_equal;  // SAME ν for both regions
+        // Left region: ν_left = n_left × dx_left
+        // Right region: ν_right = n_right × dx_right
+        // 
+        // For EQUAL ν: use the left state as reference
+        nu_left = n_left * dx_left;
+        nu_right = nu_left;  // EQUAL ν for both regions (standard test)
     }
     
     std::vector<SPHParticle> p(num);
@@ -159,22 +153,7 @@ void Solver::make_sr_sod()
         vel[2] = 0.0;
         #endif
         
-        p_i.vel = vel;
-        p_i.pres = P_smooth;  // SMOOTH pressure
-        p_i.dens = n_smooth;  // SMOOTH rest-frame density
-        
-        // DO NOT compute conserved variables here!
-        // They will be computed in pre_interaction after N is smoothed
-        p_i.S = 0.0;  // Placeholder (will be recomputed)
-        p_i.e = 0.0;  // Placeholder (will be recomputed)
-        p_i.N = 0.0;  // Placeholder (will be computed from kernel sum)
-        
-        // These are for output/diagnostics (use smoothed values)
-        const real u_smooth = P_smooth / ((gamma - 1.0) * n_smooth);
-        p_i.ene = u_smooth;
-        const real H_smooth = 1.0 + u_smooth / c2 + P_smooth / (n_smooth * c2);
-        p_i.sound = std::sqrt((gamma - 1.0) * (H_smooth - 1.0) / H_smooth) * c_speed;
-        p_i.enthalpy = H_smooth;
+        // Compute Lorentz factor and derived quantities
         real v2 = vel[0]*vel[0];
         #if DIM >= 2
         v2 += vel[1]*vel[1];
@@ -183,6 +162,33 @@ void Solver::make_sr_sod()
         v2 += vel[2]*vel[2];
         #endif
         p_i.gamma_lor = 1.0 / std::sqrt(1.0 - v2 / c2);
+        
+        const real u_smooth = P_smooth / ((gamma - 1.0) * n_smooth);
+        const real H_smooth = 1.0 + u_smooth / c2 + P_smooth / (n_smooth * c2);
+        p_i.sound = std::sqrt((gamma - 1.0) * (H_smooth - 1.0) / H_smooth) * c_speed;
+        p_i.enthalpy = H_smooth;
+        
+        // Initialize conserved variables from primitives
+        // IMPORTANT: Conserved variables S and e are stored in DEDICATED S and e fields
+        // The vel and ene fields are used for OUTPUT of primitive variables
+        
+        // Compute conserved quantities from smoothed primitives
+        // N = γn (lab-frame baryon number density)
+        // S = γHv (canonical momentum)
+        // e = γH - P/(Nc²) (canonical energy)
+        const real N_conserved = p_i.gamma_lor * n_smooth;  // Lab-frame density
+        const vec_t S_conserved = vel * (p_i.gamma_lor * H_smooth);  // S = γHv
+        const real e_conserved = p_i.gamma_lor * H_smooth - P_smooth / (N_conserved * c2);  // e = γH - P/(Nc²)
+        
+        const real u_internal = P_smooth / ((gamma - 1.0) * n_smooth); // Specific internal energy
+        
+        p_i.N = N_conserved;    // Store lab-frame density
+        p_i.S = S_conserved;    // Store S in DEDICATED S field
+        p_i.e = e_conserved;    // Store e in DEDICATED e field
+        p_i.vel = vel;          // Store PRIMITIVE velocity for initial output
+        p_i.ene = u_internal;   // Store PRIMITIVE internal energy
+        p_i.pres = P_smooth;    // For initial output  
+        p_i.dens = N_conserved; // Store lab-frame density for output
     }
     
     // ============================================================================
@@ -212,22 +218,7 @@ void Solver::make_sr_sod()
         vel[2] = 0.0;
         #endif
         
-        p_i.vel = vel;
-        p_i.pres = P_smooth;  // SMOOTH pressure
-        p_i.dens = n_smooth;  // SMOOTH rest-frame density
-        
-        // DO NOT compute conserved variables here!
-        // They will be computed in pre_interaction after N is smoothed
-        p_i.S = 0.0;  // Placeholder (will be recomputed)
-        p_i.e = 0.0;  // Placeholder (will be recomputed)
-        p_i.N = 0.0;  // Placeholder (will be computed from kernel sum)
-        
-        // For output/diagnostics (use smoothed values)
-        const real u_smooth = P_smooth / ((gamma - 1.0) * n_smooth);
-        p_i.ene = u_smooth;
-        const real H_smooth = 1.0 + u_smooth / c2 + P_smooth / (n_smooth * c2);
-        p_i.sound = std::sqrt((gamma - 1.0) * (H_smooth - 1.0) / H_smooth) * c_speed;
-        p_i.enthalpy = H_smooth;
+        // Compute Lorentz factor and derived quantities
         real v2 = vel[0]*vel[0];
         #if DIM >= 2
         v2 += vel[1]*vel[1];
@@ -236,6 +227,33 @@ void Solver::make_sr_sod()
         v2 += vel[2]*vel[2];
         #endif
         p_i.gamma_lor = 1.0 / std::sqrt(1.0 - v2 / c2);
+        
+        const real u_smooth = P_smooth / ((gamma - 1.0) * n_smooth);
+        const real H_smooth = 1.0 + u_smooth / c2 + P_smooth / (n_smooth * c2);
+        p_i.sound = std::sqrt((gamma - 1.0) * (H_smooth - 1.0) / H_smooth) * c_speed;
+        p_i.enthalpy = H_smooth;
+        
+        // Initialize conserved variables from primitives
+        // IMPORTANT: Conserved variables S and e are stored in DEDICATED S and e fields
+        // The vel and ene fields are used for OUTPUT of primitive variables
+        
+        // Compute conserved quantities from smoothed primitives
+        // N = γn (lab-frame baryon number density)
+        // S = γHv (canonical momentum)
+        // e = γH - P/(Nc²) (canonical energy)
+        const real N_conserved = p_i.gamma_lor * n_smooth;  // Lab-frame density
+        const vec_t S_conserved = vel * (p_i.gamma_lor * H_smooth);  // S = γHv
+        const real e_conserved = p_i.gamma_lor * H_smooth - P_smooth / (N_conserved * c2);  // e = γH - P/(Nc²)
+        
+        const real u_internal = P_smooth / ((gamma - 1.0) * n_smooth); // Specific internal energy
+        
+        p_i.N = N_conserved;    // Store lab-frame density
+        p_i.S = S_conserved;    // Store S in DEDICATED S field
+        p_i.e = e_conserved;    // Store e in DEDICATED e field
+        p_i.vel = vel;          // Store PRIMITIVE velocity for initial output
+        p_i.ene = u_internal;   // Store PRIMITIVE internal energy
+        p_i.pres = P_smooth;    // For initial output  
+        p_i.dens = N_conserved; // Store lab-frame density for output
     }
     
     m_sim->set_particles(p);

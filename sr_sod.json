@@ -1,8 +1,8 @@
 {
-  "outputDirectory": "sample/sr_sod/results/iterative",
+  "outputDirectory": "sample/sr_sod/results/sharp",
   "startTime": 0.0,
   "endTime": 0.35,
-  "outputTime": 0.01,
+  "outputTime": 0.002,
   "energyTime": 0.01,
   "checkpoint": {
     "enabled": false,
@@ -18,24 +18,23 @@
     "enableEnergyFile": true
   },
   "SPHType": "srgsph",
-  "use2ndOrderSRGSPH": false,
+  "use2ndOrderSRGSPH": true,
   "riemannSolverSRGSPH": "ITERATIVE",
   "cSpeed": 1.0,
-  "cShock": 3.0,
-  "cContactDiscontinuity": 1.0,
   "etaSmoothingLength": 1.0,
   "fixedSmoothingLength": -1.0,
   "gamma": 1.666666667,
-  "kernel": "gaussian",
+  "kernel": "cubic_spline",
   "iterativeSmoothingLength": false,
   "neighborNumber": 50,
-  "N": 400,
+  "N": 200,
   "different_nu": false,
   "periodic": false,
   "rangeMax": [0.5],
   "rangeMin": [-0.5],
-  "avAlpha": 1.0,
+  "avAlpha": 0.0,
   "useBalsaraSwitch": false,
-  "cflSound": 0.5,
-  "cflForce": 0.125
+  "cflSound": 0.8,
+  "cflForce": 0.25,
+  "_comment": "This config attempts SHARP (unsmoothed) initial conditions to test extreme pressure ratios"
 }

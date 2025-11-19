@@ -69,7 +69,7 @@ def main():
     if len(sys.argv) > 1:
         results_dir = Path(sys.argv[1])
     else:
-        results_dir = Path(__file__).parent.parent / 'results' / 'same_nu'
+        results_dir = Path(__file__).parent.parent / 'results' / 'iterative'
     
     if not results_dir.exists():
         print(f"Error: Results directory not found: {results_dir}")
@@ -175,14 +175,20 @@ def main():
         interval=100, blit=True, repeat=True
     )
     
-    # Save animation
-    output_file = results_dir / f'sr_sod_animation_{solver_type.lower()}.gif'
-    print(f"Saving animation to {output_file}...")
-    
-    writer = animation.PillowWriter(fps=10)
-    anim.save(output_file, writer=writer, dpi=100)
-    
-    print(f"✓ Animation saved: {output_file}")
+    # Save animation - try MP4 first (faster), fallback to GIF
+    try:
+        output_file = results_dir / f'sr_sod_animation_{solver_type.lower()}.mp4'
+        print(f"Saving animation to {output_file} (MP4)...")
+        writer = animation.FFMpegWriter(fps=10, bitrate=1800)
+        anim.save(output_file, writer=writer, dpi=80)
+        print(f"✓ Animation saved: {output_file}")
+    except (RuntimeError, FileNotFoundError):
+        # FFmpeg not available, use GIF with lower DPI for speed
+        output_file = results_dir / f'sr_sod_animation_{solver_type.lower()}.gif'
+        print(f"Saving animation to {output_file} (GIF, lower quality for speed)...")
+        writer = animation.PillowWriter(fps=10)
+        anim.save(output_file, writer=writer, dpi=60)
+        print(f"✓ Animation saved: {output_file}")
     print(f"  Solver: {solver_type} ({solver_name})")
     print(f"  File size: {output_file.stat().st_size / 1024 / 1024:.2f} MB")
     print(f"  Frames: {len(all_data)}")

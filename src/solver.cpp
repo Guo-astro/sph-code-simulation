@@ -731,6 +731,10 @@ void Solver::initialize()
         names.push_back("grad_velocity_1");
         names.push_back("grad_velocity_2");
 #endif
+        // SRGSPH also needs number density gradient
+        if(m_param->type == SPHType::SRGSPH) {
+            names.push_back("grad_number_density");
+        }
         m_sim->add_vector_array(names);
     }
 
@@ -1004,26 +1008,17 @@ void Solver::predict()
 
     assert(p.size() == num);
 
-    // SR-GSPH uses different integration (conserved variables)
+    // SR-GSPH: Integrate CONSERVED variables (S, e, N)
+    // Standard SPH: Integrate PRIMITIVE variables (v, u, ρ)
     if(m_param->type == SPHType::SRGSPH) {
         const real c_speed = m_param->srgsph.c_speed;
-        
-        // DIAGNOSTIC: Print force values at first few steps
-        static int step_count = 0;
-        if(step_count < 3) {
-            std::cerr << "\n=== STEP " << step_count << " FORCE DIAGNOSTIC ===" << std::endl;
-            for(int i = 0; i < std::min(5, num); ++i) {
-                std::cerr << "Particle " << i << ": S=" << std::abs(p[i].S) 
-                          << " dS/dt=" << std::abs(p[i].dS) 
-                          << " N=" << p[i].N << " nu=" << p[i].nu
-                          << " |dS|*dt=" << std::abs(p[i].dS * dt) << std::endl;
-            }
-            step_count++;
-        }
-        
+
 #pragma omp parallel for
         for(int i = 0; i < num; ++i) {
-            // For SR-GSPH: Integrate conserved variables S and e
+            // === SR-GSPH TIME INTEGRATION ===
+            // Integrate CONSERVED variables: S (canonical momentum), e (canonical energy)
+            // Using predictor-corrector with half-step for position update
+            
             // Half-step for predictor (k -> k+1/2)
             vec_t S_half = p[i].S + p[i].dS * (0.5 * dt);
             real e_half = p[i].e + p[i].de * (0.5 * dt);
@@ -1035,20 +1030,14 @@ void Solver::predict()
                 S_half = S_half * (0.85 / S_half_ratio);
             }
             
-            // Full step for position and conserved variables (k -> k+1)
-            p[i].S += p[i].dS * dt;
-            p[i].e += p[i].de * dt;
+            // Full step: Update CONSERVED variables (k -> k+1)
+            // These are the ONLY variables that are time-integrated in SR-GSPH!
+            p[i].S += p[i].dS * dt;  // S^(n+1) = S^n + (dS/dt)·Δt
+            p[i].e += p[i].de * dt;  // e^(n+1) = e^n + (de/dt)·Δt
             
             // CRITICAL: Floor energy to prevent NaN in primitive recovery
             // In extreme cases, de can be so large that e becomes negative
             if(p[i].e < 1.0e-6) {
-                static int floor_count = 0;
-                if(floor_count < 5) {
-                    printf("\n=== ENERGY FLOOR WARNING ===\n");
-                    printf("Particle i=%d: e=%.6e floored to 1e-6\n", i, p[i].e);
-                    printf("de=%.6e, dt=%.6e, de*dt=%.6e\n", p[i].de, dt, p[i].de * dt);
-                    floor_count++;
-                }
                 p[i].e = 1.0e-6;
             }
             
@@ -1059,14 +1048,6 @@ void Solver::predict()
             if(S_over_e > 0.85) {  // Conservative threshold: ensure v < 0.85c
                 const real scale = 0.85 / S_over_e;
                 p[i].S = p[i].S * scale;
-                
-                static int limit_count = 0;
-                if(limit_count < 5) {
-                    printf("\n=== LIMITING SUPERLUMINAL STATE (Time Integration) ===\n");
-                    printf("Particle i=%d: S_mag=%.6e, e=%.6e, N=%.6e\n", i, S_mag, p[i].e, p[i].N);
-                    printf("S/e ratio: %.6e > 0.85, scaling S by %.6e\n", S_over_e, scale);
-                    limit_count++;
-                }
             }
             
             // Floor on N to prevent division by zero
@@ -1086,20 +1067,24 @@ void Solver::predict()
                 p[i].S, p[i].e, p[i].N, gamma, c_speed
             );
             
-            // Store primitive variables for output and next step
-            p[i].vel = prim_full.vel;
-            p[i].vel_p = prim_half.vel;  // Store half-step velocity
-            // Internal energy: u = P/[(γ-1)ρ] for ideal gas EOS
-            p[i].ene = prim_full.pressure / ((gamma - 1.0) * prim_full.density);
+            // Store PRIMITIVE variables for output and next step's Riemann solver
+            // NOTE: These fields have DIFFERENT meanings in SRGSPH vs standard SPH!
+            //   - vel: primitive velocity v (NOT time-integrated, just recovered)
+            //   - ene: primitive internal energy u (NOT conserved energy e!)
+            //   - dens: lab-frame density N = γn (NOT rest-frame density!)
+            p[i].vel = prim_full.vel;      // Primitive velocity v
+            p[i].vel_p = prim_half.vel;    // Half-step velocity (for position update)
+            p[i].ene = prim_full.pressure / ((gamma - 1.0) * prim_full.density);  // u = P/[(γ-1)n]
             p[i].ene_p = prim_half.pressure / ((gamma - 1.0) * prim_half.density);
             p[i].pres = prim_full.pressure;
-            p[i].dens = prim_full.density;
+            p[i].dens = prim_full.density;  // Rest-frame density n (for output)
             p[i].sound = prim_full.sound_speed;
             p[i].gamma_lor = prim_full.gamma_lor;
             p[i].enthalpy = prim_full.enthalpy;
         }
     } else {
-        // Standard SPH integration
+        // === STANDARD SPH TIME INTEGRATION ===
+        // Integrate PRIMITIVE variables: v (velocity), u (internal energy)
 #pragma omp parallel for
         for(int i = 0; i < num; ++i) {
             // k -> k+1/2
