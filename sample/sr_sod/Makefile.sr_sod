@@ -1,17 +1,17 @@
 # SR-GSPH Test Suite Makefile
+# Based on Kitajima et al. (2025) arXiv:2510.18251v1
 #
 # Usage:
-#   make sr_sod                    # Run SR Sod + animation
-#   make sr_blast_wave             # Run standard blast wave + animation
-#   make sr_strong_blast           # Run strong blast wave + animation
-#   make sr_ultra_relat            # Run ultra-relativistic (v varies) + animation
-#   make sr_ultra_v090             # Run v=0.9c + animation
-#   make sr_ultra_v099             # Run v=0.99c + animation
-#   make sr_ultra_v0999            # Run v=0.999c + animation
+#   make -f sample/sr_sod/Makefile.sr_sod sr_sod          # Sod Fig.1 (3200+400)
+#   make -f sample/sr_sod/Makefile.sr_sod sr_sod_kitajima # Sod Fig.2 (1800+1800)
+#   make -f sample/sr_sod/Makefile.sr_sod sr_blast_wave   # Standard blast wave
+#   make -f sample/sr_sod/Makefile.sr_sod sr_strong_blast # Strong blast wave
+#   make -f sample/sr_sod/Makefile.sr_sod sr_ultra_v090   # v=0.9c
+#   make -f sample/sr_sod/Makefile.sr_sod sr_ultra_v099   # v=0.99c
+#   make -f sample/sr_sod/Makefile.sr_sod sr_ultra_v0999  # v=0.999c
 #
-#   make sr_all                    # Run all 7 tests + animations
-#   make sr_clean                  # Clean all results
-#   make sr_help                   # Show help
+#   make -f sample/sr_sod/Makefile.sr_sod sr_all          # Run all tests
+#   make -f sample/sr_sod/Makefile.sr_sod sr_clean        # Clean results
 
 # Paths
 SR_SOD_DIR = sample/sr_sod
@@ -19,8 +19,12 @@ PRESET_DIR = $(SR_SOD_DIR)/config/presets
 RESULTS_DIR = $(SR_SOD_DIR)/results
 SCRIPTS_DIR = $(SR_SOD_DIR)/scripts
 
-.PHONY: sr_sod sr_blast_wave sr_strong_blast sr_ultra_relat sr_ultra_v090 sr_ultra_v099 sr_ultra_v0999 \
-        sr_all sr_clean sr_help sr_check_dim
+# Animation script (use the one in sample/sr_sod/scripts or fall back to scripts/)
+ANIMATE_SCRIPT = $(shell if [ -f $(SCRIPTS_DIR)/animate_sr_sod.py ]; then echo $(SCRIPTS_DIR)/animate_sr_sod.py; else echo scripts/animate_sr_sod.py; fi)
+
+.PHONY: sr_sod sr_sod_kitajima sr_blast_wave sr_strong_blast \
+        sr_ultra_relat sr_ultra_v090 sr_ultra_v099 sr_ultra_v0999 \
+        sr_all sr_clean sr_help sr_check_dim sr_quick
 
 # ============================================================================
 # Dimension Check
@@ -28,7 +32,7 @@ SCRIPTS_DIR = $(SR_SOD_DIR)/scripts
 
 sr_check_dim:
 	@if ! grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
-		echo "❌ ERROR: SR tests require DIM=1 build"; \
+		echo "ERROR: SR tests require DIM=1 build"; \
 		echo ""; \
 		echo "To rebuild for 1D:"; \
 		echo "  cd build && cmake -DSPH_DIM=1 .. && make -j8 && cd .."; \
@@ -39,146 +43,147 @@ sr_check_dim:
 # Individual Test Targets (Simulation + Animation)
 # ============================================================================
 
-# SR Sod shock tube
-sr_sod: build/sph sr_check_dim
+# Quick test (200+200 particles)
+sr_quick: build/sph sr_check_dim
 	@echo "=========================================="
-	@echo "SR Sod Shock Tube"
+	@echo "SR Sod Quick Test (200+200)"
 	@echo "=========================================="
-	@cp $(PRESET_DIR)/sr_sod.json sr_sod.json
-	@mkdir -p $(RESULTS_DIR)/sharp
+	@cp $(PRESET_DIR)/sr_sod_sharp.json sr_sod.json
+	@mkdir -p $(RESULTS_DIR)/sod_quick
 	@echo "[1/2] Running simulation..."
 	@./build/sph sr_sod.json
-	@echo "✓ Simulation complete!"
+	@echo "Done! Results in $(RESULTS_DIR)/sod_quick/"
 	@echo ""
 	@echo "[2/2] Generating animation..."
-	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
-	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py $(RESULTS_DIR)/sharp
-	@echo "✓ Animation complete!"
-	@echo "📁 Results: $(RESULTS_DIR)/sharp/"
+	@python3 $(ANIMATE_SCRIPT) $(RESULTS_DIR)/sod_quick $(RESULTS_DIR)/sod_quick/animation.mp4 5
+	@echo "Animation: $(RESULTS_DIR)/sod_quick/animation.mp4"
 
-# Standard blast wave
+# Sod Figure 1: 3200+400 particles (equal baryon number)
+sr_sod: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "SR Sod Fig.1 (3200+400 particles)"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/sr_sod.json sr_sod.json
+	@mkdir -p $(RESULTS_DIR)/sod_fig1
+	@echo "[1/2] Running simulation..."
+	@./build/sph sr_sod.json
+	@echo "Done! Results in $(RESULTS_DIR)/sod_fig1/"
+	@echo ""
+	@echo "[2/2] Generating animation..."
+	@python3 $(ANIMATE_SCRIPT) $(RESULTS_DIR)/sod_fig1 $(RESULTS_DIR)/sod_fig1/animation.mp4 5
+	@echo "Animation: $(RESULTS_DIR)/sod_fig1/animation.mp4"
+
+# Sod Figure 2: 1800+1800 particles (volume-based approach)
+sr_sod_kitajima: build/sph sr_check_dim
+	@echo "=========================================="
+	@echo "SR Sod Fig.2 (1800+1800 particles)"
+	@echo "=========================================="
+	@cp $(PRESET_DIR)/sr_sod_kitajima.json sr_sod.json
+	@mkdir -p $(RESULTS_DIR)/sod_kitajima
+	@echo "[1/2] Running simulation..."
+	@./build/sph sr_sod.json
+	@echo "Done! Results in $(RESULTS_DIR)/sod_kitajima/"
+	@echo ""
+	@echo "[2/2] Generating animation..."
+	@python3 $(ANIMATE_SCRIPT) $(RESULTS_DIR)/sod_kitajima $(RESULTS_DIR)/sod_kitajima/animation.mp4 5
+	@echo "Animation: $(RESULTS_DIR)/sod_kitajima/animation.mp4"
+
+# Standard blast wave: 5000+500 particles
 sr_blast_wave: build/sph sr_check_dim
 	@echo "=========================================="
-	@echo "SR Standard Blast Wave"
+	@echo "SR Standard Blast Wave (5000+500)"
 	@echo "=========================================="
 	@cp $(PRESET_DIR)/sr_blast_wave.json sr_sod.json
 	@mkdir -p $(RESULTS_DIR)/blast_wave
 	@echo "[1/2] Running simulation..."
 	@./build/sph sr_sod.json
-	@echo "✓ Simulation complete!"
+	@echo "Done! Results in $(RESULTS_DIR)/blast_wave/"
 	@echo ""
 	@echo "[2/2] Generating animation..."
-	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
-	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
-	@echo "✓ Animation complete!"
-	@echo "� Results: $(RESULTS_DIR)/blast_wave/"
+	@python3 $(ANIMATE_SCRIPT) $(RESULTS_DIR)/blast_wave $(RESULTS_DIR)/blast_wave/animation.mp4 5
+	@echo "Animation: $(RESULTS_DIR)/blast_wave/animation.mp4"
 
-# Strong blast wave
+# Strong blast wave: 900+900 particles
 sr_strong_blast: build/sph sr_check_dim
 	@echo "=========================================="
-	@echo "SR Strong Blast Wave"
+	@echo "SR Strong Blast Wave (900+900)"
 	@echo "=========================================="
 	@cp $(PRESET_DIR)/sr_strong_blast.json sr_sod.json
 	@mkdir -p $(RESULTS_DIR)/strong_blast
 	@echo "[1/2] Running simulation..."
 	@./build/sph sr_sod.json
-	@echo "✓ Simulation complete!"
+	@echo "Done! Results in $(RESULTS_DIR)/strong_blast/"
 	@echo ""
 	@echo "[2/2] Generating animation..."
-	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
-	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
-	@echo "✓ Animation complete!"
-	@echo "📁 Results: $(RESULTS_DIR)/strong_blast/"
+	@python3 $(ANIMATE_SCRIPT) $(RESULTS_DIR)/strong_blast $(RESULTS_DIR)/strong_blast/animation.mp4 5
+	@echo "Animation: $(RESULTS_DIR)/strong_blast/animation.mp4"
 
-# Ultra-relativistic shock (general)
-sr_ultra_relat: build/sph sr_check_dim
-	@echo "=========================================="
-	@echo "Ultra-Relativistic Shock"
-	@echo "=========================================="
-	@cp $(PRESET_DIR)/sr_ultra_relat.json sr_sod.json
-	@mkdir -p $(RESULTS_DIR)/ultra_relat
-	@echo "[1/2] Running simulation..."
-	@./build/sph sr_sod.json
-	@echo "✓ Simulation complete!"
-	@echo ""
-	@echo "[2/2] Generating animation..."
-	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
-	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
-	@echo "✓ Animation complete!"
-	@echo "📁 Results: $(RESULTS_DIR)/ultra_relat/"
-
-# Ultra-relativistic v=0.9c
+# Ultra-relativistic: v=0.9c (gamma=2.29)
 sr_ultra_v090: build/sph sr_check_dim
 	@echo "=========================================="
-	@echo "Ultra-Relativistic v=0.9c (γ≈2.29)"
+	@echo "Ultra-Relativistic v=0.9c (gamma=2.29)"
 	@echo "=========================================="
 	@cp $(PRESET_DIR)/sr_ultra_v090.json sr_sod.json
 	@mkdir -p $(RESULTS_DIR)/ultra_v090
 	@echo "[1/2] Running simulation..."
 	@./build/sph sr_sod.json
-	@echo "✓ Simulation complete!"
+	@echo "Done! Results in $(RESULTS_DIR)/ultra_v090/"
 	@echo ""
 	@echo "[2/2] Generating animation..."
-	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
-	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
-	@echo "✓ Animation complete!"
-	@echo "📁 Results: $(RESULTS_DIR)/ultra_v090/"
+	@python3 $(ANIMATE_SCRIPT) $(RESULTS_DIR)/ultra_v090 $(RESULTS_DIR)/ultra_v090/animation.mp4 5
+	@echo "Animation: $(RESULTS_DIR)/ultra_v090/animation.mp4"
 
-# Ultra-relativistic v=0.99c
+# Ultra-relativistic: v=0.99c (gamma=7.09)
 sr_ultra_v099: build/sph sr_check_dim
 	@echo "=========================================="
-	@echo "Ultra-Relativistic v=0.99c (γ≈7.09)"
+	@echo "Ultra-Relativistic v=0.99c (gamma=7.09)"
 	@echo "=========================================="
 	@cp $(PRESET_DIR)/sr_ultra_v099.json sr_sod.json
 	@mkdir -p $(RESULTS_DIR)/ultra_v099
 	@echo "[1/2] Running simulation..."
 	@./build/sph sr_sod.json
-	@echo "✓ Simulation complete!"
+	@echo "Done! Results in $(RESULTS_DIR)/ultra_v099/"
 	@echo ""
 	@echo "[2/2] Generating animation..."
-	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
-	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
-	@echo "✓ Animation complete!"
-	@echo "📁 Results: $(RESULTS_DIR)/ultra_v099/"
+	@python3 $(ANIMATE_SCRIPT) $(RESULTS_DIR)/ultra_v099 $(RESULTS_DIR)/ultra_v099/animation.mp4 5
+	@echo "Animation: $(RESULTS_DIR)/ultra_v099/animation.mp4"
 
-# Ultra-relativistic v=0.999c
+# Ultra-relativistic: v=0.999c (gamma=22.4)
 sr_ultra_v0999: build/sph sr_check_dim
 	@echo "=========================================="
-	@echo "Ultra-Relativistic v=0.999c (γ≈22.4)"
+	@echo "Ultra-Relativistic v=0.999c (gamma=22.4)"
 	@echo "=========================================="
 	@cp $(PRESET_DIR)/sr_ultra_v0999.json sr_sod.json
 	@mkdir -p $(RESULTS_DIR)/ultra_v0999
 	@echo "[1/2] Running simulation..."
 	@./build/sph sr_sod.json
-	@echo "✓ Simulation complete!"
+	@echo "Done! Results in $(RESULTS_DIR)/ultra_v0999/"
 	@echo ""
 	@echo "[2/2] Generating animation..."
-	@chmod +x $(SCRIPTS_DIR)/animate_sr_sod.py
-	@python3 $(SCRIPTS_DIR)/animate_sr_sod.py
-	@echo "✓ Animation complete!"
-	@echo "📁 Results: $(RESULTS_DIR)/ultra_v0999/"
+	@python3 $(ANIMATE_SCRIPT) $(RESULTS_DIR)/ultra_v0999 $(RESULTS_DIR)/ultra_v0999/animation.mp4 5
+	@echo "Animation: $(RESULTS_DIR)/ultra_v0999/animation.mp4"
 
 # ============================================================================
 # Multi-Test Workflow
 # ============================================================================
 
-# Run all 7 tests
+# Run all Kitajima benchmark tests
 sr_all: build/sph sr_check_dim
 	@echo "=========================================="
-	@echo "Running All 7 SR Tests"
+	@echo "Running All Kitajima Benchmark Tests"
 	@echo "=========================================="
 	@echo ""
-	@echo "[1/7] SR Sod..."
+	@echo "[1/7] Sod Fig.1 (3200+400)..."
 	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_sod
 	@echo ""
-	@echo "[2/7] Standard Blast Wave..."
+	@echo "[2/7] Sod Fig.2 (1800+1800)..."
+	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_sod_kitajima
+	@echo ""
+	@echo "[3/7] Standard Blast Wave..."
 	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_blast_wave
 	@echo ""
-	@echo "[3/7] Strong Blast Wave..."
+	@echo "[4/7] Strong Blast Wave..."
 	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_strong_blast
-	@echo ""
-	@echo "[4/7] Ultra-Relativistic (general)..."
-	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_ultra_relat
 	@echo ""
 	@echo "[5/7] Ultra v=0.9c..."
 	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_ultra_v090
@@ -190,7 +195,7 @@ sr_all: build/sph sr_check_dim
 	@$(MAKE) -f sample/sr_sod/Makefile.sr_sod sr_ultra_v0999
 	@echo ""
 	@echo "=========================================="
-	@echo "✓ All 7 tests complete!"
+	@echo "All 7 Kitajima benchmark tests complete!"
 	@echo "=========================================="
 
 # ============================================================================
@@ -201,31 +206,35 @@ sr_clean:
 	@echo "Cleaning all SR test results..."
 	@rm -rf $(RESULTS_DIR)
 	@rm -f sr_sod.json
-	@echo "✓ Cleaned"
+	@echo "Done"
 
 # ============================================================================
 # Help
 # ============================================================================
 
 sr_help:
-	@echo "SR-GSPH Test Suite Makefile"
-	@echo "============================"
+	@echo "SR-GSPH Test Suite - Kitajima et al. (2025)"
+	@echo "==========================================="
 	@echo ""
-	@echo "Individual Tests (run simulation + create animation):"
-	@echo "  make sr_sod          - SR Sod shock tube"
-	@echo "  make sr_blast_wave   - Standard blast wave"
-	@echo "  make sr_strong_blast - Strong blast wave"
-	@echo "  make sr_ultra_relat  - Ultra-relativistic (general)"
-	@echo "  make sr_ultra_v090   - Ultra-relativistic v=0.9c"
-	@echo "  make sr_ultra_v099   - Ultra-relativistic v=0.99c"
-	@echo "  make sr_ultra_v0999  - Ultra-relativistic v=0.999c"
+	@echo "Based on arXiv:2510.18251v1"
+	@echo ""
+	@echo "Individual Tests:"
+	@echo "  sr_quick         - Quick Sod test (200+200) for debugging"
+	@echo "  sr_sod           - Sod Fig.1: 3200+400 particles, equal nu"
+	@echo "  sr_sod_kitajima  - Sod Fig.2: 1800+1800 particles, volume-based"
+	@echo "  sr_blast_wave    - Standard blast wave: 5000+500 particles"
+	@echo "  sr_strong_blast  - Strong blast wave: 900+900 particles"
+	@echo "  sr_ultra_v090    - Ultra-relativistic v=0.9c (gamma=2.29)"
+	@echo "  sr_ultra_v099    - Ultra-relativistic v=0.99c (gamma=7.09)"
+	@echo "  sr_ultra_v0999   - Ultra-relativistic v=0.999c (gamma=22.4)"
 	@echo ""
 	@echo "Batch Operations:"
-	@echo "  make sr_all          - Run all 7 tests"
-	@echo "  make sr_clean        - Clean all results"
+	@echo "  sr_all           - Run all 7 benchmark tests"
+	@echo "  sr_clean         - Clean all results"
 	@echo ""
-	@echo "Examples:"
-	@echo "  make -f sample/sr_sod/Makefile.sr_sod sr_sod"
-	@echo "  make -f sample/sr_sod/Makefile.sr_sod sr_all"
+	@echo "Parameters (from Kitajima paper):"
+	@echo "  eta = 1.0, C_smooth = 2.0, C_shock = 3.0, C_cd = 1.0"
+	@echo "  CFL = 0.3, gamma_c = 5/3, kernel = Gaussian"
 	@echo ""
-	@echo "Note: Requires DIM=1 build configuration."
+	@echo "Example:"
+	@echo "  make -f sample/sr_sod/Makefile.sr_sod sr_sod_kitajima"

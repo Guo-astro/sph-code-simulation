@@ -1,5 +1,14 @@
-// Special Relativistic Sod Shock Tube Test
-// Implementation of Kitajima et al. (2025) arXiv:2510.18251v1 Section 3.1.1
+// Special Relativistic Shock Tube Tests
+// Implementation of Kitajima et al. (2025) arXiv:2510.18251v1 Section 3
+//
+// Test Types (set via "testType" parameter):
+//   "sod"           - Sod shock tube (Section 3.1.1)
+//   "blast_wave"    - Standard relativistic blast wave (Section 3.1.2)
+//   "strong_blast"  - Strong relativistic blast wave (Section 3.1.3)
+//
+// Particle distribution modes (set via "particleMode" parameter):
+//   "equal_nu"      - Equal baryon number per particle (Fig. 1 style)
+//   "equal_N"       - Equal particle count on both sides (Fig. 2 style)
 
 #include "solver.hpp"
 #include "simulation.hpp"
@@ -9,6 +18,7 @@
 #include "logger.hpp"
 #include "srgsph/sr_primitive_recovery.hpp"
 #include <cmath>
+#include <string>
 
 namespace sph
 {
@@ -23,174 +33,160 @@ void Solver::make_sr_sod()
     const real gamma = m_param->physics.gamma;
     const real c_speed = m_param->srgsph.c_speed;
     const real c2 = c_speed * c_speed;
-    
-    // Different baryon number test (default: false)
-    bool different_nu = false;
-    if (m_sample_parameters.count("different_nu")) {
-        different_nu = boost::any_cast<bool>(m_sample_parameters["different_nu"]);
+
+    // ============================================================================
+    // Test type selection (default: sod)
+    // ============================================================================
+    std::string test_type = "sod";
+    if (m_sample_parameters.count("testType")) {
+        test_type = boost::any_cast<std::string>(m_sample_parameters["testType"]);
     }
-    
-    // Uniform test mode (for debugging): use uniform P, n everywhere
-    bool uniform_test = false;  // DISABLED - Test actual Sod shock
-    if (m_sample_parameters.count("uniform_test")) {
-        uniform_test = boost::any_cast<bool>(m_sample_parameters["uniform_test"]);
+
+    // Particle distribution mode (default: equal_N for Fig. 2 style)
+    std::string particle_mode = "equal_N";
+    if (m_sample_parameters.count("particleMode")) {
+        particle_mode = boost::any_cast<std::string>(m_sample_parameters["particleMode"]);
     }
-    
+
     // ============================================================================
-    // Initial conditions from Kitajima et al. (2025) Section 3.1.1, Eqs. 74-75
+    // Initial conditions based on test type
+    // From Kitajima et al. (2025) Section 3.1
     // ============================================================================
-    // Left state:  (P_L, n_L, v_Lx, v_Lt) = (1.0, 1.0, 0, 0)
-    // Right state: (P_R, n_R, v_Rx, v_Rt) = (0.1, 0.125, 0, 0)
-    // Particles: 3200 left, 400 right (8:1 ratio)
-    // Equal baryon numbers per particle (ν_left = ν_right)
-    // ============================================================================
-    
-    const int N_left = N * 8;
-    const int N_right = N;
+    real P_left, n_left, v_left;
+    real P_right, n_right, v_right;
+    int N_left, N_right;
+
+    if (test_type == "sod") {
+        // Section 3.1.1 Sod Problem (Eqs. 74-75)
+        // Left:  (P, n, v) = (1.0, 1.0, 0)
+        // Right: (P, n, v) = (0.1, 0.125, 0)
+        P_left = 1.0;
+        n_left = 1.0;
+        v_left = 0.0;
+        P_right = 0.1;
+        n_right = 0.125;
+        v_right = 0.0;
+
+        if (particle_mode == "equal_nu") {
+            // Figure 1: 3200 left + 400 right (equal baryon number per particle)
+            // Override N to match paper if not specified
+            N_left = (N > 0) ? static_cast<int>(N * 8.0 / 9.0) : 3200;
+            N_right = (N > 0) ? static_cast<int>(N * 1.0 / 9.0) : 400;
+        } else {
+            // Figure 2: Equal count on both sides (different baryon numbers)
+            N_left = N;
+            N_right = N;
+        }
+        WRITE_LOG << "Test type: SOD (Section 3.1.1)";
+
+    } else if (test_type == "blast_wave") {
+        // Section 3.1.2 Standard Relativistic Blast Wave
+        // Left:  (P, n, v) = (40/3, 10.0, 0)
+        // Right: (P, n, v) = (10^-6, 1.0, 0)
+        P_left = 40.0 / 3.0;
+        n_left = 10.0;
+        v_left = 0.0;
+        P_right = 1.0e-6;
+        n_right = 1.0;
+        v_right = 0.0;
+
+        if (particle_mode == "equal_nu") {
+            // 5000 left + 500 right (equal baryon number per particle)
+            N_left = (N > 0) ? static_cast<int>(N * 10.0 / 11.0) : 5000;
+            N_right = (N > 0) ? static_cast<int>(N * 1.0 / 11.0) : 500;
+        } else {
+            N_left = N;
+            N_right = N;
+        }
+        WRITE_LOG << "Test type: STANDARD BLAST WAVE (Section 3.1.2)";
+
+    } else if (test_type == "strong_blast") {
+        // Section 3.1.3 Strong Relativistic Blast Wave
+        // Left:  (P, n, v) = (1000, 1.0, 0)
+        // Right: (P, n, v) = (0.01, 1.0, 0)
+        P_left = 1000.0;
+        n_left = 1.0;
+        v_left = 0.0;
+        P_right = 0.01;
+        n_right = 1.0;
+        v_right = 0.0;
+
+        // 900 left + 900 right (equal count, different ν due to different n)
+        N_left = N;
+        N_right = N;
+        WRITE_LOG << "Test type: STRONG BLAST WAVE (Section 3.1.3)";
+
+    } else {
+        THROW_ERROR("Unknown test type: " + test_type);
+    }
+
     const int num = N_left + N_right;
-    
+
     // Domain: x ∈ [-0.5, 0.5], discontinuity at x=0
     const real x_left_start = -0.5;
     const real x_left_end = 0.0;
     const real x_right_start = 0.0;
     const real x_right_end = 0.5;
-    
+
     const real dx_left = (x_left_end - x_left_start) / N_left;
     const real dx_right = (x_right_end - x_right_start) / N_right;
-    
-    // Left state primitive variables (Eq. 74)
-    real P_left = 1.0;
-    real n_left = 1.0;   // rest-frame baryon number density
-    real v_left = 0.0;
-    
-    // Right state primitive variables (Eq. 75)
-    real P_right = 0.1;
-    real n_right = 0.125;  // rest-frame baryon number density
-    real v_right = 0.0;
-    
-    // Uniform test mode override (BEFORE using these values)
-    if (uniform_test) {
-        P_left = P_right = 0.5;
-        n_left = n_right = 0.5;
-        v_left = v_right = 0.0;
-        WRITE_LOG << "UNIFORM TEST MODE: P=" << P_left << ", n=" << n_left;
-    }
-    
+
     // Baryon number per particle (ν)
-    // Paper states: "Using SPH particles that have equal baryon numbers"
-    real nu_left, nu_right;
-    if (different_nu) {
-        // Different ν test (Fig. 5 in paper)
-        // Conserve total baryon: N_left × ν_left = N_right × ν_right
-        nu_left = 1.0;
-        nu_right = static_cast<real>(N_left) / static_cast<real>(N_right) * nu_left;
-    } else {
-        // Equal ν (Fig. 4 in paper - standard Sod test)
-        // 
-        // For VARIABLE smoothing length:
-        // Set ν based on particle spacing and density
-        // ν ≈ n × volume_per_particle = n × dx
-        //
-        // Left region: ν_left = n_left × dx_left
-        // Right region: ν_right = n_right × dx_right
-        // 
-        // For EQUAL ν: use the left state as reference
-        nu_left = n_left * dx_left;
-        nu_right = nu_left;  // EQUAL ν for both regions (standard test)
-    }
-    
+    // For volume-based approach: ν = n * dx
+    const real nu_left = n_left * dx_left;
+    const real nu_right = n_right * dx_right;
+
     std::vector<SPHParticle> p(num);
-    
-    // ============================================================================
-    // Smooth transition zone to avoid huge initial forces
-    // ============================================================================
-    // Instead of sharp discontinuity at x=0, use smooth transition over ~20h
-    // This prevents enormous pressure gradients on first timestep
-    const real x_discontinuity = 0.0;
-    const real h_global = 0.0110;  // Approximate value
-    const real transition_width = 20.0 * h_global;  // ~0.22
-    
-    // Lambda for smooth interpolation
-    auto smooth_state = [&](real x, real val_left, real val_right) -> real {
-        real dist = x - x_discontinuity;
-        if (dist < -0.5 * transition_width) return val_left;
-        if (dist > 0.5 * transition_width) return val_right;
-        // Smooth tanh transition
-        real xi = dist / transition_width;  // ∈ [-0.5, 0.5]
-        real s = 0.5 * (1.0 + std::tanh(5.0 * xi));  // 0→1 smoothly
-        return val_left + s * (val_right - val_left);
-    };
-    
+
     // ============================================================================
     // Initialize left state particles
     // ============================================================================
-    // Strategy: Set primitive variables (P, v) and ν directly.
-    // DO NOT set conserved variables (S, e) yet!
-    // After all particles are initialized, pre_interaction will:
-    // 1. Compute N from kernel sum
-    // 2. Compute conserved (S, e) from primitives and smoothed N
     for (int i = 0; i < N_left; ++i) {
         auto& p_i = p[i];
         p_i.id = i;
         p_i.pos[0] = x_left_start + (i + 0.5) * dx_left;
-        
+
         // Baryon number per particle
         p_i.nu = nu_left;
         p_i.mass = nu_left;
-        
-        // SMOOTHED primitive variables (avoids huge initial forces)
-        real x = p_i.pos[0];
-        real P_smooth = smooth_state(x, P_left, P_right);
-        real n_smooth = smooth_state(x, n_left, n_right);
-        real v_smooth = smooth_state(x, v_left, v_right);
-        
+
         vec_t vel;
-        vel[0] = v_smooth;
-        #if DIM >= 2
-        vel[1] = 0.0;
-        #endif
-        #if DIM == 3
-        vel[2] = 0.0;
-        #endif
-        
-        // Compute Lorentz factor and derived quantities
-        real v2 = vel[0]*vel[0];
-        #if DIM >= 2
-        v2 += vel[1]*vel[1];
-        #endif
-        #if DIM == 3
-        v2 += vel[2]*vel[2];
-        #endif
+        vel[0] = v_left;
+
+        // Compute Lorentz factor
+        const real v2 = vel[0] * vel[0];
         p_i.gamma_lor = 1.0 / std::sqrt(1.0 - v2 / c2);
-        
-        const real u_smooth = P_smooth / ((gamma - 1.0) * n_smooth);
-        const real H_smooth = 1.0 + u_smooth / c2 + P_smooth / (n_smooth * c2);
-        p_i.sound = std::sqrt((gamma - 1.0) * (H_smooth - 1.0) / H_smooth) * c_speed;
-        p_i.enthalpy = H_smooth;
-        
-        // Initialize conserved variables from primitives
-        // IMPORTANT: Conserved variables S and e are stored in DEDICATED S and e fields
-        // The vel and ene fields are used for OUTPUT of primitive variables
-        
-        // Compute conserved quantities from smoothed primitives
-        // N = γn (lab-frame baryon number density)
-        // S = γHv (canonical momentum)
-        // e = γH - P/(Nc²) (canonical energy)
-        const real N_conserved = p_i.gamma_lor * n_smooth;  // Lab-frame density
-        const vec_t S_conserved = vel * (p_i.gamma_lor * H_smooth);  // S = γHv
-        const real e_conserved = p_i.gamma_lor * H_smooth - P_smooth / (N_conserved * c2);  // e = γH - P/(Nc²)
-        
-        const real u_internal = P_smooth / ((gamma - 1.0) * n_smooth); // Specific internal energy
-        
-        p_i.N = N_conserved;    // Store lab-frame density
-        p_i.S = S_conserved;    // Store S in DEDICATED S field
-        p_i.e = e_conserved;    // Store e in DEDICATED e field
-        p_i.vel = vel;          // Store PRIMITIVE velocity for initial output
-        p_i.ene = u_internal;   // Store PRIMITIVE internal energy
-        p_i.pres = P_smooth;    // For initial output  
-        p_i.dens = N_conserved; // Store lab-frame density for output
+
+        // Thermodynamic quantities
+        const real u_init = P_left / ((gamma - 1.0) * n_left);
+        const real H_init = 1.0 + u_init / c2 + P_left / (n_left * c2);
+        p_i.sound = std::sqrt((gamma - 1.0) * (H_init - 1.0) / H_init) * c_speed;
+        p_i.enthalpy = H_init;
+
+        // Conserved variables
+        const real N_conserved = p_i.gamma_lor * n_left;
+        const vec_t S_conserved = vel * (p_i.gamma_lor * H_init);
+        const real X = gamma / (gamma - 1.0);
+        const real e_conserved = (H_init * (X * p_i.gamma_lor * p_i.gamma_lor - 1.0) + 1.0) / (X * p_i.gamma_lor);
+
+        p_i.N = N_conserved;
+        p_i.S = S_conserved;
+        p_i.e = e_conserved;
+        p_i.vel = vel;
+        p_i.ene = u_init;
+        p_i.pres = P_left;
+        p_i.dens = N_conserved;
+
+        // Initialize derivatives
+        p_i.dS = vec_t(0.0);
+        p_i.de = 0.0;
+        p_i.dS_old = vec_t(0.0);
+        p_i.de_old = 0.0;
+
+        // Smoothing length initial guess
+        p_i.sml = dx_left;
     }
-    
+
     // ============================================================================
     // Initialize right state particles
     // ============================================================================
@@ -198,77 +194,57 @@ void Solver::make_sr_sod()
         auto& p_i = p[N_left + i];
         p_i.id = N_left + i;
         p_i.pos[0] = x_right_start + (i + 0.5) * dx_right;
-        
+
         // Baryon number per particle
         p_i.nu = nu_right;
         p_i.mass = nu_right;
-        
-        // SMOOTHED primitive variables (avoids huge initial forces)
-        real x = p_i.pos[0];
-        real P_smooth = smooth_state(x, P_left, P_right);
-        real n_smooth = smooth_state(x, n_left, n_right);
-        real v_smooth = smooth_state(x, v_left, v_right);
-        
+
         vec_t vel;
-        vel[0] = v_smooth;
-        #if DIM >= 2
-        vel[1] = 0.0;
-        #endif
-        #if DIM == 3
-        vel[2] = 0.0;
-        #endif
-        
-        // Compute Lorentz factor and derived quantities
-        real v2 = vel[0]*vel[0];
-        #if DIM >= 2
-        v2 += vel[1]*vel[1];
-        #endif
-        #if DIM == 3
-        v2 += vel[2]*vel[2];
-        #endif
+        vel[0] = v_right;
+
+        // Compute Lorentz factor
+        const real v2 = vel[0] * vel[0];
         p_i.gamma_lor = 1.0 / std::sqrt(1.0 - v2 / c2);
-        
-        const real u_smooth = P_smooth / ((gamma - 1.0) * n_smooth);
-        const real H_smooth = 1.0 + u_smooth / c2 + P_smooth / (n_smooth * c2);
-        p_i.sound = std::sqrt((gamma - 1.0) * (H_smooth - 1.0) / H_smooth) * c_speed;
-        p_i.enthalpy = H_smooth;
-        
-        // Initialize conserved variables from primitives
-        // IMPORTANT: Conserved variables S and e are stored in DEDICATED S and e fields
-        // The vel and ene fields are used for OUTPUT of primitive variables
-        
-        // Compute conserved quantities from smoothed primitives
-        // N = γn (lab-frame baryon number density)
-        // S = γHv (canonical momentum)
-        // e = γH - P/(Nc²) (canonical energy)
-        const real N_conserved = p_i.gamma_lor * n_smooth;  // Lab-frame density
-        const vec_t S_conserved = vel * (p_i.gamma_lor * H_smooth);  // S = γHv
-        const real e_conserved = p_i.gamma_lor * H_smooth - P_smooth / (N_conserved * c2);  // e = γH - P/(Nc²)
-        
-        const real u_internal = P_smooth / ((gamma - 1.0) * n_smooth); // Specific internal energy
-        
-        p_i.N = N_conserved;    // Store lab-frame density
-        p_i.S = S_conserved;    // Store S in DEDICATED S field
-        p_i.e = e_conserved;    // Store e in DEDICATED e field
-        p_i.vel = vel;          // Store PRIMITIVE velocity for initial output
-        p_i.ene = u_internal;   // Store PRIMITIVE internal energy
-        p_i.pres = P_smooth;    // For initial output  
-        p_i.dens = N_conserved; // Store lab-frame density for output
+
+        // Thermodynamic quantities
+        const real u_init = P_right / ((gamma - 1.0) * n_right);
+        const real H_init = 1.0 + u_init / c2 + P_right / (n_right * c2);
+        p_i.sound = std::sqrt((gamma - 1.0) * (H_init - 1.0) / H_init) * c_speed;
+        p_i.enthalpy = H_init;
+
+        // Conserved variables
+        const real N_conserved = p_i.gamma_lor * n_right;
+        const vec_t S_conserved = vel * (p_i.gamma_lor * H_init);
+        const real X = gamma / (gamma - 1.0);
+        const real e_conserved = (H_init * (X * p_i.gamma_lor * p_i.gamma_lor - 1.0) + 1.0) / (X * p_i.gamma_lor);
+
+        p_i.N = N_conserved;
+        p_i.S = S_conserved;
+        p_i.e = e_conserved;
+        p_i.vel = vel;
+        p_i.ene = u_init;
+        p_i.pres = P_right;
+        p_i.dens = N_conserved;
+
+        // Initialize derivatives
+        p_i.dS = vec_t(0.0);
+        p_i.de = 0.0;
+        p_i.dS_old = vec_t(0.0);
+        p_i.de_old = 0.0;
+
+        // Smoothing length initial guess
+        p_i.sml = dx_right;
     }
-    
+
     m_sim->set_particles(p);
     m_sim->set_particle_num(p.size());
-    
-    WRITE_LOG << "SR Sod shock tube initialized (Kitajima et al. 2025, Eqs. 74-75):";
-    WRITE_LOG << "  Left:  " << N_left << " particles, P=" << P_left 
-             << ", n=" << n_left << ", ν=" << nu_left;
-    WRITE_LOG << "  Right: " << N_right << " particles, P=" << P_right 
-             << ", n=" << n_right << ", ν=" << nu_right;
-    WRITE_LOG << "  Different ν: " << (different_nu ? "YES" : "NO");
-    WRITE_LOG << "  Transition: Smoothed over width " << transition_width << " (~5h)";
-    WRITE_LOG << "  Note: Primitives (P,n,v) smoothly interpolated near x=0 to avoid huge forces.";
-    WRITE_LOG << "        Conserved variables (S,e,N) will be computed by pre_interaction.";
-    WRITE_LOG << "        This ensures consistency between kernel-smoothed N and conserved e.";
+
+    WRITE_LOG << "SR shock tube initialized (Kitajima et al. 2025):";
+    WRITE_LOG << "  Particle mode: " << particle_mode;
+    WRITE_LOG << "  Left:  " << N_left << " particles, P=" << P_left << ", n=" << n_left << ", v=" << v_left;
+    WRITE_LOG << "  Right: " << N_right << " particles, P=" << P_right << ", n=" << n_right << ", v=" << v_right;
+    WRITE_LOG << "  Baryon numbers: nu_L=" << nu_left << ", nu_R=" << nu_right;
+    WRITE_LOG << "  dx_left=" << dx_left << ", dx_right=" << dx_right;
 #endif
 }
 

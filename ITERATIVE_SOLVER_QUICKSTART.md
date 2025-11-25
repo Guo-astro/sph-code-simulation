@@ -1,72 +1,40 @@
-# Quick Start: SR-GSPH Iterative Riemann Solver
+# SR-GSPH Solver Simplification (2025-11 Update)
 
-## What Changed
+The SR-GSPH implementation now follows the Python reference verbatim and always
+uses the exact relativistic Riemann solver (with an automatic HLLC fallback).
+The previous `riemannSolverSRGSPH` toggle and the iterative solver variant have
+been removed to eliminate divergent code paths and hard-to-debug behavior.
 
-You now have **two Riemann solver options** for SR-GSPH:
+## Key Points
 
-1. **EXACT** (default) - Kitajima formulation with Brent's method
-2. **ITERATIVE** (new) - van Leer adapted for special relativity
+- ✅ **Always EXACT:** Every SR-GSPH run now uses the exact solver, matching the
+  `srg_sph.py` reference implementation.
+- 🗑️ **No config knob:** Remove any `"riemannSolverSRGSPH"` entries from JSON
+  presets—they are ignored as of this change.
+- 🧠 **Consistent limiter values:** Defaults follow the Python reference
+  (`C_shock = 3.0`, `C_cd = 0.2`). Override them only if you know you need to.
+- 🧪 **Validation strategy:** Compare against the Python driver or the published
+  SR Sod snapshots rather than toggling solvers.
 
-## Usage
+## Migrating Existing Runs
 
-### Option 1: Use in JSON config
+1. Delete the obsolete field from configs:
 
-Add this line to your SR-GSPH configuration:
+   ```json
+   {
+     "SPHType": "srgsph",
+     "use2ndOrderSRGSPH": true
+   }
+   ```
 
-```json
-{
-  "SPHType": "srgsph",
-  "riemannSolverSRGSPH": "ITERATIVE"
-}
-```
+2. Rebuild and rerun using `./build/sph <preset>.json`.
+3. (Optional) Regenerate animations via
+   `python3 sample/sr_sod/scripts/animate_sr_sod.py sample/sr_sod/results/sharp`.
 
-### Option 2: Test both solvers
+## Historical Note
 
-```bash
-# Run with EXACT solver (default)
-./build/sph sr_sod.json
-
-# Run with ITERATIVE solver
-./build/sph sr_sod_iterative.json
-```
-
-## When to Use ITERATIVE Solver
-
-✅ **Use ITERATIVE when:**
-- Experiencing instabilities with exact solver
-- Moderate shock strengths (Mach < 10)
-- Need more robust convergence
-- Debugging solver issues
-
-❌ **Stick with EXACT when:**
-- High accuracy required
-- Strong relativistic shocks
-- Performance is critical
-- Default behavior works fine
-
-## Files Modified
-
-1. `include/parameters.hpp` - Added `riemann_solver` to SRGSPH struct
-2. `include/srgsph/sr_fluid_force.hpp` - Added `iterative_solver()` declaration
-3. `src/srgsph/sr_fluid_force.cpp` - Implemented relativistic iterative solver
-4. `src/solver.cpp` - Added parameter parsing for solver selection
-
-## Key Differences from GSPH Iterative Solver
-
-The SR-GSPH version includes:
-- Relativistic enthalpy calculations
-- Causality enforcement (|v*| < c)
-- Lorentz factor corrections
-- More iterations (50 vs 20)
-- Tighter tolerance (1e-8 vs 1e-6)
-
-## Testing
-
-The code compiles cleanly and runs without errors. Test with:
-
-```bash
-cd /Users/guo/Downloads/sphcode
-./build/sph sr_sod_iterative.json
-```
-
-See `SR_ITERATIVE_SOLVER.md` for complete documentation.
+The iterative solver prototype served as a debugging aid while porting the
+Python formulation. With the C++ force pipeline now mirroring the reference, a
+single solver path keeps the results reproducible and the codebase easier to
+maintain. This document is retained to explain why the toggle disappeared and
+how to update old presets.

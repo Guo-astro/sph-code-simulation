@@ -33,6 +33,7 @@ class PreInteraction : public sph::PreInteraction {
     bool m_is_2nd_order;  // Whether to use 2nd order MUSCL reconstruction
     bool m_iteration;     // Whether to iterate smoothing length (from iterativeSmoothingLength)
     bool m_first;         // First timestep flag
+    bool m_first_calculation; // First calculation flag (for initializing conserved from primitives)
 
     /**
      * Compute particle volume V_p(x_i) = [Σ_j W(x_i - x_j, h)]^(-1)
@@ -59,7 +60,8 @@ class PreInteraction : public sph::PreInteraction {
         const std::vector<int> & neighbor_list,
         const int n_neighbor,
         const Periodic * periodic,
-        const KernelFunction * kernel
+        const KernelFunction * kernel,
+        const real search_radius
     );
 
     /**

@@ -1,0 +1,289 @@
+================================================================================
+SR-GSPH FORMULA QUICK CHECK GUIDE
+================================================================================
+
+This file provides a QUICK way to verify each formula in the code against the
+papers. Use this when debugging to quickly check if a formula is correct.
+
+HOW TO USE:
+1. Find the code line number you're investigating
+2. Look up the corresponding formula below
+3. Compare with the paper equation number
+4. Verify the plain-text formula matches the code
+
+================================================================================
+PRIMITIVE RECOVERY (sr_primitive_recovery.cpp)
+================================================================================
+
+LINE 120:  X = gamma_eos / (gamma_eos - 1.0);
+FORMULA:   X ≡ γ_c/(γ_c - 1)
+PAPER:     Definition for ideal gas
+CHECK:     ✓ Numerator = γ_c, Denominator = γ_c - 1
+
+LINE 143-149: Quartic equation f(γ)
+FORMULA:   (γ² - 1)(Xeγ - 1)² - S²(Xγ² - 1)² = 0
+PAPER:     Derived from Kitajima Eq. 104 (S=γHv), Eq. 107 (e=γH-P/(Nc²))
+CHECK:     ✓ First term: (w2 - 1.0) * term1^2
+           ✓ Second term: -S_mag² * term2^2
+           ✓ term1 = Xeγ - 1
+           ✓ term2 = Xγ² - 1
+
+LINE 150-154: Derivative df/dγ
+FORMULA:   df/dγ = 2γ(Xeγ-1)² + 2(γ²-1)(Xeγ-1)Xe - 4S²Xγ(Xγ²-1)
+PAPER:     Analytical derivative of quartic
+CHECK:     ✓ Term 1: 2w * term1²
+           ✓ Term 2: 2(w²-1) * term1 * Xe
+           ✓ Term 3: -2S² * term2 * 2Xw = -4S²Xw·term2
+
+LINE 236-239: Velocity recovery
+FORMULA:   v = [(Xγ² - 1)/(γ(Xeγ - 1))] · S
+PAPER:     Derived from S = γHv (Kitajima Eq. 104)
+CHECK:     ✓ Numerator: Xγ² - 1
+           ✓ Denominator: γ(Xeγ - 1)
+           ✓ Multiply by S vector
+
+LINE 338: Rest-frame density
+FORMULA:   n = N/γ
+PAPER:     Kitajima Eq. 91: N = γn
+CHECK:     ✓ prim.density = N / prim.gamma_lor
+
+LINE 348: Enthalpy
+FORMULA:   H = (Xeγ - 1)/(Xγ² - 1)
+PAPER:     From quartic derivation
+CHECK:     ✓ Numerator: Xeγ - 1
+           ✓ Denominator: Xγ² - 1
+
+LINE 357: Internal energy
+FORMULA:   u = c²(H - 1)/γ_c
+PAPER:     From H = 1 + γ_c·u/c² (Kitajima Eq. 112, 119 combined)
+CHECK:     ✓ Numerator: c²(H - 1)
+           ✓ Denominator: γ_c
+
+LINE 363: Pressure
+FORMULA:   P = (γ_c - 1) n u
+PAPER:     Kitajima Eq. 119, ideal gas EOS
+CHECK:     ✓ Factor: γ_c - 1
+           ✓ Multiply by n·u
+
+LINE 370: Sound speed
+FORMULA:   c_s² = (γ_c - 1)(H - 1)/H
+PAPER:     Kitajima Eq. 121
+CHECK:     ✓ Numerator: (γ_c - 1)(H - 1)
+           ✓ Denominator: H
+
+================================================================================
+PRE-INTERACTION (sr_pre_interaction.cpp)
+================================================================================
+
+LINE 129-151: Particle volume V_p
+FORMULA:   V_p(x) = [Σ_j W(x - x_j, h)]^(-1)
+PAPER:     Kitajima Eq. 220
+CHECK:     ✓ Sum kernel W over neighbors
+           ✓ Include self-contribution W(0,h)
+           ✓ Return 1/sum_w
+
+LINE 206-234: Smoothing length iteration
+FORMULA:   h = η · [V_p*]^(1/d) where V_p* = [Σ_j W(x-x_j, C_smooth·h)]^(-1)
+PAPER:     Kitajima Eq. 231, 233
+CHECK:     ✓ Kernel evaluated at C_smooth·h
+           ✓ V_p* = 1/sum_w_star
+           ✓ h_new = η · (V_p*)^(1/d)
+
+LINE 336-337: Number density
+FORMULA:   N = ν/V_p
+PAPER:     Kitajima Eq. 239
+CHECK:     ✓ nu_i = particle baryon number
+           ✓ N_i = nu_i / Vp_i
+
+================================================================================
+FLUID FORCE (sr_fluid_force.cpp)
+================================================================================
+
+LINE 488: Momentum evolution
+FORMULA:   dS/dt = -Σ_j ν·P*·V²_ij·(∇_iW - ∇_jW)
+PAPER:     Kitajima Eq. 209
+CHECK:     ✓ Negative sign
+           ✓ f = dw_ij * (nu_j * pstar * N_prod_inv)
+           ✓ dw_ij = grad_i_W + grad_j_W (symmetric kernel)
+
+LINE 494: Energy evolution
+FORMULA:   de/dt = -Σ_j ν·P*·v*·V²_ij·(∇_iW - ∇_jW)
+PAPER:     Kitajima Eq. 212
+CHECK:     ✓ Negative sign
+           ✓ Uses v* (NOT v*-v_i) - correct for canonical energy
+           ✓ v_star = e_ij * vstar (normal direction)
+
+LINE 428: Volume interpolation (NUMERICAL STABILITY)
+FORMULA (strict):   V²_ij = 0.5(1/N_i² + 1/N_j²)
+FORMULA (code):     V²_ij ≈ 1/(N_i·N_j)
+PAPER:     Kitajima Eq. 209 (strict form)
+CHECK:     ⚠ Intentional deviation for stability
+           ✓ Intermediate scaling: geometric mean
+
+================================================================================
+SHOCK WAVES - TAUB ADIABAT (sr_fluid_force.cpp, lines 897-914)
+================================================================================
+
+LINE 897: Quadratic coefficient a
+FORMULA:   a = 1 + (γ_c-1)(P_a - P)/(γ_c·P)
+PAPER:     Pons riem.tex Eq. 4.16
+CHECK:     ✓ Constant term: 1
+           ✓ Variable term: (γ_c-1)(Pa-P)/(γ_c·P)
+
+LINE 898: Quadratic coefficient b  **CRITICAL**
+FORMULA:   b = -(γ_c-1)(P_a - P)/(γ_c·P) = -(a-1)
+PAPER:     Pons riem.tex Eq. 4.16
+CHECK:     ✓ b = -(a-1), NOT -(a+1)
+           ✓ Verified from Pons LaTeX source
+
+LINE 899: Quadratic coefficient c
+FORMULA:   c = H_a(P_a - P)/n_a - H_a²
+PAPER:     Pons riem.tex Eq. 4.16
+CHECK:     ✓ First term: Ha(Pa-P)/na
+           ✓ Second term: -Ha²
+
+LINE 914: Quadratic solution
+FORMULA:   H = [-b + √(b² - 4ac)] / (2a)
+PAPER:     Standard quadratic formula, positive root
+CHECK:     ✓ Positive root (compression: H > Ha)
+           ✓ Discriminant checked ≥ 0
+
+LINE 930: Post-shock density
+FORMULA:   n = γ_c·P / [(γ_c-1)(H-1)]
+PAPER:     From H = 1 + γ_c·u/c² and P = (γ_c-1)nu
+CHECK:     ✓ Numerator: γ_c·P
+           ✓ Denominator: (γ_c-1)(H-1)
+
+LINE 934: Mass flux squared  **CRITICAL SIGN**
+FORMULA:   j² = -(P - P_a)/(H/n - H_a/n_a)
+PAPER:     Pons Eq. 4.7: j² = -[P]/[H/n]
+CHECK:     ✓ Negative sign (for compression P > Pa gives j² > 0)
+           ✓ [P] = P - Pa (jump notation)
+           ✓ [H/n] = H/n - Ha/na
+
+LINE 948-954: Shock velocity
+FORMULA:   V_s = [N_a²·v_a + sign·|j|·√(j² + N_a²(1-v_a²/c²))] / (j² + N_a²)
+PAPER:     Pons Eq. 5.22
+CHECK:     ✓ N_a = W_a·n_a (lab-frame density)
+           ✓ Numerator: Na²·va + sign·|j|·√(...)
+           ✓ Denominator: j² + Na²
+           ✓ sqrt_arg = j² + Na²(1 - va²/c²)
+
+LINE 961-964: Post-shock normal velocity
+FORMULA:   v* = [γ_s(P-Pa)/j + Ha·Wa·va] / [Ha·Wa + (P-Pa)(γ_s·va/j + 1/(na·Wa))]
+PAPER:     Pons Eq. 6.1 (adapted to Kitajima notation)
+CHECK:     ✓ a_vel numerator matches
+           ✓ b_vel denominator matches
+           ✓ Uses j with sign
+
+LINE 973: Post-shock sound speed
+FORMULA:   c_s² = (γ_c - 1)(H - 1)/H
+PAPER:     Kitajima Eq. 121
+CHECK:     ✓ Same as primitive recovery
+           ✓ Numerator: (γ_c-1)(H-1)
+           ✓ Denominator: H
+
+================================================================================
+RAREFACTION WAVES (sr_fluid_force.cpp, lines 981-999)
+================================================================================
+
+LINE 981-999: Rarefaction velocity
+FORMULA:   v* = c·(A - 1)/(A + 1)
+           A = [(1+va/c)/(1-va/c)] · [(√(γ-1)+csa/c)/(√(γ-1)-csa/c)]^f
+               · [(√(γ-1)-cs/c)/(√(γ-1)+cs/c)]^(-f)
+           where f = sign·2/√(γ-1)
+PAPER:     Pons Eq. 3.20
+CHECK:     ✓ sqgl1 = √(γ_c - 1)
+           ✓ term1 = (1+va/c)/(1-va/c)
+           ✓ term2 = (√(γ-1)+csa/c)/(√(γ-1)-csa/c)
+           ✓ term3 = (√(γ-1)-cs/c)/(√(γ-1)+cs/c)
+           ✓ exponent = -sign·2/√(γ-1)
+           ✓ A = term1 · (term2·term3)^exponent
+           ✓ vel = c·(A-1)/(A+1)
+
+================================================================================
+TANGENTIAL VELOCITY COUPLING (sr_fluid_force.cpp)
+================================================================================
+
+LINE 983-984: Post-wave tangential velocity
+FORMULA:   v^t_* = v^t_a · W_a/W_*
+PAPER:     Pons Eq. 2.15
+CHECK:     ✓ vt_star = vt_mag_a * wa / w
+           ✓ W = γ (Lorentz factor)
+
+LINE 981-984: Lorentz factor with tangential velocity
+FORMULA:   γ = 1/√(1 - v²/c²) where v² = (v^n)² + (v^t)²
+PAPER:     Pons Eq. 2.8
+CHECK:     ✓ w = 1/√(1 - (vel² + vt_mag²)/c²)
+           ✓ Includes both normal and tangential components
+
+================================================================================
+TIMESTEP (sr_timestep.cpp, lines 80-98)
+================================================================================
+
+LINE 85-98: CFL condition
+FORMULA:   Δt = C_CFL · min_i[h_i/c_s,i]
+PAPER:     Kitajima Section 3 (standard CFL for SPH)
+CHECK:     ✓ dt_i = h_i / cs_i
+           ✓ dt_min = min over all particles
+           ✓ dt = c_sound * dt_min (apply CFL coefficient)
+
+================================================================================
+COMMON ERRORS TO CHECK
+================================================================================
+
+1. SIGN ERRORS:
+   - Momentum/energy evolution should be NEGATIVE: dS/dt = -f ✓
+   - Taub b coefficient: b = -(a-1), NOT -(a+1) ✓
+   - Mass flux: j² = -(P-Pa)/(...) for compression ✓
+
+2. MISSING FACTORS OF c:
+   - Lorentz factor: γ = 1/√(1 - v²/c²), not 1/√(1 - v²) ✓
+   - Enthalpy: H = 1 + u/c², not H = 1 + u ✓
+   - Sound speed formula is dimensionless (no c) ✓
+
+3. WRONG VELOCITY IN ENERGY:
+   - Should use v*, NOT (v* - v_i) ✓
+   - This is correct for canonical energy e = γH - P/(Nc²)
+
+4. LORENTZ FACTOR:
+   - Must include tangential velocity: v² = v_n² + v_t² ✓
+   - Not just normal component!
+
+5. DENSITY CONFUSION:
+   - N = lab-frame density (used in SPH sums) ✓
+   - n = rest-frame density (used in EOS) ✓
+   - Relation: N = γn ✓
+
+================================================================================
+QUICK FORMULA VERIFICATION PROCEDURE
+================================================================================
+
+When you find a potential bug:
+
+1. Note the LINE NUMBER in the code
+2. Look up the corresponding FORMULA above
+3. Check the PAPER reference
+4. Verify each term:
+   - Correct sign (+/−)?
+   - Correct factors (c, c², γ_c, etc)?
+   - Correct variable (N vs n, H vs h, etc)?
+5. Check special cases:
+   - What if v → 0? Should → non-relativistic limit
+   - What if v → c? Should → ultra-relativistic limit
+   - What if P → 0? Should → vacuum
+
+EXAMPLE:
+  Code line 898: b_term = -(gamma_c - 1.0) * (Pa - P) / (gamma_c * P)
+
+  Check 1: Sign? Should be negative → ✓
+  Check 2: Factor (γ_c-1)? → ✓
+  Check 3: Denominator γ_c·P? → ✓
+  Check 4: Equals -(a-1)? Let's verify:
+           a = 1 + (γ_c-1)(Pa-P)/(γ_c·P)
+           a - 1 = (γ_c-1)(Pa-P)/(γ_c·P)
+           -(a-1) = -(γ_c-1)(Pa-P)/(γ_c·P) → ✓ MATCHES
+
+  Conclusion: Formula is CORRECT
+
+================================================================================

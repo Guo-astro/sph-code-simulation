@@ -90,10 +90,9 @@ struct SPHParameters {
 
     struct SRGSPH {
         bool is_2nd_order;        // Enable MUSCL reconstruction
-        RiemannSolverType riemann_solver;  // Riemann solver type: EXACT (default) or ITERATIVE
         real c_speed;             // Speed of light (default: 1.0)
         real c_shock;             // Shock detection parameter (default: 3.0)
-        real c_cd;                // Contact discontinuity parameter (default: 1.0)
+        real c_cd;                // Contact discontinuity parameter (default: 0.2)
         real eta;                 // Smoothing length parameter (default: 1.0)
         real smoothing_length;    // Fixed smoothing length h (§2.2, constant for all particles)
     } srgsph;

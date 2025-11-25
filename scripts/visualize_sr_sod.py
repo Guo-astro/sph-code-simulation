@@ -36,7 +36,11 @@ def create_animation(results_dir):
     """Create animation from CSV files"""
     
     # Find all output files
-    csv_files = sorted(glob.glob(f"{results_dir}/output_*.csv"))
+    csv_files = sorted(glob.glob(f"{results_dir}/snapshot_*.csv"))
+    
+    if not csv_files:
+        # Try fallback to output_*.csv
+        csv_files = sorted(glob.glob(f"{results_dir}/output_*.csv"))
     
     if not csv_files:
         print(f"No CSV files found in {results_dir}")
@@ -143,6 +147,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         results_dir = sys.argv[1]
     else:
-        results_dir = "sample/sr_sod/results"
+        results_dir = "sample/sr_sod/results/sharp"
     
     create_animation(results_dir)

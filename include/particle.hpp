@@ -37,7 +37,11 @@ public:
     // TIME DERIVATIVES of conserved variables:
     vec_t dS;        // dS/dt (canonical momentum derivative, COPIED to acc)
     real de;         // de/dt (canonical energy derivative, COPIED to dene)
-    
+
+    // OLD DERIVATIVES for predictor-corrector:
+    vec_t dS_old;    // dS/dt from previous timestep
+    real de_old;     // de/dt from previous timestep
+
     // DERIVED quantities:
     real gamma_lor;  // Lorentz factor γ = 1/√(1-v²/c²)
     real enthalpy;   // specific enthalpy H = 1 + u/c² + P/(nc²)

@@ -61,3 +61,8 @@ target_link_libraries(sph
 
 add_subdirectory(include)
 add_subdirectory(src)
+
+add_executable(srgsph_derivative_scaling_test test/test_srgsph_derivative_scaling.cpp)
+target_compile_features(srgsph_derivative_scaling_test PUBLIC cxx_std_14)
+target_compile_definitions(srgsph_derivative_scaling_test PRIVATE DIM=${SPH_DIM})
+target_include_directories(srgsph_derivative_scaling_test PUBLIC include)

@@ -32,7 +32,8 @@ inline real pow5(real x) { return x * x * x * x * x; }
 inline real pow6(real x) { return x * x * x * x * x * x; }
 
 // Lane-Emden has steep density gradient (~10^7:1), needs large neighbor list
-constexpr int neighbor_list_size = 1000;
+// SR Sod also has sharp discontinuity requiring large neighbor lists
+constexpr int neighbor_list_size = 5000;
 
 // for debug
-//#define EXHAUSTIVE_SEARCH
+#define EXHAUSTIVE_SEARCH

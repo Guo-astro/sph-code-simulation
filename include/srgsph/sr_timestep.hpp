@@ -16,6 +16,7 @@ namespace srgsph
  */
 class TimeStep : public sph::TimeStep {
 public:
+    void initialize(std::shared_ptr<SPHParameters> param) override;
     void calculation(std::shared_ptr<Simulation> sim) override;
 };
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "defines.hpp"
 #include "module.hpp"
 
 namespace sph
