@@ -31,7 +31,6 @@
   "neighborNumber": 50,
   "N": 200,
   "testType": "sod",
-  "particleMode": "equal_N",
   "periodic": false,
   "rangeMax": [0.5],
   "rangeMin": [-0.5],

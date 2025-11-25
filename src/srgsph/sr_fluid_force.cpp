@@ -6,6 +6,7 @@
 #include "openmp.hpp"
 #include "kernel/kernel_function.hpp"
 #include "bhtree.hpp"
+#include "logger.hpp"
 #include <array>
 #include <cmath>
 #include <algorithm>
@@ -33,23 +34,45 @@ void FluidForce::initialize(std::shared_ptr<SPHParameters> param)
 void FluidForce::solve_interface_state(
     const real left_state[5],
     const real right_state[5],
-    real & pstar,
-    real & vstar,
-    real & vt_star) const
+    real & P_star,
+    real & v_x_star,
+    real & v_t_star) const
 {
+    // Build RiemannState structures from input arrays
+    // Array format: [v^x, n, P, c_s, v^t]
     riemann::RiemannState left{left_state[0], left_state[1], left_state[2], left_state[3]};
     riemann::RiemannState right{right_state[0], right_state[1], right_state[2], right_state[3]};
-    const real vt_left = left_state[4];
-    const real vt_right = right_state[4];
+    const real v_t_L = left_state[4];
+    const real v_t_R = right_state[4];
 
+    // Use exact Riemann solver (Kitajima/Pons et al.)
     const bool converged = riemann::exact_riemann_solver(
-        left, right, vt_left, vt_right, m_gamma, m_c_speed,
-        pstar, vstar, vt_star, 100, 1e-10);
+        left, right, v_t_L, v_t_R, m_gamma, m_c_speed,
+        P_star, v_x_star, v_t_star, 100, 1e-10);
 
+    // If exact solver fails, log detailed information and use HLLC as last resort
     if (!converged) {
+        // Log detailed failure info
+        static int failure_count = 0;
+        if (failure_count < 10) {  // Only log first 10 failures
+            // Compute velocity magnitudes to diagnose superluminal input
+            const real v_mag_L = std::sqrt(left.v * left.v + v_t_L * v_t_L);
+            const real v_mag_R = std::sqrt(right.v * right.v + v_t_R * v_t_R);
+            WRITE_LOG << "[RIEMANN FAILURE #" << (failure_count + 1) << "] Exact solver failed!"
+                      << " L: v_x=" << left.v << " v_t=" << v_t_L << " |v|=" << v_mag_L
+                      << " n=" << left.n << " P=" << left.P << " c_s=" << left.c_s
+                      << " | R: v_x=" << right.v << " v_t=" << v_t_R << " |v|=" << v_mag_R
+                      << " n=" << right.n << " P=" << right.P << " c_s=" << right.c_s;
+            if (v_mag_L >= 1.0 || v_mag_R >= 1.0) {
+                WRITE_LOG << "  => SUPERLUMINAL INPUT: |v_L|=" << v_mag_L << " |v_R|=" << v_mag_R;
+            }
+            ++failure_count;
+        }
+        
+        // Use HLLC as fallback for now - but this should be investigated
         riemann::hllc_riemann_solver(
-            left, right, vt_left, vt_right, m_gamma, m_c_speed,
-            pstar, vstar, vt_star);
+            left, right, v_t_L, v_t_R, m_gamma, m_c_speed,
+            P_star, v_x_star, v_t_star);
     }
 }
 
@@ -201,8 +224,21 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
 
                 const bool valid_left = (p_L_trial > 0.0 && rho_L_trial > 0.0);
                 const bool valid_right = (p_R_trial > 0.0 && rho_R_trial > 0.0);
+                
+                // Check velocity magnitudes to ensure subluminal (|v| < c = 1)
+#if DIM == 1
+                const real v2_L_trial = vx_L_trial * vx_L_trial;
+                const real v2_R_trial = vx_R_trial * vx_R_trial;
+#elif DIM == 2
+                const real v2_L_trial = vx_L_trial * vx_L_trial + vy_L_trial * vy_L_trial;
+                const real v2_R_trial = vx_R_trial * vx_R_trial + vy_R_trial * vy_R_trial;
+#else
+                const real v2_L_trial = vx_L_trial * vx_L_trial + vy_L_trial * vy_L_trial + vz_L_trial * vz_L_trial;
+                const real v2_R_trial = vx_R_trial * vx_R_trial + vy_R_trial * vy_R_trial + vz_R_trial * vz_R_trial;
+#endif
+                const bool velocity_valid = (v2_L_trial < 1.0 && v2_R_trial < 1.0);
 
-                if (valid_left && valid_right) {
+                if (valid_left && valid_right && velocity_valid) {
                     p_L = p_L_trial;
                     rho_L = rho_L_trial;
                     vx_L = vx_L_trial;
@@ -258,27 +294,31 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
             const vec_t v_R(vx_R, vy_R, vz_R);
 #endif
 
-            const real vn_L = inner_product(v_L, n_ij);
-            const real vn_R = inner_product(v_R, n_ij);
-            const vec_t vt_vec_L = v_L - n_ij * vn_L;
-            const vec_t vt_vec_R = v_R - n_ij * vn_R;
-            const real vt_L = std::abs(vt_vec_L);
-            const real vt_R = std::abs(vt_vec_R);
+            // Decompose velocities into normal (v^x) and tangential (v^t) components
+            const real v_x_L = inner_product(v_L, n_ij);
+            const real v_x_R = inner_product(v_R, n_ij);
+            const vec_t v_t_vec_L = v_L - n_ij * v_x_L;
+            const vec_t v_t_vec_R = v_R - n_ij * v_x_R;
+            const real v_t_L = std::abs(v_t_vec_L);
+            const real v_t_R = std::abs(v_t_vec_R);
 
-            real left_state[5] = {vn_L, rho_L, p_L, p_i.sound, vt_L};
-            real right_state[5] = {vn_R, rho_R, p_R, p_j.sound, vt_R};
+            // State arrays: [v^x, n, P, c_s, v^t]
+            real left_state[5] = {v_x_L, rho_L, p_L, p_i.sound, v_t_L};
+            real right_state[5] = {v_x_R, rho_R, p_R, p_j.sound, v_t_R};
 
+            // Solve Riemann problem to get star state (P*, v^x*, v^t*)
             real P_star = 0.0;
-            real v_star_n = 0.0;
-            real vt_star = 0.0;
-            solve_interface_state(left_state, right_state, P_star, v_star_n, vt_star);
+            real v_x_star = 0.0;
+            real v_t_star = 0.0;
+            solve_interface_state(left_state, right_state, P_star, v_x_star, v_t_star);
 
-            vec_t v_star_vec = n_ij * v_star_n;
-            if (vt_star > 1e-10) {
-                if (v_star_n > 0.0 && vt_L > 1e-10) {
-                    v_star_vec = v_star_vec + vt_vec_L * (vt_star / vt_L);
-                } else if (v_star_n <= 0.0 && vt_R > 1e-10) {
-                    v_star_vec = v_star_vec + vt_vec_R * (vt_star / vt_R);
+            // Reconstruct full star velocity vector
+            vec_t v_star_vec = n_ij * v_x_star;
+            if (v_t_star > 1e-10) {
+                if (v_x_star > 0.0 && v_t_L > 1e-10) {
+                    v_star_vec = v_star_vec + v_t_vec_L * (v_t_star / v_t_L);
+                } else if (v_x_star <= 0.0 && v_t_R > 1e-10) {
+                    v_star_vec = v_star_vec + v_t_vec_R * (v_t_star / v_t_R);
                 }
             }
 

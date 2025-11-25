@@ -6,9 +6,8 @@
 //   "blast_wave"    - Standard relativistic blast wave (Section 3.1.2)
 //   "strong_blast"  - Strong relativistic blast wave (Section 3.1.3)
 //
-// Particle distribution modes (set via "particleMode" parameter):
-//   "equal_nu"      - Equal baryon number per particle (Fig. 1 style)
-//   "equal_N"       - Equal particle count on both sides (Fig. 2 style)
+// Particle distribution: equal baryon number per particle (equal_nu)
+// This follows Fig. 1 style from the paper where ν is constant across all particles.
 
 #include "solver.hpp"
 #include "simulation.hpp"
@@ -42,15 +41,10 @@ void Solver::make_sr_sod()
         test_type = boost::any_cast<std::string>(m_sample_parameters["testType"]);
     }
 
-    // Particle distribution mode (default: equal_N for Fig. 2 style)
-    std::string particle_mode = "equal_N";
-    if (m_sample_parameters.count("particleMode")) {
-        particle_mode = boost::any_cast<std::string>(m_sample_parameters["particleMode"]);
-    }
-
     // ============================================================================
     // Initial conditions based on test type
     // From Kitajima et al. (2025) Section 3.1
+    // All tests use equal_nu mode (equal baryon number per particle)
     // ============================================================================
     real P_left, n_left, v_left;
     real P_right, n_right, v_right;
@@ -67,16 +61,9 @@ void Solver::make_sr_sod()
         n_right = 0.125;
         v_right = 0.0;
 
-        if (particle_mode == "equal_nu") {
-            // Figure 1: 3200 left + 400 right (equal baryon number per particle)
-            // Override N to match paper if not specified
-            N_left = (N > 0) ? static_cast<int>(N * 8.0 / 9.0) : 3200;
-            N_right = (N > 0) ? static_cast<int>(N * 1.0 / 9.0) : 400;
-        } else {
-            // Figure 2: Equal count on both sides (different baryon numbers)
-            N_left = N;
-            N_right = N;
-        }
+        // Figure 1: 3200 left + 400 right (equal baryon number per particle)
+        N_left = (N > 0) ? static_cast<int>(N * 8.0 / 9.0) : 3200;
+        N_right = (N > 0) ? static_cast<int>(N * 1.0 / 9.0) : 400;
         WRITE_LOG << "Test type: SOD (Section 3.1.1)";
 
     } else if (test_type == "blast_wave") {
@@ -90,14 +77,9 @@ void Solver::make_sr_sod()
         n_right = 1.0;
         v_right = 0.0;
 
-        if (particle_mode == "equal_nu") {
-            // 5000 left + 500 right (equal baryon number per particle)
-            N_left = (N > 0) ? static_cast<int>(N * 10.0 / 11.0) : 5000;
-            N_right = (N > 0) ? static_cast<int>(N * 1.0 / 11.0) : 500;
-        } else {
-            N_left = N;
-            N_right = N;
-        }
+        // 5000 left + 500 right (equal baryon number per particle)
+        N_left = (N > 0) ? static_cast<int>(N * 10.0 / 11.0) : 5000;
+        N_right = (N > 0) ? static_cast<int>(N * 1.0 / 11.0) : 500;
         WRITE_LOG << "Test type: STANDARD BLAST WAVE (Section 3.1.2)";
 
     } else if (test_type == "strong_blast") {
@@ -111,7 +93,7 @@ void Solver::make_sr_sod()
         n_right = 1.0;
         v_right = 0.0;
 
-        // 900 left + 900 right (equal count, different ν due to different n)
+        // Equal density on both sides, so equal count gives equal ν
         N_left = N;
         N_right = N;
         WRITE_LOG << "Test type: STRONG BLAST WAVE (Section 3.1.3)";
@@ -240,7 +222,6 @@ void Solver::make_sr_sod()
     m_sim->set_particle_num(p.size());
 
     WRITE_LOG << "SR shock tube initialized (Kitajima et al. 2025):";
-    WRITE_LOG << "  Particle mode: " << particle_mode;
     WRITE_LOG << "  Left:  " << N_left << " particles, P=" << P_left << ", n=" << n_left << ", v=" << v_left;
     WRITE_LOG << "  Right: " << N_right << " particles, P=" << P_right << ", n=" << n_right << ", v=" << v_right;
     WRITE_LOG << "  Baryon numbers: nu_L=" << nu_left << ", nu_R=" << nu_right;

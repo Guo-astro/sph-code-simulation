@@ -33,7 +33,6 @@
   "neighborNumber": 50,
   "N": 900,
   "testType": "strong_blast",
-  "particleMode": "equal_N",
   "periodic": false,
   "rangeMax": [0.5],
   "rangeMin": [-0.5],

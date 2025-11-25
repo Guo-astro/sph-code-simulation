@@ -16,6 +16,19 @@ namespace srgsph
  * "The exact solution of the Riemann problem with non-zero tangential velocities
  * in relativistic hydrodynamics" (J. Fluid Mech. 1999)
  * 
+ * Variable naming follows Kitajima notation (SRGSPH paper Section 2.1):
+ *   N       = lab-frame baryon number density (N = γn)
+ *   n       = rest-frame baryon number density
+ *   γ       = Lorentz factor
+ *   H       = enthalpy per baryon
+ *   P       = pressure
+ *   v^x     = normal velocity component
+ *   v^t     = tangential velocity component
+ *   c_s     = sound speed
+ *   γ_c     = ratio of specific heats
+ *   S       = canonical momentum per baryon
+ *   e       = canonical energy per baryon
+ * 
  * Evolves canonical momentum S and canonical energy e using Riemann solver
  * Key features:
  * - Volume-based formulation for variable smoothing length
@@ -23,18 +36,27 @@ namespace srgsph
  * - Tangential velocity coupling through Lorentz factor
  */
 class FluidForce : public sph::FluidForce {
-    real m_gamma;             // EOS gamma (ratio of specific heats)
-    real m_c_speed;           // Speed of light (typically 1.0 in code units)
-    real m_c_shock;           // Shock detection coefficient (C_shock)
-    real m_c_cd;              // Contact discontinuity limiter (C_cd)
-    bool m_use_muscl;         // Enable MUSCL reconstruction when gradients are available
+    real m_gamma;             // Ratio of specific heats γ_c
+    real m_c_speed;           // Speed of light c (typically 1.0 in code units)
+    real m_c_shock;           // Shock detection coefficient C_shock
+    real m_c_cd;              // Contact discontinuity limiter C_cd
+    bool m_use_muscl;         // Enable MUSCL reconstruction when gradients available
 
+    /**
+     * Solve Riemann problem at particle interface
+     * 
+     * @param left_state  Left state [v^x, n, P, c_s, v^t]
+     * @param right_state Right state [v^x, n, P, c_s, v^t]
+     * @param P_star      [output] Interface pressure P*
+     * @param v_x_star    [output] Interface normal velocity v^x*
+     * @param v_t_star    [output] Interface tangential velocity v^t*
+     */
     void solve_interface_state(
         const real left_state[5],
         const real right_state[5],
-        real & pstar,
-        real & vstar,
-        real & vt_star) const;
+        real & P_star,
+        real & v_x_star,
+        real & v_t_star) const;
 
 public:
     /**

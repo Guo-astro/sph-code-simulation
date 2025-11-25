@@ -20,7 +20,7 @@
     "enableEnergyFile": true
   },
   "SPHType": "srgsph",
-  "use2ndOrderSRGSPH": true,
+  "use2ndOrderSRGSPH": false,
   "cSpeed": 1.0,
   "cShock": 3.0,
   "cContactDiscontinuity": 1.0,
@@ -31,7 +31,6 @@
   "neighborNumber": 50,
   "N": 3600,
   "testType": "sod",
-  "particleMode": "equal_nu",
   "periodic": false,
   "rangeMax": [0.5],
   "rangeMin": [-0.5],

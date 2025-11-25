@@ -258,6 +258,8 @@ void Solver::read_parameterfile(const char * filename)
         m_sample = Sample::SRSod;
         m_sample_parameters["N"] = input.get<int>("N", 50);
         m_sample_parameters["different_nu"] = input.get<bool>("different_nu", false);
+        m_sample_parameters["testType"] = input.get<std::string>("testType", "sod");
+        m_sample_parameters["particleMode"] = input.get<std::string>("particleMode", "equal_N");
     } else {
         pt::read_json(filename, input);
         
@@ -289,6 +291,8 @@ void Solver::read_parameterfile(const char * filename)
                     m_sample = Sample::SRSod;
                     m_sample_parameters["N"] = input.get<int>("N", 50);
                     m_sample_parameters["different_nu"] = input.get<bool>("different_nu", false);
+                    m_sample_parameters["testType"] = input.get<std::string>("testType", "sod");
+                    m_sample_parameters["particleMode"] = input.get<std::string>("particleMode", "equal_N");
                 } else {
                     m_sample = Sample::DoNotUse;
                 }
@@ -1030,8 +1034,8 @@ void Solver::predict()
             // Limit half-step to prevent failures
             const real S_half_mag = std::sqrt(inner_product(S_half, S_half));
             const real S_half_ratio = S_half_mag / std::max(e_half, 1.0e-10);
-            if(S_half_ratio > 0.85) {
-                S_half = S_half * (0.85 / S_half_ratio);
+            if(S_half_ratio > 0.9999) {  // Only intervene if approaching c
+                S_half = S_half * (0.9999 / S_half_ratio);
             }
 
             // STEP 3: Full Euler prediction
@@ -1138,8 +1142,8 @@ void Solver::correct()
             // Safety: Limit S/e ratio to prevent superluminal velocities
             const real S_mag = std::sqrt(inner_product(p[i].S, p[i].S));
             const real S_over_e = S_mag / std::max(p[i].e, 1.0e-10);
-            if(S_over_e > 0.85) {  // Ensure v < 0.85c
-                const real scale = 0.85 / S_over_e;
+            if(S_over_e > 0.9999) {  // Only intervene if approaching c
+                const real scale = 0.9999 / S_over_e;
                 p[i].S = p[i].S * scale;
             }
 

@@ -89,7 +89,7 @@ real solve_lorentz_factor(
 /**
  * Recover velocity from Lorentz factor
  * Based on Python lines 183-193
- * Equation: v = (X��-1)/(�(Xe�-1)) * S
+ * Equation: v = (Xγ²-1)/(γ(Xeγ-1)) * S
  */
 vec_t recover_velocity(
     const vec_t & S,
