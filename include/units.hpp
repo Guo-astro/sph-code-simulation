@@ -17,18 +17,23 @@ namespace sph {
 class UnitSystem {
 public:
     enum class Type {
-        CODE,      ///< Dimensionless code units (no conversion)
-        GALACTIC,  ///< kpc, M_sun, km/s (astrophysics)
-        SI,        ///< m, kg, s (engineering)
-        CGS        ///< cm, g, s (physics)
+        CODE,           ///< Dimensionless code units (no conversion)
+        RELATIVISTIC,   ///< Natural units with c=1, for SR hydrodynamics
+        GALACTIC,       ///< kpc, M_sun, km/s (astrophysics)
+        SI,             ///< m, kg, s (engineering)
+        CGS             ///< cm, g, s (physics)
     };
 
     // Physical constants in CGS units
     static constexpr real GRAVITATIONAL_CONSTANT_CGS = 6.67430e-8;  // cm^3 g^-1 s^-2
-    static constexpr real KPC_TO_CM = 3.085677581e21;                // 1 kpc in cm
+    static constexpr real SPEED_OF_LIGHT_CGS = 2.99792458e10;       // cm/s
+    static constexpr real KPC_TO_CM = 3.085677581e21;               // 1 kpc in cm
     static constexpr real MSUN_TO_G = 1.98847e33;                   // 1 M_sun in g
     static constexpr real KM_TO_CM = 1.0e5;                         // 1 km in cm
     static constexpr real MYR_TO_S = 3.15576e13;                    // 1 Myr in s
+    static constexpr real PC_TO_CM = 3.085677581e18;                // 1 pc in cm
+    static constexpr real FM_TO_CM = 1.0e-13;                       // 1 fm in cm
+    static constexpr real PROTON_MASS_G = 1.6726219e-24;            // proton mass in g
 
     /**
      * @brief Default constructor - creates CODE unit system (no conversion)
@@ -75,6 +80,63 @@ public:
      */
     static UnitSystem create_cgs(real code_length_cm, real code_mass_g, real code_velocity_cms);
 
+    /**
+     * @brief Create relativistic unit system with c=1 (natural units)
+     * 
+     * For special relativistic hydrodynamics where the speed of light c=1 in code units.
+     * All velocities are measured in units of c, time in units of length/c.
+     * 
+     * @param code_length_cm Physical length scale (1 code_length = X cm)
+     * @param code_density_g_cm3 Physical density scale (1 code_density = X g/cm³)
+     * @param length_label Display label for length (default: "L")
+     * @param density_label Display label for density (default: "n₀")
+     * @return UnitSystem configured for relativistic natural units
+     */
+    static UnitSystem create_relativistic(
+        real code_length_cm = 1.0,
+        real code_density_g_cm3 = 1.0,
+        const std::string& length_label = "L",
+        const std::string& density_label = "n₀"
+    );
+
+    /**
+     * @brief Create dimensionless relativistic unit system for test problems
+     * 
+     * Convenience method for SR shock tube tests where c=1 and all
+     * quantities are dimensionless (code units = physical units).
+     * 
+     * @return UnitSystem configured for dimensionless SR tests
+     */
+    static UnitSystem create_sr_test();
+
+    /**
+     * @brief Create neutron star merger unit system
+     * 
+     * Typical scales: L ~ 10 km, ρ ~ 10^14 g/cm³, c = 1
+     * 
+     * @param length_km Code unit length in km (default: 10 km)
+     * @param density_scale Density in g/cm³ (default: 10^14 g/cm³)
+     * @return UnitSystem configured for NS merger simulations
+     */
+    static UnitSystem create_neutron_star(
+        real length_km = 10.0,
+        real density_scale = 1.0e14
+    );
+
+    /**
+     * @brief Create relativistic jet unit system
+     * 
+     * Typical scales: L ~ 1 pc, ρ ~ ISM density, c = 1
+     * 
+     * @param length_pc Code unit length in parsecs (default: 1 pc)
+     * @param density_scale Density in g/cm³ (default: proton/cm³ ~ 1.67e-24)
+     * @return UnitSystem configured for relativistic jet simulations
+     */
+    static UnitSystem create_relativistic_jet(
+        real length_pc = 1.0,
+        real density_scale = PROTON_MASS_G
+    );
+
     // Conversion methods: code units → physical units (CGS)
     real to_physical_length(real code_val) const;
     real to_physical_mass(real code_val) const;
@@ -113,6 +175,29 @@ public:
     real get_density_to_cgs() const { return m_density_to_cgs; }
     real get_pressure_to_cgs() const { return m_pressure_to_cgs; }
 
+    /**
+     * @brief Get speed of light in code units
+     * 
+     * For relativistic simulations, this is 1.0 (natural units).
+     * For non-relativistic simulations, this is c in the code velocity units.
+     * 
+     * @return Speed of light in code units
+     */
+    real get_c_code() const { return m_c_code; }
+
+    /**
+     * @brief Check if this is a relativistic unit system
+     * @return true if Type::RELATIVISTIC
+     */
+    bool is_relativistic() const { return m_type == Type::RELATIVISTIC; }
+
+    // Custom display labels (for relativistic units)
+    void set_length_label(const std::string& label) { m_length_label = label; }
+    void set_density_label(const std::string& label) { m_density_label = label; }
+    void set_time_label(const std::string& label) { m_time_label = label; }
+    void set_velocity_label(const std::string& label) { m_velocity_label = label; }
+    void set_pressure_label(const std::string& label) { m_pressure_label = label; }
+
     // JSON serialization
     nlohmann::json to_json() const;
     static UnitSystem from_json(const nlohmann::json& j);
@@ -128,6 +213,18 @@ private:
     real m_energy_to_cgs;     // derived: mass * velocity^2
     real m_density_to_cgs;    // derived: mass / length^3
     real m_pressure_to_cgs;   // derived: energy / length^3
+
+    // Speed of light in code units (1.0 for relativistic, c_cgs/velocity_to_cgs for others)
+    real m_c_code;
+
+    // Custom display labels for units
+    std::string m_length_label;
+    std::string m_mass_label;
+    std::string m_time_label;
+    std::string m_velocity_label;
+    std::string m_energy_label;
+    std::string m_density_label;
+    std::string m_pressure_label;
 
     /**
      * @brief Compute derived conversion factors from base units

@@ -36,6 +36,7 @@ enum struct Sample {
     LaneEmden,
     Sedov,
     SRSod,
+    NSMerger2D,
     DoNotUse,
 };;
 
@@ -92,6 +93,7 @@ class Solver {
     void make_lane_emden();
     void make_sedov();
     void make_sr_sod();
+    void make_ns_merger_2d();
 
 public:
     Solver(int argc, char * argv[]);

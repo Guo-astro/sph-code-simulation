@@ -1,0 +1,15 @@
+{
+  "_comment": "Dimensionless relativistic units for SR test problems",
+  "_description": "All quantities are in natural units with c=1. Used for code validation tests.",
+  "units": {
+    "type": "RELATIVISTIC",
+    "labels": {
+      "length": "L",
+      "time": "L/c",
+      "velocity": "c",
+      "density": "n₀",
+      "pressure": "P₀",
+      "energy": "E₀"
+    }
+  }
+}

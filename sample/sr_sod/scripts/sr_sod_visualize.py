@@ -34,8 +34,10 @@ import argparse
 from dataclasses import dataclass
 from typing import Optional, List, Tuple, Dict, Any
 
-# Add parent directory to path for importing Riemann solver
+# Add parent directories to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / 'docs'))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / 'scripts'))
+
 try:
     from relativistic_riemann_solver import RelativisiticRiemannSolver
     RIEMANN_SOLVER_AVAILABLE = True
@@ -43,12 +45,25 @@ except ImportError:
     RIEMANN_SOLVER_AVAILABLE = False
     print("Warning: Relativistic Riemann solver not found. Analytic solution disabled.")
 
+# Import unit system
+try:
+    from units.unit_system import RelativisticUnits
+    UNIT_SYSTEM_AVAILABLE = True
+except ImportError:
+    UNIT_SYSTEM_AVAILABLE = False
+    print("Note: Unit system module not found. Using default units.")
+
 # =============================================================================
 # Physical Units Configuration (Code Units for SR hydrodynamics)
 # =============================================================================
 @dataclass
 class PhysicalUnits:
-    """Physical units configuration for SR-GSPH simulations"""
+    """
+    Physical units configuration for SR-GSPH simulations.
+    
+    If the unit system module is available, this class can be initialized
+    from a config file or CSV header. Otherwise, it uses default code units.
+    """
     # In code units: c = 1, so velocities are in units of c
     c_speed: float = 1.0           # Speed of light [code units]
     length_unit: str = "L"         # Length unit label
@@ -56,6 +71,67 @@ class PhysicalUnits:
     density_unit: str = "n₀"       # Rest-frame density unit
     pressure_unit: str = "P₀"      # Pressure unit
     velocity_unit: str = "c"       # Velocity in units of c
+    energy_unit: str = "E₀"        # Energy unit
+    
+    # Conversion factors to CGS (optional, for physical unit display)
+    length_to_cgs: float = 1.0     # cm
+    time_to_cgs: float = 1.0       # s
+    density_to_cgs: float = 1.0    # g/cm³
+    velocity_to_cgs: float = 1.0   # cm/s
+    pressure_to_cgs: float = 1.0   # dyn/cm²
+    
+    @classmethod
+    def from_config(cls, config: Dict[str, Any]) -> 'PhysicalUnits':
+        """
+        Create PhysicalUnits from a config dictionary.
+        Uses the new unit system if available.
+        """
+        if UNIT_SYSTEM_AVAILABLE:
+            units = RelativisticUnits.from_config(config)
+            return cls(
+                c_speed=units.c_code,
+                length_unit=units.length_label,
+                time_unit=units.time_label,
+                density_unit=units.density_label,
+                pressure_unit=units.pressure_label,
+                velocity_unit=units.velocity_label,
+                energy_unit=units.energy_label,
+                length_to_cgs=units.length_to_cgs,
+                time_to_cgs=units.time_to_cgs,
+                density_to_cgs=units.density_to_cgs,
+                velocity_to_cgs=units.velocity_to_cgs,
+                pressure_to_cgs=units.pressure_to_cgs,
+            )
+        else:
+            # Fallback to defaults
+            return cls()
+    
+    @classmethod
+    def from_csv_header(cls, metadata: Dict[str, str]) -> 'PhysicalUnits':
+        """
+        Create PhysicalUnits from CSV metadata.
+        Uses the new unit system if available.
+        """
+        if UNIT_SYSTEM_AVAILABLE:
+            units = RelativisticUnits.from_csv_header(metadata)
+            return cls(
+                c_speed=units.c_code,
+                length_unit=units.length_label,
+                time_unit=units.time_label,
+                density_unit=units.density_label,
+                pressure_unit=units.pressure_label,
+                velocity_unit=units.velocity_label,
+                energy_unit=units.energy_label,
+                length_to_cgs=units.length_to_cgs,
+                time_to_cgs=units.time_to_cgs,
+                density_to_cgs=units.density_to_cgs,
+                velocity_to_cgs=units.velocity_to_cgs,
+                pressure_to_cgs=units.pressure_to_cgs,
+            )
+        else:
+            # Parse from metadata manually
+            c_code = float(metadata.get('c_code', '1.0'))
+            return cls(c_speed=c_code)
     
     def format_time(self, t: float) -> str:
         """Format time with proper units"""
@@ -64,6 +140,26 @@ class PhysicalUnits:
     def format_velocity(self, v: float) -> str:
         """Format velocity with units"""
         return f"{v:.4f} c"
+    
+    def to_physical_time(self, t_code: float) -> float:
+        """Convert code units time to physical (CGS) time"""
+        return t_code * self.time_to_cgs
+    
+    def to_physical_length(self, x_code: float) -> float:
+        """Convert code units length to physical (CGS) length"""
+        return x_code * self.length_to_cgs
+    
+    def to_physical_density(self, rho_code: float) -> float:
+        """Convert code units density to physical (CGS) density"""
+        return rho_code * self.density_to_cgs
+    
+    def to_physical_velocity(self, v_code: float) -> float:
+        """Convert code units velocity to physical (CGS) velocity"""
+        return v_code * self.velocity_to_cgs
+    
+    def to_physical_pressure(self, p_code: float) -> float:
+        """Convert code units pressure to physical (CGS) pressure"""
+        return p_code * self.pressure_to_cgs
 
 
 # =============================================================================
@@ -329,11 +425,11 @@ class SRSodVisualizer:
     """
     Single Source of Truth visualizer for SR-GSPH Sod shock tube simulations.
     Supports analytic solution overlay for benchmark comparison.
+    Now supports config-driven unit systems.
     """
     
     def __init__(self, results_dir: str | Path, enable_analytic: bool = False):
         self.results_dir = Path(results_dir).resolve()
-        self.units = PhysicalUnits()
         self.enable_analytic = enable_analytic and RIEMANN_SOLVER_AVAILABLE
         self.analytic_solver = None
         
@@ -366,6 +462,9 @@ class SRSodVisualizer:
         print(f"Test type: {self.test_info['test_type']}")
         print(f"Riemann solver: {self.test_info['solver']} ({self.test_info['solver_name']})")
         
+        # Initialize units - try from CSV first, then config, then defaults
+        self.units = self._init_units()
+        
         # Initialize analytic solver if requested
         if self.enable_analytic:
             self._init_analytic_solver()
@@ -377,6 +476,33 @@ class SRSodVisualizer:
         
         # Compute global ranges for consistent axes
         self._compute_global_ranges()
+    
+    def _init_units(self) -> PhysicalUnits:
+        """
+        Initialize units from available sources:
+        1. CSV header metadata (has actual simulation units)
+        2. Config file (json)  
+        3. Defaults
+        """
+        # Try to read units from first snapshot
+        if self.snapshot_files:
+            data = read_snapshot(self.snapshot_files[0])
+            if data and '_metadata' in data:
+                metadata = data['_metadata']
+                if 'unit_type' in metadata or 'c_code' in metadata:
+                    units = PhysicalUnits.from_csv_header(metadata)
+                    print(f"Units: Loaded from CSV ({units.c_speed=})")
+                    return units
+        
+        # Try config
+        if self.config and 'units' in self.config:
+            units = PhysicalUnits.from_config(self.config)
+            print(f"Units: Loaded from config ({units.c_speed=})")
+            return units
+        
+        # Defaults
+        print("Units: Using defaults (c=1 code units)")
+        return PhysicalUnits()
     
     def _init_analytic_solver(self):
         """Initialize the analytic Riemann solver based on test type"""

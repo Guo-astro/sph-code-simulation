@@ -281,12 +281,30 @@ void Solver::read_parameterfile(const char * filename)
         } else if (sample_type == "sedov") {
             m_sample = Sample::Sedov;
             m_sample_parameters["N"] = input.get<int>("N", 30);
+        } else if (sample_type == "ns_merger_2d") {
+            m_sample = Sample::NSMerger2D;
+            m_sample_parameters["R_star"] = input.get<real>("ns_merger.star1.radius", real(1.2));
+            m_sample_parameters["rho_c"] = input.get<real>("ns_merger.star1.central_density", real(2.8));
+            m_sample_parameters["separation"] = input.get<real>("ns_merger.separation", real(6.0));
+            m_sample_parameters["v_collision"] = input.get<real>("ns_merger.star1.velocity_x", real(0.15));
+            m_sample_parameters["n_radial"] = input.get<int>("ns_merger.star1.n_particles_radial", 30);
         } else {
             // Try to infer sample type from SPH type and JSON content
             std::string sph_type_check = input.get<std::string>("SPHType", "");
+            std::string test_type = input.get<std::string>("testType", "");
+            
             if(sph_type_check == "srgsph") {
+                // Check for NS merger test type first
+                if(test_type == "ns_merger_2d" || name_str.find("ns_merger") != std::string::npos) {
+                    m_sample = Sample::NSMerger2D;
+                    m_sample_parameters["R_star"] = input.get<real>("ns_merger.star1.radius", real(1.2));
+                    m_sample_parameters["rho_c"] = input.get<real>("ns_merger.star1.central_density", real(2.8));
+                    m_sample_parameters["separation"] = input.get<real>("ns_merger.separation", real(6.0));
+                    m_sample_parameters["v_collision"] = input.get<real>("ns_merger.star1.velocity_x", real(0.15));
+                    m_sample_parameters["n_radial"] = input.get<int>("ns_merger.star1.n_particles_radial", 30);
+                }
                 // Check for SR-specific test names in the path
-                if(name_str.find("sr_sod") != std::string::npos || 
+                else if(name_str.find("sr_sod") != std::string::npos || 
                    name_str.find("sod") != std::string::npos) {
                     m_sample = Sample::SRSod;
                     m_sample_parameters["N"] = input.get<int>("N", 50);
@@ -497,12 +515,53 @@ void Solver::read_parameterfile(const char * filename)
         real mass_g = input.get<real>("units.mass_g", 1.0);
         real time_s = input.get<real>("units.time_s", 1.0);
         m_units = UnitSystem::create_cgs(length_cm, mass_g, time_s);
+    } else if(unit_type_str == "RELATIVISTIC" || unit_type_str == "SR_TEST") {
+        // Relativistic natural units with c=1
+        std::string preset = input.get<std::string>("units.preset", "");
+        if(preset == "neutron_star") {
+            real length_km = input.get<real>("units.length_km", 10.0);
+            real density = input.get<real>("units.density_g_cm3", 1.0e14);
+            m_units = UnitSystem::create_neutron_star(length_km, density);
+        } else if(preset == "relativistic_jet") {
+            real length_pc = input.get<real>("units.length_pc", 1.0);
+            real density = input.get<real>("units.density_g_cm3", UnitSystem::PROTON_MASS_G);
+            m_units = UnitSystem::create_relativistic_jet(length_pc, density);
+        } else {
+            // Default: dimensionless SR test (c=1, all scales = 1)
+            m_units = UnitSystem::create_sr_test();
+        }
+        
+        // Custom labels can override defaults
+        std::string length_label = input.get<std::string>("units.labels.length", "");
+        std::string density_label = input.get<std::string>("units.labels.density", "");
+        std::string time_label = input.get<std::string>("units.labels.time", "");
+        std::string velocity_label = input.get<std::string>("units.labels.velocity", "");
+        std::string pressure_label = input.get<std::string>("units.labels.pressure", "");
+        
+        if(!length_label.empty()) m_units.set_length_label(length_label);
+        if(!density_label.empty()) m_units.set_density_label(density_label);
+        if(!time_label.empty()) m_units.set_time_label(time_label);
+        if(!velocity_label.empty()) m_units.set_velocity_label(velocity_label);
+        if(!pressure_label.empty()) m_units.set_pressure_label(pressure_label);
     } else {
         std::cerr << "Warning: Unknown unit type '" << unit_type_str << "', using CODE units" << std::endl;
         m_units = UnitSystem();
     }
     
+    // For SR-GSPH, automatically use relativistic units if not explicitly specified
+    if(m_param->type == SPHType::SRGSPH && unit_type_str == "CODE") {
+        std::cout << "Note: SR-GSPH detected, auto-selecting dimensionless relativistic units (c=1)" << std::endl;
+        m_units = UnitSystem::create_sr_test();
+    }
+    
     std::cout << "Unit system: " << m_units.get_type_name() << std::endl;
+    if(m_units.is_relativistic()) {
+        std::cout << "  Speed of light (code units): c = " << m_units.get_c_code() << std::endl;
+        std::cout << "  Length unit: " << m_units.get_length_unit_name() << std::endl;
+        std::cout << "  Time unit: " << m_units.get_time_unit_name() << std::endl;
+        std::cout << "  Velocity unit: " << m_units.get_velocity_unit_name() << std::endl;
+        std::cout << "  Density unit: " << m_units.get_density_unit_name() << std::endl;
+    }
     
     // Output configuration - convert boost ptree to nlohmann::json for the output section
     nlohmann::json output_json;
@@ -1195,6 +1254,7 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::LaneEmden, lane_emden);
         MAKE_SAMPLE(Sample::Sedov, sedov);
         MAKE_SAMPLE(Sample::SRSod, sr_sod);
+        MAKE_SAMPLE(Sample::NSMerger2D, ns_merger_2d);
         case Sample::DoNotUse:
 
             // サンプルを使わない場合はここを実装

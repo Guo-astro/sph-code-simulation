@@ -1,0 +1,60 @@
+{
+  "_comment": "Quick NS Merger Test - fewer particles for fast testing",
+  
+  "sample": "ns_merger_2d",
+  "outputDirectory": "sample/ns_merger/results/test_quick",
+  "startTime": 0.0,
+  "endTime": 5.0,
+  "outputTime": 0.25,
+  "energyTime": 0.1,
+  
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  
+  "output": {
+    "formats": [
+      {"type": "csv", "precision": 8}
+    ],
+    "enableEnergyFile": true
+  },
+  
+  "units": {
+    "type": "RELATIVISTIC"
+  },
+  
+  "SPHType": "srgsph",
+  "use2ndOrderSRGSPH": true,
+  "cSpeed": 1.0,
+  "cShock": 2.0,
+  "cContactDiscontinuity": 1.0,
+  "etaSmoothingLength": 1.2,
+  
+  "gamma": 2.0,
+  
+  "kernel": "gaussian",
+  "iterativeSmoothingLength": true,
+  "neighborNumber": 30,
+  
+  "testType": "ns_merger_2d",
+  
+  "ns_merger": {
+    "separation": 4.0,
+    "star1": {
+      "radius": 1.0,
+      "central_density": 2.0,
+      "velocity_x": 0.1,
+      "n_particles_radial": 15
+    }
+  },
+  
+  "periodic": false,
+  "rangeMax": [6.0, 6.0],
+  "rangeMin": [-6.0, -6.0],
+  
+  "avAlpha": 1.0,
+  "useBalsaraSwitch": true,
+  "cflSound": 0.3,
+  "cflForce": 0.25
+}

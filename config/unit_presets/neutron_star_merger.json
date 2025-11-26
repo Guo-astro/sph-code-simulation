@@ -1,0 +1,27 @@
+{
+  "_comment": "Neutron star merger unit system",
+  "_description": "Typical scales for binary neutron star simulations. L ~ 10-20 km, ρ ~ nuclear density",
+  "_reference": "Shibata & Hotokezaka (2019), Baiotti & Rezzolla (2017)",
+  "units": {
+    "type": "RELATIVISTIC",
+    "preset": "neutron_star",
+    "length_km": 10.0,
+    "density_g_cm3": 1.0e14,
+    "labels": {
+      "length": "km",
+      "time": "ms",
+      "velocity": "c",
+      "density": "ρ_nuc",
+      "pressure": "P_nuc",
+      "energy": "E_nuc"
+    }
+  },
+  "_physical_context": {
+    "length_scale_cm": 1.0e6,
+    "density_scale_g_cm3": 1.0e14,
+    "time_scale_s": 3.336e-5,
+    "typical_NS_radius_km": 12,
+    "typical_NS_mass_Msun": 1.4,
+    "nuclear_density_g_cm3": 2.8e14
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "_comment": "2D Neutron Star Merger - Simplified Model",
+  "_description": "Two neutron stars in 2D collision. Based on Shibata & Hotokezaka (2019)",
+  "_reference": "Shibata & Hotokezaka (2019), Baiotti & Rezzolla (2017)",
+  
+  "sample": "ns_merger_2d",
+  "outputDirectory": "sample/ns_merger/results/merger_2d",
+  "startTime": 0.0,
+  "endTime": 50.0,
+  "outputTime": 0.5,
+  "energyTime": 0.1,
+  
+  "checkpoint": {
+    "enabled": true,
+    "interval": 10.0,
+    "resumeFile": ""
+  },
+  
+  "output": {
+    "formats": [
+      {"type": "csv", "precision": 12}
+    ],
+    "enableEnergyFile": true
+  },
+  
+  "units": {
+    "type": "RELATIVISTIC",
+    "preset": "neutron_star",
+    "length_km": 10.0,
+    "density_g_cm3": 1.0e14,
+    "labels": {
+      "length": "km",
+      "time": "ms",
+      "velocity": "c",
+      "density": "ρ_nuc",
+      "pressure": "P_nuc"
+    }
+  },
+  
+  "SPHType": "srgsph",
+  "use2ndOrderSRGSPH": true,
+  "cSpeed": 1.0,
+  "cShock": 2.0,
+  "cContactDiscontinuity": 1.0,
+  "etaSmoothingLength": 1.2,
+  
+  "gamma": 2.0,
+  "_gamma_note": "Γ=2 polytrope approximates nuclear matter EOS",
+  
+  "kernel": "gaussian",
+  "iterativeSmoothingLength": true,
+  "neighborNumber": 50,
+  
+  "testType": "ns_merger_2d",
+  
+  "ns_merger": {
+    "_comment": "Neutron star merger initial conditions",
+    "separation": 6.0,
+    "star1": {
+      "center_x": -3.0,
+      "center_y": 0.0,
+      "radius": 1.2,
+      "central_density": 2.8,
+      "velocity_x": 0.15,
+      "velocity_y": 0.0,
+      "n_particles_radial": 30
+    },
+    "star2": {
+      "center_x": 3.0,
+      "center_y": 0.0,
+      "radius": 1.2,
+      "central_density": 2.8,
+      "velocity_x": -0.15,
+      "velocity_y": 0.0,
+      "n_particles_radial": 30
+    },
+    "polytropic_index": 1.0,
+    "_note": "n=1 polytrope with Γ=2 gives realistic NS density profile"
+  },
+  
+  "periodic": false,
+  "rangeMax": [8.0, 8.0],
+  "rangeMin": [-8.0, -8.0],
+  
+  "avAlpha": 1.0,
+  "useBalsaraSwitch": true,
+  "cflSound": 0.3,
+  "cflForce": 0.25,
+  
+  "_physical_scales": {
+    "1_code_length": "10 km",
+    "1_code_time": "0.033 ms",
+    "1_code_density": "10^14 g/cm³",
+    "collision_velocity": "0.15c ≈ 45,000 km/s",
+    "NS_radius": "12 km",
+    "separation": "60 km initially"
+  }
+}

@@ -48,13 +48,24 @@ void CSVWriter::write_header(const OutputMetadata& metadata) {
     m_file << "# === Unit System ===\n";
     m_file << "# Type: " << metadata.units.get_type_name() << "\n";
     m_file << "# Length: " << metadata.units.get_length_unit_name() 
-           << " (" << metadata.units.get_length_to_cgs() << " cm)\n";
+           << " (" << std::scientific << metadata.units.get_length_to_cgs() << " cm)\n";
     m_file << "# Mass: " << metadata.units.get_mass_unit_name() 
            << " (" << metadata.units.get_mass_to_cgs() << " g)\n";
     m_file << "# Time: " << metadata.units.get_time_unit_name() 
            << " (" << metadata.units.get_time_to_cgs() << " s)\n";
     m_file << "# Velocity: " << metadata.units.get_velocity_unit_name() 
            << " (" << metadata.units.get_velocity_to_cgs() << " cm/s)\n";
+    m_file << std::defaultfloat;
+    
+    // Relativistic units additional info
+    if (metadata.units.is_relativistic()) {
+        m_file << "# c (code units): " << metadata.units.get_c_code() << "\n";
+        m_file << "# Density: " << metadata.units.get_density_unit_name()
+               << " (" << std::scientific << metadata.units.get_density_to_cgs() << " g/cm³)\n";
+        m_file << "# Pressure: " << metadata.units.get_pressure_unit_name()
+               << " (" << metadata.units.get_pressure_to_cgs() << " dyne/cm²)\n";
+        m_file << std::defaultfloat;
+    }
     m_file << "#\n";
     
     // Simulation state

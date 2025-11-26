@@ -6,6 +6,7 @@ target_sources(sph
         hydrostatic.cpp
         khi.cpp
         lane_emden.cpp
+        ns_merger_2d.cpp
         pairing_instability.cpp
         pressure_equilibrium.cpp
         sedov.cpp

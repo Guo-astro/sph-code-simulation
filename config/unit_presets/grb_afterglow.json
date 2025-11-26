@@ -1,0 +1,28 @@
+{
+  "_comment": "Gamma-ray burst afterglow unit system",
+  "_description": "Scales for GRB afterglow and relativistic blast wave evolution. L ~ 10^16-10^18 cm",
+  "_reference": "Granot & Piran (2012), van Eerten et al. (2010)",
+  "units": {
+    "type": "RELATIVISTIC",
+    "length_cm": 1.0e17,
+    "density_gcm3": 1.67e-24,
+    "labels": {
+      "length": "10^17 cm",
+      "time": "days",
+      "velocity": "c",
+      "density": "n₀",
+      "pressure": "P_blast",
+      "energy": "E_iso"
+    }
+  },
+  "_physical_context": {
+    "length_scale_cm": 1.0e17,
+    "density_scale_g_cm3": 1.67e-24,
+    "time_scale_s": 3.336e6,
+    "time_scale_days": 38.6,
+    "typical_E_iso_erg": "1e51 - 1e54",
+    "typical_n0_cm-3": "0.01 - 10",
+    "typical_Gamma_0": "100 - 1000",
+    "deceleration_time_approx": "t_dec ~ (E/n0/c^5)^(1/3)"
+  }
+}

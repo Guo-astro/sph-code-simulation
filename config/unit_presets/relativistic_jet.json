@@ -1,0 +1,28 @@
+{
+  "_comment": "Relativistic jet unit system",
+  "_description": "Typical scales for AGN jets and astrophysical jets. L ~ 0.1-10 pc, ρ ~ 10^-24 g/cm³",
+  "_reference": "Mizuno et al. (2015), Martí & Müller (2015)",
+  "units": {
+    "type": "RELATIVISTIC",
+    "preset": "relativistic_jet",
+    "length_pc": 1.0,
+    "density_g_cm3": 1.67e-24,
+    "labels": {
+      "length": "pc",
+      "time": "pc/c",
+      "velocity": "c",
+      "density": "n_ISM",
+      "pressure": "P_jet",
+      "energy": "E_jet"
+    }
+  },
+  "_physical_context": {
+    "length_scale_cm": 3.086e18,
+    "density_scale_g_cm3": 1.67e-24,
+    "time_scale_s": 1.03e8,
+    "time_scale_years": 3.26,
+    "typical_jet_length_pc": "0.1 - 1000",
+    "typical_jet_lorentz_factor": "2 - 50",
+    "ISM_density_cm-3": 1.0
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "_comment": "Supernova remnant unit system",
+  "_description": "Scales for supernova remnant evolution in the interstellar medium. L ~ 1-10 pc",
+  "_reference": "Chevalier (1974), Sedov (1959)",
+  "units": {
+    "type": "RELATIVISTIC",
+    "length_cm": 3.086e18,
+    "density_gcm3": 1.67e-24,
+    "labels": {
+      "length": "pc",
+      "time": "kyr",
+      "velocity": "c",
+      "density": "n_ISM",
+      "pressure": "P_SNR",
+      "energy": "E_SN"
+    }
+  },
+  "_physical_context": {
+    "length_scale_cm": 3.086e18,
+    "density_scale_g_cm3": 1.67e-24,
+    "time_scale_s": 1.03e8,
+    "time_scale_kyr": 3.26,
+    "typical_E_SN_erg": 1.0e51,
+    "typical_n0_cm-3": "0.1 - 1.0",
+    "typical_SNR_radius_pc": "1 - 30",
+    "ejecta_mass_Msun": "1 - 10"
+  },
+  "_notes": "For non-relativistic SNR, velocities are << c. This preset is for relativistic SNe or ultra-relativistic phases."
+}
