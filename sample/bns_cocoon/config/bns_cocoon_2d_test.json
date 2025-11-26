@@ -1,0 +1,40 @@
+{
+    "//": "BNS Cocoon 2D Test Configuration",
+    "//": "Short test run to verify setup works correctly",
+    
+    "SPHType": "srgsph",
+    "sample_type": "bns_cocoon_2d",
+    "testType": "bns_cocoon_2d",
+    "name": "bns_cocoon_2d_test",
+    "outputDirectory": "sample/bns_cocoon/results/test",
+    
+    "startTime": 0.0,
+    "endTime": 0.5,
+    "outputInterval": 0.05,
+    
+    "gamma": 1.3333333333,
+    "courant": 0.2,
+    "AV.alpha": 1.0,
+    
+    "//": "Kernel settings - Gaussian required for SRGSPH",
+    "kernel": "gaussian",
+    "dimension": 2,
+    "neighbors": 50,
+    
+    "//": "Ejecta parameters",
+    "bns_cocoon": {
+        "M_ej": 0.01,
+        "v_min": 0.05,
+        "v_max": 0.4,
+        "beta": 0.5,
+        "t0": 1.0,
+        "E_cocoon": 0.001,
+        "theta_cocoon": 0.52,
+        "angular_power": 2.0,
+        "n_radial": 30,
+        "n_angular": 25
+    },
+    
+    "gravity": false,
+    "tree.periodic": false
+}

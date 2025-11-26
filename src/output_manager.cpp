@@ -81,7 +81,7 @@ bool OutputManager::write_snapshot(std::shared_ptr<Simulation> sim,
     // Build metadata
     OutputMetadata metadata = build_metadata(sim, params, count);
     
-    // Get particles as pointers
+    // Get particles as pointers (include all particles including ghosts for debugging)
     std::vector<SPHParticle*> particle_ptrs;
     particle_ptrs.reserve(sim->get_particle_num());
     for (size_t i = 0; i < sim->get_particles().size(); ++i) {
@@ -288,6 +288,8 @@ OutputMetadata OutputManager::build_metadata(std::shared_ptr<Simulation> sim,
     }
     
     compute_energies(particle_ptrs, params->gravity.is_valid,
+                    params->type,
+                    (params->type == SPHType::SRGSPH) ? params->srgsph.c_speed : 1.0,
                     metadata.kinetic_energy,
                     metadata.thermal_energy,
                     metadata.potential_energy);
@@ -301,6 +303,8 @@ OutputMetadata OutputManager::build_metadata(std::shared_ptr<Simulation> sim,
 
 void OutputManager::compute_energies(const std::vector<SPHParticle*>& particles,
                                      bool use_gravity,
+                                     SPHType sph_type,
+                                     real c_speed,
                                      real& kinetic,
                                      real& thermal,
                                      real& potential) const {
@@ -308,20 +312,50 @@ void OutputManager::compute_energies(const std::vector<SPHParticle*>& particles,
     thermal = 0.0;
     potential = 0.0;
     
-    #pragma omp parallel for reduction(+:kinetic,thermal,potential)
-    for (size_t i = 0; i < particles.size(); ++i) {
-        const SPHParticle* p = particles[i];
+    // For SRGSPH, compute relativistic energies
+    if (sph_type == SPHType::SRGSPH) {
+        const real c2 = c_speed * c_speed;
         
-        // Kinetic energy: 0.5 * m * v^2
-        real vsq = inner_product(p->vel, p->vel);
-        kinetic += 0.5 * p->mass * vsq;
-        
-        // Thermal energy: m * u
-        thermal += p->mass * p->ene;
-        
-        // Gravitational potential energy: 0.5 * m * phi
-        if (use_gravity) {
-            potential += 0.5 * p->mass * p->phi;
+        #pragma omp parallel for reduction(+:kinetic,thermal,potential)
+        for (size_t i = 0; i < particles.size(); ++i) {
+            const SPHParticle* p = particles[i];
+            
+            // Skip ghost particles - they shouldn't contribute to total energy
+            if (p->is_ghost) continue;
+            
+            // Relativistic kinetic energy: m * (γ - 1) * c²
+            real vsq = inner_product(p->vel, p->vel);
+            real gamma_lor = 1.0 / std::sqrt(1.0 - vsq / c2);
+            kinetic += p->mass * (gamma_lor - 1.0) * c2;
+            
+            // Internal (thermal) energy: m * ε
+            thermal += p->mass * p->ene;
+            
+            // Gravitational potential energy
+            if (use_gravity) {
+                potential += 0.5 * p->mass * p->phi;
+            }
+        }
+    } else {
+        // Standard Newtonian SPH energy computation
+        #pragma omp parallel for reduction(+:kinetic,thermal,potential)
+        for (size_t i = 0; i < particles.size(); ++i) {
+            const SPHParticle* p = particles[i];
+            
+            // Skip ghost particles - they shouldn't contribute to total energy
+            if (p->is_ghost) continue;
+            
+            // Kinetic energy: 0.5 * m * v^2
+            real vsq = inner_product(p->vel, p->vel);
+            kinetic += 0.5 * p->mass * vsq;
+            
+            // Thermal energy: m * u
+            thermal += p->mass * p->ene;
+            
+            // Gravitational potential energy: 0.5 * m * phi
+            if (use_gravity) {
+                potential += 0.5 * p->mass * p->phi;
+            }
         }
     }
 }

@@ -288,14 +288,99 @@ void Solver::read_parameterfile(const char * filename)
             m_sample_parameters["separation"] = input.get<real>("ns_merger.separation", real(6.0));
             m_sample_parameters["v_collision"] = input.get<real>("ns_merger.star1.velocity_x", real(0.15));
             m_sample_parameters["n_radial"] = input.get<int>("ns_merger.star1.n_particles_radial", 30);
+        } else if (sample_type == "bns_cocoon_1d") {
+            m_sample = Sample::BNSCocoon1D;
+            // Ejecta parameters (Gutiérrez+2024 arXiv:2408.15973v3)
+            m_sample_parameters["M_ej"] = input.get<real>("bns_cocoon.M_ej", real(0.01));
+            m_sample_parameters["v_min"] = input.get<real>("bns_cocoon.v_min", real(0.05));
+            m_sample_parameters["v_max"] = input.get<real>("bns_cocoon.v_max", real(0.7));
+            m_sample_parameters["v_break"] = input.get<real>("bns_cocoon.v_break", real(0.5));
+            m_sample_parameters["beta"] = input.get<real>("bns_cocoon.beta", real(0.5));
+            m_sample_parameters["alpha_tail"] = input.get<real>("bns_cocoon.alpha_tail", real(6.0));
+            m_sample_parameters["t0"] = input.get<real>("bns_cocoon.t0", real(1.0));
+            m_sample_parameters["gamma"] = input.get<real>("bns_cocoon.gamma", real(1.333333333));
+            m_sample_parameters["rho_floor"] = input.get<real>("bns_cocoon.rho_floor", real(1e-12));
+            m_sample_parameters["profile_type"] = input.get<int>("bns_cocoon.profile_type", 1);
+            // Cocoon parameters
+            m_sample_parameters["E_cocoon"] = input.get<real>("bns_cocoon.E_cocoon", real(1e-4));
+            m_sample_parameters["r_cocoon_frac"] = input.get<real>("bns_cocoon.r_cocoon_frac", real(0.3));
+            m_sample_parameters["Gamma_cocoon"] = input.get<real>("bns_cocoon.Gamma_cocoon", real(2.0));
+            m_sample_parameters["n_particles"] = input.get<int>("bns_cocoon.n_particles", 500);
+        } else if (sample_type == "bns_cocoon_2d") {
+            m_sample = Sample::BNSCocoon2D;
+            // Ejecta parameters (Gutiérrez+2024 arXiv:2408.15973v3)
+            m_sample_parameters["M_ej"] = input.get<real>("bns_cocoon.M_ej", real(0.01));
+            m_sample_parameters["v_min"] = input.get<real>("bns_cocoon.v_min", real(0.05));
+            m_sample_parameters["v_max"] = input.get<real>("bns_cocoon.v_max", real(0.7));
+            m_sample_parameters["v_break"] = input.get<real>("bns_cocoon.v_break", real(0.5));
+            m_sample_parameters["beta"] = input.get<real>("bns_cocoon.beta", real(0.5));
+            m_sample_parameters["alpha_tail"] = input.get<real>("bns_cocoon.alpha_tail", real(6.0));
+            m_sample_parameters["t0"] = input.get<real>("bns_cocoon.t0", real(1.0));
+            m_sample_parameters["gamma"] = input.get<real>("bns_cocoon.gamma", real(1.333333333));
+            m_sample_parameters["rho_floor"] = input.get<real>("bns_cocoon.rho_floor", real(1e-12));
+            m_sample_parameters["profile_type"] = input.get<int>("bns_cocoon.profile_type", 1);
+            // Angular distribution
+            m_sample_parameters["theta_polar"] = input.get<real>("bns_cocoon.theta_polar", real(0.2618));
+            m_sample_parameters["polar_density_factor"] = input.get<real>("bns_cocoon.polar_density_factor", real(0.1));
+            m_sample_parameters["angular_power"] = input.get<real>("bns_cocoon.angular_power", real(2.0));
+            // Cocoon parameters
+            m_sample_parameters["E_cocoon"] = input.get<real>("bns_cocoon.E_cocoon", real(1e-4));
+            m_sample_parameters["r_cocoon_frac"] = input.get<real>("bns_cocoon.r_cocoon_frac", real(0.3));
+            m_sample_parameters["theta_jet"] = input.get<real>("bns_cocoon.theta_jet", real(0.2094));
+            m_sample_parameters["Gamma_cocoon"] = input.get<real>("bns_cocoon.Gamma_cocoon", real(2.0));
+            m_sample_parameters["jet_injection"] = input.get<bool>("bns_cocoon.jet_injection", false);
+            // Resolution
+            m_sample_parameters["n_radial"] = input.get<int>("bns_cocoon.n_radial", 200);
+            m_sample_parameters["n_angular"] = input.get<int>("bns_cocoon.n_angular", 160);
         } else {
             // Try to infer sample type from SPH type and JSON content
             std::string sph_type_check = input.get<std::string>("SPHType", "");
             std::string test_type = input.get<std::string>("testType", "");
             
             if(sph_type_check == "srgsph") {
-                // Check for NS merger test type first
-                if(test_type == "ns_merger_2d" || name_str.find("ns_merger") != std::string::npos) {
+                // Check for BNS cocoon test types
+                if(test_type == "bns_cocoon_1d" || name_str.find("bns_cocoon_1d") != std::string::npos) {
+                    m_sample = Sample::BNSCocoon1D;
+                    m_sample_parameters["M_ej"] = input.get<real>("bns_cocoon.M_ej", real(0.01));
+                    m_sample_parameters["v_min"] = input.get<real>("bns_cocoon.v_min", real(0.05));
+                    m_sample_parameters["v_max"] = input.get<real>("bns_cocoon.v_max", real(0.7));
+                    m_sample_parameters["v_break"] = input.get<real>("bns_cocoon.v_break", real(0.5));
+                    m_sample_parameters["beta"] = input.get<real>("bns_cocoon.beta", real(0.5));
+                    m_sample_parameters["alpha_tail"] = input.get<real>("bns_cocoon.alpha_tail", real(6.0));
+                    m_sample_parameters["t0"] = input.get<real>("bns_cocoon.t0", real(1.0));
+                    m_sample_parameters["gamma"] = input.get<real>("bns_cocoon.gamma", real(1.333333333));
+                    m_sample_parameters["rho_floor"] = input.get<real>("bns_cocoon.rho_floor", real(1e-12));
+                    m_sample_parameters["profile_type"] = input.get<int>("bns_cocoon.profile_type", 1);
+                    m_sample_parameters["E_cocoon"] = input.get<real>("bns_cocoon.E_cocoon", real(1e-4));
+                    m_sample_parameters["r_cocoon_frac"] = input.get<real>("bns_cocoon.r_cocoon_frac", real(0.3));
+                    m_sample_parameters["Gamma_cocoon"] = input.get<real>("bns_cocoon.Gamma_cocoon", real(2.0));
+                    m_sample_parameters["n_particles"] = input.get<int>("bns_cocoon.n_particles", 500);
+                }
+                else if(test_type == "bns_cocoon_2d" || name_str.find("bns_cocoon_2d") != std::string::npos || name_str.find("bns_cocoon") != std::string::npos) {
+                    m_sample = Sample::BNSCocoon2D;
+                    m_sample_parameters["M_ej"] = input.get<real>("bns_cocoon.M_ej", real(0.01));
+                    m_sample_parameters["v_min"] = input.get<real>("bns_cocoon.v_min", real(0.05));
+                    m_sample_parameters["v_max"] = input.get<real>("bns_cocoon.v_max", real(0.7));
+                    m_sample_parameters["v_break"] = input.get<real>("bns_cocoon.v_break", real(0.5));
+                    m_sample_parameters["beta"] = input.get<real>("bns_cocoon.beta", real(0.5));
+                    m_sample_parameters["alpha_tail"] = input.get<real>("bns_cocoon.alpha_tail", real(6.0));
+                    m_sample_parameters["t0"] = input.get<real>("bns_cocoon.t0", real(1.0));
+                    m_sample_parameters["gamma"] = input.get<real>("bns_cocoon.gamma", real(1.333333333));
+                    m_sample_parameters["rho_floor"] = input.get<real>("bns_cocoon.rho_floor", real(1e-12));
+                    m_sample_parameters["profile_type"] = input.get<int>("bns_cocoon.profile_type", 1);
+                    m_sample_parameters["theta_polar"] = input.get<real>("bns_cocoon.theta_polar", real(0.2618));
+                    m_sample_parameters["polar_density_factor"] = input.get<real>("bns_cocoon.polar_density_factor", real(0.1));
+                    m_sample_parameters["angular_power"] = input.get<real>("bns_cocoon.angular_power", real(2.0));
+                    m_sample_parameters["E_cocoon"] = input.get<real>("bns_cocoon.E_cocoon", real(1e-4));
+                    m_sample_parameters["r_cocoon_frac"] = input.get<real>("bns_cocoon.r_cocoon_frac", real(0.3));
+                    m_sample_parameters["theta_jet"] = input.get<real>("bns_cocoon.theta_jet", real(0.2094));
+                    m_sample_parameters["Gamma_cocoon"] = input.get<real>("bns_cocoon.Gamma_cocoon", real(2.0));
+                    m_sample_parameters["jet_injection"] = input.get<bool>("bns_cocoon.jet_injection", false);
+                    m_sample_parameters["n_radial"] = input.get<int>("bns_cocoon.n_radial", 200);
+                    m_sample_parameters["n_angular"] = input.get<int>("bns_cocoon.n_angular", 160);
+                }
+                // Check for NS merger test type
+                else if(test_type == "ns_merger_2d" || name_str.find("ns_merger") != std::string::npos) {
                     m_sample = Sample::NSMerger2D;
                     m_sample_parameters["R_star"] = input.get<real>("ns_merger.star1.radius", real(1.2));
                     m_sample_parameters["rho_c"] = input.get<real>("ns_merger.star1.central_density", real(2.8));
@@ -410,9 +495,12 @@ void Solver::read_parameterfile(const char * filename)
 
     // periodic
     m_param->periodic.is_valid = input.get<bool>("periodic", false);
-    if(m_param->periodic.is_valid) {
-        {
-            auto & range_max = input.get_child("rangeMax");
+    
+    // Always read domain boundaries (rangeMin/rangeMax) - used for ghost particles even without periodic BC
+    {
+        auto range_max_opt = input.get_child_optional("rangeMax");
+        if(range_max_opt) {
+            auto & range_max = *range_max_opt;
             if(range_max.size() != DIM) {
                 THROW_ERROR("rangeMax != DIM");
             }
@@ -422,11 +510,13 @@ void Solver::read_parameterfile(const char * filename)
                 ++i;
             }
         }
-
-        {
-            auto & range_min = input.get_child("rangeMin");
+    }
+    {
+        auto range_min_opt = input.get_child_optional("rangeMin");
+        if(range_min_opt) {
+            auto & range_min = *range_min_opt;
             if(range_min.size() != DIM) {
-                THROW_ERROR("rangeMax != DIM");
+                THROW_ERROR("rangeMin != DIM");
             }
             int i = 0;
             for(auto & v : range_min) {
@@ -648,6 +738,16 @@ void Solver::run()
     const real t_end = m_param->time.end;
     real t_out = m_param->time.output;
     real t_ene = m_param->time.energy;
+
+    // For SRGSPH, compute initial N from kernel sum, then update ghosts
+    // This ensures consistent initial conditions for force calculation
+    if(m_param->type == SPHType::SRGSPH) {
+#ifndef EXHAUSTIVE_SEARCH
+        m_sim->make_tree();
+#endif
+        m_pre->calculation(m_sim);  // Compute N for real particles
+        update_ghost_particles();   // Mirror N to ghost particles
+    }
 
     // Write initial snapshot
     m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++);
@@ -1039,6 +1139,12 @@ void Solver::initialize()
 #endif
 
     m_pre->calculation(m_sim);
+    
+    // For SRGSPH, update ghost particles after computing N but before forces
+    if(m_param->type == SPHType::SRGSPH) {
+        update_ghost_particles();
+    }
+    
     m_fforce->calculation(m_sim);
     m_gforce->calculation(m_sim);
 }
@@ -1051,7 +1157,13 @@ void Solver::integrate()
 #ifndef EXHAUSTIVE_SEARCH
     m_sim->make_tree();
 #endif
+    // First compute densities and smoothing lengths for real particles
     m_pre->calculation(m_sim);
+    
+    // Then update ghost particles to mirror the freshly computed values
+    // This ensures ghosts have current N, h, etc. for force calculation
+    update_ghost_particles();
+    
     m_fforce->calculation(m_sim);
     m_gforce->calculation(m_sim);
     correct();
@@ -1075,6 +1187,9 @@ void Solver::predict()
 
 #pragma omp parallel for
         for(int i = 0; i < num; ++i) {
+            // Skip ghost particles - they are fixed and don't evolve
+            if(p[i].is_ghost) continue;
+            
             // === SR-GSPH PREDICTOR-CORRECTOR TIME INTEGRATION ===
             // Implements 2nd-order Heun's method (predictor-corrector)
             //
@@ -1140,6 +1255,9 @@ void Solver::predict()
         // Integrate PRIMITIVE variables: v (velocity), u (internal energy)
 #pragma omp parallel for
         for(int i = 0; i < num; ++i) {
+            // Skip ghost particles - they are fixed and don't evolve
+            if(p[i].is_ghost) continue;
+            
             // k -> k+1/2
             p[i].vel_p = p[i].vel + p[i].acc * (0.5 * dt);
             p[i].ene_p = p[i].ene + p[i].dene * (0.5 * dt);
@@ -1171,6 +1289,9 @@ void Solver::correct()
         
 #pragma omp parallel for
         for(int i = 0; i < num; ++i) {
+            // Skip ghost particles - they are fixed and don't evolve
+            if(p[i].is_ghost) continue;
+            
             // === SR-GSPH CORRECTOR STEP ===
             // Now we have NEW derivatives (dS, de) from force calculation at predicted state
             // Apply corrector: use AVERAGE of old and new derivatives
@@ -1227,9 +1348,115 @@ void Solver::correct()
         // Standard SPH correction
 #pragma omp parallel for
         for(int i = 0; i < num; ++i) {
+            // Skip ghost particles - they are fixed and don't evolve
+            if(p[i].is_ghost) continue;
+            
             p[i].vel = p[i].vel_p + p[i].acc * (0.5 * dt);
             p[i].ene = p[i].ene_p + p[i].dene * (0.5 * dt);
             p[i].sound = std::sqrt(c_sound * p[i].ene);
+        }
+    }
+    
+    // Update ghost particles by mirroring nearest real particles
+    update_ghost_particles();
+}
+
+void Solver::update_ghost_particles()
+{
+    auto & p = m_sim->get_particles();
+    const int num = m_sim->get_particle_num();
+    const real gamma = m_param->physics.gamma;
+    
+    // Get domain boundaries from parameters (set via rangeMin/rangeMax in config)
+    const real x_left = m_param->periodic.range_min[0];
+    const real x_right = m_param->periodic.range_max[0];
+    
+    // For each ghost particle, find the nearest real particle and mirror its properties
+    for(int i = 0; i < num; ++i) {
+        if(!p[i].is_ghost) continue;
+        
+        // Determine if this is a left or right ghost
+        real ghost_x = p[i].pos[0];
+        
+        if(ghost_x < x_left) {
+            // Left ghost: mirror from particles near x_left
+            // Distance from boundary
+            real dist_from_boundary = x_left - ghost_x;
+            real mirror_x = x_left + dist_from_boundary;
+            
+            // Find nearest real particle to mirror_x
+            int nearest_idx = -1;
+            real min_dist = 1e10;
+            for(int j = 0; j < num; ++j) {
+                if(p[j].is_ghost) continue;
+                real dx = std::abs(p[j].pos[0] - mirror_x);
+                if(dx < min_dist) {
+                    min_dist = dx;
+                    nearest_idx = j;
+                }
+            }
+            
+            if(nearest_idx >= 0) {
+                // Update ghost position to exactly mirror the real particle
+                p[i].pos[0] = 2.0 * x_left - p[nearest_idx].pos[0];
+                
+                // Mirror properties (reflect velocity for wall boundary)
+                p[i].dens = p[nearest_idx].dens;
+                p[i].pres = p[nearest_idx].pres;
+                p[i].ene = p[nearest_idx].ene;
+                p[i].sound = p[nearest_idx].sound;
+                p[i].sml = p[nearest_idx].sml;
+                // Reflect velocity (wall boundary condition)
+                p[i].vel = p[nearest_idx].vel * (-1.0);
+                
+                // For SRGSPH, also update conserved variables
+                if(m_param->type == SPHType::SRGSPH) {
+                    p[i].N = p[nearest_idx].N;
+                    p[i].e = p[nearest_idx].e;
+                    p[i].S = p[nearest_idx].S * (-1.0);  // Reflect momentum
+                    p[i].gamma_lor = p[nearest_idx].gamma_lor;
+                    p[i].enthalpy = p[nearest_idx].enthalpy;
+                }
+            }
+        } else if(ghost_x > x_right) {
+            // Right ghost: mirror from particles near x_right
+            real dist_from_boundary = ghost_x - x_right;
+            real mirror_x = x_right - dist_from_boundary;
+            
+            // Find nearest real particle to mirror_x
+            int nearest_idx = -1;
+            real min_dist = 1e10;
+            for(int j = 0; j < num; ++j) {
+                if(p[j].is_ghost) continue;
+                real dx = std::abs(p[j].pos[0] - mirror_x);
+                if(dx < min_dist) {
+                    min_dist = dx;
+                    nearest_idx = j;
+                }
+            }
+            
+            if(nearest_idx >= 0) {
+                // Update ghost position to exactly mirror the real particle
+                p[i].pos[0] = 2.0 * x_right - p[nearest_idx].pos[0];
+                
+                // Mirror properties (reflect velocity for wall boundary)
+                p[i].dens = p[nearest_idx].dens;
+                p[i].pres = p[nearest_idx].pres;
+                p[i].ene = p[nearest_idx].ene;
+                p[i].sound = p[nearest_idx].sound;
+                p[i].sml = p[nearest_idx].sml;
+                // Reflect velocity (wall boundary condition)
+                p[i].vel = p[nearest_idx].vel * (-1.0);
+                
+                // For SRGSPH, also update conserved variables
+                if(m_param->type == SPHType::SRGSPH) {
+                    p[i].N = p[nearest_idx].N;
+                    p[i].e = p[nearest_idx].e;
+                    p[i].S = p[nearest_idx].S * (-1.0);  // Reflect momentum
+                    p[i].gamma_lor = p[nearest_idx].gamma_lor;
+                    p[i].enthalpy = p[nearest_idx].enthalpy;
+                }
+            }
         }
     }
 }
@@ -1255,6 +1482,8 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::Sedov, sedov);
         MAKE_SAMPLE(Sample::SRSod, sr_sod);
         MAKE_SAMPLE(Sample::NSMerger2D, ns_merger_2d);
+        MAKE_SAMPLE(Sample::BNSCocoon1D, bns_cocoon_1d);
+        MAKE_SAMPLE(Sample::BNSCocoon2D, bns_cocoon_2d);
         case Sample::DoNotUse:
 
             // サンプルを使わない場合はここを実装
@@ -1279,20 +1508,69 @@ void Solver::compute_total_energies(real& kinetic, real& thermal, real& potentia
     const int num = m_sim->get_particle_num();
     const bool use_gravity = m_param->gravity.is_valid;
     
-    #pragma omp parallel for reduction(+:kinetic,thermal,potential)
-    for(int i = 0; i < num; ++i) {
-        const auto& p = particles[i];
+    // For SRGSPH, compute relativistic energies from canonical variables
+    if(m_param->type == SPHType::SRGSPH) {
+        // In special relativistic Godunov SPH (Kitajima et al. 2025):
+        // - Total energy = sum of canonical energy contributions
+        // - Canonical energy per baryon: e = γH - P/(Nc²) where H = 1 + ε + P/(ρc²)
+        // - Kinetic-like: related to momentum S = γHv
+        // - Thermal-like: rest mass + internal energy contribution
+        //
+        // For output, we decompose the relativistic energy into:
+        // - kinetic:   sum_i m_i * (γ_i - 1) * c²  (relativistic kinetic energy)
+        // - thermal:   sum_i m_i * ε_i             (internal energy)
+        // - potential: gravitational (if enabled)
+        //
+        // Total relativistic energy: E_total = sum_i m_i * e_i * c²
+        // where e_i is the canonical energy per baryon stored in particle
         
-        // Kinetic energy: 0.5 * m * v^2
-        real vsq = inner_product(p.vel, p.vel);
-        kinetic += 0.5 * p.mass * vsq;
+        const real c_speed = m_param->srgsph.c_speed;
+        const real c2 = c_speed * c_speed;
         
-        // Thermal energy: m * u
-        thermal += p.mass * p.ene;
+        real rel_kinetic = 0.0;
+        real rel_thermal = 0.0;
+        real rel_potential = 0.0;
         
-        // Gravitational potential energy: 0.5 * m * phi
-        if(use_gravity) {
-            potential += 0.5 * p.mass * p.phi;
+        #pragma omp parallel for reduction(+:rel_kinetic,rel_thermal,rel_potential)
+        for(int i = 0; i < num; ++i) {
+            const auto& p = particles[i];
+            
+            // Relativistic kinetic energy: m * (γ - 1) * c²
+            // γ = Lorentz factor = 1/sqrt(1 - v²/c²)
+            real vsq = inner_product(p.vel, p.vel);
+            real gamma_lor = 1.0 / std::sqrt(1.0 - vsq / c2);
+            rel_kinetic += p.mass * (gamma_lor - 1.0) * c2;
+            
+            // Internal (thermal) energy: m * ε (specific internal energy)
+            rel_thermal += p.mass * p.ene;
+            
+            // Gravitational potential energy
+            if(use_gravity) {
+                rel_potential += 0.5 * p.mass * p.phi;
+            }
+        }
+        
+        kinetic = rel_kinetic;
+        thermal = rel_thermal;
+        potential = rel_potential;
+        
+    } else {
+        // Standard Newtonian SPH energy computation
+        #pragma omp parallel for reduction(+:kinetic,thermal,potential)
+        for(int i = 0; i < num; ++i) {
+            const auto& p = particles[i];
+            
+            // Kinetic energy: 0.5 * m * v^2
+            real vsq = inner_product(p.vel, p.vel);
+            kinetic += 0.5 * p.mass * vsq;
+            
+            // Thermal energy: m * u
+            thermal += p.mass * p.ene;
+            
+            // Gravitational potential energy: 0.5 * m * phi
+            if(use_gravity) {
+                potential += 0.5 * p.mass * p.phi;
+            }
         }
     }
 }

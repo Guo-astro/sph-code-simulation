@@ -1,11 +1,26 @@
 cmake_minimum_required(VERSION 3.13)
 project(sphcode CXX)
 
+# =============================================================================
+# Build type: default to Release for optimized performance
+# =============================================================================
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type (Debug, Release, RelWithDebInfo, MinSizeRel)" FORCE)
+    message(STATUS "No build type specified, defaulting to Release")
+endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
 # Dimension parameter (1D, 2D, or 3D)
 # Can be set via: cmake -DSPH_DIM=1 ..
 set(SPH_DIM "2" CACHE STRING "Spatial dimension (1, 2, or 3)")
 set_property(CACHE SPH_DIM PROPERTY STRINGS "1" "2" "3")
 message(STATUS "Building for ${SPH_DIM}D simulations (DIM=${SPH_DIM})")
+
+# =============================================================================
+# Performance options
+# =============================================================================
+option(ENABLE_NATIVE_ARCH "Enable -march=native for best performance on this CPU (disable for portable builds)" ON)
+option(ENABLE_LTO "Enable Link-Time Optimization (slower build, faster runtime)" OFF)
 
 find_package(OpenMP REQUIRED)
 find_package(Boost REQUIRED)
@@ -38,6 +53,40 @@ if(ENABLE_SANITIZERS)
     target_compile_options(sph PUBLIC -fsanitize=address -fsanitize=undefined -g -O1 -fno-omit-frame-pointer)
     target_link_options(sph PUBLIC -fsanitize=address -fsanitize=undefined)
     message(STATUS "Building with AddressSanitizer and UndefinedBehaviorSanitizer enabled")
+endif()
+
+# =============================================================================
+# Compiler flags for performance
+# =============================================================================
+# Release-mode optimizations (only when not using sanitizers)
+if(NOT ENABLE_SANITIZERS)
+    # Use -O3 for aggressive optimization in Release builds
+    target_compile_options(sph PUBLIC
+        $<$<CONFIG:Release>:-O3>
+        $<$<CONFIG:RelWithDebInfo>:-O2>
+    )
+    
+    # Native architecture tuning (best performance on build machine)
+    if(ENABLE_NATIVE_ARCH AND NOT CMAKE_CROSSCOMPILING)
+        include(CheckCXXCompilerFlag)
+        check_cxx_compiler_flag("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
+        if(COMPILER_SUPPORTS_MARCH_NATIVE)
+            target_compile_options(sph PUBLIC -march=native)
+            message(STATUS "Enabled -march=native for CPU-specific optimizations")
+        endif()
+    endif()
+    
+    # Link-Time Optimization (optional, slower build but faster runtime)
+    if(ENABLE_LTO)
+        include(CheckIPOSupported)
+        check_ipo_supported(RESULT LTO_SUPPORTED OUTPUT LTO_ERROR)
+        if(LTO_SUPPORTED)
+            set_property(TARGET sph PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+            message(STATUS "Enabled Link-Time Optimization (LTO)")
+        else()
+            message(WARNING "LTO requested but not supported: ${LTO_ERROR}")
+        endif()
+    endif()
 endif()
 
 target_compile_options(sph

@@ -37,6 +37,8 @@ enum struct Sample {
     Sedov,
     SRSod,
     NSMerger2D,
+    BNSCocoon1D,
+    BNSCocoon2D,
     DoNotUse,
 };;
 
@@ -71,6 +73,7 @@ class Solver {
     void predict();
     void correct();
     void integrate();
+    void update_ghost_particles();  // Mirror ghost particle properties from real particles
     
     // Helper method to compute total energies
     void compute_total_energies(real& kinetic, real& thermal, real& potential) const;
@@ -94,6 +97,8 @@ class Solver {
     void make_sedov();
     void make_sr_sod();
     void make_ns_merger_2d();
+    void make_bns_cocoon_1d();
+    void make_bns_cocoon_2d();
 
 public:
     Solver(int argc, char * argv[]);

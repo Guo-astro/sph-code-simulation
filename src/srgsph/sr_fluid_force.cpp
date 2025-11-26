@@ -130,6 +130,11 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
 #pragma omp parallel for schedule(dynamic)
     for (int i = 0; i < num; ++i) {
         auto & p_i = particles[i];
+        
+        // Skip ghost particles - they don't evolve and shouldn't accumulate forces
+        // (their properties are set by update_ghost_particles via mirroring)
+        if (p_i.is_ghost) continue;
+        
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
 
 #ifdef EXHAUSTIVE_SEARCH
@@ -150,7 +155,7 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
             const vec_t r_ij = periodic->calc_r_ij(p_i.pos, p_j.pos);
             const real r = std::abs(r_ij);
 
-            if (r > 3.0 * std::max(p_i.sml, p_j.sml)) {
+            if (r > 3.0 * std::sqrt(2.0) * std::max(p_i.sml, p_j.sml)) {
                 continue;
             }
 
@@ -161,6 +166,13 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
             const vec_t dr_j = midpoint - p_j.pos;
 
             bool use_second_order = gradients_available;
+            
+            // Don't use 2nd order reconstruction for ghost interactions
+            // because ghosts don't have computed gradients
+            if (p_j.is_ghost) {
+                use_second_order = false;
+            }
+            
             if (use_second_order) {
                 const vec_t e_ij = n_ij * (-1.0);
                 const vec_t dv = p_i.vel - p_j.vel;
@@ -295,30 +307,51 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
 #endif
 
             // Decompose velocities into normal (v^x) and tangential (v^t) components
-            const real v_x_L = inner_product(v_L, n_ij);
-            const real v_x_R = inner_product(v_R, n_ij);
+            real v_x_L = inner_product(v_L, n_ij);
+            real v_x_R = inner_product(v_R, n_ij);
             const vec_t v_t_vec_L = v_L - n_ij * v_x_L;
             const vec_t v_t_vec_R = v_R - n_ij * v_x_R;
-            const real v_t_L = std::abs(v_t_vec_L);
-            const real v_t_R = std::abs(v_t_vec_R);
+            real v_t_L = std::abs(v_t_vec_L);
+            real v_t_R = std::abs(v_t_vec_R);
 
-            // State arrays: [v^x, n, P, c_s, v^t]
-            real left_state[5] = {v_x_L, rho_L, p_L, p_i.sound, v_t_L};
-            real right_state[5] = {v_x_R, rho_R, p_R, p_j.sound, v_t_R};
-
-            // Solve Riemann problem to get star state (P*, v^x*, v^t*)
+            // Riemann solution variables
             real P_star = 0.0;
             real v_x_star = 0.0;
             real v_t_star = 0.0;
-            solve_interface_state(left_state, right_state, P_star, v_x_star, v_t_star);
+            vec_t v_star_vec(0.0);
 
-            // Reconstruct full star velocity vector
-            vec_t v_star_vec = n_ij * v_x_star;
-            if (v_t_star > 1e-10) {
-                if (v_x_star > 0.0 && v_t_L > 1e-10) {
-                    v_star_vec = v_star_vec + v_t_vec_L * (v_t_star / v_t_L);
-                } else if (v_x_star <= 0.0 && v_t_R > 1e-10) {
-                    v_star_vec = v_star_vec + v_t_vec_R * (v_t_star / v_t_R);
+            // For ghost-real interactions, use wall boundary condition directly
+            // instead of solving Riemann problem which would create spurious pressure
+            // Ghost particles represent a stationary reflecting wall
+            if (p_j.is_ghost) {
+                // Wall boundary condition:
+                // - P* = P_L (wall reflects with same pressure, no shock/rarefaction)
+                // - v* = 0 (no flow through wall)
+                // - v_t* = v_t_L (tangential velocity preserved)
+                P_star = p_L;
+                v_x_star = 0.0;
+                v_t_star = v_t_L;
+                
+                // Reconstruct star velocity (only tangential component)
+                if (v_t_star > 1e-10 && v_t_L > 1e-10) {
+                    v_star_vec = v_t_vec_L * (v_t_star / v_t_L);
+                }
+            } else {
+                // Normal real-real interaction: solve Riemann problem
+                // State arrays: [v^x, n, P, c_s, v^t]
+                real left_state[5] = {v_x_L, rho_L, p_L, p_i.sound, v_t_L};
+                real right_state[5] = {v_x_R, rho_R, p_R, p_j.sound, v_t_R};
+
+                solve_interface_state(left_state, right_state, P_star, v_x_star, v_t_star);
+
+                // Reconstruct full star velocity vector
+                v_star_vec = n_ij * v_x_star;
+                if (v_t_star > 1e-10) {
+                    if (v_x_star > 0.0 && v_t_L > 1e-10) {
+                        v_star_vec = v_star_vec + v_t_vec_L * (v_t_star / v_t_L);
+                    } else if (v_x_star <= 0.0 && v_t_R > 1e-10) {
+                        v_star_vec = v_star_vec + v_t_vec_R * (v_t_star / v_t_R);
+                    }
                 }
             }
 
@@ -326,12 +359,19 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
             const real V_j = p_j.nu / p_j.N;
             const real Vij2 = 0.5 * (V_i * V_i + V_j * V_j);
 
-            const vec_t grad_W_i = kernel->dw(r_ij, r, sqrt_two * p_i.sml);
-            const vec_t grad_W_j = kernel->dw(r_ij, r, sqrt_two * p_j.sml);
+            // Use average h for both kernels to ensure symmetry
+            // This prevents tiny h variations from causing force imbalances
+            const real h_ij = 0.5 * (p_i.sml + p_j.sml);
+            const vec_t grad_W_i = kernel->dw(r_ij, r, sqrt_two * h_ij);
+            const vec_t grad_W_j = kernel->dw(r_ij, r, sqrt_two * h_ij);
             const vec_t term_grad = grad_W_i - (grad_W_j * (-1.0));
 
             const vec_t force = term_grad * (-P_star * Vij2);
             const real power = inner_product(v_star_vec, force);
+            
+            // DEBUG disabled - force symmetry verified
+            // static int debug_count = 0;
+            // if (p_i.id == 2 && debug_count < 20) { ... }
 
             p_i.dS[0] += force[0];
 #if DIM >= 2
@@ -346,6 +386,8 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
 
 #pragma omp parallel for
     for (int i = 0; i < num; ++i) {
+        // Skip ghost particles in normalization too
+        if (particles[i].is_ghost) continue;
         FluidForce::normalize_sr_derivatives(particles[i]);
     }
 }

@@ -47,6 +47,9 @@ public:
     real enthalpy;   // specific enthalpy H = 1 + u/c² + P/(nc²)
     real nu;         // baryon number per particle (constant)
 
+    // === Particle type flags ===
+    bool is_ghost = false;  // Ghost/boundary particle (fixed, not integrated)
+
     int id;
     int neighbor;
     SPHParticle *next = nullptr;

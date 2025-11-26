@@ -13,6 +13,10 @@
 #   make -f Makefile.sr_sod sr_benchmark_blast     # Blast wave vs exact
 #   make -f Makefile.sr_sod sr_benchmark_all       # All benchmarks
 #
+# Conservation analysis:
+#   make -f Makefile.sr_sod sr_conservation_sod    # Energy/momentum/baryon conservation
+#   make -f Makefile.sr_sod sr_animate_sod         # Create animation with energy plot
+#
 # ==============================================================================
 
 .PHONY: sr_sod_run sr_sod_clean sr_viz_sod sr_sod_all
@@ -23,6 +27,8 @@
 .PHONY: sr_all sr_viz_all sr_clean_all sr_help sr_check_dim
 .PHONY: sr_benchmark_sod sr_benchmark_kitajima sr_benchmark_blast
 .PHONY: sr_benchmark_strong sr_benchmark_ultra sr_benchmark_all
+.PHONY: sr_conservation_sod sr_conservation_kitajima sr_conservation_all
+.PHONY: sr_animate_sod sr_animate_kitajima sr_animate_all
 
 # Path Variables
 TEST_DIR     := sample/sr_sod
@@ -30,6 +36,8 @@ CONFIG_DIR   := $(TEST_DIR)/config/presets
 RESULTS_DIR  := $(TEST_DIR)/results
 SCRIPTS_DIR  := $(TEST_DIR)/scripts
 VIZ_SCRIPT   := $(SCRIPTS_DIR)/sr_sod_visualize.py
+CONSERV_SCRIPT := $(SCRIPTS_DIR)/analyze_srgsph_conservation.py
+ANIMATE_SCRIPT := $(SCRIPTS_DIR)/animate_sr_sod_results.py
 SPH_BINARY   := build/sph
 
 # Config Files
@@ -188,6 +196,89 @@ sr_benchmark_all: sr_benchmark_sod sr_benchmark_kitajima sr_benchmark_blast sr_b
 	@echo "✓ All Benchmark Animations Complete!"
 	@echo "========================================"
 
+# ==============================================================================
+# Conservation Analysis Targets
+# ==============================================================================
+# Analyze energy, momentum, and baryon number conservation
+
+sr_conservation_sod:
+	@echo "========================================"
+	@echo "Conservation Analysis: Sod Test"
+	@echo "========================================"
+	@if [ ! -d "$(SOD_RESULTS)" ]; then echo "❌ No results in $(SOD_RESULTS). Run sr_sod_run first."; exit 1; fi
+	@mkdir -p $(SOD_RESULTS)/analysis
+	python3 $(CONSERV_SCRIPT) $(SOD_RESULTS)
+	@echo "✓ Conservation analysis complete"
+	@echo "📊 Output: $(SOD_RESULTS)/analysis/"
+
+sr_conservation_kitajima:
+	@echo "========================================"
+	@echo "Conservation Analysis: Kitajima Test"
+	@echo "========================================"
+	@if [ ! -d "$(KITAJIMA_RESULTS)" ]; then echo "❌ No results in $(KITAJIMA_RESULTS). Run sr_kitajima_run first."; exit 1; fi
+	@mkdir -p $(KITAJIMA_RESULTS)/analysis
+	python3 $(CONSERV_SCRIPT) $(KITAJIMA_RESULTS)
+	@echo "✓ Conservation analysis complete"
+	@echo "📊 Output: $(KITAJIMA_RESULTS)/analysis/"
+
+sr_conservation_blast:
+	@echo "========================================"
+	@echo "Conservation Analysis: Blast Wave"
+	@echo "========================================"
+	@if [ ! -d "$(BLAST_RESULTS)" ]; then echo "❌ No results in $(BLAST_RESULTS). Run sr_blast_run first."; exit 1; fi
+	@mkdir -p $(BLAST_RESULTS)/analysis
+	python3 $(CONSERV_SCRIPT) $(BLAST_RESULTS)
+	@echo "✓ Conservation analysis complete"
+	@echo "📊 Output: $(BLAST_RESULTS)/analysis/"
+
+sr_conservation_all: sr_conservation_sod sr_conservation_kitajima sr_conservation_blast
+	@echo "========================================"
+	@echo "✓ All Conservation Analyses Complete!"
+	@echo "========================================"
+
+# ==============================================================================
+# Animation Targets
+# ==============================================================================
+# Create GIF animations with energy/momentum plots
+
+sr_animate_sod:
+	@echo "========================================"
+	@echo "Creating Animation: Sod Test"
+	@echo "========================================"
+	@if [ ! -d "$(SOD_RESULTS)" ]; then echo "❌ No results in $(SOD_RESULTS). Run sr_sod_run first."; exit 1; fi
+	@mkdir -p $(RESULTS_DIR)/animations
+	python3 $(ANIMATE_SCRIPT) $(SOD_RESULTS) $(RESULTS_DIR)/animations/sr_sod_animation.gif
+	@echo "✓ Animation complete"
+	@echo "🎬 Output: $(RESULTS_DIR)/animations/sr_sod_animation.gif"
+	@echo "📊 Energy plot: $(RESULTS_DIR)/animations/sr_sod_animation_energy.png"
+
+sr_animate_kitajima:
+	@echo "========================================"
+	@echo "Creating Animation: Kitajima Test"
+	@echo "========================================"
+	@if [ ! -d "$(KITAJIMA_RESULTS)" ]; then echo "❌ No results in $(KITAJIMA_RESULTS). Run sr_kitajima_run first."; exit 1; fi
+	@mkdir -p $(RESULTS_DIR)/animations
+	python3 $(ANIMATE_SCRIPT) $(KITAJIMA_RESULTS) $(RESULTS_DIR)/animations/sr_kitajima_animation.gif
+	@echo "✓ Animation complete"
+	@echo "🎬 Output: $(RESULTS_DIR)/animations/sr_kitajima_animation.gif"
+	@echo "📊 Energy plot: $(RESULTS_DIR)/animations/sr_kitajima_animation_energy.png"
+
+sr_animate_blast:
+	@echo "========================================"
+	@echo "Creating Animation: Blast Wave"
+	@echo "========================================"
+	@if [ ! -d "$(BLAST_RESULTS)" ]; then echo "❌ No results in $(BLAST_RESULTS). Run sr_blast_run first."; exit 1; fi
+	@mkdir -p $(RESULTS_DIR)/animations
+	python3 $(ANIMATE_SCRIPT) $(BLAST_RESULTS) $(RESULTS_DIR)/animations/sr_blast_animation.gif
+	@echo "✓ Animation complete"
+	@echo "🎬 Output: $(RESULTS_DIR)/animations/sr_blast_animation.gif"
+	@echo "📊 Energy plot: $(RESULTS_DIR)/animations/sr_blast_animation_energy.png"
+
+sr_animate_all: sr_animate_sod sr_animate_kitajima sr_animate_blast
+	@echo "========================================"
+	@echo "✓ All Animations Complete!"
+	@echo "========================================"
+
 # Help
 sr_help:
 	@echo "SR-GSPH Sod Test Suite (Kitajima 2025)"
@@ -207,6 +298,18 @@ sr_help:
 	@echo "  sr_benchmark_strong    - Strong blast vs exact solution"
 	@echo "  sr_benchmark_ultra     - Ultra-relativistic vs exact solution"
 	@echo "  sr_benchmark_all       - All benchmarks"
+	@echo ""
+	@echo "Conservation Analysis (Energy, Momentum, Baryon Number):"
+	@echo "  sr_conservation_sod      - Analyze Sod test conservation laws"
+	@echo "  sr_conservation_kitajima - Analyze Kitajima test conservation"
+	@echo "  sr_conservation_blast    - Analyze blast wave conservation"
+	@echo "  sr_conservation_all      - All conservation analyses"
+	@echo ""
+	@echo "Animations:"
+	@echo "  sr_animate_sod         - Create GIF animation with energy plot"
+	@echo "  sr_animate_kitajima    - Kitajima test animation"
+	@echo "  sr_animate_blast       - Blast wave animation"
+	@echo "  sr_animate_all         - All animations"
 	@echo ""
 	@echo "Physical Units: c=1, time in L/c, velocity in c"
 	@echo "Reference: Kitajima et al. (2025) arXiv:2510.18251v1"

@@ -80,7 +80,8 @@ real PreInteraction::compute_smoothing_length(
     real h = p_i.sml; // Initial guess from previous step
 
     // Iterate to find self-consistent h
-    constexpr int max_iter = 10;
+    // Use many iterations and tight tolerance for uniform h in identical-state regions
+    constexpr int max_iter = 50;
     for (int iter = 0; iter < max_iter; ++iter) {
         // Calculate V_p* using C_smooth * h
         real sum_W_star = 0.0;
@@ -104,8 +105,9 @@ real PreInteraction::compute_smoothing_length(
         // Update h: h = � * (V_p*)^(1/d)
         const real h_new = m_eta * std::pow(Vp_star, 1.0 / DIM);
 
-        // Check convergence
-        if (std::abs(h_new - h) / h < 1e-4) {
+        // Check convergence - use tight tolerance to ensure uniform h
+        // in regions with identical physical states
+        if (std::abs(h_new - h) / h < 1e-12) {
             h = h_new;
             break;
         }
@@ -180,6 +182,7 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 #pragma omp parallel for
     for (int i = 0; i < num; ++i) {
         auto & p_i = particles[i];
+        
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
 
         // Neighbor search
@@ -211,13 +214,19 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 #endif
 
         // Update smoothing length if iteration enabled
-        if (m_iteration) {
+        // Skip on first timestep to preserve exact h from initial conditions
+        // This ensures uniform initial conditions have exactly equal h values
+        if (m_iteration && !m_first_calculation) {
             p_i.sml = compute_smoothing_length(p_i, particles, neighbor_list,
                                                n_neighbor_tmp, periodic, kernel, p_i.sml);
         }
 
+        // Ghost particles: only compute h, skip density/primitive updates
+        // Their other properties are set by update_ghost_particles() mirroring
+        if (p_i.is_ghost) continue;
+
         // Compute particle volume V_p (used for number density)
-        // V_p = [�_j W(r, h)]^(-1)
+        // V_p = [Σ_j W(r, h)]^(-1)
         const real Vp = compute_volume(p_i, particles, neighbor_list,
                                        n_neighbor_tmp, periodic, kernel, p_i.sml);
 

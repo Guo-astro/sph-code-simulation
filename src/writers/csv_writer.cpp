@@ -128,6 +128,7 @@ void CSVWriter::write_header(const OutputMetadata& metadata) {
     m_file << "# gradh: grad-h term factor\n";
     m_file << "# phi: Gravitational potential [code units]\n";
     m_file << "# neighbor: Number of neighbors\n";
+    m_file << "# is_ghost: Ghost particle flag (0=real, 1=ghost)\n";
     m_file << "#\n";
 }
 
@@ -137,7 +138,7 @@ void CSVWriter::write_column_names() {
     m_file << "vel_x,vel_y,vel_z,";
     m_file << "acc_x,acc_y,acc_z,";
     m_file << "mass,dens,pres,ene,sml,sound,";
-    m_file << "alpha,balsara,gradh,phi,neighbor\n";
+    m_file << "alpha,balsara,gradh,phi,neighbor,is_ghost\n";
 }
 
 bool CSVWriter::write_particles(const std::vector<SPHParticle*>& particles) {
@@ -169,7 +170,8 @@ bool CSVWriter::write_particles(const std::vector<SPHParticle*>& particles) {
         m_file << p->balsara << ",";
         m_file << p->gradh << ",";
         m_file << p->phi << ",";
-        m_file << p->neighbor << "\n";
+        m_file << p->neighbor << ",";
+        m_file << (p->is_ghost ? 1 : 0) << "\n";
     }
     
     m_file.flush();
@@ -313,8 +315,8 @@ bool CSVWriter::read_particles(const std::string& filepath, std::vector<SPHParti
             fields.push_back(field);
         }
         
-        // Verify we have all 21 columns
-        if (fields.size() != 21) {
+        // Verify we have all 22 columns (including is_ghost)
+        if (fields.size() != 22) {
             // Clean up allocated particles
             for (auto* p : particles) {
                 delete p;
@@ -359,6 +361,7 @@ bool CSVWriter::read_particles(const std::string& filepath, std::vector<SPHParti
             p->gradh = std::stod(fields[idx++]);
             p->phi = std::stod(fields[idx++]);
             p->neighbor = std::stoi(fields[idx++]);
+            p->is_ghost = (std::stoi(fields[idx++]) != 0);
             
             particles.push_back(p);
             

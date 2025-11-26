@@ -9,7 +9,7 @@ import sys
 import os
 
 def load_snapshot(filename):
-    """Load CSV snapshot and extract particle data"""
+    """Load CSV snapshot and extract particle data (excluding ghost particles)"""
     data = []
     with open(filename, 'r') as f:
         for line in f:
@@ -18,9 +18,12 @@ def load_snapshot(filename):
             if line.strip().startswith('id'):
                 continue
             parts = line.strip().split(',')
-            if len(parts) >= 15:
+            if len(parts) >= 22:  # Updated to include is_ghost column
                 try:
-                    data.append([float(x) for x in parts])
+                    row = [float(x) for x in parts]
+                    # Filter out ghost particles (is_ghost is column 21, 0-indexed)
+                    if len(row) > 21 and row[21] == 0:  # is_ghost == 0 means real particle
+                        data.append(row)
                 except ValueError:
                     continue
 

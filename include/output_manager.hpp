@@ -128,12 +128,16 @@ private:
      * @brief Compute total energies from particle data
      * @param particles Vector of particles
      * @param use_gravity Whether gravity is enabled
+     * @param sph_type SPH formulation type (for relativistic energy)
+     * @param c_speed Speed of light in code units (for SRGSPH)
      * @param kinetic Output kinetic energy
      * @param thermal Output thermal energy
      * @param potential Output potential energy
      */
     void compute_energies(const std::vector<SPHParticle*>& particles,
                          bool use_gravity,
+                         SPHType sph_type,
+                         real c_speed,
                          real& kinetic,
                          real& thermal,
                          real& potential) const;

@@ -1,5 +1,7 @@
 target_sources(sph
     PRIVATE
+        bns_cocoon_1d.cpp
+        bns_cocoon_2d.cpp
         evrard.cpp
         evrard_cold_collapse.cpp
         gresho_chan_vortex.cpp

@@ -1,0 +1,99 @@
+{
+  "simulation": {
+    "name": "1D Cocoon Shock Breakout - Fiducial",
+    "description": "1D spherical cocoon-driven shock propagating through BNS merger ejecta"
+  },
+
+  "output": {
+    "directory": "sample/bns_cocoon/results/cocoon_1d_fiducial",
+    "formats": ["csv"],
+    "energyFile": true
+  },
+
+  "time": {
+    "start": 0.0,
+    "end": 100.0,
+    "outputInterval": 1.0,
+    "energyInterval": 0.1
+  },
+
+  "domain": {
+    "dimension": 1,
+    "boundary": "open"
+  },
+
+  "physics": {
+    "gamma": 1.333333,
+    "G": 0.0,
+    "c": 1.0,
+    "neighborNumber": 30
+  },
+
+  "sph": {
+    "type": "srgsph",
+    "kernel": "gaussian",
+    "balsara": true,
+    "alpha": 1.0,
+    "order": 2
+  },
+
+  "timestep": {
+    "CFL_sound": 0.3,
+    "CFL_force": 0.25
+  },
+
+  "sample": {
+    "type": "bns_cocoon",
+    "dimension": 1
+  },
+
+  "bns_cocoon": {
+    "ejecta_source": "analytic",
+    "ejecta_profile": "hotokezaka",
+    
+    "ejecta": {
+      "total_mass_msun": 0.01,
+      "avg_velocity_c": 0.2,
+      "max_velocity_c": 0.5,
+      "min_velocity_c": 0.05,
+      "velocity_power": -2.0
+    },
+    
+    "expansion": {
+      "t0_seconds": 1.0,
+      "length_unit_cm": 1e10
+    },
+    
+    "ism": {
+      "n_per_cc": 1e-3,
+      "extend_factor": 10.0
+    },
+    
+    "particles": {
+      "n_ejecta": 10000,
+      "random_seed": 42
+    },
+    
+    "cocoon": {
+      "enabled": true,
+      "energy_erg": 1e50,
+      "opening_angle_deg": 30.0,
+      "velocity_c": 0.9,
+      "n_particles": 1000
+    }
+  },
+
+  "unit_system": {
+    "type": "relativistic",
+    "length_cm": 1e10,
+    "c": 1.0,
+    "description": "L=10^10 cm, c=1, suitable for ejecta at t0=1s"
+  },
+
+  "_notes": {
+    "physics": "Γ=4/3 for relativistic gas, no gravity, c=1",
+    "ejecta": "Hotokezaka+2013 profile: dM/dv ∝ v^-2 with exponential cutoff",
+    "cocoon": "Injected at center with E=10^50 erg, θ=30°, v=0.9c",
+    "reference": "Nakar & Piran 2017, Gottlieb+2018"
+  }
+}
