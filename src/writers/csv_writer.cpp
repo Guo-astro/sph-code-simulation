@@ -114,9 +114,19 @@ void CSVWriter::write_header(const OutputMetadata& metadata) {
     // Column description
     m_file << "# === Columns ===\n";
     m_file << "# id: Particle ID\n";
+#if DIM == 1
+    m_file << "# pos_x: Position [code units]\n";
+    m_file << "# vel_x: Velocity [code units]\n";
+    m_file << "# acc_x: Acceleration [code units]\n";
+#elif DIM == 2
+    m_file << "# pos_x, pos_y: Position [code units]\n";
+    m_file << "# vel_x, vel_y: Velocity [code units]\n";
+    m_file << "# acc_x, acc_y: Acceleration [code units]\n";
+#else
     m_file << "# pos_x, pos_y, pos_z: Position [code units]\n";
     m_file << "# vel_x, vel_y, vel_z: Velocity [code units]\n";
     m_file << "# acc_x, acc_y, acc_z: Acceleration [code units]\n";
+#endif
     m_file << "# mass: Particle mass [code units]\n";
     m_file << "# dens: Density [code units]\n";
     m_file << "# pres: Pressure [code units]\n";
@@ -134,9 +144,19 @@ void CSVWriter::write_header(const OutputMetadata& metadata) {
 
 void CSVWriter::write_column_names() {
     m_file << "id,";
+#if DIM == 1
+    m_file << "pos_x,";
+    m_file << "vel_x,";
+    m_file << "acc_x,";
+#elif DIM == 2
+    m_file << "pos_x,pos_y,";
+    m_file << "vel_x,vel_y,";
+    m_file << "acc_x,acc_y,";
+#else
     m_file << "pos_x,pos_y,pos_z,";
     m_file << "vel_x,vel_y,vel_z,";
     m_file << "acc_x,acc_y,acc_z,";
+#endif
     m_file << "mass,dens,pres,ene,sml,sound,";
     m_file << "alpha,balsara,gradh,phi,neighbor,is_ghost\n";
 }
@@ -150,14 +170,32 @@ bool CSVWriter::write_particles(const std::vector<SPHParticle*>& particles) {
         // ID
         m_file << p->id << ",";
         
-        // Position
+        // Position (dimension-aware to avoid UB)
+#if DIM == 1
+        m_file << p->pos[0] << ",";
+#elif DIM == 2
+        m_file << p->pos[0] << "," << p->pos[1] << ",";
+#else
         m_file << p->pos[0] << "," << p->pos[1] << "," << p->pos[2] << ",";
+#endif
         
-        // Velocity
+        // Velocity (dimension-aware to avoid UB)
+#if DIM == 1
+        m_file << p->vel[0] << ",";
+#elif DIM == 2
+        m_file << p->vel[0] << "," << p->vel[1] << ",";
+#else
         m_file << p->vel[0] << "," << p->vel[1] << "," << p->vel[2] << ",";
+#endif
         
-        // Acceleration
+        // Acceleration (dimension-aware to avoid UB)
+#if DIM == 1
+        m_file << p->acc[0] << ",";
+#elif DIM == 2
+        m_file << p->acc[0] << "," << p->acc[1] << ",";
+#else
         m_file << p->acc[0] << "," << p->acc[1] << "," << p->acc[2] << ",";
+#endif
         
         // Scalar fields
         m_file << p->mass << ",";

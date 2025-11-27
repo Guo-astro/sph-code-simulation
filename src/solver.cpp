@@ -529,6 +529,15 @@ void Solver::read_parameterfile(const char * filename)
             }
         }
     }
+    
+    // Boundary type for ghost particles (when periodic is false)
+    // Options: "reflecting" (wall), "outflow" (open boundary)
+    std::string boundary_type_str = input.get<std::string>("boundaryType", "outflow");
+    if(boundary_type_str == "reflecting" || boundary_type_str == "wall") {
+        m_param->periodic.boundary_type = BoundaryType::REFLECTING;
+    } else {
+        m_param->periodic.boundary_type = BoundaryType::OUTFLOW;  // Default: outflow
+    }
 
     // gravity
     m_param->gravity.is_valid = input.get<bool>("useGravity", false);
@@ -1243,7 +1252,7 @@ void Solver::predict()
             // NOTE: These fields have DIFFERENT meanings in SRGSPH vs standard SPH!
             //   - vel: primitive velocity v (NOT time-integrated, just recovered)
             //   - ene: primitive internal energy u (NOT conserved energy e!)
-            //   - dens: lab-frame density N = γn (NOT rest-frame density!)
+            //   - dens: rest-frame density n (recovered from N/γ in primitive recovery)
             p[i].vel = prim_full.vel;      // Primitive velocity v
             p[i].vel_p = prim_half.vel;    // Half-step velocity (for position update)
             p[i].ene = prim_full.pressure / ((gamma - 1.0) * prim_full.density);  // u = P/[(γ-1)n]
@@ -1374,8 +1383,9 @@ void Solver::update_ghost_particles()
     // Get domain boundaries from parameters (set via rangeMin/rangeMax in config)
     const real x_left = m_param->periodic.range_min[0];
     const real x_right = m_param->periodic.range_max[0];
+    const bool is_outflow = (m_param->periodic.boundary_type == BoundaryType::OUTFLOW);
     
-    // For each ghost particle, find the nearest real particle and mirror its properties
+    // For each ghost particle, find the nearest real particle and copy/mirror its properties
     for(int i = 0; i < num; ++i) {
         if(!p[i].is_ghost) continue;
         
@@ -1404,22 +1414,33 @@ void Solver::update_ghost_particles()
                 // Update ghost position to exactly mirror the real particle
                 p[i].pos[0] = 2.0 * x_left - p[nearest_idx].pos[0];
                 
-                // Mirror properties (reflect velocity for wall boundary)
+                // Copy thermodynamic properties (same for both boundary types)
                 p[i].dens = p[nearest_idx].dens;
                 p[i].pres = p[nearest_idx].pres;
                 p[i].ene = p[nearest_idx].ene;
                 p[i].sound = p[nearest_idx].sound;
                 p[i].sml = p[nearest_idx].sml;
-                // Reflect velocity (wall boundary condition)
-                p[i].vel = p[nearest_idx].vel * (-1.0);
+                
+                // Velocity depends on boundary type
+                if(is_outflow) {
+                    // Outflow: copy velocity (waves exit without reflection)
+                    p[i].vel = p[nearest_idx].vel;
+                } else {
+                    // Reflecting wall: reverse velocity
+                    p[i].vel = p[nearest_idx].vel * (-1.0);
+                }
                 
                 // For SRGSPH, also update conserved variables
                 if(m_param->type == SPHType::SRGSPH) {
                     p[i].N = p[nearest_idx].N;
                     p[i].e = p[nearest_idx].e;
-                    p[i].S = p[nearest_idx].S * (-1.0);  // Reflect momentum
                     p[i].gamma_lor = p[nearest_idx].gamma_lor;
                     p[i].enthalpy = p[nearest_idx].enthalpy;
+                    if(is_outflow) {
+                        p[i].S = p[nearest_idx].S;  // Copy momentum
+                    } else {
+                        p[i].S = p[nearest_idx].S * (-1.0);  // Reflect momentum
+                    }
                 }
             }
         } else if(ghost_x > x_right) {
@@ -1443,22 +1464,33 @@ void Solver::update_ghost_particles()
                 // Update ghost position to exactly mirror the real particle
                 p[i].pos[0] = 2.0 * x_right - p[nearest_idx].pos[0];
                 
-                // Mirror properties (reflect velocity for wall boundary)
+                // Copy thermodynamic properties (same for both boundary types)
                 p[i].dens = p[nearest_idx].dens;
                 p[i].pres = p[nearest_idx].pres;
                 p[i].ene = p[nearest_idx].ene;
                 p[i].sound = p[nearest_idx].sound;
                 p[i].sml = p[nearest_idx].sml;
-                // Reflect velocity (wall boundary condition)
-                p[i].vel = p[nearest_idx].vel * (-1.0);
+                
+                // Velocity depends on boundary type
+                if(is_outflow) {
+                    // Outflow: copy velocity (waves exit without reflection)
+                    p[i].vel = p[nearest_idx].vel;
+                } else {
+                    // Reflecting wall: reverse velocity
+                    p[i].vel = p[nearest_idx].vel * (-1.0);
+                }
                 
                 // For SRGSPH, also update conserved variables
                 if(m_param->type == SPHType::SRGSPH) {
                     p[i].N = p[nearest_idx].N;
                     p[i].e = p[nearest_idx].e;
-                    p[i].S = p[nearest_idx].S * (-1.0);  // Reflect momentum
                     p[i].gamma_lor = p[nearest_idx].gamma_lor;
                     p[i].enthalpy = p[nearest_idx].enthalpy;
+                    if(is_outflow) {
+                        p[i].S = p[nearest_idx].S;  // Copy momentum
+                    } else {
+                        p[i].S = p[nearest_idx].S * (-1.0);  // Reflect momentum
+                    }
                 }
             }
         }

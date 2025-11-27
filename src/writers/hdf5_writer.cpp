@@ -170,11 +170,29 @@ bool HDF5Writer::write_particles_group(const std::vector<SPHParticle*>& particle
         return true;
     };
     
-    // Extract data into vectors
+    // Extract data into vectors (dimension-aware to avoid UB)
     std::vector<int> ids(N);
-    std::vector<real> pos_x(N), pos_y(N), pos_z(N);
-    std::vector<real> vel_x(N), vel_y(N), vel_z(N);
-    std::vector<real> acc_x(N), acc_y(N), acc_z(N);
+    std::vector<real> pos_x(N);
+#if DIM >= 2
+    std::vector<real> pos_y(N);
+#endif
+#if DIM >= 3
+    std::vector<real> pos_z(N);
+#endif
+    std::vector<real> vel_x(N);
+#if DIM >= 2
+    std::vector<real> vel_y(N);
+#endif
+#if DIM >= 3
+    std::vector<real> vel_z(N);
+#endif
+    std::vector<real> acc_x(N);
+#if DIM >= 2
+    std::vector<real> acc_y(N);
+#endif
+#if DIM >= 3
+    std::vector<real> acc_z(N);
+#endif
     std::vector<real> mass(N), dens(N), pres(N), ene(N), sml(N), sound(N);
     std::vector<real> alpha(N), balsara(N), gradh(N), phi(N);
     std::vector<int> neighbor(N);
@@ -183,14 +201,26 @@ bool HDF5Writer::write_particles_group(const std::vector<SPHParticle*>& particle
         const SPHParticle* p = particles[i];
         ids[i] = p->id;
         pos_x[i] = p->pos[0];
+#if DIM >= 2
         pos_y[i] = p->pos[1];
+#endif
+#if DIM >= 3
         pos_z[i] = p->pos[2];
+#endif
         vel_x[i] = p->vel[0];
+#if DIM >= 2
         vel_y[i] = p->vel[1];
+#endif
+#if DIM >= 3
         vel_z[i] = p->vel[2];
+#endif
         acc_x[i] = p->acc[0];
+#if DIM >= 2
         acc_y[i] = p->acc[1];
+#endif
+#if DIM >= 3
         acc_z[i] = p->acc[2];
+#endif
         mass[i] = p->mass;
         dens[i] = p->dens;
         pres[i] = p->pres;
@@ -207,14 +237,26 @@ bool HDF5Writer::write_particles_group(const std::vector<SPHParticle*>& particle
     // Write datasets
     write_1d_int_dataset("id", ids);
     write_1d_dataset("pos_x", pos_x);
+#if DIM >= 2
     write_1d_dataset("pos_y", pos_y);
+#endif
+#if DIM >= 3
     write_1d_dataset("pos_z", pos_z);
+#endif
     write_1d_dataset("vel_x", vel_x);
+#if DIM >= 2
     write_1d_dataset("vel_y", vel_y);
+#endif
+#if DIM >= 3
     write_1d_dataset("vel_z", vel_z);
+#endif
     write_1d_dataset("acc_x", acc_x);
+#if DIM >= 2
     write_1d_dataset("acc_y", acc_y);
+#endif
+#if DIM >= 3
     write_1d_dataset("acc_z", acc_z);
+#endif
     write_1d_dataset("mass", mass);
     write_1d_dataset("dens", dens);
     write_1d_dataset("pres", pres);
@@ -382,25 +424,55 @@ bool HDF5Writer::read_particles(const std::string& filepath, std::vector<SPHPart
         return true;
     };
     
-    // Read all datasets
+    // Read all datasets (dimension-aware)
     std::vector<int> ids(N);
-    std::vector<real> pos_x(N), pos_y(N), pos_z(N);
-    std::vector<real> vel_x(N), vel_y(N), vel_z(N);
-    std::vector<real> acc_x(N), acc_y(N), acc_z(N);
+    std::vector<real> pos_x(N);
+#if DIM >= 2
+    std::vector<real> pos_y(N);
+#endif
+#if DIM >= 3
+    std::vector<real> pos_z(N);
+#endif
+    std::vector<real> vel_x(N);
+#if DIM >= 2
+    std::vector<real> vel_y(N);
+#endif
+#if DIM >= 3
+    std::vector<real> vel_z(N);
+#endif
+    std::vector<real> acc_x(N);
+#if DIM >= 2
+    std::vector<real> acc_y(N);
+#endif
+#if DIM >= 3
+    std::vector<real> acc_z(N);
+#endif
     std::vector<real> mass(N), dens(N), pres(N), ene(N), sml(N), sound(N);
     std::vector<real> alpha(N), balsara(N), gradh(N), phi(N);
     std::vector<int> neighbor(N);
     
     read_1d_int_dataset("id", ids);
     read_1d_dataset("pos_x", pos_x);
+#if DIM >= 2
     read_1d_dataset("pos_y", pos_y);
+#endif
+#if DIM >= 3
     read_1d_dataset("pos_z", pos_z);
+#endif
     read_1d_dataset("vel_x", vel_x);
+#if DIM >= 2
     read_1d_dataset("vel_y", vel_y);
+#endif
+#if DIM >= 3
     read_1d_dataset("vel_z", vel_z);
+#endif
     read_1d_dataset("acc_x", acc_x);
+#if DIM >= 2
     read_1d_dataset("acc_y", acc_y);
+#endif
+#if DIM >= 3
     read_1d_dataset("acc_z", acc_z);
+#endif
     read_1d_dataset("mass", mass);
     read_1d_dataset("dens", dens);
     read_1d_dataset("pres", pres);
@@ -424,14 +496,26 @@ bool HDF5Writer::read_particles(const std::string& filepath, std::vector<SPHPart
         SPHParticle* p = new SPHParticle();
         p->id = ids[i];
         p->pos[0] = pos_x[i];
+#if DIM >= 2
         p->pos[1] = pos_y[i];
+#endif
+#if DIM >= 3
         p->pos[2] = pos_z[i];
+#endif
         p->vel[0] = vel_x[i];
+#if DIM >= 2
         p->vel[1] = vel_y[i];
+#endif
+#if DIM >= 3
         p->vel[2] = vel_z[i];
+#endif
         p->acc[0] = acc_x[i];
+#if DIM >= 2
         p->acc[1] = acc_y[i];
+#endif
+#if DIM >= 3
         p->acc[2] = acc_z[i];
+#endif
         p->mass = mass[i];
         p->dens = dens[i];
         p->pres = pres[i];

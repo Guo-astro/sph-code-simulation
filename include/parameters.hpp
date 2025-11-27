@@ -27,6 +27,11 @@ enum struct RiemannSolverType {
     KITAJIMA,   // Kitajima-style iterative solver (Newton-Raphson with shock/rarefaction handling)
 };
 
+enum struct BoundaryType {
+    REFLECTING,  // Wall boundary: velocity is reflected (v -> -v)
+    OUTFLOW,     // Open/outflow boundary: velocity is copied (waves exit without reflection)
+};
+
 struct SPHParameters {
 
     struct Time {
@@ -75,6 +80,7 @@ struct SPHParameters {
         bool is_valid;
         real range_max[DIM];
         real range_min[DIM];
+        BoundaryType boundary_type;  // Type of ghost boundary: REFLECTING or OUTFLOW
     } periodic;
 
     struct Gravity {
