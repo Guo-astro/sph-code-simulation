@@ -32,6 +32,7 @@
   "iterativeSmoothingLength": true,
   "neighborNumber": 50,
   "N": 1000,
+  "testType": "ultra_relat",
   "v_left": 0.9,
   "periodic": false,
   "rangeMax": [0.5],

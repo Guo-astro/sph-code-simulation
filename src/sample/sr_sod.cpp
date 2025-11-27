@@ -98,6 +98,28 @@ void Solver::make_sr_sod()
         N_right = N;
         WRITE_LOG << "Test type: STRONG BLAST WAVE (Section 3.1.3)";
 
+    } else if (test_type == "ultra_relat") {
+        // Section 3.2 Ultra-Relativistic Shock
+        // Left:  (P, n, v) = (1.0, 1.0, v_left) - moving at relativistic speed
+        // Right: (P, n, v) = (1.0, 1.0, 0) - at rest
+        // Paper tests: v = 0.9, 0.99, 0.999, 0.9999, 0.999999999
+        P_left = 1.0;
+        n_left = 1.0;
+        // Get v_left from parameters (default 0.9)
+        if (m_sample_parameters.count("v_left")) {
+            v_left = boost::any_cast<real>(m_sample_parameters["v_left"]);
+        } else {
+            v_left = 0.9;  // Default: 0.9c
+        }
+        P_right = 1.0;
+        n_right = 1.0;
+        v_right = 0.0;
+
+        // 1000 particles on each side (Fig. 7)
+        N_left = N;
+        N_right = N;
+        WRITE_LOG << "Test type: ULTRA-RELATIVISTIC SHOCK (Section 3.2), v_left=" << v_left << "c";
+
     } else {
         THROW_ERROR("Unknown test type: " + test_type);
     }
@@ -132,10 +154,19 @@ void Solver::make_sr_sod()
     const real dx_left = (x_left_end - x_left_start) / N_left;
     const real dx_right = (x_right_end - x_right_start) / N_right;
 
+    // Lorentz factors for initial states
+    const real gamma_left = 1.0 / std::sqrt(1.0 - v_left * v_left / c2);
+    const real gamma_right = 1.0 / std::sqrt(1.0 - v_right * v_right / c2);
+
     // Baryon number per particle (ν)
-    // For volume-based approach: ν = n * dx
-    const real nu_left = n_left * dx_left;
-    const real nu_right = n_right * dx_right;
+    // In the lab frame where we set up particles:
+    //   - Particles are placed at spacing dx (lab-frame spacing)
+    //   - For moving fluid, lab-frame density is N = γ * n
+    //   - Baryon number is ν = N * V_lab = γ * n * dx
+    // This ensures that when the kernel sum gives N_lab, the rest-frame
+    // density recovered is n = N_lab / γ = correct initial value
+    const real nu_left = gamma_left * n_left * dx_left;
+    const real nu_right = gamma_right * n_right * dx_right;
 
     std::vector<SPHParticle> p(num);
 

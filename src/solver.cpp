@@ -390,12 +390,16 @@ void Solver::read_parameterfile(const char * filename)
                 }
                 // Check for SR-specific test names in the path
                 else if(name_str.find("sr_sod") != std::string::npos || 
-                   name_str.find("sod") != std::string::npos) {
+                   name_str.find("sod") != std::string::npos ||
+                   name_str.find("ultra") != std::string::npos ||
+                   name_str.find("blast") != std::string::npos) {
                     m_sample = Sample::SRSod;
                     m_sample_parameters["N"] = input.get<int>("N", 50);
                     m_sample_parameters["different_nu"] = input.get<bool>("different_nu", false);
                     m_sample_parameters["testType"] = input.get<std::string>("testType", "sod");
                     m_sample_parameters["particleMode"] = input.get<std::string>("particleMode", "equal_N");
+                    // Ultra-relativistic test: left velocity (default 0.9 = 0.9c)
+                    m_sample_parameters["v_left"] = input.get<real>("v_left", real(0.0));
                 } else {
                     m_sample = Sample::DoNotUse;
                 }

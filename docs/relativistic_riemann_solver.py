@@ -202,7 +202,7 @@ class RelativisiticRiemannSolver:
         
     def get_pressure(self, pmin, pmax, tol=0.0):
         """
-        Find pressure in intermediate state using Brent's method.
+        Find pressure in intermediate state using bisection method.
         
         Args:
             pmin: Left endpoint of interval
@@ -212,83 +212,50 @@ class RelativisiticRiemannSolver:
         Returns:
             Pressure in intermediate state
         """
-        # Compute machine precision
-        eps = 1.0
-        while (1.0 + eps / 2.0) > 1.0:
-            eps = eps / 2.0
-        
-        # Initialization
+        # Use simple bisection for robustness
         a = pmin
         b = pmax
         fa = self.get_dvel(a)
         fb = self.get_dvel(b)
         
-        # Begin iteration
-        c = a
-        fc = fa
-        d = b - a
-        e = d
+        # Ensure fa and fb have opposite signs
+        if fa * fb > 0:
+            # Try to find a valid bracket
+            for _ in range(50):
+                mid = 0.5 * (a + b)
+                fmid = self.get_dvel(mid)
+                if fa * fmid < 0:
+                    b = mid
+                    fb = fmid
+                    break
+                elif fmid * fb < 0:
+                    a = mid
+                    fa = fmid
+                    break
+                a *= 0.5
+                b *= 2.0
+                fa = self.get_dvel(a)
+                fb = self.get_dvel(b)
         
-        while True:
-            if abs(fc) >= abs(fb):
-                a, b, c = b, c, a
-                fa, fb, fc = fb, fc, fa
+        # Bisection iteration
+        max_iter = 100
+        eps = 1e-12
+        
+        for _ in range(max_iter):
+            c = 0.5 * (a + b)
+            fc = self.get_dvel(c)
             
-            # Convergence test
-            tol1 = 2.0 * eps * abs(b) + 0.5 * tol
-            xm = 0.5 * (c - b)
+            if abs(fc) < eps or abs(b - a) < eps * abs(c):
+                return c
             
-            if abs(xm) <= tol1 or fb == 0.0:
-                return b
-            
-            # Is bisection necessary?
-            if abs(e) < tol1 or abs(fa) <= abs(fb):
-                # Bisection
-                d = xm
-                e = d
+            if fa * fc < 0:
+                b = c
+                fb = fc
             else:
-                # Is quadratic interpolation possible?
-                if a != c:
-                    # Inverse quadratic interpolation
-                    q = fa / fc
-                    r = fb / fc
-                    s = fb / fa
-                    p = s * (2.0 * xm * q * (q - r) - (b - a) * (r - 1.0))
-                    q = (q - 1.0) * (r - 1.0) * (s - 1.0)
-                else:
-                    # Linear interpolation
-                    s = fb / fa
-                    p = 2.0 * xm * s
-                    q = 1.0 - s
-                
-                # Adjust signs
-                if p > 0.0:
-                    q = -q
-                p = abs(p)
-                
-                # Is interpolation acceptable?
-                if (2.0 * p) >= (3.0 * xm * q - abs(tol1 * q)) or p >= abs(0.5 * e * q):
-                    d = xm
-                    e = d
-                else:
-                    e = d
-                    d = p / q
-            
-            # Complete step
-            a = b
-            fa = fb
-            if abs(d) > tol1:
-                b = b + d
-            else:
-                b = b + np.sign(xm) * tol1
-            
-            fb = self.get_dvel(b)
-            
-            if (fb * (fc / abs(fc))) > 0.0:
-                c = a
-                fc = fa
-                d = b - a
-                e = d
+                a = c
+                fa = fc
+        
+        return 0.5 * (a + b)
                 
     def rarefaction(self, xi, rhoa, pa, ua, csa, vela, direction):
         """

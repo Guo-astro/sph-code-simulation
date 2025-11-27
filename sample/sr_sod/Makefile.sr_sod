@@ -2,6 +2,14 @@
 # Makefile.sr_sod - SR-GSPH Sod Shock Tube Test Suite (Kitajima et al. 2025)
 # ==============================================================================
 #
+# QUICK START - One-Shot Commands (Run + Generate Comparison GIF):
+# -----------------------------------------------------------------
+#   make -f sample/sr_sod/Makefile.sr_sod sr_gif_sod        # Sod test
+#   make -f sample/sr_sod/Makefile.sr_sod sr_gif_blast      # Blast wave
+#   make -f sample/sr_sod/Makefile.sr_sod sr_gif_strong     # Strong blast
+#   make -f sample/sr_sod/Makefile.sr_sod sr_gif_ultra      # Ultra-relativistic (v=0.9c)
+#   make -f sample/sr_sod/Makefile.sr_sod sr_gif_all        # All tests
+#
 # USAGE EXAMPLES:
 # ---------------
 # Run simulation and visualize:
@@ -29,6 +37,7 @@
 .PHONY: sr_benchmark_strong sr_benchmark_ultra sr_benchmark_all
 .PHONY: sr_conservation_sod sr_conservation_kitajima sr_conservation_all
 .PHONY: sr_animate_sod sr_animate_kitajima sr_animate_all
+.PHONY: sr_gif_sod sr_gif_blast sr_gif_strong sr_gif_ultra sr_gif_all
 
 # Path Variables
 TEST_DIR     := sample/sr_sod
@@ -38,6 +47,7 @@ SCRIPTS_DIR  := $(TEST_DIR)/scripts
 VIZ_SCRIPT   := $(SCRIPTS_DIR)/sr_sod_visualize.py
 CONSERV_SCRIPT := $(SCRIPTS_DIR)/analyze_srgsph_conservation.py
 ANIMATE_SCRIPT := $(SCRIPTS_DIR)/animate_sr_sod_results.py
+COMPARE_SCRIPT := $(SCRIPTS_DIR)/animate_sr_sod_with_exact.py
 SPH_BINARY   := build/sph
 
 # Config Files
@@ -45,14 +55,14 @@ SOD_CONFIG       := $(CONFIG_DIR)/sr_sod.json
 KITAJIMA_CONFIG  := $(CONFIG_DIR)/sr_sod_kitajima.json
 BLAST_CONFIG     := $(CONFIG_DIR)/sr_blast_wave.json
 STRONG_CONFIG    := $(CONFIG_DIR)/sr_strong_blast.json
-ULTRA_CONFIG     := $(CONFIG_DIR)/sr_ultra_v090.json
+ULTRA_CONFIG     := $(CONFIG_DIR)/sr_ultra_relat.json
 
 # Results Directories (must match outputDirectory in JSON configs)
 SOD_RESULTS      := $(RESULTS_DIR)/sod_fig1
 KITAJIMA_RESULTS := $(RESULTS_DIR)/sod_kitajima
 BLAST_RESULTS    := $(RESULTS_DIR)/blast_wave
 STRONG_RESULTS   := $(RESULTS_DIR)/strong_blast
-ULTRA_RESULTS    := $(RESULTS_DIR)/ultra_v090
+ULTRA_RESULTS    := $(RESULTS_DIR)/ultra_relat
 
 # Dimension Check
 sr_check_dim:
@@ -279,10 +289,97 @@ sr_animate_all: sr_animate_sod sr_animate_kitajima sr_animate_blast
 	@echo "✓ All Animations Complete!"
 	@echo "========================================"
 
+# ==============================================================================
+# ONE-SHOT GIF Generation (Run Simulation + Generate Comparison Animation)
+# ==============================================================================
+# These targets do everything in one command: run simulation, then create
+# animated GIF comparing SPH results with exact Riemann solution
+
+sr_gif_sod: $(SPH_BINARY) sr_check_dim
+	@echo "========================================"
+	@echo "🚀 Sod Test: Run + Generate Comparison GIF"
+	@echo "========================================"
+	@echo "[1/2] Running simulation..."
+	@mkdir -p $(SOD_RESULTS)
+	@./$(SPH_BINARY) $(SOD_CONFIG)
+	@echo "✓ Simulation complete"
+	@echo "[2/2] Generating comparison animation..."
+	@python3 $(COMPARE_SCRIPT) $(SOD_RESULTS) $(SOD_RESULTS)/sod_vs_exact.gif
+	@echo "========================================"
+	@echo "✓ Complete!"
+	@echo "🎬 Animation: $(SOD_RESULTS)/sod_vs_exact.gif"
+	@echo "========================================"
+
+sr_gif_blast: $(SPH_BINARY) sr_check_dim
+	@echo "========================================"
+	@echo "🚀 Blast Wave: Run + Generate Comparison GIF"
+	@echo "========================================"
+	@echo "[1/2] Running simulation..."
+	@mkdir -p $(BLAST_RESULTS)
+	@./$(SPH_BINARY) $(BLAST_CONFIG)
+	@echo "✓ Simulation complete"
+	@echo "[2/2] Generating comparison animation..."
+	@python3 $(COMPARE_SCRIPT) $(BLAST_RESULTS) $(BLAST_RESULTS)/blast_vs_exact.gif
+	@echo "========================================"
+	@echo "✓ Complete!"
+	@echo "🎬 Animation: $(BLAST_RESULTS)/blast_vs_exact.gif"
+	@echo "========================================"
+
+sr_gif_strong: $(SPH_BINARY) sr_check_dim
+	@echo "========================================"
+	@echo "🚀 Strong Blast: Run + Generate Comparison GIF"
+	@echo "========================================"
+	@echo "[1/2] Running simulation..."
+	@mkdir -p $(STRONG_RESULTS)
+	@./$(SPH_BINARY) $(STRONG_CONFIG)
+	@echo "✓ Simulation complete"
+	@echo "[2/2] Generating comparison animation..."
+	@python3 $(COMPARE_SCRIPT) $(STRONG_RESULTS) $(STRONG_RESULTS)/strong_vs_exact.gif
+	@echo "========================================"
+	@echo "✓ Complete!"
+	@echo "🎬 Animation: $(STRONG_RESULTS)/strong_vs_exact.gif"
+	@echo "========================================"
+
+sr_gif_ultra: $(SPH_BINARY) sr_check_dim
+	@echo "========================================"
+	@echo "🚀 Ultra-Relativistic (v=0.9c): Run + Generate Comparison GIF"
+	@echo "========================================"
+	@echo "[1/2] Running simulation..."
+	@mkdir -p $(ULTRA_RESULTS)
+	@./$(SPH_BINARY) $(ULTRA_CONFIG)
+	@echo "✓ Simulation complete"
+	@echo "[2/2] Generating comparison animation..."
+	@python3 $(COMPARE_SCRIPT) $(ULTRA_RESULTS) $(ULTRA_RESULTS)/ultra_vs_exact.gif
+	@echo "========================================"
+	@echo "✓ Complete!"
+	@echo "🎬 Animation: $(ULTRA_RESULTS)/ultra_vs_exact.gif"
+	@echo "📝 Note: Wall boundary causes rarefaction near x=-0.5"
+	@echo "========================================"
+
+sr_gif_all: sr_gif_sod sr_gif_blast sr_gif_strong sr_gif_ultra
+	@echo "========================================"
+	@echo "✓ All One-Shot GIF Generations Complete!"
+	@echo "========================================"
+	@echo "📁 Output files:"
+	@echo "   $(SOD_RESULTS)/sod_vs_exact.gif"
+	@echo "   $(BLAST_RESULTS)/blast_vs_exact.gif"
+	@echo "   $(STRONG_RESULTS)/strong_vs_exact.gif"
+	@echo "   $(ULTRA_RESULTS)/ultra_vs_exact.gif"
+	@echo "========================================"
+
 # Help
 sr_help:
 	@echo "SR-GSPH Sod Test Suite (Kitajima 2025)"
 	@echo ""
+	@echo "========== ONE-SHOT GIF (Recommended) =========="
+	@echo "Run simulation + generate SPH vs Exact comparison GIF:"
+	@echo "  sr_gif_sod           - Sod shock tube test"
+	@echo "  sr_gif_blast         - Standard relativistic blast wave"
+	@echo "  sr_gif_strong        - Strong relativistic blast wave"
+	@echo "  sr_gif_ultra         - Ultra-relativistic shock (v=0.9c)"
+	@echo "  sr_gif_all           - Run all tests and generate all GIFs"
+	@echo ""
+	@echo "========== Individual Commands =========="
 	@echo "Run & Visualize:"
 	@echo "  sr_sod_run / sr_viz_sod / sr_sod_all / sr_sod_clean"
 	@echo "  sr_kitajima_run / sr_viz_kitajima / sr_kitajima_all / sr_kitajima_clean"
