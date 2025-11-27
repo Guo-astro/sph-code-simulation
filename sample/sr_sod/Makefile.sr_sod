@@ -2,411 +2,213 @@
 # Makefile.sr_sod - SR-GSPH Sod Shock Tube Test Suite (Kitajima et al. 2025)
 # ==============================================================================
 #
-# QUICK START - One-Shot Commands (Run + Generate Comparison GIF):
-# -----------------------------------------------------------------
+# ONE-SHOT Commands (Run Simulation + Generate Comparison GIF):
+# -------------------------------------------------------------
 #   make -f sample/sr_sod/Makefile.sr_sod sr_gif_sod        # Sod test
 #   make -f sample/sr_sod/Makefile.sr_sod sr_gif_blast      # Blast wave
 #   make -f sample/sr_sod/Makefile.sr_sod sr_gif_strong     # Strong blast
 #   make -f sample/sr_sod/Makefile.sr_sod sr_gif_ultra      # Ultra-relativistic (v=0.9c)
 #   make -f sample/sr_sod/Makefile.sr_sod sr_gif_all        # All tests
 #
-# USAGE EXAMPLES:
-# ---------------
-# Run simulation and visualize:
-#   make -f Makefile.sr_sod sr_sod_all
-#   make -f Makefile.sr_sod sr_kitajima_all
-#
-# Benchmark with analytic solution:
-#   make -f Makefile.sr_sod sr_benchmark_sod       # Sod test vs exact solution
-#   make -f Makefile.sr_sod sr_benchmark_blast     # Blast wave vs exact
-#   make -f Makefile.sr_sod sr_benchmark_all       # All benchmarks
-#
-# Conservation analysis:
-#   make -f Makefile.sr_sod sr_conservation_sod    # Energy/momentum/baryon conservation
-#   make -f Makefile.sr_sod sr_animate_sod         # Create animation with energy plot
+# Conservation Analysis:
+# ----------------------
+#   make -f sample/sr_sod/Makefile.sr_sod sr_conservation_sod
+#   make -f sample/sr_sod/Makefile.sr_sod sr_conservation_all
 #
 # ==============================================================================
 
-.PHONY: sr_sod_run sr_sod_clean sr_viz_sod sr_sod_all
-.PHONY: sr_kitajima_run sr_kitajima_clean sr_viz_kitajima sr_kitajima_all
-.PHONY: sr_blast_run sr_blast_clean sr_viz_blast sr_blast_all
-.PHONY: sr_strong_run sr_strong_clean sr_viz_strong sr_strong_all
-.PHONY: sr_ultra_run sr_ultra_clean sr_viz_ultra sr_ultra_all
-.PHONY: sr_all sr_viz_all sr_clean_all sr_help sr_check_dim
-.PHONY: sr_benchmark_sod sr_benchmark_kitajima sr_benchmark_blast
-.PHONY: sr_benchmark_strong sr_benchmark_ultra sr_benchmark_all
-.PHONY: sr_conservation_sod sr_conservation_kitajima sr_conservation_all
-.PHONY: sr_animate_sod sr_animate_kitajima sr_animate_all
 .PHONY: sr_gif_sod sr_gif_blast sr_gif_strong sr_gif_ultra sr_gif_all
+.PHONY: sr_conservation_sod sr_conservation_blast sr_conservation_strong sr_conservation_ultra sr_conservation_all
+.PHONY: sr_clean_all sr_help sr_check_dim
 
 # Path Variables
-TEST_DIR     := sample/sr_sod
-CONFIG_DIR   := $(TEST_DIR)/config/presets
-RESULTS_DIR  := $(TEST_DIR)/results
-SCRIPTS_DIR  := $(TEST_DIR)/scripts
-VIZ_SCRIPT   := $(SCRIPTS_DIR)/sr_sod_visualize.py
-CONSERV_SCRIPT := $(SCRIPTS_DIR)/analyze_srgsph_conservation.py
-ANIMATE_SCRIPT := $(SCRIPTS_DIR)/animate_sr_sod_results.py
+TEST_DIR       := sample/sr_sod
+CONFIG_DIR     := $(TEST_DIR)/config/presets
+RESULTS_DIR    := $(TEST_DIR)/results
+SCRIPTS_DIR    := $(TEST_DIR)/scripts
 COMPARE_SCRIPT := $(SCRIPTS_DIR)/animate_sr_sod_with_exact.py
-SPH_BINARY   := build/sph
+CONSERV_SCRIPT := $(SCRIPTS_DIR)/analyze_srgsph_conservation.py
+SPH_BINARY     := build/sph
 
 # Config Files
-SOD_CONFIG       := $(CONFIG_DIR)/sr_sod.json
-KITAJIMA_CONFIG  := $(CONFIG_DIR)/sr_sod_kitajima.json
-BLAST_CONFIG     := $(CONFIG_DIR)/sr_blast_wave.json
-STRONG_CONFIG    := $(CONFIG_DIR)/sr_strong_blast.json
-ULTRA_CONFIG     := $(CONFIG_DIR)/sr_ultra_relat.json
+SOD_CONFIG     := $(CONFIG_DIR)/sr_sod.json
+BLAST_CONFIG   := $(CONFIG_DIR)/sr_blast_wave.json
+STRONG_CONFIG  := $(CONFIG_DIR)/sr_strong_blast.json
+ULTRA_CONFIG   := $(CONFIG_DIR)/sr_ultra_relat.json
 
-# Results Directories (must match outputDirectory in JSON configs)
-SOD_RESULTS      := $(RESULTS_DIR)/sod_fig1
-KITAJIMA_RESULTS := $(RESULTS_DIR)/sod_kitajima
-BLAST_RESULTS    := $(RESULTS_DIR)/blast_wave
-STRONG_RESULTS   := $(RESULTS_DIR)/strong_blast
-ULTRA_RESULTS    := $(RESULTS_DIR)/ultra_relat
+# Results Directories
+SOD_RESULTS    := $(RESULTS_DIR)/sod_fig1
+BLAST_RESULTS  := $(RESULTS_DIR)/blast_wave
+STRONG_RESULTS := $(RESULTS_DIR)/strong_blast
+ULTRA_RESULTS  := $(RESULTS_DIR)/ultra_relat
 
+# ==============================================================================
 # Dimension Check
+# ==============================================================================
 sr_check_dim:
 	@if ! grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
 		echo "ERROR: SR tests require DIM=1 build"; \
+		echo "Run: cd build && cmake -DSPH_DIM=1 .. && make"; \
 		exit 1; \
 	fi
 
-# Standard SR Sod Test
-sr_sod_run: $(SPH_BINARY) sr_check_dim
-	@echo "Running SR Sod Test (Standard)"
+# ==============================================================================
+# ONE-SHOT GIF Generation (Run + Analytic Solution Comparison Animation)
+# ==============================================================================
+
+sr_gif_sod: $(SPH_BINARY) sr_check_dim
+	@echo "========================================"
+	@echo "Sod Test: Run + SPH vs Exact Comparison"
+	@echo "========================================"
+	@echo "[1/3] Running simulation..."
 	@mkdir -p $(SOD_RESULTS)
-	./$(SPH_BINARY) $(SOD_CONFIG)
-	@echo "Done: $(SOD_RESULTS)"
+	@./$(SPH_BINARY) $(SOD_CONFIG)
+	@echo "[2/3] Generating comparison animation..."
+	@python3 $(COMPARE_SCRIPT) $(SOD_RESULTS) $(SOD_RESULTS)/sod_vs_exact.gif
+	@echo "[3/3] Generating conservation analysis..."
+	@mkdir -p $(SOD_RESULTS)/analysis
+	@python3 $(CONSERV_SCRIPT) $(SOD_RESULTS)
+	@echo "========================================"
+	@echo "Done: $(SOD_RESULTS)/sod_vs_exact.gif"
+	@echo "      $(SOD_RESULTS)/analysis/conservation_analysis.png"
+	@echo "========================================"
 
-sr_viz_sod:
-	@if [ ! -d "$(SOD_RESULTS)" ]; then echo "No results in $(SOD_RESULTS)"; exit 1; fi
-	python3 $(VIZ_SCRIPT) $(SOD_RESULTS) --all
-
-sr_sod_all: sr_sod_run sr_viz_sod
-
-sr_sod_clean:
-	rm -rf $(SOD_RESULTS)
-
-# Kitajima Paper Test
-sr_kitajima_run: $(SPH_BINARY) sr_check_dim
-	@echo "Running Kitajima Test (Fig.2)"
-	@mkdir -p $(KITAJIMA_RESULTS)
-	./$(SPH_BINARY) $(KITAJIMA_CONFIG)
-	@echo "Done: $(KITAJIMA_RESULTS)"
-
-sr_viz_kitajima:
-	@if [ ! -d "$(KITAJIMA_RESULTS)" ]; then echo "No results in $(KITAJIMA_RESULTS)"; exit 1; fi
-	python3 $(VIZ_SCRIPT) $(KITAJIMA_RESULTS) --all
-
-sr_kitajima_all: sr_kitajima_run sr_viz_kitajima
-
-sr_kitajima_clean:
-	rm -rf $(KITAJIMA_RESULTS)
-
-# Blast Wave Test
-sr_blast_run: $(SPH_BINARY) sr_check_dim
-	@echo "Running Blast Wave Test"
+sr_gif_blast: $(SPH_BINARY) sr_check_dim
+	@echo "========================================"
+	@echo "Blast Wave: Run + SPH vs Exact Comparison"
+	@echo "========================================"
+	@echo "[1/3] Running simulation..."
 	@mkdir -p $(BLAST_RESULTS)
-	./$(SPH_BINARY) $(BLAST_CONFIG)
-	@echo "Done: $(BLAST_RESULTS)"
+	@./$(SPH_BINARY) $(BLAST_CONFIG)
+	@echo "[2/3] Generating comparison animation..."
+	@python3 $(COMPARE_SCRIPT) $(BLAST_RESULTS) $(BLAST_RESULTS)/blast_vs_exact.gif
+	@echo "[3/3] Generating conservation analysis..."
+	@mkdir -p $(BLAST_RESULTS)/analysis
+	@python3 $(CONSERV_SCRIPT) $(BLAST_RESULTS)
+	@echo "========================================"
+	@echo "Done: $(BLAST_RESULTS)/blast_vs_exact.gif"
+	@echo "      $(BLAST_RESULTS)/analysis/conservation_analysis.png"
+	@echo "========================================"
 
-sr_viz_blast:
-	@if [ ! -d "$(BLAST_RESULTS)" ]; then echo "No results in $(BLAST_RESULTS)"; exit 1; fi
-	python3 $(VIZ_SCRIPT) $(BLAST_RESULTS) --all
-
-sr_blast_all: sr_blast_run sr_viz_blast
-
-sr_blast_clean:
-	rm -rf $(BLAST_RESULTS)
-
-# Strong Blast Test
-sr_strong_run: $(SPH_BINARY) sr_check_dim
-	@echo "Running Strong Blast Test"
+sr_gif_strong: $(SPH_BINARY) sr_check_dim
+	@echo "========================================"
+	@echo "Strong Blast: Run + SPH vs Exact Comparison"
+	@echo "========================================"
+	@echo "[1/3] Running simulation..."
 	@mkdir -p $(STRONG_RESULTS)
-	./$(SPH_BINARY) $(STRONG_CONFIG)
-	@echo "Done: $(STRONG_RESULTS)"
+	@./$(SPH_BINARY) $(STRONG_CONFIG)
+	@echo "[2/3] Generating comparison animation..."
+	@python3 $(COMPARE_SCRIPT) $(STRONG_RESULTS) $(STRONG_RESULTS)/strong_vs_exact.gif
+	@echo "[3/3] Generating conservation analysis..."
+	@mkdir -p $(STRONG_RESULTS)/analysis
+	@python3 $(CONSERV_SCRIPT) $(STRONG_RESULTS)
+	@echo "========================================"
+	@echo "Done: $(STRONG_RESULTS)/strong_vs_exact.gif"
+	@echo "      $(STRONG_RESULTS)/analysis/conservation_analysis.png"
+	@echo "========================================"
 
-sr_viz_strong:
-	@if [ ! -d "$(STRONG_RESULTS)" ]; then echo "No results in $(STRONG_RESULTS)"; exit 1; fi
-	python3 $(VIZ_SCRIPT) $(STRONG_RESULTS) --all
-
-sr_strong_all: sr_strong_run sr_viz_strong
-
-sr_strong_clean:
-	rm -rf $(STRONG_RESULTS)
-
-# Ultra-Relativistic Test
-sr_ultra_run: $(SPH_BINARY) sr_check_dim
-	@echo "Running Ultra-Relativistic Test"
+sr_gif_ultra: $(SPH_BINARY) sr_check_dim
+	@echo "========================================"
+	@echo "Ultra-Relativistic (v=0.9c): Run + SPH vs Exact"
+	@echo "========================================"
+	@echo "[1/3] Running simulation..."
 	@mkdir -p $(ULTRA_RESULTS)
-	./$(SPH_BINARY) $(ULTRA_CONFIG)
-	@echo "Done: $(ULTRA_RESULTS)"
-
-sr_viz_ultra:
-	@if [ ! -d "$(ULTRA_RESULTS)" ]; then echo "No results in $(ULTRA_RESULTS)"; exit 1; fi
-	python3 $(VIZ_SCRIPT) $(ULTRA_RESULTS) --all
-
-sr_ultra_all: sr_ultra_run sr_viz_ultra
-
-sr_ultra_clean:
-	rm -rf $(ULTRA_RESULTS)
-
-# Full Suite
-sr_all: sr_sod_all sr_kitajima_all sr_blast_all sr_strong_all sr_ultra_all
-sr_viz_all: sr_viz_sod sr_viz_kitajima sr_viz_blast sr_viz_strong sr_viz_ultra
-sr_clean_all: sr_sod_clean sr_kitajima_clean sr_blast_clean sr_strong_clean sr_ultra_clean
-
-# ==============================================================================
-# Benchmark Targets (with Analytic Solution Overlay)
-# ==============================================================================
-# These targets create animations comparing SPH results with exact Riemann solution
-
-sr_benchmark_sod:
+	@./$(SPH_BINARY) $(ULTRA_CONFIG)
+	@echo "[2/3] Generating comparison animation..."
+	@python3 $(COMPARE_SCRIPT) $(ULTRA_RESULTS) $(ULTRA_RESULTS)/ultra_vs_exact.gif
+	@echo "[3/3] Generating conservation analysis..."
+	@mkdir -p $(ULTRA_RESULTS)/analysis
+	@python3 $(CONSERV_SCRIPT) $(ULTRA_RESULTS)
 	@echo "========================================"
-	@echo "Benchmark: Sod Test vs Exact Solution"
+	@echo "Done: $(ULTRA_RESULTS)/ultra_vs_exact.gif"
+	@echo "      $(ULTRA_RESULTS)/analysis/conservation_analysis.png"
 	@echo "========================================"
-	@if [ ! -d "$(SOD_RESULTS)" ]; then echo "No results in $(SOD_RESULTS). Run sr_sod_run first."; exit 1; fi
-	python3 $(VIZ_SCRIPT) $(SOD_RESULTS) --analytic --animate
-	@echo "✓ Benchmark animation created"
 
-sr_benchmark_kitajima:
+sr_gif_all: sr_gif_sod sr_gif_blast sr_gif_strong sr_gif_ultra
 	@echo "========================================"
-	@echo "Benchmark: Kitajima Test vs Exact Solution"
+	@echo "All GIFs Complete!"
 	@echo "========================================"
-	@if [ ! -d "$(KITAJIMA_RESULTS)" ]; then echo "No results in $(KITAJIMA_RESULTS). Run sr_kitajima_run first."; exit 1; fi
-	python3 $(VIZ_SCRIPT) $(KITAJIMA_RESULTS) --analytic --animate
-	@echo "✓ Benchmark animation created"
-
-sr_benchmark_blast:
-	@echo "========================================"
-	@echo "Benchmark: Blast Wave vs Exact Solution"
-	@echo "========================================"
-	@if [ ! -d "$(BLAST_RESULTS)" ]; then echo "No results in $(BLAST_RESULTS). Run sr_blast_run first."; exit 1; fi
-	python3 $(VIZ_SCRIPT) $(BLAST_RESULTS) --analytic --animate
-	@echo "✓ Benchmark animation created"
-
-sr_benchmark_strong:
-	@echo "========================================"
-	@echo "Benchmark: Strong Blast vs Exact Solution"
-	@echo "========================================"
-	@if [ ! -d "$(STRONG_RESULTS)" ]; then echo "No results in $(STRONG_RESULTS). Run sr_strong_run first."; exit 1; fi
-	python3 $(VIZ_SCRIPT) $(STRONG_RESULTS) --analytic --animate
-	@echo "✓ Benchmark animation created"
-
-sr_benchmark_ultra:
-	@echo "========================================"
-	@echo "Benchmark: Ultra-Relativistic vs Exact Solution"
-	@echo "========================================"
-	@if [ ! -d "$(ULTRA_RESULTS)" ]; then echo "No results in $(ULTRA_RESULTS). Run sr_ultra_run first."; exit 1; fi
-	python3 $(VIZ_SCRIPT) $(ULTRA_RESULTS) --analytic --animate
-	@echo "✓ Benchmark animation created"
-
-sr_benchmark_all: sr_benchmark_sod sr_benchmark_kitajima sr_benchmark_blast sr_benchmark_strong sr_benchmark_ultra
-	@echo "========================================"
-	@echo "✓ All Benchmark Animations Complete!"
+	@echo "  $(SOD_RESULTS)/sod_vs_exact.gif"
+	@echo "  $(BLAST_RESULTS)/blast_vs_exact.gif"
+	@echo "  $(STRONG_RESULTS)/strong_vs_exact.gif"
+	@echo "  $(ULTRA_RESULTS)/ultra_vs_exact.gif"
 	@echo "========================================"
 
 # ==============================================================================
-# Conservation Analysis Targets
+# Conservation Analysis (Energy, Momentum, Baryon Number)
 # ==============================================================================
-# Analyze energy, momentum, and baryon number conservation
 
 sr_conservation_sod:
 	@echo "========================================"
 	@echo "Conservation Analysis: Sod Test"
 	@echo "========================================"
-	@if [ ! -d "$(SOD_RESULTS)" ]; then echo "❌ No results in $(SOD_RESULTS). Run sr_sod_run first."; exit 1; fi
+	@if [ ! -d "$(SOD_RESULTS)" ]; then echo "No results. Run sr_gif_sod first."; exit 1; fi
 	@mkdir -p $(SOD_RESULTS)/analysis
 	python3 $(CONSERV_SCRIPT) $(SOD_RESULTS)
-	@echo "✓ Conservation analysis complete"
-	@echo "📊 Output: $(SOD_RESULTS)/analysis/"
-
-sr_conservation_kitajima:
-	@echo "========================================"
-	@echo "Conservation Analysis: Kitajima Test"
-	@echo "========================================"
-	@if [ ! -d "$(KITAJIMA_RESULTS)" ]; then echo "❌ No results in $(KITAJIMA_RESULTS). Run sr_kitajima_run first."; exit 1; fi
-	@mkdir -p $(KITAJIMA_RESULTS)/analysis
-	python3 $(CONSERV_SCRIPT) $(KITAJIMA_RESULTS)
-	@echo "✓ Conservation analysis complete"
-	@echo "📊 Output: $(KITAJIMA_RESULTS)/analysis/"
+	@echo "Done: $(SOD_RESULTS)/analysis/"
 
 sr_conservation_blast:
 	@echo "========================================"
 	@echo "Conservation Analysis: Blast Wave"
 	@echo "========================================"
-	@if [ ! -d "$(BLAST_RESULTS)" ]; then echo "❌ No results in $(BLAST_RESULTS). Run sr_blast_run first."; exit 1; fi
+	@if [ ! -d "$(BLAST_RESULTS)" ]; then echo "No results. Run sr_gif_blast first."; exit 1; fi
 	@mkdir -p $(BLAST_RESULTS)/analysis
 	python3 $(CONSERV_SCRIPT) $(BLAST_RESULTS)
-	@echo "✓ Conservation analysis complete"
-	@echo "📊 Output: $(BLAST_RESULTS)/analysis/"
+	@echo "Done: $(BLAST_RESULTS)/analysis/"
 
-sr_conservation_all: sr_conservation_sod sr_conservation_kitajima sr_conservation_blast
+sr_conservation_strong:
 	@echo "========================================"
-	@echo "✓ All Conservation Analyses Complete!"
+	@echo "Conservation Analysis: Strong Blast"
 	@echo "========================================"
+	@if [ ! -d "$(STRONG_RESULTS)" ]; then echo "No results. Run sr_gif_strong first."; exit 1; fi
+	@mkdir -p $(STRONG_RESULTS)/analysis
+	python3 $(CONSERV_SCRIPT) $(STRONG_RESULTS)
+	@echo "Done: $(STRONG_RESULTS)/analysis/"
 
-# ==============================================================================
-# Animation Targets
-# ==============================================================================
-# Create GIF animations with energy/momentum plots
+sr_conservation_ultra:
+	@echo "========================================"
+	@echo "Conservation Analysis: Ultra-Relativistic"
+	@echo "========================================"
+	@if [ ! -d "$(ULTRA_RESULTS)" ]; then echo "No results. Run sr_gif_ultra first."; exit 1; fi
+	@mkdir -p $(ULTRA_RESULTS)/analysis
+	python3 $(CONSERV_SCRIPT) $(ULTRA_RESULTS)
+	@echo "Done: $(ULTRA_RESULTS)/analysis/"
 
-sr_animate_sod:
+sr_conservation_all: sr_conservation_sod sr_conservation_blast sr_conservation_strong sr_conservation_ultra
 	@echo "========================================"
-	@echo "Creating Animation: Sod Test"
-	@echo "========================================"
-	@if [ ! -d "$(SOD_RESULTS)" ]; then echo "❌ No results in $(SOD_RESULTS). Run sr_sod_run first."; exit 1; fi
-	@mkdir -p $(RESULTS_DIR)/animations
-	python3 $(ANIMATE_SCRIPT) $(SOD_RESULTS) $(RESULTS_DIR)/animations/sr_sod_animation.gif
-	@echo "✓ Animation complete"
-	@echo "🎬 Output: $(RESULTS_DIR)/animations/sr_sod_animation.gif"
-	@echo "📊 Energy plot: $(RESULTS_DIR)/animations/sr_sod_animation_energy.png"
-
-sr_animate_kitajima:
-	@echo "========================================"
-	@echo "Creating Animation: Kitajima Test"
-	@echo "========================================"
-	@if [ ! -d "$(KITAJIMA_RESULTS)" ]; then echo "❌ No results in $(KITAJIMA_RESULTS). Run sr_kitajima_run first."; exit 1; fi
-	@mkdir -p $(RESULTS_DIR)/animations
-	python3 $(ANIMATE_SCRIPT) $(KITAJIMA_RESULTS) $(RESULTS_DIR)/animations/sr_kitajima_animation.gif
-	@echo "✓ Animation complete"
-	@echo "🎬 Output: $(RESULTS_DIR)/animations/sr_kitajima_animation.gif"
-	@echo "📊 Energy plot: $(RESULTS_DIR)/animations/sr_kitajima_animation_energy.png"
-
-sr_animate_blast:
-	@echo "========================================"
-	@echo "Creating Animation: Blast Wave"
-	@echo "========================================"
-	@if [ ! -d "$(BLAST_RESULTS)" ]; then echo "❌ No results in $(BLAST_RESULTS). Run sr_blast_run first."; exit 1; fi
-	@mkdir -p $(RESULTS_DIR)/animations
-	python3 $(ANIMATE_SCRIPT) $(BLAST_RESULTS) $(RESULTS_DIR)/animations/sr_blast_animation.gif
-	@echo "✓ Animation complete"
-	@echo "🎬 Output: $(RESULTS_DIR)/animations/sr_blast_animation.gif"
-	@echo "📊 Energy plot: $(RESULTS_DIR)/animations/sr_blast_animation_energy.png"
-
-sr_animate_all: sr_animate_sod sr_animate_kitajima sr_animate_blast
-	@echo "========================================"
-	@echo "✓ All Animations Complete!"
+	@echo "All Conservation Analyses Complete!"
 	@echo "========================================"
 
 # ==============================================================================
-# ONE-SHOT GIF Generation (Run Simulation + Generate Comparison Animation)
+# Cleanup
 # ==============================================================================
-# These targets do everything in one command: run simulation, then create
-# animated GIF comparing SPH results with exact Riemann solution
 
-sr_gif_sod: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "🚀 Sod Test: Run + Generate Comparison GIF"
-	@echo "========================================"
-	@echo "[1/2] Running simulation..."
-	@mkdir -p $(SOD_RESULTS)
-	@./$(SPH_BINARY) $(SOD_CONFIG)
-	@echo "✓ Simulation complete"
-	@echo "[2/2] Generating comparison animation..."
-	@python3 $(COMPARE_SCRIPT) $(SOD_RESULTS) $(SOD_RESULTS)/sod_vs_exact.gif
-	@echo "========================================"
-	@echo "✓ Complete!"
-	@echo "🎬 Animation: $(SOD_RESULTS)/sod_vs_exact.gif"
-	@echo "========================================"
+sr_clean_all:
+	rm -rf $(SOD_RESULTS) $(BLAST_RESULTS) $(STRONG_RESULTS) $(ULTRA_RESULTS)
+	@echo "All results cleaned"
 
-sr_gif_blast: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "🚀 Blast Wave: Run + Generate Comparison GIF"
-	@echo "========================================"
-	@echo "[1/2] Running simulation..."
-	@mkdir -p $(BLAST_RESULTS)
-	@./$(SPH_BINARY) $(BLAST_CONFIG)
-	@echo "✓ Simulation complete"
-	@echo "[2/2] Generating comparison animation..."
-	@python3 $(COMPARE_SCRIPT) $(BLAST_RESULTS) $(BLAST_RESULTS)/blast_vs_exact.gif
-	@echo "========================================"
-	@echo "✓ Complete!"
-	@echo "🎬 Animation: $(BLAST_RESULTS)/blast_vs_exact.gif"
-	@echo "========================================"
-
-sr_gif_strong: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "🚀 Strong Blast: Run + Generate Comparison GIF"
-	@echo "========================================"
-	@echo "[1/2] Running simulation..."
-	@mkdir -p $(STRONG_RESULTS)
-	@./$(SPH_BINARY) $(STRONG_CONFIG)
-	@echo "✓ Simulation complete"
-	@echo "[2/2] Generating comparison animation..."
-	@python3 $(COMPARE_SCRIPT) $(STRONG_RESULTS) $(STRONG_RESULTS)/strong_vs_exact.gif
-	@echo "========================================"
-	@echo "✓ Complete!"
-	@echo "🎬 Animation: $(STRONG_RESULTS)/strong_vs_exact.gif"
-	@echo "========================================"
-
-sr_gif_ultra: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "🚀 Ultra-Relativistic (v=0.9c): Run + Generate Comparison GIF"
-	@echo "========================================"
-	@echo "[1/2] Running simulation..."
-	@mkdir -p $(ULTRA_RESULTS)
-	@./$(SPH_BINARY) $(ULTRA_CONFIG)
-	@echo "✓ Simulation complete"
-	@echo "[2/2] Generating comparison animation..."
-	@python3 $(COMPARE_SCRIPT) $(ULTRA_RESULTS) $(ULTRA_RESULTS)/ultra_vs_exact.gif
-	@echo "========================================"
-	@echo "✓ Complete!"
-	@echo "🎬 Animation: $(ULTRA_RESULTS)/ultra_vs_exact.gif"
-	@echo "📝 Note: Wall boundary causes rarefaction near x=-0.5"
-	@echo "========================================"
-
-sr_gif_all: sr_gif_sod sr_gif_blast sr_gif_strong sr_gif_ultra
-	@echo "========================================"
-	@echo "✓ All One-Shot GIF Generations Complete!"
-	@echo "========================================"
-	@echo "📁 Output files:"
-	@echo "   $(SOD_RESULTS)/sod_vs_exact.gif"
-	@echo "   $(BLAST_RESULTS)/blast_vs_exact.gif"
-	@echo "   $(STRONG_RESULTS)/strong_vs_exact.gif"
-	@echo "   $(ULTRA_RESULTS)/ultra_vs_exact.gif"
-	@echo "========================================"
-
+# ==============================================================================
 # Help
+# ==============================================================================
+
 sr_help:
-	@echo "SR-GSPH Sod Test Suite (Kitajima 2025)"
+	@echo "SR-GSPH Shock Tube Tests (Kitajima 2025)"
 	@echo ""
-	@echo "========== ONE-SHOT GIF (Recommended) =========="
-	@echo "Run simulation + generate SPH vs Exact comparison GIF:"
-	@echo "  sr_gif_sod           - Sod shock tube test"
-	@echo "  sr_gif_blast         - Standard relativistic blast wave"
-	@echo "  sr_gif_strong        - Strong relativistic blast wave"
-	@echo "  sr_gif_ultra         - Ultra-relativistic shock (v=0.9c)"
-	@echo "  sr_gif_all           - Run all tests and generate all GIFs"
+	@echo "ONE-SHOT GIF (Run + SPH vs Exact Animation):"
+	@echo "  sr_gif_sod      - Sod shock tube"
+	@echo "  sr_gif_blast    - Relativistic blast wave"
+	@echo "  sr_gif_strong   - Strong blast wave"
+	@echo "  sr_gif_ultra    - Ultra-relativistic (v=0.9c)"
+	@echo "  sr_gif_all      - All tests"
 	@echo ""
-	@echo "========== Individual Commands =========="
-	@echo "Run & Visualize:"
-	@echo "  sr_sod_run / sr_viz_sod / sr_sod_all / sr_sod_clean"
-	@echo "  sr_kitajima_run / sr_viz_kitajima / sr_kitajima_all / sr_kitajima_clean"
-	@echo "  sr_blast_run / sr_viz_blast / sr_blast_all / sr_blast_clean"
-	@echo "  sr_strong_run / sr_viz_strong / sr_strong_all / sr_strong_clean"
-	@echo "  sr_ultra_run / sr_viz_ultra / sr_ultra_all / sr_ultra_clean"
-	@echo "  sr_all / sr_viz_all / sr_clean_all"
+	@echo "CONSERVATION ANALYSIS (Energy, Momentum, Baryon):"
+	@echo "  sr_conservation_sod    - Sod test"
+	@echo "  sr_conservation_blast  - Blast wave"
+	@echo "  sr_conservation_strong - Strong blast"
+	@echo "  sr_conservation_ultra  - Ultra-relativistic"
+	@echo "  sr_conservation_all    - All tests"
 	@echo ""
-	@echo "Benchmark (with Exact Analytic Solution):"
-	@echo "  sr_benchmark_sod       - Sod test vs exact Riemann solution"
-	@echo "  sr_benchmark_kitajima  - Kitajima test vs exact solution"
-	@echo "  sr_benchmark_blast     - Blast wave vs exact solution"
-	@echo "  sr_benchmark_strong    - Strong blast vs exact solution"
-	@echo "  sr_benchmark_ultra     - Ultra-relativistic vs exact solution"
-	@echo "  sr_benchmark_all       - All benchmarks"
+	@echo "CLEANUP:"
+	@echo "  sr_clean_all    - Remove all results"
 	@echo ""
-	@echo "Conservation Analysis (Energy, Momentum, Baryon Number):"
-	@echo "  sr_conservation_sod      - Analyze Sod test conservation laws"
-	@echo "  sr_conservation_kitajima - Analyze Kitajima test conservation"
-	@echo "  sr_conservation_blast    - Analyze blast wave conservation"
-	@echo "  sr_conservation_all      - All conservation analyses"
-	@echo ""
-	@echo "Animations:"
-	@echo "  sr_animate_sod         - Create GIF animation with energy plot"
-	@echo "  sr_animate_kitajima    - Kitajima test animation"
-	@echo "  sr_animate_blast       - Blast wave animation"
-	@echo "  sr_animate_all         - All animations"
-	@echo ""
-	@echo "Physical Units: c=1, time in L/c, velocity in c"
 	@echo "Reference: Kitajima et al. (2025) arXiv:2510.18251v1"

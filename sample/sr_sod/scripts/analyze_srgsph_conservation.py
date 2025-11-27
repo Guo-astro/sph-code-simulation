@@ -141,35 +141,46 @@ def compute_relativistic_quantities(df, gamma_ad=5.0/3.0):
 def compute_total_conserved(df, gamma_ad=5.0/3.0):
     """
     Compute total conserved quantities for the system.
-    
+
     In SRGSPH, the conserved quantities are:
     - Total baryon number: Σ ν_i
     - Total canonical momentum: Σ ν_i S_i
     - Total canonical energy: Σ ν_i e_i
-    
+
     Note: These are "per baryon" quantities multiplied by baryon number.
     """
     q = compute_relativistic_quantities(df, gamma_ad)
-    
+
     nu = q['nu']
-    
+
     # Total baryon number (should be exactly conserved)
     total_N = np.sum(nu)
-    
+
     # Total canonical momentum (should be conserved)
     total_Sx = np.sum(nu * q['Sx'])
     total_Sy = np.sum(nu * q['Sy'])
     total_Sz = np.sum(nu * q['Sz'])
-    
+
     # Total canonical energy (should be conserved)
     total_e = np.sum(nu * q['e'])
-    
+
+    # Compute thermal energy (internal energy)
+    # For ideal gas: u = P / ((gamma_ad - 1) * n)
+    u = q['P'] / (np.maximum(q['n'], 1e-15) * (gamma_ad - 1.0))
+    total_thermal = np.sum(nu * u)
+
+    # Kinetic energy per baryon: (gamma - 1) for c=1
+    kinetic_per_baryon = q['gamma'] - 1.0
+    total_kinetic = np.sum(nu * kinetic_per_baryon)
+
     return {
         'baryon_number': total_N,
         'momentum_x': total_Sx,
         'momentum_y': total_Sy,
         'momentum_z': total_Sz,
-        'energy': total_e
+        'energy': total_e,
+        'thermal_energy': total_thermal,
+        'kinetic_energy': total_kinetic
     }
 
 def analyze_conservation(results_dir, gamma_ad=5.0/3.0):
@@ -203,85 +214,180 @@ def analyze_conservation(results_dir, gamma_ad=5.0/3.0):
 
 def plot_conservation_analysis(conservation_df, output_path):
     """Create comprehensive conservation analysis plot."""
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle('SRGSPH Conservation Law Analysis\n' + 
+    fig, axes = plt.subplots(3, 2, figsize=(14, 14))
+    fig.suptitle('SRGSPH Conservation Law Analysis\n' +
                  'Mass, Momentum, and Energy Conservation', fontsize=14)
-    
-    t = conservation_df['time']
-    
+
+    t = conservation_df['snapshot']  # Use timestep (integer) instead of time
+
     # 1. Baryon number conservation
     ax1 = axes[0, 0]
     ax1.plot(t, conservation_df['baryon_error'] * 100, 'b-', linewidth=2)
     ax1.axhline(y=0, color='k', linestyle='--', alpha=0.5)
-    ax1.set_xlabel('Time')
+    ax1.set_xlabel('Timestep')
     ax1.set_ylabel('Relative Error (%)')
     ax1.set_title('Baryon Number Conservation')
     ax1.grid(True, alpha=0.3)
     ax1.ticklabel_format(style='scientific', axis='y', scilimits=(-3,3))
-    
-    # 2. Momentum conservation
+
+    # 2. Momentum conservation evolution over time
     ax2 = axes[0, 1]
-    ax2.plot(t, conservation_df['momentum_x_error'], 'r-', linewidth=2, label='$S_x$')
-    ax2.axhline(y=0, color='k', linestyle='--', alpha=0.5)
-    ax2.set_xlabel('Time')
-    ax2.set_ylabel('Absolute Error')
-    ax2.set_title('Momentum Conservation')
+    ax2.plot(t, conservation_df['momentum_x'], 'r-', linewidth=2, label='$S_x$ (total)')
+    ax2.axhline(y=conservation_df['momentum_x'].iloc[0], color='k', linestyle='--', alpha=0.5, label='Initial')
+    ax2.set_xlabel('Timestep')
+    ax2.set_ylabel('Total Momentum $S_x$')
+    ax2.set_title('Momentum Evolution Over Time')
     ax2.legend()
     ax2.grid(True, alpha=0.3)
     ax2.ticklabel_format(style='scientific', axis='y', scilimits=(-3,3))
-    
-    # 3. Energy conservation
+
+    # 3. Momentum conservation error
     ax3 = axes[1, 0]
-    ax3.plot(t, conservation_df['energy_error'] * 100, 'g-', linewidth=2)
+    ax3.plot(t, conservation_df['momentum_x_error'], 'r-', linewidth=2)
     ax3.axhline(y=0, color='k', linestyle='--', alpha=0.5)
-    ax3.set_xlabel('Time')
-    ax3.set_ylabel('Relative Error (%)')
-    ax3.set_title('Energy Conservation')
+    ax3.set_xlabel('Timestep')
+    ax3.set_ylabel('Absolute Error')
+    ax3.set_title('Momentum Conservation Error')
     ax3.grid(True, alpha=0.3)
     ax3.ticklabel_format(style='scientific', axis='y', scilimits=(-3,3))
-    
-    # 4. Summary statistics
+
+    # 4. Total energy evolution
     ax4 = axes[1, 1]
-    ax4.axis('off')
-    
-    # Compute statistics
-    baryon_max_err = np.max(np.abs(conservation_df['baryon_error'])) * 100
-    mom_max_err = np.max(np.abs(conservation_df['momentum_x_error']))
-    energy_max_err = np.max(np.abs(conservation_df['energy_error'])) * 100
-    
-    summary_text = f"""
-    Conservation Law Summary
-    ========================================
-    
-    Baryon Number:
-      Initial: {conservation_df['baryon_number'].iloc[0]:.6f}
-      Final:   {conservation_df['baryon_number'].iloc[-1]:.6f}
-      Max Error: {baryon_max_err:.2e} %
-    
-    Momentum x:
-      Initial: {conservation_df['momentum_x'].iloc[0]:.6e}
-      Final:   {conservation_df['momentum_x'].iloc[-1]:.6e}
-      Max Error: {mom_max_err:.2e}
-    
-    Energy:
-      Initial: {conservation_df['energy'].iloc[0]:.6f}
-      Final:   {conservation_df['energy'].iloc[-1]:.6f}
-      Max Error: {energy_max_err:.2e} %
-    
-    Note: SRGSPH uses canonical momentum S = gamma*H*v
-    and canonical energy e = gamma*H - P/N.
-    Anti-symmetry of pairwise forces ensures
-    exact conservation in theory.
-    """
-    
-    ax4.text(0.1, 0.9, summary_text, transform=ax4.transAxes, 
-             fontsize=10, verticalalignment='top', fontfamily='monospace',
-             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-    
+    ax4.plot(t, conservation_df['energy'], 'g-', linewidth=2, label='Total Energy')
+    ax4.axhline(y=conservation_df['energy'].iloc[0], color='k', linestyle='--', alpha=0.5, label='Initial')
+    ax4.set_xlabel('Timestep')
+    ax4.set_ylabel('Total Energy')
+    ax4.set_title('Total Energy Evolution Over Time')
+    ax4.legend()
+    ax4.grid(True, alpha=0.3)
+
+    # 5. Thermal and kinetic energy evolution
+    ax5 = axes[2, 0]
+    ax5.plot(t, conservation_df['thermal_energy'], 'orange', linewidth=2, label='Thermal Energy')
+    ax5.plot(t, conservation_df['kinetic_energy'], 'purple', linewidth=2, label='Kinetic Energy')
+    ax5.set_xlabel('Timestep')
+    ax5.set_ylabel('Energy')
+    ax5.set_title('Thermal & Kinetic Energy Evolution')
+    ax5.legend()
+    ax5.grid(True, alpha=0.3)
+
+    # 6. Energy conservation error with explanation
+    ax6 = axes[2, 1]
+    ax6.plot(t, conservation_df['energy_error'] * 100, 'g-', linewidth=2, label='Total Energy Error')
+    ax6.axhline(y=0, color='k', linestyle='--', alpha=0.5)
+    ax6.set_xlabel('Timestep')
+    ax6.set_ylabel('Relative Error (%)')
+    ax6.set_title('Energy Conservation Error Analysis')
+    ax6.legend()
+    ax6.grid(True, alpha=0.3)
+    ax6.ticklabel_format(style='scientific', axis='y', scilimits=(-3,3))
+
+    # Add text annotation about energy conservation
+    thermal_change = (conservation_df['thermal_energy'].iloc[-1] - conservation_df['thermal_energy'].iloc[0])
+    kinetic_change = (conservation_df['kinetic_energy'].iloc[-1] - conservation_df['kinetic_energy'].iloc[0])
+
+    energy_text = f'Thermal Δ: {thermal_change:+.3e}\nKinetic Δ: {kinetic_change:+.3e}'
+    ax6.text(0.02, 0.98, energy_text, transform=ax6.transAxes,
+             fontsize=9, verticalalignment='top',
+             bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.5))
+
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f"Conservation analysis saved to {output_path}")
+
+def plot_energy_conservation_detailed(conservation_df, output_path):
+    """Create detailed energy conservation analysis plot."""
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle('Energy Conservation Detailed Analysis\n' +
+                 'Why Energy Conservation Matters', fontsize=14)
+
+    t = conservation_df['snapshot']  # Use timestep (integer) instead of time
+
+    # 1. Total energy evolution
+    ax1 = axes[0, 0]
+    ax1.plot(t, conservation_df['energy'], 'g-', linewidth=2, label='Total Energy')
+    initial_energy = conservation_df['energy'].iloc[0]
+    ax1.axhline(y=initial_energy, color='k', linestyle='--', alpha=0.5, label='Initial Value')
+    ax1.set_xlabel('Timestep')
+    ax1.set_ylabel('Total Canonical Energy')
+    ax1.set_title('Total Energy Over Time (Should be Conserved)')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+
+    # 2. Energy components stacked
+    ax2 = axes[0, 1]
+    ax2.plot(t, conservation_df['thermal_energy'], 'orange', linewidth=2, label='Thermal Energy')
+    ax2.plot(t, conservation_df['kinetic_energy'], 'purple', linewidth=2, label='Kinetic Energy')
+    ax2.set_xlabel('Timestep')
+    ax2.set_ylabel('Energy Components')
+    ax2.set_title('Energy Components Evolution')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+
+    # 3. Energy conservation error
+    ax3 = axes[1, 0]
+    energy_error_pct = conservation_df['energy_error'] * 100
+    ax3.plot(t, energy_error_pct, 'g-', linewidth=2)
+    ax3.axhline(y=0, color='k', linestyle='--', alpha=0.5)
+    ax3.fill_between(t, 0, energy_error_pct, alpha=0.3, color='green')
+    ax3.set_xlabel('Timestep')
+    ax3.set_ylabel('Relative Error (%)')
+    ax3.set_title('Energy Conservation Error')
+    ax3.grid(True, alpha=0.3)
+    ax3.ticklabel_format(style='scientific', axis='y', scilimits=(-3,3))
+
+    # 4. Explanation panel
+    ax4 = axes[1, 1]
+    ax4.axis('off')
+
+    # Compute changes
+    energy_change = conservation_df['energy'].iloc[-1] - conservation_df['energy'].iloc[0]
+    thermal_change = conservation_df['thermal_energy'].iloc[-1] - conservation_df['thermal_energy'].iloc[0]
+    kinetic_change = conservation_df['kinetic_energy'].iloc[-1] - conservation_df['kinetic_energy'].iloc[0]
+    energy_rel_error = conservation_df['energy_error'].iloc[-1] * 100
+
+    explanation_text = f"""
+    Energy Conservation Analysis
+    ========================================
+
+    Initial State:
+      Total Energy:   {conservation_df['energy'].iloc[0]:.6e}
+      Thermal Energy: {conservation_df['thermal_energy'].iloc[0]:.6e}
+      Kinetic Energy: {conservation_df['kinetic_energy'].iloc[0]:.6e}
+
+    Final State:
+      Total Energy:   {conservation_df['energy'].iloc[-1]:.6e}
+      Thermal Energy: {conservation_df['thermal_energy'].iloc[-1]:.6e}
+      Kinetic Energy: {conservation_df['kinetic_energy'].iloc[-1]:.6e}
+
+    Changes:
+      ΔE_total:   {energy_change:+.6e} ({energy_rel_error:+.3e}%)
+      ΔE_thermal: {thermal_change:+.6e}
+      ΔE_kinetic: {kinetic_change:+.6e}
+
+    Why This Matters:
+    - Total energy MUST be conserved in isolated system
+    - Thermal ↔ Kinetic exchange shows shock dynamics
+    - Errors indicate numerical issues:
+      * Primitive recovery (quartic solver)
+      * Time integration (Euler method)
+      * Riemann solver accuracy
+
+    Note: In shock tube problem:
+    - Initially: High thermal on left, low on right
+    - During evolution: Kinetic energy increases
+    - After shock: Thermal energy redistributes
+    """
+
+    ax4.text(0.05, 0.95, explanation_text, transform=ax4.transAxes,
+             fontsize=9, verticalalignment='top', fontfamily='monospace',
+             bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.7))
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Detailed energy conservation analysis saved to {output_path}")
 
 def compute_exact_sod_solution(x, t, gamma_ad=5.0/3.0, x0=0.0,
                                 rhoL=1.0, pL=1.0, vL=0.0,
@@ -644,7 +750,7 @@ def create_scheme_explanation_figure(output_path):
     ax1.axvline(x=0.25, color='green', linestyle=':', linewidth=2, label='Interface')
     ax1.set_xlabel('Position x')
     ax1.set_ylabel('Quantity')
-    ax1.set_title('MUSCL Reconstruction (2次精度再構成)\n' +
+    ax1.set_title('MUSCL Reconstruction (2nd Order Reconstruction)\n' +
                   r'$q_{L,R} = q_i + \nabla q_i \cdot \Delta r$')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
@@ -918,37 +1024,49 @@ def main():
     print(f"Results directory: {results_dir}")
     print(f"Output directory:  {output_dir}")
     print("=" * 60)
-    
+
     # 1. Conservation analysis
-    print("\n[1/4] Analyzing conservation laws...")
+    print("\n[1/5] Analyzing conservation laws...")
     conservation_df = analyze_conservation(results_dir, gamma_ad)
     if conservation_df is not None:
         plot_conservation_analysis(conservation_df, output_dir / "conservation_analysis.png")
-        
+
+        # Also create detailed energy conservation plot
+        plot_energy_conservation_detailed(conservation_df, output_dir / "energy_conservation_detailed.png")
+
         # Print summary
         print("\n  Conservation Summary:")
         print(f"  - Baryon number max error: {np.max(np.abs(conservation_df['baryon_error']))*100:.2e}%")
         print(f"  - Momentum max error: {np.max(np.abs(conservation_df['momentum_x_error'])):.2e}")
         print(f"  - Energy max error: {np.max(np.abs(conservation_df['energy_error']))*100:.2e}%")
-    
+        print(f"\n  Energy Evolution:")
+        print(f"  - Initial total energy: {conservation_df['energy'].iloc[0]:.6e}")
+        print(f"  - Final total energy: {conservation_df['energy'].iloc[-1]:.6e}")
+        print(f"  - Initial thermal energy: {conservation_df['thermal_energy'].iloc[0]:.6e}")
+        print(f"  - Final thermal energy: {conservation_df['thermal_energy'].iloc[-1]:.6e}")
+        print(f"  - Initial kinetic energy: {conservation_df['kinetic_energy'].iloc[0]:.6e}")
+        print(f"  - Final kinetic energy: {conservation_df['kinetic_energy'].iloc[-1]:.6e}")
+
     # 2. Create scheme explanation figure
-    print("\n[2/4] Creating scheme explanation figure...")
+    print("\n[2/5] Creating scheme explanation figure...")
     create_scheme_explanation_figure(output_dir / "scheme_explanation.png")
-    
+
     # 3. Rarefaction overshoot analysis
-    print("\n[3/4] Analyzing rarefaction wave overshoot...")
-    create_rarefaction_overshoot_analysis(results_dir, 
+    print("\n[3/5] Analyzing rarefaction wave overshoot...")
+    create_rarefaction_overshoot_analysis(results_dir,
                                           output_dir / "rarefaction_analysis.png",
                                           gamma_ad)
-    
+
     # 4. Snapshot comparison with exact solution
-    print("\n[4/4] Creating snapshot comparison with exact solution...")
+    print("\n[4/5] Creating snapshot comparison with exact solution...")
     snapshots, times = load_all_snapshots(results_dir)
     if len(snapshots) > 0:
         # Use final snapshot
         final_idx = -1
         plot_snapshot_with_exact(snapshots[final_idx], times[final_idx],
                                 output_dir / "snapshot_vs_exact.png", gamma_ad)
+
+    print("\n[5/5] All analyses complete!")
     
     print("\n" + "=" * 60)
     print("Analysis complete! Output files in:", output_dir)

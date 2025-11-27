@@ -87,12 +87,18 @@ void Solver::make_sr_ultra_relat()
     const real dx_left = (x_left_end - x_left_start) / N_left;
     const real dx_right = (x_right_end - x_right_start) / N_right;
 
-    // Baryon number per particle (volume-based approach)
-    const real nu_left = n_left * dx_left;
-    const real nu_right = n_right * dx_right;
-
     // Compute Lorentz factor for left state
     const real gamma_lor_left = 1.0 / std::sqrt(1.0 - v_left * v_left / c2);
+
+    // Baryon number per particle (ν)
+    // In the lab frame where we set up particles:
+    //   - Particles are placed at spacing dx (lab-frame spacing)
+    //   - For moving fluid, lab-frame density is N = γ * n
+    //   - Baryon number is ν = N * V_lab = γ * n * dx
+    // This ensures that when the kernel sum gives N_lab, the rest-frame
+    // density recovered is n = N_lab / γ = correct initial value
+    const real nu_left = gamma_lor_left * n_left * dx_left;
+    const real nu_right = n_right * dx_right;  // gamma_lor_right = 1
 
     std::vector<SPHParticle> p(num);
 
@@ -194,6 +200,8 @@ void Solver::make_sr_ultra_relat()
         int ghost_id = N_left + N_right;
         
         // Left ghost particles (extend left state beyond x = -0.5)
+        // Use INFLOW boundary: ghost particles have same state as left boundary
+        // This allows continuous flow into the domain
         for (int i = 0; i < N_ghost_left; ++i) {
             auto& p_i = p[ghost_id];
             p_i.id = ghost_id;
@@ -201,15 +209,14 @@ void Solver::make_sr_ultra_relat()
             p_i.pos[0] = x_left_start - (i + 0.5) * dx_left;
             p_i.is_ghost = true;  // Mark as ghost particle
 
-            // Copy left state properties
+            // Copy left state properties (INFLOW: same velocity, not reflected)
             p_i.nu = nu_left;
             p_i.mass = nu_left;
 
             vec_t vel;
-            vel[0] = -v_left;  // Reflect velocity for wall condition
+            vel[0] = v_left;  // INFLOW: same velocity as left state (not reflected!)
 
-            const real v2 = vel[0] * vel[0];
-            p_i.gamma_lor = 1.0 / std::sqrt(1.0 - v2 / c2);
+            p_i.gamma_lor = gamma_lor_left;
 
             const real u_init = P_left / ((gamma - 1.0) * n_left);
             const real H_init = 1.0 + u_init / c2 + P_left / (n_left * c2);
@@ -239,6 +246,7 @@ void Solver::make_sr_ultra_relat()
         }
 
         // Right ghost particles (extend right state beyond x = 0.5)
+        // Use OUTFLOW boundary: ghost particles have same state as right boundary
         for (int i = 0; i < N_ghost_right; ++i) {
             auto& p_i = p[ghost_id];
             p_i.id = ghost_id;
@@ -246,12 +254,12 @@ void Solver::make_sr_ultra_relat()
             p_i.pos[0] = x_right_end + (i + 0.5) * dx_right;
             p_i.is_ghost = true;  // Mark as ghost particle
 
-            // Copy right state properties
+            // Copy right state properties (OUTFLOW: same velocity)
             p_i.nu = nu_right;
             p_i.mass = nu_right;
 
             vec_t vel;
-            vel[0] = -v_right;  // Reflect velocity for wall condition (v_right is 0)
+            vel[0] = v_right;  // OUTFLOW: same velocity as right state
 
             const real v2 = vel[0] * vel[0];
             p_i.gamma_lor = 1.0 / std::sqrt(1.0 - v2 / c2);
