@@ -16,77 +16,20 @@ from matplotlib.animation import FuncAnimation, PillowWriter, FFMpegWriter
 import sys
 import os
 import glob
-import json
 
 # Add docs directory to path for relativistic_riemann_solver
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'docs'))
 from relativistic_riemann_solver import RelativisiticRiemannSolver
 
-
-# Kitajima et al. (2025) test case definitions
-# Each test case has: (P_L, n_L, v_L, P_R, n_R, v_R)
-TEST_CASES = {
-    'sod': {
-        'name': 'Sod Problem (Section 3.1.1)',
-        'left': (1.0, 1.0, 0.0),
-        'right': (0.1, 0.125, 0.0),
-    },
-    'blast_wave': {
-        'name': 'Standard Blast Wave (Section 3.1.2)',
-        'left': (40.0/3.0, 10.0, 0.0),
-        'right': (1.0e-6, 1.0, 0.0),
-    },
-    'strong_blast': {
-        'name': 'Strong Blast Wave (Section 3.1.3)',
-        'left': (1000.0, 1.0, 0.0),
-        'right': (0.01, 1.0, 0.0),
-    },
-    'ultra_relat': {
-        'name': 'Ultra-Relativistic Shock (Section 3.2)',
-        'left': (1.0, 1.0, 0.9),  # v=0.9c default, can be overridden
-        'right': (1.0, 1.0, 0.0),
-    },
-}
-
-
-def detect_test_type(snapshot_dir):
-    """Detect test type from directory name or config file"""
-    # Try to load config file if it exists
-    config_patterns = [
-        os.path.join(snapshot_dir, '..', '*.json'),
-        os.path.join(snapshot_dir, '..', 'config', '*.json'),
-    ]
-    
-    for pattern in config_patterns:
-        configs = glob.glob(pattern)
-        for config_file in configs:
-            try:
-                with open(config_file, 'r') as f:
-                    config = json.load(f)
-                    if 'testType' in config:
-                        return config['testType'], config.get('v_left', 0.9)
-            except:
-                pass
-    
-    # Detect from directory name
-    dir_lower = snapshot_dir.lower()
-    if 'strong' in dir_lower:
-        return 'strong_blast', 0.9
-    elif 'blast' in dir_lower:
-        return 'blast_wave', 0.9
-    elif 'ultra' in dir_lower:
-        return 'ultra_relat', 0.9
-    elif 'sod' in dir_lower:
-        return 'sod', 0.0
-    else:
-        # Default to sod
-        return 'sod', 0.0
+# Import shared test case definitions (SSOT)
+from sr_test_cases import TEST_CASES, detect_test_type, get_initial_conditions
 
 
 def load_snapshot(filename):
     """Load CSV snapshot and extract particle data (excluding ghost particles)"""
     data = []
     time = 0.0
+    col_indices = {}
     
     with open(filename, 'r') as f:
         for line in f:
@@ -94,26 +37,39 @@ def load_snapshot(filename):
                 if '# Time (code):' in line:
                     time = float(line.split(':')[1].strip())
                 continue
-            if line.strip().startswith('id'):
-                continue
             parts = line.strip().split(',')
-            if len(parts) >= 22:
-                try:
-                    row = [float(x) for x in parts]
-                    # Filter out ghost particles (is_ghost is column 21)
-                    if len(row) > 21 and row[21] == 0:
-                        data.append(row)
-                except ValueError:
-                    continue
+            # Parse header to get column indices
+            if parts[0] == 'id':
+                for i, name in enumerate(parts):
+                    col_indices[name.strip()] = i
+                continue
+            if len(parts) < 6:
+                continue
+            try:
+                row = [float(x) for x in parts]
+                # Filter out ghost particles
+                ghost_col = col_indices.get('is_ghost', len(row))
+                if ghost_col < len(row) and row[ghost_col] == 0:
+                    data.append(row)
+                elif ghost_col >= len(row):
+                    data.append(row)
+            except ValueError:
+                continue
 
     data = np.array(data)
     
+    # Use column indices from header, with fallbacks for old format
+    pos_col = col_indices.get('pos_x', 1)
+    vel_col = col_indices.get('vel_x', 2)
+    dens_col = col_indices.get('dens', 5)
+    pres_col = col_indices.get('pres', 6)
+    
     result = {
         'time': time,
-        'pos_x': data[:, 1],
-        'vel_x': data[:, 4],
-        'dens': data[:, 11],    # rest-frame density n
-        'pres': data[:, 12],
+        'pos_x': data[:, pos_col],
+        'vel_x': data[:, vel_col],
+        'dens': data[:, dens_col],    # rest-frame density n
+        'pres': data[:, pres_col],
     }
     
     # Sort by position

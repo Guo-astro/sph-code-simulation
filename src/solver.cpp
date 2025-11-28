@@ -531,10 +531,12 @@ void Solver::read_parameterfile(const char * filename)
     }
     
     // Boundary type for ghost particles (when periodic is false)
-    // Options: "reflecting" (wall), "outflow" (open boundary)
+    // Options: "reflecting" (wall), "outflow" (open boundary), "inflow" (fixed ghosts)
     std::string boundary_type_str = input.get<std::string>("boundaryType", "outflow");
     if(boundary_type_str == "reflecting" || boundary_type_str == "wall") {
         m_param->periodic.boundary_type = BoundaryType::REFLECTING;
+    } else if(boundary_type_str == "inflow" || boundary_type_str == "fixed") {
+        m_param->periodic.boundary_type = BoundaryType::INFLOW;
     } else {
         m_param->periodic.boundary_type = BoundaryType::OUTFLOW;  // Default: outflow
     }
@@ -1383,6 +1385,39 @@ void Solver::update_ghost_particles()
     // Get domain boundaries from parameters (set via rangeMin/rangeMax in config)
     const real x_left = m_param->periodic.range_min[0];
     const real x_right = m_param->periodic.range_max[0];
+    
+    // For INFLOW boundary, ghost particles move with flow but maintain inflow state
+    // This simulates continuous inflow of material
+    // NOTE: This function is called multiple times per timestep.
+    // We use a flag to ensure ghosts are moved only ONCE per timestep.
+    // The flag is reset at the start of each timestep in integrate().
+    static bool ghost_moved_this_step = false;
+    static real last_step_time = -999.0;
+    const real current_time = m_sim->get_time();
+    
+    // Detect new timestep (time has advanced)
+    if(std::abs(current_time - last_step_time) > 1e-15) {
+        ghost_moved_this_step = false;
+        last_step_time = current_time;
+    }
+    
+    if(m_param->periodic.boundary_type == BoundaryType::INFLOW) {
+        // Only move ghosts once per timestep
+        if(!ghost_moved_this_step) {
+            ghost_moved_this_step = true;
+            const real dt = m_sim->get_dt();
+            
+            // Move ghost particles with their velocity
+            for(int i = 0; i < num; ++i) {
+                if(!p[i].is_ghost) continue;
+                
+                // For SR, use coordinate velocity v directly
+                p[i].pos[0] += p[i].vel[0] * dt;
+            }
+        }
+        return;
+    }
+    
     const bool is_outflow = (m_param->periodic.boundary_type == BoundaryType::OUTFLOW);
     
     // For each ghost particle, find the nearest real particle and copy/mirror its properties

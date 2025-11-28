@@ -30,6 +30,7 @@ enum struct RiemannSolverType {
 enum struct BoundaryType {
     REFLECTING,  // Wall boundary: velocity is reflected (v -> -v)
     OUTFLOW,     // Open/outflow boundary: velocity is copied (waves exit without reflection)
+    INFLOW,      // Inflow boundary: ghosts keep their initial state (simulates infinite domain)
 };
 
 struct SPHParameters {

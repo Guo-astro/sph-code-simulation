@@ -200,8 +200,9 @@ void Solver::make_sr_ultra_relat()
         int ghost_id = N_left + N_right;
         
         // Left ghost particles (extend left state beyond x = -0.5)
-        // Use INFLOW boundary: ghost particles have same state as left boundary
-        // This allows continuous flow into the domain
+        // Use INFLOW boundary: ghost particles have same velocity as interior
+        // This simulates continuous inflow of material at v=0.9c to match
+        // the paper's assumption of an infinite domain on the left
         for (int i = 0; i < N_ghost_left; ++i) {
             auto& p_i = p[ghost_id];
             p_i.id = ghost_id;
@@ -209,12 +210,13 @@ void Solver::make_sr_ultra_relat()
             p_i.pos[0] = x_left_start - (i + 0.5) * dx_left;
             p_i.is_ghost = true;  // Mark as ghost particle
 
-            // Copy left state properties (INFLOW: same velocity, not reflected)
+            // Copy left state properties with SAME velocity (inflow boundary)
+            // This maintains the left state as particles flow rightward
             p_i.nu = nu_left;
             p_i.mass = nu_left;
 
             vec_t vel;
-            vel[0] = v_left;  // INFLOW: same velocity as left state (not reflected!)
+            vel[0] = v_left;  // INFLOW: same velocity as left state
 
             p_i.gamma_lor = gamma_lor_left;
 
@@ -246,7 +248,7 @@ void Solver::make_sr_ultra_relat()
         }
 
         // Right ghost particles (extend right state beyond x = 0.5)
-        // Use OUTFLOW boundary: ghost particles have same state as right boundary
+        // Use OUTFLOW boundary: ghost particles have same velocity as right state
         for (int i = 0; i < N_ghost_right; ++i) {
             auto& p_i = p[ghost_id];
             p_i.id = ghost_id;
@@ -294,6 +296,13 @@ void Solver::make_sr_ultra_relat()
 
     m_sim->set_particles(p);
     m_sim->set_particle_num(p.size());
+
+    // Debug: print first ghost particle velocity
+    if (use_ghost_particles && p.size() > N_left + N_right) {
+        std::cout << "DEBUG: First left ghost (id=" << (N_left + N_right) << "): "
+                  << "vel[0]=" << p[N_left + N_right].vel[0] 
+                  << ", v_left=" << v_left << std::endl;
+    }
 
     WRITE_LOG << "Ultra-relativistic shock initialized (Kitajima Section 3.2):";
     WRITE_LOG << "  Left:  v=" << v_left / c_speed << "c, gamma=" << gamma_lor_left

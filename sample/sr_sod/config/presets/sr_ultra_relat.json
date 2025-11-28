@@ -35,6 +35,7 @@
   "testType": "ultra_relat",
   "v_left": 0.9,
   "periodic": false,
+  "boundaryType": "inflow",
   "rangeMax": [0.5],
   "rangeMin": [-0.5],
   "avAlpha": 0.0,

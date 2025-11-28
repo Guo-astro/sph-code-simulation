@@ -135,10 +135,25 @@ void Solver::make_sr_sod()
     
     // Number of ghost particle layers
     // Need enough layers so boundary particles have same neighbor count as interior
-    // Search radius is 6*h, and h ~ dx, so we need ~6 layers on each side
-    int ghost_layers = 6;  // Default: 6 layers on each side for full neighbor support
+    // For ultra-relativistic test: particles travel v*t = 0.9*0.3 = 0.27
+    // Need ghost particles to extend at least that far for proper inflow
+    // At dx=0.0005, need ~540 layers. Using 600 to be safe.
+    int ghost_layers = 6;  // Default: 6 layers for standard tests
     if (m_sample_parameters.count("ghostLayers")) {
         ghost_layers = boost::any_cast<int>(m_sample_parameters["ghostLayers"]);
+    }
+    
+    // For ultra-relativistic test, we need MANY more ghost particles
+    // to simulate continuous inflow over the simulation time
+    if (std::abs(v_left) > 0.1) {
+        // Calculate layers needed: v_left * end_time / dx
+        // Assuming end_time ~ 0.3 and N ~ 1000, dx ~ 0.5/1000 = 0.0005
+        // For v=0.9, need 0.9*0.3/0.0005 = 540 layers
+        const real end_time = 0.3;  // Approximate simulation time
+        const real dx_approx = 0.5 / N;  // Approximate particle spacing
+        const int needed_layers = static_cast<int>(std::ceil(v_left * end_time / dx_approx)) + 10;
+        ghost_layers = std::max(ghost_layers, needed_layers);
+        WRITE_LOG << "Ultra-relativistic: using " << ghost_layers << " ghost layers for inflow";
     }
 
     const int N_ghost_left = use_ghost_particles ? ghost_layers : 0;
@@ -276,6 +291,12 @@ void Solver::make_sr_sod()
         int ghost_id = N_left + N_right;
         
         // Left ghost particles (extend left state beyond x = -0.5)
+        // For INFLOW boundary (ultra-relativistic test): use same velocity as interior
+        // For REFLECTING boundary (standard Sod): use reflected velocity
+        // Since v_left=0 for Sod test, -v_left = 0 anyway
+        // For ultra-relativistic test with v_left=0.9, we want inflow (same velocity)
+        const bool use_inflow = (std::abs(v_left) > 0.1);  // Inflow if v_left is significant
+        
         for (int i = 0; i < N_ghost_left; ++i) {
             auto& p_i = p[ghost_id];
             p_i.id = ghost_id;
@@ -288,7 +309,9 @@ void Solver::make_sr_sod()
             p_i.mass = nu_left;
 
             vec_t vel;
-            vel[0] = -v_left;  // Reflect velocity for wall condition (v_left is 0 for Sod)
+            // INFLOW: same velocity (for ultra-relativistic with moving left state)
+            // REFLECTING: negate velocity (for Sod with v_left=0, no difference)
+            vel[0] = use_inflow ? v_left : -v_left;
 
             const real v2 = vel[0] * vel[0];
             p_i.gamma_lor = 1.0 / std::sqrt(1.0 - v2 / c2);
