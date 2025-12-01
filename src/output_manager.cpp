@@ -77,9 +77,23 @@ bool OutputManager::initialize() {
 
 bool OutputManager::write_snapshot(std::shared_ptr<Simulation> sim,
                                    std::shared_ptr<SPHParameters> params,
-                                   int count) {
+                                   int count,
+                                   const OutputMetadata* relaxation_meta) {
     // Build metadata
     OutputMetadata metadata = build_metadata(sim, params, count);
+    
+    // If relaxation metadata provided, copy Lane-Emden fields
+    if (relaxation_meta != nullptr) {
+        metadata.is_relaxation = relaxation_meta->is_relaxation;
+        metadata.relaxation_step = relaxation_meta->relaxation_step;
+        metadata.relaxation_total_steps = relaxation_meta->relaxation_total_steps;
+        metadata.accumulated_time = relaxation_meta->accumulated_time;
+        metadata.alpha_scaling = relaxation_meta->alpha_scaling;
+        metadata.rho_center = relaxation_meta->rho_center;
+        metadata.K = relaxation_meta->K;
+        metadata.R = relaxation_meta->R;
+        metadata.M_total = relaxation_meta->M_total;
+    }
     
     // Get particles as pointers (include all particles including ghosts for debugging)
     std::vector<SPHParticle*> particle_ptrs;

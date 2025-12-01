@@ -1,0 +1,53 @@
+{
+  "comment": "Lane-Emden 3D Hydrostatic Test with Self-Gravity - ~200k particles (N=100) PRODUCTION",
+  "description": "High-resolution hydrostatic equilibrium test after relaxation. Tests stability over multiple crossing times (>> tidal disruption timescale). Production quality with 200k particles.",
+  
+  "N": 100,
+  "sample": "lane_emden",
+  
+  "relaxationSteps": 0,
+  "relaxationOutputFreq": 0,
+  "relaxationOnly": false,
+  "useRelaxation": false,
+  
+  "resumeFromSnapshot": "",
+  
+  "outputDirectory": "sample/imbh_cloud/results/lane_emden_200k_hydrostatic",
+  "outputFormat": "csv",
+  "enableEnergyFile": true,
+  
+  "neighborNumber": 50,
+  "kernel": "wendland",
+  "SPHType": "disph",
+  "useGravity": true,
+  "periodic": false,
+  "use2ndOrderGSPH": true,
+  "riemannSolver": "hll",
+  
+  "alpha": 1.0,
+  "useBalsaraSwitch": true,
+  "useTimeDependentAV": false,
+  
+  "cflSound": 0.3,
+  "cflForce": 0.125,
+  
+  "startTime": 0.0,
+  "endTime": 10.0,
+  "outputTime": 0.2,
+  
+  "gamma": 1.666666667,
+  
+  "maxTreeLevel": 20,
+  "leafParticleNumber": 1,
+  
+  "iterativeSmoothingLength": true,
+  
+  "_comment_timescales": "Physical interpretation in code units:",
+  "_comment_crossing_time": "t_cross = R/v_sound ~ 1.0 (for isothermal sphere)",
+  "_comment_dynamical_time": "t_dyn = sqrt(R^3/GM) = 1.0 (code unit definition)",
+  "_comment_tidal_time": "For IMBH: M_BH/M_cloud = 10^5/10^4 = 10, so t_tidal ~ sqrt(10) * t_dyn ~ 3.16",
+  "_comment_scattering_time": "t_scatter ~ b/v_rel. For b=3pc, v=10km/s: t_scatter ~ 0.3Myr ~ 0.3 code units",
+  "_comment_test_duration": "endTime = 10.0 ~ 10 crossing times >> 3*t_tidal, >> t_scatter",
+  "_comment_output_freq": "outputTime = 0.2 ~ 5 snapshots per crossing time (50 total snapshots)",
+  "_comment_resolution": "N=100 → 200,000 particles ensures N_J > 50-100 particles per Jeans mass"
+}

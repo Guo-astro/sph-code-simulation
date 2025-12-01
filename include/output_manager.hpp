@@ -61,11 +61,13 @@ public:
      * @param sim Simulation state
      * @param params Simulation parameters
      * @param count Snapshot counter
+     * @param relaxation_meta Optional relaxation metadata (for Lane-Emden relaxation)
      * @return true if successful
      */
     bool write_snapshot(std::shared_ptr<Simulation> sim,
                        std::shared_ptr<SPHParameters> params,
-                       int count);
+                       int count,
+                       const OutputMetadata* relaxation_meta = nullptr);
     
     /**
      * @brief Load snapshot file for resume (SSOT mode)

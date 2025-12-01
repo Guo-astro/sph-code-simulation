@@ -27,6 +27,11 @@ all:
 	@echo "  make vacuum_help              # Vacuum test targets"
 	@echo "  make strong_shock_help        # Strong shock test targets"
 	@echo "  make sr_help                  # SR-GSPH relativistic test targets"
+	@echo "  make imbh_help                # IMBH-cloud tidal disruption targets"
+	@echo ""
+	@echo "Quick IMBH shortcuts:"
+	@echo "  make imbh_relax_2k            # Testing: 2k particle relaxation"
+	@echo "  make imbh_relax_200k          # Production: 200k particle relaxation"
 	@echo ""
 	@false
 
@@ -66,3 +71,6 @@ help: all
 
 # SR-GSPH Relativistic Test preset-based system
 -include sample/sr_sod/Makefile.sr_sod
+
+# IMBH-Cloud Tidal Disruption preset-based system
+-include sample/imbh_cloud/Makefile.imbh_cloud

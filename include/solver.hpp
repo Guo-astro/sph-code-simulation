@@ -65,9 +65,10 @@ class Solver {
     int m_relaxation_output_freq;  // Output frequency during relaxation
     bool m_relaxation_only;  // If true, exit after relaxation without simulation
     
-    // Resume configuration (SSOT mode - all physics from snapshot)
+    // Resume configuration (JSON as SSOT - snapshot provides particle data only)
     bool m_resume_from_checkpoint;
     std::string m_checkpoint_file;
+    bool m_reset_time_on_resume;  // Reset simulation time to 0 when resuming
 
     void read_parameterfile(const char * filename);
     void make_initial_condition();

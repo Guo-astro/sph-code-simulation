@@ -329,13 +329,20 @@ bool CSVWriter::read_particles(const std::string& filepath, std::vector<SPHParti
         return false;
     }
     
-    // Skip 51 header lines (50 metadata + 1 column names)
+    // Skip header lines until we find the column names line (starts with "id,")
     std::string line;
-    for (int i = 0; i < 51; ++i) {
-        if (!std::getline(file, line)) {
-            file.close();
-            return false;
+    while (std::getline(file, line)) {
+        // Check if this is the column names line
+        if (line.rfind("id,", 0) == 0) {
+            // Found the column header, next line is the first data line
+            break;
         }
+    }
+    
+    // Check if we found the header
+    if (!file.good()) {
+        file.close();
+        return false;
     }
     
     // Clear existing particles

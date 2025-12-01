@@ -1,16 +1,16 @@
 {
-  "comment": "Lane-Emden 3D Relaxation Test - 50,000 particles",
-  "description": "Production-quality relaxation for IMBH-cloud initial conditions",
+  "comment": "Lane-Emden 3D Relaxation Test - ~10k particles (N=22)",
+  "description": "Fast relaxation test for IMBH-cloud initial conditions with 20,000 steps",
   
-  "N": 75,
+  "N": 22,
   "sample": "lane_emden",
   
-  "relaxationSteps": 1000,
-  "relaxationOutputFreq": 100,
+  "relaxationSteps": 400000,
+  "relaxationOutputFreq": 1000,
   "relaxationOnly": true,
   "useRelaxation": true,
   
-  "outputDirectory": "sample/imbh_cloud/results/lane_emden_50k_relax",
+  "outputDirectory": "sample/imbh_cloud/results/lane_emden_2k_relax",
   "outputFormat": "csv",
   "enableEnergyFile": true,
   
@@ -19,7 +19,7 @@
   "SPHType": "gdisph",
   "useGravity": false,
   "periodic": false,
-  "use2ndOrderGSPH": true,
+  "use2ndOrderGSPH": false,
   "riemannSolver": "hll",
   
   "alpha": 1.0,

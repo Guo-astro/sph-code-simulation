@@ -88,21 +88,29 @@ vec_t LaneEmdenRelaxation::compute_relaxation_force(const SPHParticle& p) const
     // For n=1.5, γ=5/3: nγ-n-1 = 1.5*5/3 - 1.5 - 1 = 2.5 - 2.5 = 0
     // So: a = -K γ ρ_c^(γ-1) n / α * dθ/dξ
     
-    // But wait, ρ_c in our code is the CENTRAL DENSITY, not a normalization
-    // Let me use a simpler form: a_r = -(K γ n / α) * θ^(γ-1) * dθ/dξ where we absorb ρ_c into K
+    // Correct formula derived from hydrostatic equilibrium:
+    // a_r = -(1/ρ) dP/dr = -K γ ρ^(γ-2) dρ/dr
+    // With ρ = ρ_c θ^n and dρ/dr = ρ_c n θ^(n-1) (1/α) dθ/dξ:
+    // a_r = -K γ ρ_c^(γ-1) n / α * θ^(nγ - n - 1) dθ/dξ
+    // For n=1.5, γ=5/3: nγ - n - 1 = 1.5*5/3 - 1.5 - 1 = 0
+    // Therefore: a_r = -K γ ρ_c^(γ-1) n / α * dθ/dξ
     
     const real n = 1.5;
-    const real prefactor = m_params.K * m_params.gamma * n / m_params.alpha_scaling;
-    // Equilibrium acceleration (will be subtracted from SPH acc)
-    const real a_r = -prefactor * std::pow(theta, m_params.gamma - 1.0) * dtheta;
+    const real rho_c_pow_gamma_minus_1 = std::pow(m_params.rho_center, m_params.gamma - 1.0);
+    const real prefactor = m_params.K * m_params.gamma * rho_c_pow_gamma_minus_1 * n / m_params.alpha_scaling;
     
-    // Apply in radial direction  
-    // Note: we return positive radial for subtraction (acc -= relax_acc)
+    // Equilibrium pressure gradient acceleration: a_r = -K γ ρ_c^(γ-1) n / α * dθ/dξ
+    // For interior (dθ/dξ < 0): a_r > 0 (outward pressure support balancing gravity)
+    const real a_r = -prefactor * dtheta;
+    
+    // Convert to Cartesian vector
+    // We return this as the "analytical pressure gradient force" to be subtracted
+    // from total SPH acceleration: a_net = a_grav + a_pressure_SPH - a_pressure_analytical
     const real r_inv = 1.0 / r;
-    force[0] = -a_r * p.pos[0] * r_inv;  // Flip sign
-    force[1] = -a_r * p.pos[1] * r_inv;
+    force[0] = a_r * p.pos[0] * r_inv;
+    force[1] = a_r * p.pos[1] * r_inv;
 #if DIM == 3
-    force[2] = -a_r * p.pos[2] * r_inv;
+    force[2] = a_r * p.pos[2] * r_inv;
 #endif
     
     return force;

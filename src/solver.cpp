@@ -289,6 +289,25 @@ void Solver::read_parameterfile(const char * filename)
         } else if (sample_type == "sedov") {
             m_sample = Sample::Sedov;
             m_sample_parameters["N"] = input.get<int>("N", 30);
+        } else if (sample_type == "lane_emden") {
+            m_sample = Sample::LaneEmden;
+            m_sample_parameters["N"] = input.get<int>("N", 30);
+            // Read Lane-Emden relaxation parameters if provided
+            if(auto opt = input.get_child_optional("alpha_scaling")) {
+                m_sample_parameters["alpha"] = input.get<real>("alpha_scaling");
+            }
+            if(auto opt = input.get_child_optional("rho_center")) {
+                m_sample_parameters["rho_center"] = input.get<real>("rho_center");
+            }
+            if(auto opt = input.get_child_optional("K")) {
+                m_sample_parameters["K"] = input.get<real>("K");
+            }
+            if(auto opt = input.get_child_optional("R")) {
+                m_sample_parameters["R"] = input.get<real>("R");
+            }
+            if(auto opt = input.get_child_optional("M_total")) {
+                m_sample_parameters["M_total"] = input.get<real>("M_total");
+            }
         } else if (sample_type == "ns_merger_2d") {
             m_sample = Sample::NSMerger2D;
             m_sample_parameters["R_star"] = input.get<real>("ns_merger.star1.radius", real(1.2));
@@ -631,14 +650,22 @@ void Solver::read_parameterfile(const char * filename)
         }
     }
     
-    // Resume configuration (SSOT mode)
+    // Resume configuration
     m_checkpoint_file = input.get<std::string>("checkpoint.resumeFile", "");
+    
+    // Also support simple "resumeFromSnapshot" parameter
+    if(m_checkpoint_file.empty()) {
+        m_checkpoint_file = input.get<std::string>("resumeFromSnapshot", "");
+    }
+    
     m_resume_from_checkpoint = !m_checkpoint_file.empty();
+    m_reset_time_on_resume = input.get<bool>("resetTimeOnResume", false);
     
     if(m_resume_from_checkpoint) {
-        std::cout << "Resume mode enabled (SSOT):" << std::endl;
+        std::cout << "Resume mode enabled:" << std::endl;
         std::cout << "  - Will resume from: " << m_checkpoint_file << std::endl;
-        std::cout << "  - All physics parameters will be loaded from snapshot metadata" << std::endl;
+        std::cout << "  - Reset time to 0: " << (m_reset_time_on_resume ? "yes" : "no (continue from snapshot time)") << std::endl;
+        std::cout << "  - JSON config as SSOT: all physics parameters from config" << std::endl;
     }
     
     // Unit system configuration
@@ -791,8 +818,9 @@ void Solver::run()
     assert(m_sim->get_particles().size() == m_sim->get_particle_num());
 
     const real t_end = m_param->time.end;
-    real t_out = m_param->time.output;
-    real t_ene = m_param->time.energy;
+    const real t_start = m_sim->get_time();  // Current time (handles resume correctly)
+    real t_out = t_start + m_param->time.output;
+    real t_ene = t_start + m_param->time.energy;
 
     // For SRGSPH, compute initial N from kernel sum, then update ghosts
     // This ensures consistent initial conditions for force calculation
@@ -876,29 +904,30 @@ void Solver::initialize()
             resumed = true;
             std::cout << "=== Successfully resumed from snapshot ===" << std::endl;
             
-            // SSOT: Override physics parameters from snapshot metadata
-            std::cout << "Applying physics parameters from snapshot (SSOT):" << std::endl;
-            m_param->physics.gamma = snapshot_data.gamma;
+            // Reset time if requested
+            if(m_reset_time_on_resume) {
+                m_sim->set_time(0.0);
+                std::cout << "✓ Simulation time reset to 0.0" << std::endl;
+            } else {
+                std::cout << "  Continuing from snapshot time: " << m_sim->get_time() << std::endl;
+            }
+            
+            // JSON Config is SSOT: All parameters come from JSON, not snapshot metadata
+            // Snapshot provides ONLY particle data: positions, velocities, masses, densities
+            std::cout << "\nJSON Config as SSOT: Using ALL parameters from config file" << std::endl;
+            std::cout << "Snapshot provides: particle positions, velocities, masses, densities" << std::endl;
+            std::cout << "\nPhysics parameters from JSON config:" << std::endl;
             std::cout << "  - gamma: " << m_param->physics.gamma << std::endl;
-            
-            m_param->gravity.constant = snapshot_data.gravitational_constant;
-            m_param->gravity.is_valid = snapshot_data.use_gravity;
-            std::cout << "  - G: " << m_param->gravity.constant << " (gravity " 
-                      << (m_param->gravity.is_valid ? "enabled" : "disabled") << ")" << std::endl;
-            
-            m_param->type = snapshot_data.sph_type;
+            std::cout << "  - G: " << m_param->gravity.constant << std::endl;
             std::cout << "  - SPH type: " << (int)m_param->type << std::endl;
-            
-            m_param->kernel = snapshot_data.kernel_type;
             std::cout << "  - Kernel: " << (int)m_param->kernel << std::endl;
-            
-            m_param->physics.neighbor_number = snapshot_data.neighbor_number;
             std::cout << "  - Neighbor number: " << m_param->physics.neighbor_number << std::endl;
-            
-            m_param->av.use_balsara_switch = snapshot_data.use_balsara;
-            m_param->av.use_time_dependent_av = snapshot_data.use_time_dependent_av;
+            std::cout << "  - Alpha (AV): " << m_param->av.alpha << std::endl;
             std::cout << "  - Balsara switch: " << (m_param->av.use_balsara_switch ? "enabled" : "disabled") << std::endl;
             std::cout << "  - Time-dependent AV: " << (m_param->av.use_time_dependent_av ? "enabled" : "disabled") << std::endl;
+            std::cout << "  - Gravity: " << (m_param->gravity.is_valid ? "enabled" : "disabled") << std::endl;
+            std::cout << "  - End time: " << m_param->time.end << std::endl;
+            std::cout << "  - Output interval: " << m_param->time.output << std::endl;
             
             // Restore Lane-Emden relaxation parameters if this is a relaxation snapshot
             if(snapshot_data.is_relaxation && m_sample == Sample::LaneEmden) {
@@ -908,6 +937,14 @@ void Solver::initialize()
                 m_sample_parameters["R"] = snapshot_data.R;
                 m_sample_parameters["M_total"] = snapshot_data.M_total;
                 std::cout << "  - Restored Lane-Emden parameters from snapshot" << std::endl;
+                
+                // Set snapshot counter to continue from resumed step
+                // snapshot_data.relaxation_step / output_freq gives the snapshot number
+                if(m_relaxation_output_freq > 0) {
+                    m_snapshot_counter = (snapshot_data.relaxation_step / m_relaxation_output_freq) + 1;
+                    std::cout << "  - Snapshot counter set to: " << m_snapshot_counter << " (next: snapshot_" 
+                              << std::setfill('0') << std::setw(4) << m_snapshot_counter << ".csv)" << std::endl;
+                }
             }
         } else {
             std::cerr << "Warning: Failed to load snapshot, starting from scratch" << std::endl;
@@ -1012,12 +1049,29 @@ void Solver::initialize()
             std::cout << "Resuming from step " << start_step << " (time=" << accumulated_time << ")" << std::endl;
         }
         
+        // Calculate target step: for fresh runs it's m_relaxation_steps,
+        // for resumed runs it's start_step + m_relaxation_steps (additional steps)
+        int target_step = start_step + m_relaxation_steps;
+        std::cout << "Will run from step " << start_step << " to " << target_step 
+                  << " (" << m_relaxation_steps << " steps)" << std::endl;
+        
+        // Prepare relaxation metadata for snapshot output
+        OutputMetadata relax_meta;
+        relax_meta.is_relaxation = true;
+        relax_meta.relaxation_total_steps = target_step;  // Use target_step for total
+        relax_meta.alpha_scaling = relax_params.alpha_scaling;
+        relax_meta.rho_center = relax_params.rho_center;
+        relax_meta.K = relax_params.K;
+        relax_meta.R = relax_params.R;
+        relax_meta.M_total = relax_params.M_total;
+        
         std::cout << "Progress: [" << std::string(50, ' ') << "] 0%" << std::flush;
         
         int output_counter = 0;
         int last_percent = -1;
+        int last_sub_percent = -1;
         
-        for(int step = start_step; step < m_relaxation_steps; ++step) {
+        for(int step = start_step; step < target_step; ++step) {
             // Rebuild tree for accurate neighbor search
             // Particles move during relaxation, so tree must be updated
             auto& particles = m_sim->get_particles();
@@ -1073,11 +1127,21 @@ void Solver::initialize()
             // Update accumulated time
             accumulated_time += dt_relax;
             
-            // Update progress bar
-            int percent = (step * 100) / m_relaxation_steps;
-            if(percent != last_percent) {
+            // Update progress bar (calculate based on steps completed from start)
+            int steps_completed = step - start_step;
+            int percent = (steps_completed * 100) / m_relaxation_steps;
+            
+            // Calculate sub-progress within current output interval
+            int steps_in_interval = step % m_relaxation_output_freq;
+            int sub_percent = (steps_in_interval * 100) / m_relaxation_output_freq;
+            
+            // Update display if main percent changed OR sub-percent changed significantly (every 5%)
+            bool should_update = (percent != last_percent) || 
+                                 ((sub_percent / 5) != (last_sub_percent / 5));
+            
+            if(should_update) {
                 int bar_width = 50;
-                int filled = (step * bar_width) / m_relaxation_steps;
+                int filled = (steps_completed * bar_width) / m_relaxation_steps;
                 
                 // Calculate max acceleration for display
                 real max_acc = 0.0;
@@ -1086,13 +1150,20 @@ void Solver::initialize()
                     max_acc = std::max(max_acc, a);
                 }
                 
+                // Create sub-progress indicator (small bar showing progress to next snapshot)
+                int sub_bar_width = 10;
+                int sub_filled = (steps_in_interval * sub_bar_width) / m_relaxation_output_freq;
+                std::string sub_bar = "[" + std::string(sub_filled, '.') + std::string(sub_bar_width - sub_filled, ' ') + "]";
+                
                 std::cout << "\rProgress: [" << std::string(filled, '=') << std::string(bar_width - filled, ' ') 
-                          << "] " << percent << "% | Step " << step << "/" << m_relaxation_steps
+                          << "] " << percent << "% " << sub_bar << " " << sub_percent << "% to snapshot"
+                          << " | Step " << step << "/" << target_step
                           << " | a_max=" << std::fixed << std::setprecision(2) << max_acc
                           << " | dt=" << std::scientific << std::setprecision(2) << dt_relax
                           << " | t=" << std::fixed << std::setprecision(3) << accumulated_time
                           << std::flush;
                 last_percent = percent;
+                last_sub_percent = sub_percent;
             }
             
             // Output snapshots at specified frequency
@@ -1114,8 +1185,12 @@ void Solver::initialize()
                     p[i].sound = std::sqrt(c_sound_factor * p[i].ene);
                 }
                 
-                // Output snapshot (silently)
-                m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++);
+                // Update relaxation metadata for current state
+                relax_meta.relaxation_step = step;
+                relax_meta.accumulated_time = accumulated_time;
+                
+                // Output snapshot with Lane-Emden metadata
+                m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++, &relax_meta);
                 output_counter++;
             }
         }
@@ -1158,8 +1233,12 @@ void Solver::initialize()
                 m_gforce->calculation(m_sim);
             }
             
-            // Output relaxed configuration
-            m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++);
+            // Update relaxation metadata for final state
+            relax_meta.relaxation_step = m_relaxation_steps;
+            relax_meta.accumulated_time = accumulated_time;
+            
+            // Output relaxed configuration with Lane-Emden metadata
+            m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++, &relax_meta);
             
             // Output energy
             real kinetic, thermal, potential;
