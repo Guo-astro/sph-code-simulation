@@ -42,6 +42,14 @@ public:
     vec_t dS_old;    // dS/dt from previous timestep
     real de_old;     // de/dt from previous timestep
 
+    // TANGENT VELOCITY for 1D SR simulations with transverse motion
+    // Used in Section 3.1.5 tangent velocity tests (Kitajima et al. 2025)
+    // This is tracked as a separate scalar because in 1D the vel vector has only one component
+    real vel_t = 0.0;      // tangent velocity v^t (perpendicular to x-axis)
+    real dS_t = 0.0;       // dS_t/dt (tangent momentum derivative)
+    real dS_t_old = 0.0;   // dS_t/dt from previous timestep
+    real S_t = 0.0;        // tangent momentum S_t = γ H v^t
+
     // DERIVED quantities:
     real gamma_lor;  // Lorentz factor γ = 1/√(1-v²/c²)
     real enthalpy;   // specific enthalpy H = 1 + u/c² + P/(nc²)

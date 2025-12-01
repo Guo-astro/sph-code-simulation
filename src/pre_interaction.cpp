@@ -170,11 +170,16 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
 void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
 {
+    std::cout << "\n=== INITIAL_SMOOTHING CALLED ===" << std::endl;
+    
     auto & particles = sim->get_particles();
     auto * periodic = sim->get_periodic().get();
     const int num = sim->get_particle_num();
     auto * kernel = sim->get_kernel().get();
     auto * tree = sim->get_tree().get();
+    
+    std::cout << "First particle before smoothing: dens=" << particles[0].dens 
+             << ", pres=" << particles[0].pres << ", mass=" << particles[0].mass << std::endl;
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
@@ -188,12 +193,29 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
                                       4.0 * M_PI / 3.0;
         p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / DIM);
         
+        // DEBUG first particle
+        bool is_first = (i == 0);
+        if (is_first) {
+            #pragma omp critical
+            {
+                std::cout << "Particle 0: initial sml guess = " << p_i.sml 
+                         << " (mass=" << p_i.mass << ", dens=" << p_i.dens << ")" << std::endl;
+            }
+        }
+        
         // neighbor search
 #ifdef EXHAUSTIVE_SEARCH
         int const n_neighbor = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, m_neighbor_number * neighbor_list_size, periodic, false);
 #else
         int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, false);
 #endif
+
+        if (is_first) {
+            #pragma omp critical
+            {
+                std::cout << "Particle 0: found " << n_neighbor << " neighbors" << std::endl;
+            }
+        }
 
         // density
         real dens_i = 0.0;
@@ -208,10 +230,29 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
             }
 
             dens_i += p_j.mass * kernel->w(r, p_i.sml);
+            
+            if (is_first && n < 5) {
+                #pragma omp critical
+                {
+                    std::cout << "  neighbor " << n << ": j=" << j << ", r=" << r 
+                             << ", mass=" << p_j.mass << ", w=" << kernel->w(r, p_i.sml) << std::endl;
+                }
+            }
         }
 
         p_i.dens = dens_i;
+        
+        if (is_first) {
+            #pragma omp critical
+            {
+                std::cout << "Particle 0: final dens = " << dens_i << std::endl;
+            }
+        }
     }
+    
+    std::cout << "First particle after smoothing: dens=" << particles[0].dens 
+             << ", pres=" << particles[0].pres << ", mass=" << particles[0].mass << std::endl;
+    std::cout << "=== INITIAL_SMOOTHING COMPLETE ===" << std::endl;
 }
 
 inline real powh_(const real h) {

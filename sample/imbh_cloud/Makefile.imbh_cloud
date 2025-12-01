@@ -1,0 +1,240 @@
+# ============================================================================
+# IMBH-Molecular Cloud Tidal Disruption Makefile
+# ============================================================================
+#
+# Simulates intermediate-mass black hole (M_BH ~ 10^5 M_☉) tidal disruption
+# of molecular clouds with impact parameters b = 3-6 parsecs.
+#
+# Physics:
+#   - 3D Lane-Emden sphere (polytropic index n=1.5, γ=5/3)
+#   - Koyama & Inutsuka (2000) thermal equilibrium
+#   - GDISPH method for tidal disruption dynamics
+#
+# Usage Examples:
+# ===============
+#
+# Single run (b = 3 pc):
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_b3pc_run
+#
+# Parameter scan (b = 3, 4, 5, 6 pc):
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_scan_run
+#
+# Visualization:
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_visualize
+#
+# Clean all results:
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_clean
+#
+# ============================================================================
+
+# Path definitions
+IMBH_DIR := sample/imbh_cloud
+PRESET_DIR := $(IMBH_DIR)/config/presets
+RESULTS_DIR := $(IMBH_DIR)/results
+SCRIPTS_DIR := $(IMBH_DIR)/scripts
+
+# Targets are phony (always run)
+.PHONY: imbh_help imbh_quick_test imbh_b3pc_run imbh_b6pc_run imbh_scan_run \
+        imbh_visualize imbh_clean imbh_check_dim
+
+# ============================================================================
+# Help Target
+# ============================================================================
+
+imbh_help:
+	@echo "=========================================="
+	@echo "  IMBH-Cloud Tidal Disruption Targets"
+	@echo "=========================================="
+	@echo ""
+	@echo "Quick Test:"
+	@echo "  imbh_quick_test  - Run relaxation quick test (N=1000, 100 steps)"
+	@echo ""
+	@echo "Single Runs:"
+	@echo "  imbh_b3pc_run    - Run with impact parameter b=3pc"
+	@echo "  imbh_b6pc_run    - Run with impact parameter b=6pc"
+	@echo ""
+	@echo "Parameter Scans:"
+	@echo "  imbh_scan_run    - Run parameter scan (b = 3, 4, 5, 6 pc)"
+	@echo ""
+	@echo "Visualization:"
+	@echo "  imbh_visualize   - Generate all plots and animations"
+	@echo ""
+	@echo "Cleanup:"
+	@echo "  imbh_clean       - Remove all results"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_quick_test"
+	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_b3pc_run"
+	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_scan_run"
+	@echo ""
+
+# ============================================================================
+# Dimension Check
+# ============================================================================
+
+imbh_check_dim: build/sph
+	@if ! grep -q "SPH_DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
+		echo "❌ Error: IMBH-cloud simulation requires DIM=3"; \
+		echo ""; \
+		echo "Current build is configured for DIM=$$(grep 'SPH_DIM:STRING=' build/CMakeCache.txt 2>/dev/null | cut -d'=' -f2 || echo 'unknown')"; \
+		echo ""; \
+		echo "To fix:"; \
+		echo "  1. Reconfigure CMake: cd build && cmake -DSPH_DIM=3 .."; \
+		echo "  2. Rebuild: make clean && make -j8"; \
+		echo "  3. Re-run this target"; \
+		exit 1; \
+	fi
+	@echo "✓ DIM=3 confirmed"
+
+# ============================================================================
+# Quick Test Target - Lane-Emden Relaxation Only
+# ============================================================================
+
+imbh_quick_test: imbh_check_dim
+	@echo "=========================================="
+	@echo "  Quick Test: Lane-Emden Relaxation (3D)"
+	@echo "=========================================="
+	@echo ""
+	@echo "📁 Creating results directory..."
+	@mkdir -p sample/imbh_cloud/results/quick_test_relaxation
+	@echo ""
+	@echo "⚙️  Running relaxation test..."
+	@echo "   Testing: 3D Lane-Emden sphere with N~1000 particles"
+	@echo "   Relaxation: 100 steps with analytical force"
+	@echo "   This verifies the physics module works correctly."
+	@echo ""
+	@./build/sph lane_emden 2>&1 | tee sample/imbh_cloud/results/quick_test_relaxation/run.log
+	@echo ""
+	@if [ -f lane_emden/2d/results/benchmark_n1_5/gsph/energy.dat ]; then \
+		echo "✓ Quick test complete!"; \
+		echo ""; \
+		echo "📊 Results summary:"; \
+		tail -5 lane_emden/2d/results/benchmark_n1_5/gsph/energy.dat; \
+		echo ""; \
+		echo "📁 Full results in: lane_emden/2d/results/benchmark_n1_5/gsph/"; \
+		echo "📝 Log saved to: sample/imbh_cloud/results/quick_test_relaxation/run.log"; \
+	else \
+		echo "❌ Test failed - check run.log for details"; \
+	fi
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Verify energy conservation in energy.dat"
+	@echo "  2. Check relaxation converged (velocities → 0)"
+	@echo "  3. If successful, proceed with IMBH integration"
+	@echo ""
+
+# ============================================================================
+# Single Run Targets
+# ============================================================================
+
+imbh_b3pc_run: imbh_check_dim
+	@echo "=========================================="
+	@echo "  Running IMBH Simulation (b = 3 pc)"
+	@echo "=========================================="
+	@echo ""
+	@cp $(PRESET_DIR)/imbh_cloud_b3pc_gdisph.json $(IMBH_DIR)/imbh_cloud.json
+	@mkdir -p $(RESULTS_DIR)/b3pc_gdisph
+	@./build/sph imbh_cloud
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results: $(RESULTS_DIR)/b3pc_gdisph/"
+	@echo ""
+
+imbh_b6pc_run: imbh_check_dim
+	@echo "=========================================="
+	@echo "  Running IMBH Simulation (b = 6 pc)"
+	@echo "=========================================="
+	@echo ""
+	@cp $(PRESET_DIR)/imbh_cloud_b6pc_gdisph.json $(IMBH_DIR)/imbh_cloud.json
+	@mkdir -p $(RESULTS_DIR)/b6pc_gdisph
+	@./build/sph imbh_cloud
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results: $(RESULTS_DIR)/b6pc_gdisph/"
+	@echo ""
+
+# ============================================================================
+# Parameter Scan Targets
+# ============================================================================
+
+imbh_scan_run: imbh_check_dim
+	@echo "=========================================="
+	@echo "  IMBH Parameter Scan"
+	@echo "  Impact parameters: b = 3, 4, 5, 6 pc"
+	@echo "=========================================="
+	@echo ""
+	@echo "[1/4] Running b = 3 pc..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/imbh_cloud_b3pc_gdisph.json $(IMBH_DIR)/imbh_cloud.json
+	@mkdir -p $(RESULTS_DIR)/b3pc_gdisph
+	@./build/sph imbh_cloud
+	@echo "✓ b=3pc complete"
+	@echo ""
+	@echo "[2/4] Running b = 4 pc..."
+	@echo "----------------------------------------"
+	@python3 -c "import json; \
+		preset = json.load(open('$(PRESET_DIR)/imbh_cloud_b3pc_gdisph.json')); \
+		preset['sample']['b'] = 4.0; \
+		preset['simulation']['output_directory'] = '$(RESULTS_DIR)/b4pc_gdisph'; \
+		json.dump(preset, open('$(IMBH_DIR)/imbh_cloud.json', 'w'), indent=2)"
+	@mkdir -p $(RESULTS_DIR)/b4pc_gdisph
+	@./build/sph imbh_cloud
+	@echo "✓ b=4pc complete"
+	@echo ""
+	@echo "[3/4] Running b = 5 pc..."
+	@echo "----------------------------------------"
+	@python3 -c "import json; \
+		preset = json.load(open('$(PRESET_DIR)/imbh_cloud_b3pc_gdisph.json')); \
+		preset['sample']['b'] = 5.0; \
+		preset['simulation']['output_directory'] = '$(RESULTS_DIR)/b5pc_gdisph'; \
+		json.dump(preset, open('$(IMBH_DIR)/imbh_cloud.json', 'w'), indent=2)"
+	@mkdir -p $(RESULTS_DIR)/b5pc_gdisph
+	@./build/sph imbh_cloud
+	@echo "✓ b=5pc complete"
+	@echo ""
+	@echo "[4/4] Running b = 6 pc..."
+	@echo "----------------------------------------"
+	@cp $(PRESET_DIR)/imbh_cloud_b6pc_gdisph.json $(IMBH_DIR)/imbh_cloud.json
+	@mkdir -p $(RESULTS_DIR)/b6pc_gdisph
+	@./build/sph imbh_cloud
+	@echo "✓ b=6pc complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All parameter scans complete!"
+	@echo "📁 Results in: $(RESULTS_DIR)/"
+	@echo "=========================================="
+
+# ============================================================================
+# Visualization Targets
+# ============================================================================
+
+imbh_visualize:
+	@echo "=========================================="
+	@echo "  Generating Visualizations"
+	@echo "=========================================="
+	@echo ""
+	@if [ ! -d "$(RESULTS_DIR)/b3pc_gdisph" ]; then \
+		echo "❌ No results found. Run simulation first."; \
+		echo "   Example: make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_b3pc_run"; \
+		exit 1; \
+	fi
+	@echo "Generating plots and animations..."
+	@chmod +x $(SCRIPTS_DIR)/visualize_disruption.py
+	@python3 $(SCRIPTS_DIR)/visualize_disruption.py --results-dir $(RESULTS_DIR)
+	@echo ""
+	@echo "✓ Visualizations complete!"
+	@echo "📊 Plots saved in: $(RESULTS_DIR)/plots/"
+	@echo "🎬 Animations saved in: $(RESULTS_DIR)/animations/"
+	@echo ""
+
+# ============================================================================
+# Cleanup Targets
+# ============================================================================
+
+imbh_clean:
+	@echo "Cleaning IMBH-cloud results..."
+	@rm -rf $(RESULTS_DIR)/b*pc_gdisph
+	@rm -rf $(RESULTS_DIR)/plots
+	@rm -rf $(RESULTS_DIR)/animations
+	@rm -f $(IMBH_DIR)/imbh_cloud.json
+	@echo "✓ Cleanup complete"

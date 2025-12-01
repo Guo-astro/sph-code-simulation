@@ -12,7 +12,8 @@ namespace srgsph
  * Primitive variables recovered from conserved variables
  */
 struct PrimitiveVariables {
-    vec_t vel;          // Velocity
+    vec_t vel;          // Velocity (normal components)
+    real vel_t = 0.0;   // Tangent velocity (for 1D simulations with tangent)
     real density;       // Rest frame density n
     real pressure;      // Pressure P
     real sound_speed;   // Sound speed c_s
@@ -81,6 +82,49 @@ vec_t recover_velocity(
  */
 PrimitiveVariables conserved_to_primitive(
     const vec_t & S,
+    const real e,
+    const real N,
+    const real gamma_eos,
+    const real c_speed
+);
+
+/**
+ * Full conversion from conserved to primitive variables with tangent momentum
+ * For 1D simulations with tangent velocity (Section 3.1.5)
+ * 
+ * @param S Canonical momentum vector (normal component)
+ * @param S_t Tangent momentum scalar
+ * @param e Canonical energy
+ * @param N Baryon number density (lab frame)
+ * @param gamma_eos EOS gamma (γ_c)
+ * @param c_speed Speed of light
+ * @return Complete set of primitive variables including vel_t
+ */
+PrimitiveVariables conserved_to_primitive_with_tangent(
+    const vec_t & S,
+    const real S_t,
+    const real e,
+    const real N,
+    const real gamma_eos,
+    const real c_speed
+);
+
+/**
+ * Full conversion with FIXED tangent velocity
+ * For 1D simulations where v_t is known to be constant (Section 3.1.5)
+ * This avoids inconsistencies from using S_t which depends on unknown γH
+ * 
+ * @param S Canonical momentum vector (normal component)
+ * @param v_t_fixed Fixed tangent velocity (constant of motion)
+ * @param e Canonical energy
+ * @param N Baryon number density (lab frame)
+ * @param gamma_eos EOS gamma (γ_c)
+ * @param c_speed Speed of light
+ * @return Complete set of primitive variables with vel_t = v_t_fixed
+ */
+PrimitiveVariables conserved_to_primitive_fixed_vt(
+    const vec_t & S,
+    const real v_t_fixed,
     const real e,
     const real N,
     const real gamma_eos,

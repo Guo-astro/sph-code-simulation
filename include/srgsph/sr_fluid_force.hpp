@@ -2,6 +2,7 @@
 
 #include "fluid_force.hpp"
 #include "particle.hpp"
+#include "parameters.hpp"
 #include "exception.hpp"
 
 namespace sph
@@ -41,6 +42,7 @@ class FluidForce : public sph::FluidForce {
     real m_c_shock;           // Shock detection coefficient C_shock
     real m_c_cd;              // Contact discontinuity limiter C_cd
     bool m_use_muscl;         // Enable MUSCL reconstruction when gradients available
+    RiemannSolverType m_riemann_solver;  // Riemann solver type (EXACT or HLLC)
 
     /**
      * Solve Riemann problem at particle interface
@@ -84,6 +86,7 @@ inline void FluidForce::normalize_sr_derivatives(SPHParticle & particle)
     const real inv_nu = 1.0 / particle.nu;
     particle.dS *= inv_nu;
     particle.de *= inv_nu;
+    particle.dS_t *= inv_nu;  // Normalize tangent momentum derivative for 1D tests
     particle.acc = particle.dS;
     particle.dene = particle.de;
 }

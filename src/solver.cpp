@@ -178,6 +178,7 @@ Solver::Solver(int argc, char * argv[])
         WRITE_SAMPLE(Sample::PairingInstability, "Pairing Instability");
         WRITE_SAMPLE(Sample::HydroStatic, "Hydro static");
         WRITE_SAMPLE(Sample::KHI, "Kelvin-Helmholtz Instability");
+        WRITE_SAMPLE(Sample::ISMCooling1D, "ISM Cooling 1D (Koyama & Inutsuka 2000)");
         WRITE_SAMPLE(Sample::Evrard, "Evrard collapse");
         WRITE_SAMPLE(Sample::EvrardColdCollapse, "Evrard cold collapse (demonstrates shock amplification)");
         WRITE_SAMPLE(Sample::LaneEmden, "Lane-Emden hydrostatic");
@@ -237,6 +238,13 @@ void Solver::read_parameterfile(const char * filename)
         pt::read_json("sample/khi/khi.json", input);
         m_sample = Sample::KHI;
         m_sample_parameters["N"] = input.get<int>("N", 128);
+    } else if(name_str == "ism_cooling_1d") {
+        pt::read_json("sample/cooling_heating/ism_cooling_1d.json", input);
+        m_sample = Sample::ISMCooling1D;
+        m_sample_parameters["N"] = input.get<int>("N", 1000);
+        m_sample_parameters["n_min"] = input.get<real>("n_min", 0.1);
+        m_sample_parameters["n_max"] = input.get<real>("n_max", 1000.0);
+        m_sample_parameters["T_init"] = input.get<real>("T_init", 8000.0);
     } else if(name_str == "evrard") {
         pt::read_json("sample/evrard/evrard.json", input);
         m_sample = Sample::Evrard;
@@ -387,6 +395,16 @@ void Solver::read_parameterfile(const char * filename)
                     m_sample_parameters["separation"] = input.get<real>("ns_merger.separation", real(6.0));
                     m_sample_parameters["v_collision"] = input.get<real>("ns_merger.star1.velocity_x", real(0.15));
                     m_sample_parameters["n_radial"] = input.get<int>("ns_merger.star1.n_particles_radial", 30);
+                }
+                // Check for SR tangent velocity test (must come before sr_sod to match more specific)
+                else if(name_str.find("tangent") != std::string::npos ||
+                   name_str.find("sr_tangent") != std::string::npos) {
+                    m_sample = Sample::SRTangentVelocity;
+                    m_sample_parameters["N"] = input.get<int>("N", 1600);
+                    m_sample_parameters["vt_left"] = input.get<real>("vt_left", real(0.9));
+                    m_sample_parameters["vt_right"] = input.get<real>("vt_right", real(0.9));
+                    m_sample_parameters["useGhostParticles"] = input.get<bool>("useGhostParticles", true);
+                    m_sample_parameters["ghostLayers"] = input.get<int>("ghostLayers", 6);
                 }
                 // Check for SR-specific test names in the path
                 else if(name_str.find("sr_sod") != std::string::npos || 
@@ -549,8 +567,8 @@ void Solver::read_parameterfile(const char * filename)
         m_param->gravity.theta = input.get<real>("theta", 0.5);
     }
 
-    // GSPH
-    if(m_param->type == SPHType::GSPH) {
+    // GSPH and GDISPH
+    if(m_param->type == SPHType::GSPH || m_param->type == SPHType::GDISPH) {
         m_param->gsph.is_2nd_order = input.get<bool>("use2ndOrderGSPH", true);
         
         // Riemann solver selection: "hll", "iterative", or "kitajima"
@@ -572,12 +590,34 @@ void Solver::read_parameterfile(const char * filename)
         m_param->srgsph.c_cd = input.get<real>("cContactDiscontinuity", 0.2);
         m_param->srgsph.eta = input.get<real>("etaSmoothingLength", 1.0);
         
+        // Riemann solver type: "exact" (default) or "hllc"
+        std::string riemann_type = input.get<std::string>("riemannSolver", "exact");
+        if (riemann_type == "hllc" || riemann_type == "HLLC") {
+            m_param->srgsph.riemann_solver = RiemannSolverType::HLLC;
+            WRITE_LOG << "Using HLLC Riemann solver for SRGSPH";
+        } else {
+            m_param->srgsph.riemann_solver = RiemannSolverType::EXACT;
+            WRITE_LOG << "Using Exact Riemann solver for SRGSPH (with HLLC fallback)";
+        }
+        
         // Fixed smoothing length (§2.2): auto-compute from eta if not specified
         // h is constant for all particles and all times
         m_param->srgsph.smoothing_length = input.get<real>("fixedSmoothingLength", -1.0);
     }
     
     // Relaxation (for Lane-Emden)
+    
+    // Thermal (ISM Cooling/Heating)
+    m_param->thermal.enable_cooling = input.get<bool>("enableCooling", false);
+    if (m_param->thermal.enable_cooling) {
+        m_param->thermal.N_H_column = input.get<real>("columnDensity", 1.0e19);
+        m_param->thermal.relaxation_time = input.get<real>("thermalRelaxationTime", 0.1);
+        m_param->thermal.density_to_n_H = input.get<real>("densityToNumberDensity", 1.0);
+        WRITE_LOG << "ISM Cooling enabled";
+        WRITE_LOG << "* Column density N_H = " << m_param->thermal.N_H_column << " cm^-2";
+        WRITE_LOG << "* Thermal relaxation = " << m_param->thermal.relaxation_time;
+    }
+
     m_use_relaxation = input.get<bool>("useRelaxation", false);
     m_relaxation_steps = input.get<int>("relaxationSteps", 0);
     m_relaxation_output_freq = input.get<int>("relaxationOutputFreq", 10);
@@ -765,6 +805,12 @@ void Solver::run()
     }
 
     // Write initial snapshot
+    // DEBUG: Check density before writing
+    {
+        auto& particles = m_sim->get_particles();
+        WRITE_LOG << "DEBUG: Before write snapshot_0000, particle[0].dens = " << particles[0].dens 
+                 << ", pres = " << particles[0].pres << ", mass = " << particles[0].mass;
+    }
     m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++);
     
     // Write initial energy
@@ -1215,30 +1261,37 @@ void Solver::predict()
             // STEP 1: Save old derivatives for corrector step
             p[i].dS_old = p[i].dS;
             p[i].de_old = p[i].de;
+            p[i].dS_t_old = p[i].dS_t;  // Tangent momentum derivative
 
             // STEP 2: Predict with Euler step (half-step for position)
             vec_t S_half = p[i].S + p[i].dS * (0.5 * dt);
             real e_half = p[i].e + p[i].de * (0.5 * dt);
+            real S_t_half = p[i].S_t + p[i].dS_t * (0.5 * dt);  // Tangent momentum
 
-            // Limit half-step to prevent failures
-            const real S_half_mag = std::sqrt(inner_product(S_half, S_half));
-            const real S_half_ratio = S_half_mag / std::max(e_half, 1.0e-10);
+            // Limit half-step to prevent failures (only consider normal momentum)
+            // Tangent momentum is passive and handled separately
+            const real S_normal_mag = std::sqrt(inner_product(S_half, S_half));
+            const real S_half_ratio = S_normal_mag / std::max(e_half, 1.0e-10);
             if(S_half_ratio > 0.9999) {  // Only intervene if approaching c
-                S_half = S_half * (0.9999 / S_half_ratio);
+                const real scale = 0.9999 / S_half_ratio;
+                S_half = S_half * scale;
+                // Don't scale S_t_half - it's passive
             }
 
             // STEP 3: Full Euler prediction
             // dS and de are already PER-BARYON (divided by nu in normalize_sr_derivatives)
             // Python reference: p.S += (p.dSdt / p.nu) * dt
             // Since normalize_sr_derivatives already divided by nu, we just multiply by dt
-            p[i].S += p[i].dS * dt;  // Predicted S using OLD derivative
-            p[i].e += p[i].de * dt;  // Predicted e using OLD derivative
+            p[i].S += p[i].dS * dt;      // Predicted S using OLD derivative
+            p[i].e += p[i].de * dt;      // Predicted e using OLD derivative
+            p[i].S_t += p[i].dS_t * dt;  // Predicted S_t using OLD derivative
 
             // Note: Safety checks (floors, limiters) applied in corrector step
             
             // Recover primitive variables at half-step for position update
-            auto prim_half = srgsph::PrimitiveRecovery::conserved_to_primitive(
-                S_half, e_half, p[i].N, gamma, c_speed
+            // Use the FIXED v_t version to ensure v_t constraint is respected
+            auto prim_half = srgsph::PrimitiveRecovery::conserved_to_primitive_fixed_vt(
+                S_half, p[i].vel_t, e_half, p[i].N, gamma, c_speed
             );
             
             // Update position using half-step velocity (drift)
@@ -1246,8 +1299,9 @@ void Solver::predict()
             periodic->apply(p[i].pos);
             
             // Recover primitive variables at full step
-            auto prim_full = srgsph::PrimitiveRecovery::conserved_to_primitive(
-                p[i].S, p[i].e, p[i].N, gamma, c_speed
+            // Use the FIXED v_t version to ensure v_t constraint is respected
+            auto prim_full = srgsph::PrimitiveRecovery::conserved_to_primitive_fixed_vt(
+                p[i].S, p[i].vel_t, p[i].e, p[i].N, gamma, c_speed
             );
             
             // Store PRIMITIVE variables for output and next step's Riemann solver
@@ -1255,8 +1309,27 @@ void Solver::predict()
             //   - vel: primitive velocity v (NOT time-integrated, just recovered)
             //   - ene: primitive internal energy u (NOT conserved energy e!)
             //   - dens: rest-frame density n (recovered from N/γ in primitive recovery)
-            p[i].vel = prim_full.vel;      // Primitive velocity v
-            p[i].vel_p = prim_half.vel;    // Half-step velocity (for position update)
+            p[i].vel = prim_full.vel;       // Primitive velocity v
+            
+            // Safety clamp: ensure |v_x| + v_t^2 < 1 (subluminal with tangent velocity)
+            {
+                const real v_t2 = p[i].vel_t * p[i].vel_t;
+                const real max_vx = std::sqrt(std::max(0.9999 - v_t2, 0.01));
+                if (std::abs(p[i].vel[0]) > max_vx) {
+                    static int clamp_count = 0;
+                    if (clamp_count < 10) {
+                        WRITE_LOG << "[PREDICT CLAMP] particle " << i 
+                                  << " vel[0]=" << p[i].vel[0] 
+                                  << " clamped to " << std::copysign(max_vx, p[i].vel[0])
+                                  << " (v_t=" << p[i].vel_t << ")";
+                        ++clamp_count;
+                    }
+                    p[i].vel[0] = std::copysign(max_vx, p[i].vel[0]);
+                }
+            }
+            
+            // vel_t stays constant, not updated from primitive recovery
+            p[i].vel_p = prim_half.vel;     // Half-step velocity (for position update)
             p[i].ene = prim_full.pressure / ((gamma - 1.0) * prim_full.density);  // u = P/[(γ-1)n]
             p[i].ene_p = prim_half.pressure / ((gamma - 1.0) * prim_half.density);
             p[i].pres = prim_full.pressure;
@@ -1264,6 +1337,10 @@ void Solver::predict()
             p[i].sound = prim_full.sound_speed;
             p[i].gamma_lor = prim_full.gamma_lor;
             p[i].enthalpy = prim_full.enthalpy;
+            
+            // Update S_t to be consistent with CONSTANT v_t and current γ, H
+            // This is needed because γH changes through shock dynamics
+            p[i].S_t = p[i].gamma_lor * p[i].enthalpy * p[i].vel_t;
         }
     } else {
         // === STANDARD SPH TIME INTEGRATION ===
@@ -1327,6 +1404,7 @@ void Solver::correct()
                 // dS and de are already PER-BARYON (divided by nu in normalize_sr_derivatives)
                 p[i].S = p[i].S + (p[i].dS - p[i].dS_old) * (0.5 * dt);
                 p[i].e = p[i].e + (p[i].de - p[i].de_old) * (0.5 * dt);
+                p[i].S_t = p[i].S_t + (p[i].dS_t - p[i].dS_t_old) * (0.5 * dt);  // Tangent momentum
             }
 
             // Safety: Floor energy to prevent NaN
@@ -1335,29 +1413,56 @@ void Solver::correct()
             }
 
             // Safety: Limit S/e ratio to prevent superluminal velocities
-            const real S_mag = std::sqrt(inner_product(p[i].S, p[i].S));
-            const real S_over_e = S_mag / std::max(p[i].e, 1.0e-10);
+            // For tangent velocity tests, only consider normal momentum
+            // (tangent momentum is passive and handled separately in primitive recovery)
+            const real S_normal_mag = std::sqrt(inner_product(p[i].S, p[i].S));
+            const real S_over_e = S_normal_mag / std::max(p[i].e, 1.0e-10);
             if(S_over_e > 0.9999) {  // Only intervene if approaching c
                 const real scale = 0.9999 / S_over_e;
                 p[i].S = p[i].S * scale;
+                // Don't scale S_t - it's a passive scalar conserved independently
             }
 
             // Floor on N
             p[i].N = std::max(p[i].N, 1.0e-6);
 
             // Recover primitive variables from CORRECTED conserved variables
-            auto prim = sph::srgsph::PrimitiveRecovery::conserved_to_primitive(
-                p[i].S, p[i].e, p[i].N, gamma, c_speed
+            // Use the FIXED v_t version to ensure v_t constraint is respected
+            auto prim = sph::srgsph::PrimitiveRecovery::conserved_to_primitive_fixed_vt(
+                p[i].S, p[i].vel_t, p[i].e, p[i].N, gamma, c_speed
             );
             
-            // Update primitive variables
+            // Update primitive variables from recovered state
             p[i].vel = prim.vel;
+            
+            // Safety clamp: ensure |v_x| + v_t^2 < 1 (subluminal with tangent velocity)
+            {
+                const real v_t2 = p[i].vel_t * p[i].vel_t;
+                const real max_vx = std::sqrt(std::max(0.9999 - v_t2, 0.01));
+                if (std::abs(p[i].vel[0]) > max_vx) {
+                    static int clamp_count = 0;
+                    if (clamp_count < 10) {
+                        WRITE_LOG << "[CORRECT CLAMP] particle " << i 
+                                  << " vel[0]=" << p[i].vel[0] 
+                                  << " clamped to " << std::copysign(max_vx, p[i].vel[0])
+                                  << " (v_t=" << p[i].vel_t << ")";
+                        ++clamp_count;
+                    }
+                    p[i].vel[0] = std::copysign(max_vx, p[i].vel[0]);
+                }
+            }
+            
+            // vel_t stays constant, not updated from primitive recovery
             p[i].ene = prim.pressure / ((gamma - 1.0) * prim.density);
             p[i].pres = prim.pressure;
             p[i].dens = prim.density;
             p[i].sound = prim.sound_speed;
             p[i].gamma_lor = prim.gamma_lor;
             p[i].enthalpy = prim.enthalpy;
+            
+            // Update S_t to be consistent with CONSTANT v_t and current γ, H
+            // This is needed because γH changes through shock dynamics
+            p[i].S_t = p[i].gamma_lor * p[i].enthalpy * p[i].vel_t;
         }
     } else {
         // Standard SPH correction
@@ -1547,11 +1652,13 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::PairingInstability, pairing_instability);
         MAKE_SAMPLE(Sample::HydroStatic, hydrostatic);
         MAKE_SAMPLE(Sample::KHI, khi);
+        MAKE_SAMPLE(Sample::ISMCooling1D, ism_cooling_1d);
         MAKE_SAMPLE(Sample::Evrard, evrard);
         MAKE_SAMPLE(Sample::EvrardColdCollapse, evrard_cold_collapse);
         MAKE_SAMPLE(Sample::LaneEmden, lane_emden);
         MAKE_SAMPLE(Sample::Sedov, sedov);
         MAKE_SAMPLE(Sample::SRSod, sr_sod);
+        MAKE_SAMPLE(Sample::SRTangentVelocity, sr_tangent_velocity);
         MAKE_SAMPLE(Sample::NSMerger2D, ns_merger_2d);
         MAKE_SAMPLE(Sample::BNSCocoon1D, bns_cocoon_1d);
         MAKE_SAMPLE(Sample::BNSCocoon2D, bns_cocoon_2d);

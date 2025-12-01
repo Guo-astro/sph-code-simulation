@@ -51,6 +51,14 @@ This directory contains benchmark test cases for SPH simulations, organized by d
   - Resume: `make lane_emden_resume`
   - See `lane_emden/Makefile.lane_emden` for all targets
 
+### ISM Chemistry and Thermal Physics
+- **cooling_heating** - ISM thermal and chemical equilibrium (Koyama & Inutsuka 2000)
+  - Reproduce Figure 1: `make cooling_reproduce`
+  - Compare with original: `make cooling_compare`
+  - Full chemistry network with heating/cooling processes
+  - See `sample/cooling_heating/Makefile.cooling_heating` for all targets
+  - Documentation: `sample/cooling_heating/README.md`
+
 ## Makefile System
 
 All test cases follow a consistent Makefile structure with standardized targets:

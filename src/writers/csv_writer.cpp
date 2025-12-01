@@ -116,7 +116,8 @@ void CSVWriter::write_header(const OutputMetadata& metadata) {
     m_file << "# id: Particle ID\n";
 #if DIM == 1
     m_file << "# pos_x: Position [code units]\n";
-    m_file << "# vel_x: Velocity [code units]\n";
+    m_file << "# vel_x: Normal velocity [code units]\n";
+    m_file << "# vel_t: Tangent velocity [code units] (for SR tests)\n";
     m_file << "# acc_x: Acceleration [code units]\n";
 #elif DIM == 2
     m_file << "# pos_x, pos_y: Position [code units]\n";
@@ -147,6 +148,7 @@ void CSVWriter::write_column_names() {
 #if DIM == 1
     m_file << "pos_x,";
     m_file << "vel_x,";
+    m_file << "vel_t,";  // Tangent velocity for SR tests
     m_file << "acc_x,";
 #elif DIM == 2
     m_file << "pos_x,pos_y,";
@@ -182,6 +184,7 @@ bool CSVWriter::write_particles(const std::vector<SPHParticle*>& particles) {
         // Velocity (dimension-aware to avoid UB)
 #if DIM == 1
         m_file << p->vel[0] << ",";
+        m_file << p->vel_t << ",";  // Tangent velocity for SR tests
 #elif DIM == 2
         m_file << p->vel[0] << "," << p->vel[1] << ",";
 #else

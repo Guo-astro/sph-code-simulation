@@ -2,6 +2,13 @@
 
 #include "fluid_force.hpp"
 #include <functional>
+#include <memory>
+
+namespace sph {
+namespace thermal {
+    class KoyamaInutsukaCooling;  // Forward declaration
+}
+}
 
 namespace sph
 {
@@ -11,6 +18,12 @@ namespace gdisph
 class FluidForce : public sph::FluidForce {
     bool m_is_2nd_order;
     real m_gamma;
+    
+    // Thermal cooling (optional)
+    bool m_enable_cooling;
+    std::shared_ptr<thermal::KoyamaInutsukaCooling> m_cooling;
+    real m_thermal_relax_time;
+    real m_density_to_n_H;
 
     // (velocity, density, pressure, sound speed)
     std::function<void(const real[], const real[], real & pstar, real & vstar)> m_solver;
@@ -23,3 +36,4 @@ public:
 
 }
 }
+

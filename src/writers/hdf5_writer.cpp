@@ -250,6 +250,17 @@ bool HDF5Writer::write_particles_group(const std::vector<SPHParticle*>& particle
 #if DIM >= 3
     write_1d_dataset("vel_z", vel_z);
 #endif
+
+    // Write tangent velocity for SRGSPH 1D tangent velocity tests
+    // This is always written but only meaningful for SRGSPH simulations
+    {
+        std::vector<real> vel_t(N);
+        for (hsize_t i = 0; i < N; ++i) {
+            vel_t[i] = particles[i]->vel_t;
+        }
+        write_1d_dataset("vel_t", vel_t);
+    }
+
     write_1d_dataset("acc_x", acc_x);
 #if DIM >= 2
     write_1d_dataset("acc_y", acc_y);

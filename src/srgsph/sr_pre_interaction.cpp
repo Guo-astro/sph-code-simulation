@@ -237,8 +237,11 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
         // (Initial conditions set primitives, but N was estimated, so S and e are inconsistent)
         if (m_first_calculation) {
             // Use existing primitive values (set by initialization)
-            const real vel_mag = std::abs(p_i.vel);
-            const real gamma_lor = 1.0 / std::sqrt(1.0 - vel_mag * vel_mag / (m_c_speed * m_c_speed));
+            // Include tangent velocity in Lorentz factor: γ = 1/√(1 - (v_x² + v_t²)/c²)
+            const real vel_x = p_i.vel[0];  // Normal velocity (1D)
+            const real vel_t = p_i.vel_t;   // Tangent velocity (scalar for 1D tests)
+            const real v2 = vel_x * vel_x + vel_t * vel_t;
+            const real gamma_lor = 1.0 / std::sqrt(1.0 - v2 / (m_c_speed * m_c_speed));
             p_i.gamma_lor = gamma_lor;
 
             // Convert updated lab-frame density N_new into rest-frame density n = N / gamma
@@ -249,8 +252,10 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
             // Compute conserved variables from primitives using CORRECT N
             // Use formula consistent with primitive recovery (Python test_sod.py lines 44-45)
+            // For 1D with tangent velocity: S = γHv_x, S_t = γHv_t
             p_i.N = N_new;
-            p_i.S = p_i.vel * (gamma_lor * H);
+            p_i.S = vel_x * (gamma_lor * H);
+            p_i.S_t = vel_t * (gamma_lor * H);  // Tangent momentum
             const real X = m_gamma / (m_gamma - 1.0);
             p_i.e = (H * (X * gamma_lor * gamma_lor - 1.0) + 1.0) / (X * gamma_lor);
 
@@ -264,16 +269,23 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
             // Normal timestep: recover primitives from conserved variables
             p_i.N = N_new;
 
-            const auto prim = PrimitiveRecovery::conserved_to_primitive(
-                p_i.S, p_i.e, p_i.N, m_gamma, m_c_speed);
+            // Use version with FIXED v_t for 1D tangent velocity tests
+            // This ensures the v_t constraint is properly respected in gamma calculation
+            const auto prim = PrimitiveRecovery::conserved_to_primitive_fixed_vt(
+                p_i.S, p_i.vel_t, p_i.e, p_i.N, m_gamma, m_c_speed);
 
             // Store primitive variables in particle
             p_i.vel = prim.vel;
+            // vel_t stays constant, not updated from primitive recovery
             p_i.dens = prim.density;         // Rest-frame density n
             p_i.pres = prim.pressure;
             p_i.sound = prim.sound_speed;
             p_i.gamma_lor = prim.gamma_lor;
             p_i.enthalpy = prim.enthalpy;
+            
+            // Update S_t to be consistent with CONSTANT v_t and current γ, H
+            // This is needed because γH changes through shock dynamics
+            p_i.S_t = p_i.gamma_lor * p_i.enthalpy * p_i.vel_t;
         }
 
         // Compute gradients for MUSCL reconstruction (if 2nd order)

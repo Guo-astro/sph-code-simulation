@@ -31,16 +31,18 @@ enum struct Sample {
     PairingInstability,
     HydroStatic,
     KHI,
+    ISMCooling1D,
     Evrard,
     EvrardColdCollapse,
     LaneEmden,
     Sedov,
     SRSod,
+    SRTangentVelocity,
     NSMerger2D,
     BNSCocoon1D,
     BNSCocoon2D,
     DoNotUse,
-};;
+};
 
 class Solver {
     std::shared_ptr<SPHParameters>  m_param;
@@ -90,12 +92,14 @@ class Solver {
     void make_gresho_chan_vortex();
     void make_pairing_instability();
     void make_hydrostatic();
+    void make_ism_cooling_1d();
     void make_khi();
     void make_evrard();
     void make_evrard_cold_collapse();
     void make_lane_emden();
     void make_sedov();
     void make_sr_sod();
+    void make_sr_tangent_velocity();
     void make_ns_merger_2d();
     void make_bns_cocoon_1d();
     void make_bns_cocoon_2d();

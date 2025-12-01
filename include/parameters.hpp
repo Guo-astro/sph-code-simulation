@@ -22,6 +22,7 @@ enum struct KernelType {
 
 enum struct RiemannSolverType {
     HLL,        // Harten-Lax-van Leer approximate solver (default for GSPH, fast, non-iterative)
+    HLLC,       // HLLC solver with contact wave (Mignone & Bodo 2005 for relativistic flows)
     ITERATIVE,  // Iterative solver from van Leer (1997) (exact for ideal gas EOS)
     EXACT,      // Exact Riemann solver (Kitajima formulation for SR-GSPH, Brent's method)
     KITAJIMA,   // Kitajima-style iterative solver (Newton-Raphson with shock/rarefaction handling)
@@ -102,7 +103,15 @@ struct SPHParameters {
         real c_cd;                // Contact discontinuity parameter (default: 0.2)
         real eta;                 // Smoothing length parameter (default: 1.0)
         real smoothing_length;    // Fixed smoothing length h (§2.2, constant for all particles)
+        RiemannSolverType riemann_solver;  // EXACT (default) or HLLC
     } srgsph;
+
+    struct Thermal {
+        bool enable_cooling;      // Enable ISM cooling/heating
+        real N_H_column;          // Column density [cm^-2] (1e19 or 1e20)
+        real relaxation_time;     // Thermal relaxation timescale [code time units]
+        real density_to_n_H;      // Conversion factor: code density -> n_H [cm^-3]
+    } thermal;
 };
 
 }

@@ -6,6 +6,7 @@ target_sources(sph
         evrard_cold_collapse.cpp
         gresho_chan_vortex.cpp
         hydrostatic.cpp
+        ism_cooling_1d.cpp
         khi.cpp
         lane_emden.cpp
         ns_merger_2d.cpp
@@ -15,6 +16,7 @@ target_sources(sph
         shock_tube.cpp
         shock_tube_2d.cpp
         sr_sod.cpp
+        sr_tangent_velocity.cpp
         strong_shock.cpp
         vacuum.cpp
     )
