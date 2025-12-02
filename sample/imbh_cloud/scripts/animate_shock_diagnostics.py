@@ -20,7 +20,7 @@ Explicitly visualizes shock wave propagation during tidal disruption:
    - Color encodes shock strength: T/T_initial
 
 Physics:
-- Sound speed c_s ~ 1 km/s, initial T ~ 10^4 K
+- Sound speed c_s ~ 1 km/s, initial T ~ 50 K
 - Shock heating: T_shock / T_0 = (P_shock / P_0)^((γ-1)/γ) for adiabatic shock
 - Strong shock limit: T_shock / T_0 ≈ (γ-1)/(γ+1) * (M^2) for Mach M
 
@@ -63,6 +63,10 @@ TIME_UNIT = 0.978  # Myr
 VELOCITY_UNIT = 1.0  # km/s
 LENGTH_UNIT = 1.0  # pc
 MASS_UNIT = 1000.0  # M_sun
+
+# No display scaling - use simulation coordinates directly
+# Simulation cloud: R=0.56 pc, M=1000 M☉, n=25000 cm⁻³, T~50 K
+DISPLAY_SCALE_FACTOR = 1.0
 
 GAMMA = 5.0 / 3.0
 MU = 2.3
@@ -393,7 +397,31 @@ def create_shock_diagnostic_animation(results_dir, output_file, fps=15):
     rho_initial = np.median(first['dens'])
     P_initial = np.median(first['pres'])
     
+    # Calculate actual cloud parameters from first snapshot for display
+    total_mass = first['mass'].sum()  # code units (1 code_mass = 1000 M_sun)
+    com_init = compute_com(first['pos_x'], first['pos_y'], first['pos_z'], first['mass'])
+    r_from_com = np.sqrt((first['pos_x'] - com_init[0])**2 + 
+                         (first['pos_y'] - com_init[1])**2 + 
+                         (first['pos_z'] - com_init[2])**2)
+    r_cloud_rms = np.sqrt(np.average(r_from_com**2, weights=first['mass']))
+    
+    # Physical parameters (measured from simulation)
+    M_CLOUD_MSUN = total_mass * 1000  # Convert code units to M_sun
+    R_CLOUD_PC = r_cloud_rms          # Already in pc
+    T_CLOUD_K = T_initial             # Already in K
+    
+    # Fixed parameters from config (IMBH setup)
+    M_BH_MSUN = 1e5      # Black hole mass [M_sun] - from config
+    V_INIT = 10.0        # Initial velocity [km/s] - from config
+    B_PARAM = 3.0        # Impact parameter [pc] - from config  
+    X_INIT = com_init[0] # Initial X position [pc] - measured
+    Y_INIT = com_init[1] # Initial Y position [pc] - measured
+    
+    # Display scale factor (1.0 = no scaling, use simulation coordinates)
+    s = DISPLAY_SCALE_FACTOR
+    
     print(f"Initial values: T0={T_initial:.1e} K, ρ0={rho_initial:.2e}, P0={P_initial:.2e}")
+    print(f"Cloud parameters: M={M_CLOUD_MSUN:.0f} M☉, R_rms={R_CLOUD_PC:.3f} pc, T0={T_CLOUD_K:.1f} K")
     
     # =========================================================================
     # FIXED AXIS RANGES - ALL PLOTS USE FIXED RANGES FOR CLARITY
@@ -408,17 +436,12 @@ def create_shock_diagnostic_animation(results_dir, output_file, fps=15):
     Z_RANGE_FIXED = (-0.4, 0.4)     # Z - Z_CoM range for vertical column
     X_RANGE_FIXED = (-1.5, 1.5)     # X - X_CoM range for horizontal slice
     
-    # 2D plot limits - FIXED based on initial cloud position and expected motion
-    com_0 = compute_com(first['pos_x'], first['pos_y'], first['pos_z'], first['mass'])
-    r_cloud = np.std(first['pos_x'])
-    
     # Fixed viewport in CoM frame: cloud stays centered, IMBH moves through frame
     # Symmetric ranges centered on cloud CoM (which is at origin in this frame)
     XLIM_FIXED = (-3.0, 3.0)        # X range in CoM frame
     YLIM_FIXED = (-3.0, 3.0)        # Y range in CoM frame
     ZLIM_FIXED = (-1.0, 1.0)        # Z range in CoM frame (smaller, vertical)
     
-    print(f"Initial CoM: ({com_0[0]:.2f}, {com_0[1]:.2f}, {com_0[2]:.2f}) pc")
     print(f"Fixed viewport (CoM frame): X=[{XLIM_FIXED[0]}, {XLIM_FIXED[1]}], Y=[{YLIM_FIXED[0]}, {YLIM_FIXED[1]}], Z=[{ZLIM_FIXED[0]}, {ZLIM_FIXED[1]}]")
     
     # =========================================================================
@@ -634,45 +657,59 @@ def create_shock_diagnostic_animation(results_dir, output_file, fps=15):
     title_text = fig.suptitle('IMBH Tidal Disruption - Shock Diagnostics (CoM Frame)\nt = 0.000 Myr',
                               fontsize=16, color=TEXT_COLOR, fontweight='bold', y=0.97)
     
-    # Legend and info text - at top of info panel
-    info_text = ax_info.text(0.05, 0.98, '', fontsize=10, color=TEXT_COLOR,
-                             transform=ax_info.transAxes, family='monospace',
-                             verticalalignment='top')
+    # =========================================================================
+    # SIMULATION PARAMETERS (from first snapshot - physics info panel)
+    # =========================================================================
+    # Format cloud mass for display (use scientific notation if >= 10000)
+    if M_CLOUD_MSUN >= 10000:
+        mass_str = f"{M_CLOUD_MSUN:.1e}"
+    else:
+        mass_str = f"{M_CLOUD_MSUN:.0f}"
     
-    # Physics explanation - updated (adiabatic only, no shock references)
-    physics_text = """ANALYTICAL REFERENCES:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ADIABATIC (-- dashed):
-  P/P₀ = (ρ/ρ₀)^(5/3)
-  T/T₀ = (ρ/ρ₀)^(2/3)
-
-Initial cloud: γ=5/3 polytrope
-(Lane-Emden n=1.5)
-
-Solid matches dashed:
-  → ADIABATIC compression
-
-Solid ABOVE dashed:
-  → SHOCK HEATING!
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━"""
-    ax_info.text(0.05, 0.55, physics_text, fontsize=8, color='#cccccc',
+    # Static simulation parameters - TOP of info panel
+    params_text = f"""SIMULATION SETUP:
+━━━━━━━━━━━━━━━━━━━━
+IMBH:  M = {M_BH_MSUN:.0e} M☉
+Cloud: M = {mass_str} M☉
+       R = {R_CLOUD_PC:.2f} pc
+       T₀= {T_CLOUD_K:.0f} K
+       γ = 5/3 polytrope
+Initial: x₀={X_INIT:.1f}pc
+         y₀={Y_INIT:.1f}pc (b={B_PARAM}pc)
+         v₀={V_INIT}km/s (+x)"""
+    ax_info.text(0.05, 0.98, params_text, fontsize=7, color='#88ccff',
                  transform=ax_info.transAxes, family='monospace',
                  verticalalignment='top')
     
-    # Legend - simplified (no shock lines)
+    # Dynamic info text - MIDDLE of panel (updated each frame)
+    info_text = ax_info.text(0.05, 0.58, '', fontsize=8, color=TEXT_COLOR,
+                             transform=ax_info.transAxes, family='monospace',
+                             verticalalignment='top')
+    
+    # Analytical references - LOWER MIDDLE
+    physics_text = """REFERENCES (dashed):
+━━━━━━━━━━━━━━━━━━━━
+P/P₀ = (ρ/ρ₀)^(5/3)
+T/T₀ = (ρ/ρ₀)^(2/3)
+solid > dashed → SHOCK"""
+    ax_info.text(0.05, 0.32, physics_text, fontsize=7, color='#aaaaaa',
+                 transform=ax_info.transAxes, family='monospace',
+                 verticalalignment='top')
+    
+    # Legend - BOTTOM of panel
     legend_items = [
-        (COLOR_DENSITY, '━━', 'ρ/ρ₀ (density)'),
-        (COLOR_PRESSURE, '━━', 'P/P₀ (pressure)'),
-        (COLOR_P_ADIABATIC, '- -', 'P adiabatic'),
-        (COLOR_TEMP, '━━', 'T/T₀ (temperature)'),
-        (COLOR_T_ADIABATIC, '- -', 'T adiabatic'),
+        (COLOR_DENSITY, '━', 'ρ/ρ₀'),
+        (COLOR_PRESSURE, '━', 'P/P₀'),
+        (COLOR_P_ADIABATIC, '--', 'P_ad'),
+        (COLOR_TEMP, '━', 'T/T₀'),
+        (COLOR_T_ADIABATIC, '--', 'T_ad'),
     ]
     
     for i, (color, style, label) in enumerate(legend_items):
-        y_pos = 0.20 - i * 0.035
-        ax_info.text(0.05, y_pos, style, fontsize=11, color=color,
+        y_pos = 0.12 - i * 0.025
+        ax_info.text(0.05, y_pos, style, fontsize=9, color=color,
                      transform=ax_info.transAxes, fontweight='bold')
-        ax_info.text(0.18, y_pos, label, fontsize=9, color=TEXT_COLOR,
+        ax_info.text(0.14, y_pos, label, fontsize=8, color=TEXT_COLOR,
                      transform=ax_info.transAxes)
     
     # =========================================================================
@@ -811,22 +848,19 @@ Solid ABOVE dashed:
         rho_max = np.max(snapshot['dens']) / rho_initial
         P_max = np.max(snapshot['pres']) / P_initial
         
-        # Cloud dimensions
-        z_extent = np.std(snapshot['pos_z'] - com_z)
-        x_extent = np.std(snapshot['pos_x'] - com_x)
-        aspect = x_extent / (z_extent + 1e-10)
+        # Distance from IMBH to cloud CoM
+        dist_imbh = np.sqrt(com_x**2 + com_y**2 + com_z**2)
         
-        # Compact info string to fit in panel
+        # Compact info string - removed SHAPE, focused on dynamics
         info_str = f"""t = {time_myr:.2f} Myr
 ━━━━━━━━━━━━━━━━━━━━
-CoM (lab): ({com_x:.1f}, {com_y:.1f}, {com_z:.1f}) pc
-IMBH→CoM: {np.sqrt(com_x**2+com_y**2+com_z**2):.2f} pc
+CoM: ({com_x:.1f}, {com_y:.1f}, {com_z:.1f}) pc
+IMBH→CoM: {dist_imbh:.2f} pc
 
-SHOCK: T_max/T₀={T_max_ratio:.1f}
-       ρ_max/ρ₀={rho_max:.1f}, P_max/P₀={P_max:.1f}
-
-SHAPE: σ_x={x_extent:.2f}, σ_z={z_extent:.2f} pc
-       Aspect={aspect:.1f}"""
+EXTREMA:
+  T_max/T₀ = {T_max_ratio:.1f}
+  ρ_max/ρ₀ = {rho_max:.1f}
+  P_max/P₀ = {P_max:.1f}"""
         
         info_text.set_text(info_str)
         

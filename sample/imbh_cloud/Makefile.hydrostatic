@@ -1,0 +1,444 @@
+# ============================================================================
+# HYDROSTATIC EQUILIBRIUM TEST MAKEFILE
+# ============================================================================
+#
+# PURPOSE:
+#   Verify hydrostatic equilibrium of relaxed Lane-Emden spheres with
+#   self-gravity enabled. Tests stability of initial conditions before
+#   using them in IMBH encounter simulations.
+#
+# USAGE:
+#   # Quick test (10k particles, short duration)
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_10k
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_200k
+#
+#   # Long stability test
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_10k_long
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_200k_long
+#
+#   # With full parameter selection (run + visualize)
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gdisph DURATION=short
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gdisph DURATION=long
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gsph DURATION=short
+#
+#   # Visualization only (after simulation completed)
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_viz SIZE=10k METHOD=gdisph DURATION=short
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_viz SIZE=10k METHOD=gsph DURATION=long
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_10k_viz
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_200k_viz
+#
+#   # Stability report (energy, density, velocity analysis)
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_stability_report SIZE=10k METHOD=gdisph DURATION=short
+#
+#   # Cleaning
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_clean SIZE=10k METHOD=gdisph DURATION=short
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_clean_size SIZE=10k
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_clean_all
+#
+#   # Show help
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_help
+#
+# PARAMETERS:
+#   SIZE     - Particle count: 10k (testing), 200k (production)
+#   METHOD   - SPH method: gdisph (recommended), gsph (pure Riemann)
+#   DURATION - Test length: short (t=100), long (t=1000)
+#
+# OUTPUT:
+#   Results:    sample/imbh_cloud/results/hydrostatic/<SIZE>/<METHOD>_<DURATION>/
+#   Animations: sample/imbh_cloud/animations/hydrostatic/<SIZE>/<METHOD>_<DURATION>/
+#
+# PREREQUISITES:
+#   Requires relaxed initial conditions from Makefile.relaxation:
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_oneshot SIZE=10k METHOD=gdisph
+#
+# ============================================================================
+
+# Paths
+IMBH_DIR := sample/imbh_cloud
+RESULTS_DIR := $(IMBH_DIR)/results/hydrostatic
+CONFIG_DIR := $(IMBH_DIR)/config/presets/hydrostatic
+SCRIPTS_DIR := $(IMBH_DIR)/scripts
+ANIM_DIR := $(IMBH_DIR)/animations/hydrostatic
+RELAX_RESULTS := $(IMBH_DIR)/results/relaxation
+
+# Default parameters
+SIZE ?= 10k
+METHOD ?= gdisph
+DURATION ?= short
+FPS ?= 10
+
+# Method in uppercase for folder naming
+METHOD_UPPER := $(shell echo $(METHOD) | tr '[:lower:]' '[:upper:]')
+
+# Derived paths
+SCENARIO_DIR := $(CONFIG_DIR)/scenarios/$(SIZE)
+SCENARIO_CONFIG := $(SCENARIO_DIR)/$(METHOD)_$(DURATION).json
+ONESHOT_RESULTS := $(RESULTS_DIR)/$(SIZE)/$(METHOD_UPPER)_$(DURATION)
+ONESHOT_ANIM_DIR := $(ANIM_DIR)/$(SIZE)/$(METHOD_UPPER)_$(DURATION)
+
+# ============================================================================
+# PHONY TARGETS
+# ============================================================================
+
+.PHONY: hydro_help hydro_check_dim hydro_check_ic \
+        hydro_oneshot hydro_oneshot_validate hydro_oneshot_run hydro_oneshot_viz \
+        hydro_oneshot_clean hydro_oneshot_clean_size \
+        hydro_10k hydro_10k_long hydro_10k_viz \
+        hydro_10k_gdisph hydro_10k_gsph \
+        hydro_200k hydro_200k_long hydro_200k_viz \
+        hydro_200k_gdisph hydro_200k_gsph \
+        hydro_clean_all hydro_list_configs hydro_stability_report
+
+# ============================================================================
+# HELP
+# ============================================================================
+
+hydro_help:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  HYDROSTATIC EQUILIBRIUM TEST - Verify Stability of Initial Conditions"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Test hydrostatic equilibrium of relaxed Lane-Emden spheres with"
+	@echo "  self-gravity. Verifies IC stability before IMBH encounter simulations."
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make hydro_10k              # Short test (~5-10 min)                  │"
+	@echo "│  make hydro_10k_long         # Long stability test (~30 min)           │"
+	@echo "│  make hydro_200k             # Production test (~1-2 hours)            │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SCENARIO-BASED USAGE                                                  │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make hydro_oneshot SIZE=10k METHOD=gdisph DURATION=short              │"
+	@echo "│  make hydro_oneshot SIZE=10k METHOD=gdisph DURATION=long               │"
+	@echo "│  make hydro_oneshot SIZE=10k METHOD=gsph DURATION=short                │"
+	@echo "│  make hydro_oneshot SIZE=200k METHOD=gdisph DURATION=short             │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SIZE OPTIONS                                                          │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  10k    Testing:    ~10,648 particles                                  │"
+	@echo "│  200k   Production: ~200,000 particles                                 │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  DURATION OPTIONS                                                      │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  short  Quick test: t=100 (few dynamical times)                        │"
+	@echo "│  long   Stability:  t=1000 (many dynamical times)                      │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SPH METHODS                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  gdisph   Godunov DISPH (Riemann + density-independent)                │"
+	@echo "│           - Uses avAlpha=0 (pure Riemann)                              │"
+	@echo "│           - Balsara switch for shock limiting                          │"
+	@echo "│                                                                         │"
+	@echo "│  gsph     Godunov SPH (pure Riemann solver)                            │"
+	@echo "│           - No artificial viscosity                                    │"
+	@echo "│           - All dissipation from Riemann solver                        │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  STABILITY CRITERIA                                                    │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  PASS:   Density RMS < 5%, |v| < 1% c_s, Energy drift < 1%             │"
+	@echo "│  FAIL:   Sphere collapses, explodes, or develops instabilities         │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  VISUALIZATION & ANALYSIS                                              │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make hydro_10k_viz                    # Visualize results             │"
+	@echo "│  make hydro_stability_report SIZE=10k # Generate stability report      │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Config files:  $(CONFIG_DIR)/scenarios/<size>/<method>_<duration>.json"
+	@echo "  Results:       $(RESULTS_DIR)/<size>/<METHOD>_<duration>/"
+	@echo "  Animations:    $(ANIM_DIR)/<size>/<METHOD>_<duration>/"
+	@echo ""
+	@echo "  PREREQUISITE: Relaxed IC from Makefile.relaxation"
+	@echo ""
+
+# ============================================================================
+# VALIDATION CHECKS
+# ============================================================================
+
+hydro_check_dim:
+	@if ! grep -q "DIM=3" build/CMakeCache.txt 2>/dev/null && \
+	   ! grep -q "DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
+		echo "❌ ERROR: This test requires DIM=3"; \
+		echo "   To rebuild: cd build && cmake -DDIM=3 .. && make -j"; \
+		exit 1; \
+	fi
+	@echo "✓ DIM=3 confirmed"
+
+hydro_check_ic:
+	@IC_PATH=$$(grep -o '"resumeFromSnapshot"[[:space:]]*:[[:space:]]*"[^"]*"' $(SCENARIO_CONFIG) 2>/dev/null | \
+		sed 's/.*"resumeFromSnapshot"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/'); \
+	if [ -z "$$IC_PATH" ]; then \
+		echo "❌ ERROR: No resumeFromSnapshot found in config"; \
+		exit 1; \
+	fi; \
+	if [ ! -f "$$IC_PATH" ]; then \
+		echo "❌ ERROR: Initial condition not found: $$IC_PATH"; \
+		echo ""; \
+		echo "   Run relaxation first:"; \
+		echo "   make -f sample/imbh_cloud/Makefile.relaxation relax_$(SIZE)"; \
+		exit 1; \
+	fi; \
+	echo "✓ Initial condition found: $$IC_PATH"
+
+# ============================================================================
+# ONE-SHOT HYDROSTATIC TEST (Scenario-Based)
+# ============================================================================
+
+hydro_oneshot: hydro_check_dim hydro_oneshot_validate hydro_check_ic hydro_oneshot_run hydro_oneshot_viz
+	@echo ""
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ HYDROSTATIC TEST COMPLETE: $(SIZE) / $(METHOD_UPPER) / $(DURATION)"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Size:     $(SIZE)"
+	@echo "  Method:   $(METHOD_UPPER)"
+	@echo "  Duration: $(DURATION)"
+	@echo "  Config:   $(SCENARIO_CONFIG)"
+	@echo ""
+	@echo "  Results:    $(ONESHOT_RESULTS)/"
+	@echo "  Animations: $(ONESHOT_ANIM_DIR)/"
+	@echo ""
+
+# Validate config exists
+hydro_oneshot_validate:
+	@if [ ! -f "$(SCENARIO_CONFIG)" ]; then \
+		echo "❌ ERROR: Config not found: $(SCENARIO_CONFIG)"; \
+		echo ""; \
+		echo "Available sizes:"; \
+		ls -d $(CONFIG_DIR)/scenarios/*/ 2>/dev/null | xargs -I {} basename {} || echo "  (none)"; \
+		echo ""; \
+		echo "Available configs for $(SIZE):"; \
+		ls $(SCENARIO_DIR)/*.json 2>/dev/null | xargs -I {} basename {} .json || echo "  (none)"; \
+		exit 1; \
+	fi
+	@echo "✓ Config validated: $(SCENARIO_CONFIG)"
+
+# Run hydrostatic test
+hydro_oneshot_run:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running Hydrostatic Test: $(SIZE) / $(METHOD_UPPER) / $(DURATION)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Size:     $(SIZE)"
+	@echo "  Method:   $(METHOD_UPPER)"
+	@echo "  Duration: $(DURATION)"
+	@echo "  Config:   $(SCENARIO_CONFIG)"
+	@echo ""
+	@echo "  Stability Criteria:"
+	@echo "    • Density profile stable (RMS < 5%)"
+	@echo "    • Velocities small (|v| < 1% c_s)"
+	@echo "    • Energy conserved (drift < 1%)"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(ONESHOT_RESULTS)
+	@echo "Starting at $$(date '+%Y-%m-%d %H:%M:%S')..."
+	@./build/sph $(SCENARIO_CONFIG) 2>&1 | tee $(ONESHOT_RESULTS)/run.log || \
+		(echo "❌ Simulation failed! Check $(ONESHOT_RESULTS)/run.log"; exit 1)
+	@echo ""
+	@echo "Completed at $$(date '+%Y-%m-%d %H:%M:%S')"
+	@if [ -f $(ONESHOT_RESULTS)/energy.dat ]; then \
+		echo "✓ Simulation complete!"; \
+		SNAPSHOT_COUNT=$$(ls -1 $(ONESHOT_RESULTS)/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+		echo "  Snapshots: $$SNAPSHOT_COUNT"; \
+	else \
+		echo "❌ Energy file not found - simulation may have failed"; \
+		exit 1; \
+	fi
+
+# Visualize hydrostatic results
+hydro_oneshot_viz:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Visualizing: $(SIZE) / $(METHOD_UPPER) / $(DURATION)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@if [ ! -d "$(ONESHOT_RESULTS)" ]; then \
+		echo "❌ No results found: $(ONESHOT_RESULTS)"; \
+		echo "   Run test first with:"; \
+		echo "   make hydro_oneshot SIZE=$(SIZE) METHOD=$(METHOD) DURATION=$(DURATION)"; \
+		exit 1; \
+	fi
+	@mkdir -p $(ONESHOT_ANIM_DIR)
+	@echo "Generating hydrostatic equilibrium animation..."
+	@if [ -f "$(SCRIPTS_DIR)/visualize_hydrostatic.py" ]; then \
+		python3 $(SCRIPTS_DIR)/visualize_hydrostatic.py \
+			$(ONESHOT_RESULTS) \
+			$(ONESHOT_ANIM_DIR) || \
+			echo "⚠️  Visualization script failed"; \
+	else \
+		python3 $(SCRIPTS_DIR)/visualize_relaxation.py \
+			$(ONESHOT_RESULTS) \
+			$(ONESHOT_ANIM_DIR) || \
+			echo "⚠️  Visualization failed (using relaxation visualizer)"; \
+	fi
+	@echo ""
+	@if [ -f $(ONESHOT_ANIM_DIR)/relaxation_animation.gif ]; then \
+		GIF_SIZE=$$(du -h $(ONESHOT_ANIM_DIR)/relaxation_animation.gif | cut -f1); \
+		echo "✓ Animation: relaxation_animation.gif ($$GIF_SIZE)"; \
+	fi
+	@echo ""
+	@echo "  View: open $(ONESHOT_ANIM_DIR)/"
+
+# Clean results for current size/method/duration
+hydro_oneshot_clean:
+	@echo "Cleaning $(SIZE)/$(METHOD_UPPER)_$(DURATION)..."
+	rm -rf $(ONESHOT_RESULTS)
+	rm -rf $(ONESHOT_ANIM_DIR)
+	@echo "✓ Cleaned"
+
+# Clean all for a size
+hydro_oneshot_clean_size:
+	@echo "Cleaning all hydrostatic tests for size $(SIZE)..."
+	rm -rf $(RESULTS_DIR)/$(SIZE)
+	rm -rf $(ANIM_DIR)/$(SIZE)
+	@echo "✓ Cleaned"
+
+# Clean everything
+hydro_clean_all:
+	@echo "Cleaning all hydrostatic results..."
+	rm -rf $(RESULTS_DIR)
+	rm -rf $(ANIM_DIR)
+	@echo "✓ Cleaned all"
+
+# ============================================================================
+# CONVENIENCE TARGETS
+# ============================================================================
+
+# 10k particle runs
+hydro_10k: SIZE := 10k
+hydro_10k: METHOD := gdisph
+hydro_10k: DURATION := short
+hydro_10k: hydro_oneshot
+
+hydro_10k_long: SIZE := 10k
+hydro_10k_long: METHOD := gdisph
+hydro_10k_long: DURATION := long
+hydro_10k_long: hydro_oneshot
+
+hydro_10k_viz: SIZE := 10k
+hydro_10k_viz: METHOD := gdisph
+hydro_10k_viz: DURATION := short
+hydro_10k_viz: hydro_oneshot_viz
+
+hydro_10k_gdisph: SIZE := 10k
+hydro_10k_gdisph: METHOD := gdisph
+hydro_10k_gdisph: DURATION := short
+hydro_10k_gdisph: hydro_oneshot
+
+hydro_10k_gsph: SIZE := 10k
+hydro_10k_gsph: METHOD := gsph
+hydro_10k_gsph: DURATION := short
+hydro_10k_gsph: hydro_oneshot
+
+# 200k particle runs
+hydro_200k: SIZE := 200k
+hydro_200k: METHOD := gdisph
+hydro_200k: DURATION := short
+hydro_200k: hydro_oneshot
+
+hydro_200k_long: SIZE := 200k
+hydro_200k_long: METHOD := gdisph
+hydro_200k_long: DURATION := long
+hydro_200k_long: hydro_oneshot
+
+hydro_200k_viz: SIZE := 200k
+hydro_200k_viz: METHOD := gdisph
+hydro_200k_viz: DURATION := short
+hydro_200k_viz: hydro_oneshot_viz
+
+hydro_200k_gdisph: SIZE := 200k
+hydro_200k_gdisph: METHOD := gdisph
+hydro_200k_gdisph: DURATION := short
+hydro_200k_gdisph: hydro_oneshot
+
+hydro_200k_gsph: SIZE := 200k
+hydro_200k_gsph: METHOD := gsph
+hydro_200k_gsph: DURATION := short
+hydro_200k_gsph: hydro_oneshot
+
+# ============================================================================
+# UTILITY TARGETS
+# ============================================================================
+
+# List available configs
+hydro_list_configs:
+	@echo "Available hydrostatic test configurations:"
+	@echo ""
+	@find $(CONFIG_DIR)/scenarios -name "*.json" 2>/dev/null | sort | while read f; do \
+		echo "  $$f"; \
+	done || echo "  (no configs found - run setup first)"
+	@echo ""
+
+# Generate stability report
+hydro_stability_report:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Stability Report: $(SIZE) / $(METHOD_UPPER) / $(DURATION)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@if [ ! -d "$(ONESHOT_RESULTS)" ]; then \
+		echo "❌ No results found. Run test first."; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(ONESHOT_RESULTS)/energy.dat" ]; then \
+		echo "❌ No energy file found."; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "Energy Conservation:"
+	@python3 -c " \
+import numpy as np; \
+data = np.loadtxt('$(ONESHOT_RESULTS)/energy.dat'); \
+E_tot = data[:, 1] + data[:, 2] + data[:, 3]; \
+E_init = E_tot[0]; \
+E_drift = (E_tot[-1] - E_init) / abs(E_init) * 100; \
+print(f'  Initial:  E = {E_init:.6e}'); \
+print(f'  Final:    E = {E_tot[-1]:.6e}'); \
+print(f'  Drift:    {E_drift:+.4f}%'); \
+status = '✅ PASS' if abs(E_drift) < 1.0 else '❌ FAIL'; \
+print(f'  Status:   {status} (threshold: 1%)'); \
+"
+	@echo ""
+	@echo "Density Stability:"
+	@FIRST_SNAP=$$(ls -1 $(ONESHOT_RESULTS)/snapshot_*.csv 2>/dev/null | head -1); \
+	LAST_SNAP=$$(ls -1 $(ONESHOT_RESULTS)/snapshot_*.csv 2>/dev/null | tail -1); \
+	python3 -c " \
+import numpy as np; \
+d1 = np.loadtxt('$$FIRST_SNAP', delimiter=',', skiprows=61); \
+d2 = np.loadtxt('$$LAST_SNAP', delimiter=',', skiprows=61); \
+rho1 = d1[:, 11]; rho2 = d2[:, 11]; \
+rms = np.sqrt(np.mean((rho2 - rho1)**2)) / np.mean(rho1) * 100; \
+print(f'  Initial ρ: [{rho1.min():.3f}, {rho1.max():.3f}]'); \
+print(f'  Final ρ:   [{rho2.min():.3f}, {rho2.max():.3f}]'); \
+print(f'  RMS diff:  {rms:.4f}%'); \
+status = '✅ PASS' if rms < 5.0 else '❌ FAIL'; \
+print(f'  Status:   {status} (threshold: 5%)'); \
+"
+	@echo ""
+	@echo "Velocity Check:"
+	@LAST_SNAP=$$(ls -1 $(ONESHOT_RESULTS)/snapshot_*.csv 2>/dev/null | tail -1); \
+	python3 -c " \
+import numpy as np; \
+data = np.loadtxt('$$LAST_SNAP', delimiter=',', skiprows=61); \
+vel = data[:, 4:7]; \
+v_mag = np.sqrt(np.sum(vel**2, axis=1)); \
+u = data[:, 8]; c_s = np.sqrt(5/3 * (5/3 - 1) * u); \
+v_ratio = v_mag / c_s * 100; \
+print(f'  Max |v|:      {v_mag.max():.6f}'); \
+print(f'  Max |v|/c_s:  {v_ratio.max():.4f}%'); \
+status = '✅ PASS' if v_ratio.max() < 1.0 else '⚠️  MARGINAL' if v_ratio.max() < 5.0 else '❌ FAIL'; \
+print(f'  Status:       {status} (threshold: 1%)'); \
+"
+	@echo ""

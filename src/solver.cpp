@@ -744,6 +744,7 @@ void Solver::read_parameterfile(const char * filename)
     
     // IMBH external force configuration
     m_use_external_bh = input.get<bool>("imbh_parameters.enabled", false);
+    m_param->external_bh.enabled = false;  // Default to disabled
     if(m_use_external_bh) {
         std::cout << "\n=== IMBH External Force Configuration ===" << std::endl;
         
@@ -817,6 +818,13 @@ void Solver::read_parameterfile(const char * filename)
         bh_params.is_moving = is_moving;
         
         m_external_bh->initialize(bh_params);
+        
+        // Store external BH parameters in SPHParameters for energy calculations
+        m_param->external_bh.enabled = true;
+        m_param->external_bh.mass = M_BH_code;
+        m_param->external_bh.softening = softening_code;
+        m_param->external_bh.position = pos_vec;
+        m_param->external_bh.G_constant = m_param->gravity.constant;
         
         std::cout << "  BH mass: " << M_BH_msun << " M_☉ (" << M_BH_code << " code units)" << std::endl;
         std::cout << "  Initial position: [" << bh_pos_pc[0];

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "defines.hpp"
+#include "vector_type.hpp"
 
 namespace sph
 {
@@ -112,6 +113,14 @@ struct SPHParameters {
         real relaxation_time;     // Thermal relaxation timescale [code time units]
         real density_to_n_H;      // Conversion factor: code density -> n_H [cm^-3]
     } thermal;
+
+    struct ExternalBH {
+        bool enabled;             // Enable external point-mass BH
+        real mass;                // BH mass in code units
+        real softening;           // Softening length in code units
+        vec_t position;           // BH position in code units
+        real G_constant;          // Gravitational constant (usually 1.0)
+    } external_bh;
 };
 
 }

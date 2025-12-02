@@ -73,9 +73,11 @@ void PointMassBlackHole::calculation(std::shared_ptr<Simulation> sim)
         // Add to particle acceleration
         p_i.acc += acc_bh;
         
-        // Update potential: Φ = -G M_BH / sqrt(r² + ε²)
-        const real r_soft = std::sqrt(r_squared + m_softening_squared);
-        p_i.phi -= m_G_constant * m_mass / r_soft;
+        // NOTE: Do NOT modify p_i.phi here!
+        // p.phi should only contain self-gravity potential (from BH tree).
+        // External BH potential is computed separately in energy calculations
+        // with the correct factor (no 0.5 for external potential).
+        // See: Solver::compute_energy() and OutputManager::compute_energies()
     }
 }
 

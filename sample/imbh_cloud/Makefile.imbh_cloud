@@ -3,12 +3,66 @@
 # ============================================================================
 #
 # Simulates intermediate-mass black hole (M_BH ~ 10^5 M_☉) tidal disruption
-# of molecular clouds with impact parameters b = 3-6 parsecs.
+# of molecular clouds with impact parameters b = 1.5-6 parsecs.
 #
 # Physics:
 #   - 3D Lane-Emden sphere (polytropic index n=1.5, γ=5/3)
 #   - Koyama & Inutsuka (2000) thermal equilibrium
-#   - GDISPH method for tidal disruption dynamics
+#   - GDISPH/GSPH methods for tidal disruption dynamics
+#
+# ============================================================================
+# USAGE - ONE-SHOT SIMULATION + ANIMATION
+# ============================================================================
+#
+# Run simulation and generate all 7 animations in one command:
+#
+#   # Default scenario (b3pc_nocool with GDISPH)
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot
+#
+#   # With scenario and method selection
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b3pc_nocool METHOD=gdisph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b3pc_nocool METHOD=gsph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b3pc_cool METHOD=gdisph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b6pc_nocool METHOD=gdisph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b1p5pc_optimal METHOD=gdisph
+#
+#   # Convenience targets (no parameters needed)
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_b3pc_gdisph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_b3pc_gsph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_b1p5pc_gdisph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_b6pc_gdisph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_cool_gdisph
+#
+#   # Cleaning
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot_clean SCENARIO=b3pc_nocool METHOD=gdisph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot_clean_scenario SCENARIO=b3pc_nocool
+#
+#   # Show help
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot_help
+#
+# PARAMETERS:
+#   SCENARIO - Physics scenario: b3pc_nocool, b3pc_cool, b6pc_nocool, b1p5pc_optimal
+#   METHOD   - SPH method: gdisph (recommended), gsph (pure Riemann)
+#   FPS      - Animation frames per second (default: 15)
+#
+# OUTPUT:
+#   Results:    sample/imbh_cloud/results/<SCENARIO>/<METHOD>/
+#   Animations: sample/imbh_cloud/animations/<SCENARIO>/<METHOD>/
+#               - tidal.gif, shock_diagnostics.gif, shock_diagnostics_com.gif
+#               - density.gif, temperature.gif, mach.gif, shock.gif
+#
+# ============================================================================
+# COMPLETE WORKFLOW (from scratch)
+# ============================================================================
+#
+#   # Step 1: Generate relaxed initial conditions
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_10k
+#
+#   # Step 2: Verify hydrostatic equilibrium (optional but recommended)
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_10k
+#
+#   # Step 3: Run IMBH encounter simulation
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b3pc_nocool METHOD=gdisph
 #
 # ============================================================================
 # TABLE OF CONTENTS
@@ -17,49 +71,17 @@
 #   §0  PATH DEFINITIONS & PHONY TARGETS
 #   §1  HELP
 #   §2  UTILITIES (dimension check)
-#   §3  RELAXATION (create initial conditions)
-#       - imbh_relax_2k      : Testing (10k particles)
-#       - imbh_relax_200k    : Production (200k particles)
-#       - imbh_relax_resume  : Resume from checkpoint
-#   §4  HYDROSTATIC TESTS (validate self-gravity)
-#       - imbh_hydrostatic_2k/200k
+#   §2b ONE-SHOT SIMULATION + ANIMATION (Scenario-Based)
+#   §2c CONVENIENCE TARGETS
+#   §3  RELAXATION (create initial conditions) - LEGACY, use Makefile.relaxation
+#   §4  HYDROSTATIC TESTS - LEGACY, use Makefile.hydrostatic
 #   §5  IMBH SIMULATION (tidal disruption)
-#       - simulation_10k_b3pc : From relaxed IC
 #   §6  CONTINUATION (extend existing runs)
-#   §6b CONCATENATED ANIMATIONS (combine multi-segment runs)
-#       - imbh_concat_nocool_t0to4       : Standard visualization
-#       - imbh_concat_nocool_t0to4_tidal : Tidal physics visualization
 #   §7  THERMAL COMPARISON (with/without cooling)
 #   §8  SINGLE RUN VISUALIZATION
-#       - imbh_nocool_viz       : Standard 3x3 grid
-#       - imbh_nocool_tidal_viz : Tidal physics 3x4 grid
 #   §9  PARAMETER SCANS
 #   §10 COMPARISON PLOTS
 #   §11 CLEANUP
-#   §12 TEMPLATE-BASED SIMULATIONS (Easy to add new cases!)
-#       - sim_<case>       : Run simulation
-#       - sim_<case>_viz   : Standard visualization
-#       - sim_<case>_tidal : Tidal physics visualization
-#
-# ============================================================================
-# QUICK START
-# ============================================================================
-#
-# Single run (b = 3 pc):
-#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_b3pc_run
-#
-# Complete workflow:
-#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_relax_2k
-#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_hydrostatic_2k
-#   make -f sample/imbh_cloud/Makefile.imbh_cloud simulation_10k_b3pc
-#
-# Template-based (recommended for new cases):
-#   make -f sample/imbh_cloud/Makefile.imbh_cloud sim_200k_b3pc_cool
-#   make -f sample/imbh_cloud/Makefile.imbh_cloud sim_200k_b3pc_cool_viz
-#
-# Visualization:
-#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_nocool_viz
-#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_nocool_tidal_viz
 #
 # ============================================================================
 # §0 PATH DEFINITIONS & PHONY TARGETS
@@ -124,9 +146,11 @@ SIM_CLEAN_TARGETS := $(addsuffix _clean,$(SIM_RUN_TARGETS))
         imbh_continue_help imbh_continue_list imbh_continue_generate imbh_continue_b3pc_nocool \
         imbh_thermal_compare_run imbh_thermal_compare_viz imbh_thermal_compare_animate imbh_thermal_compare_clean \
         imbh_nocool_viz imbh_nocool_tidal_viz imbh_relaxed_2k_b3pc_nocool_viz \
+        imbh_anim_main imbh_anim_shock imbh_anim_all imbh_anim_clean \
         imbh_b3pc_run imbh_b6pc_run imbh_b1p5pc_optimal imbh_b1p5pc_optimal_viz \
         imbh_scan_impact imbh_scan_velocity imbh_scan_full \
         imbh_compare_impact imbh_compare_velocity imbh_visualize \
+        imbh_oneshot imbh_oneshot_clean imbh_oneshot_help \
         imbh_clean imbh_list_cases \
         $(SIM_RUN_TARGETS) $(SIM_VIZ_TARGETS) $(SIM_TIDAL_TARGETS) $(SIM_CLEAN_TARGETS)
 
@@ -204,6 +228,16 @@ imbh_help:
 	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  §8b ORGANIZED ANIMATION OUTPUTS (CoM Frame)                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  imbh_anim_main        Main 6-panel animation (CoM frame)              │"
+	@echo "│  imbh_anim_shock       Shock diagnostics (2D + 1D profiles)            │"
+	@echo "│  imbh_anim_all         Generate all animations                         │"
+	@echo "│  imbh_anim_clean       Clean animation outputs                         │"
+	@echo "│  Output: animations/tidal_disruption/                                  │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
 	@echo "│  §9 PARAMETER SCANS                                                    │"
 	@echo "├─────────────────────────────────────────────────────────────────────────┤"
 	@echo "│  imbh_scan_impact     b=3,4,5,6 pc at v=10km/s    [4 runs]             │"
@@ -271,6 +305,256 @@ imbh_check_dim: build/sph
 		exit 1; \
 	fi
 	@echo "✓ DIM=3 confirmed"
+
+# ============================================================================
+# §2b ONE-SHOT SIMULATION + ANIMATION (Scenario-Based)
+# ============================================================================
+#
+# Usage (scenario + method):
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b3pc_nocool METHOD=gdisph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b3pc_nocool METHOD=gsph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b3pc_cool METHOD=gdisph
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b6pc_nocool METHOD=gdisph
+#
+# Available scenarios:
+#   b3pc_nocool   - Impact parameter 3pc, adiabatic (no cooling)
+#   b3pc_cool     - Impact parameter 3pc, with cooling
+#   b6pc_nocool   - Impact parameter 6pc, adiabatic (wide orbit)
+#   b1p5pc_optimal- Impact parameter 1.5pc, adiabatic (closer, stronger disruption)
+#
+# Available methods:
+#   gdisph - Godunov DISPH (Riemann + density-independent, can tune AV)
+#   gsph   - Godunov SPH (pure Riemann solver, no AV)
+#
+# Additional parameters:
+#   FPS     - Animation frames per second: 15 (default)
+#
+# ============================================================================
+
+# Default parameters (can be overridden from command line)
+SCENARIO ?= b3pc_nocool
+METHOD ?= gdisph
+FPS ?= 15
+
+# Scenario config directories
+SCENARIO_DIR := $(CONFIG_DIR)/simulation/scenarios/$(SCENARIO)
+SCENARIO_CONFIG := $(SCENARIO_DIR)/$(METHOD).json
+
+# Method name in uppercase for folder naming
+METHOD_UPPER := $(shell echo $(METHOD) | tr '[:lower:]' '[:upper:]')
+
+# Results and animation directories based on scenario and method
+ONESHOT_RESULTS := $(RESULTS_DIR)/$(SCENARIO)/$(METHOD_UPPER)
+ONESHOT_ANIM_DIR := $(IMBH_DIR)/animations/$(SCENARIO)/$(METHOD_UPPER)
+
+# Help for one-shot targets
+imbh_oneshot_help:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  ONE-SHOT SIMULATION + ANIMATION (Scenario-Based)"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Run simulation and generate all animations in one command!"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  BASIC USAGE                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make imbh_oneshot                                # Default scenario   │"
+	@echo "│  make imbh_oneshot SCENARIO=b3pc_nocool METHOD=gdisph                  │"
+	@echo "│  make imbh_oneshot SCENARIO=b3pc_nocool METHOD=gsph                    │"
+	@echo "│  make imbh_oneshot SCENARIO=b3pc_cool METHOD=gdisph                    │"
+	@echo "│  make imbh_oneshot SCENARIO=b6pc_nocool METHOD=gdisph                  │"
+	@echo "│  make imbh_oneshot SCENARIO=b1p5pc_optimal METHOD=gdisph               │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SCENARIOS                                                             │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  b3pc_nocool    Impact parameter 3pc, adiabatic (standard case)        │"
+	@echo "│  b3pc_cool      Impact parameter 3pc, with radiative cooling           │"
+	@echo "│  b6pc_nocool    Impact parameter 6pc, adiabatic (wide orbit)           │"
+	@echo "│  b1p5pc_optimal Impact parameter 1.5pc, adiabatic (closer, stronger)   │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  METHODS                                                               │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  gdisph   Godunov-type DISPH (Riemann + density-independent)           │"
+	@echo "│           - Uses pure Riemann solver (avAlpha=0)                       │"
+	@echo "│           - Balsara switch enabled for viscosity limiting              │"
+	@echo "│           Best for: shocks, discontinuities, tidal disruption          │"
+	@echo "│                                                                         │"
+	@echo "│  gsph     Godunov-type SPH (pure Riemann solver)                       │"
+	@echo "│           - No artificial viscosity parameters                         │"
+	@echo "│           - Riemann solver handles all dissipation                     │"
+	@echo "│           Best for: strong shocks, blast waves, shock tubes            │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  EXAMPLE WORKFLOWS                                                     │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  # Compare GDISPH vs GSPH for standard scenario:                       │"
+	@echo "│  make imbh_oneshot SCENARIO=b3pc_nocool METHOD=gdisph                  │"
+	@echo "│  make imbh_oneshot SCENARIO=b3pc_nocool METHOD=gsph                    │"
+	@echo "│                                                                         │"
+	@echo "│  # Compare impact parameters with GDISPH:                              │"
+	@echo "│  make imbh_oneshot SCENARIO=b1p5pc_optimal METHOD=gdisph               │"
+	@echo "│  make imbh_oneshot SCENARIO=b3pc_nocool METHOD=gdisph                  │"
+	@echo "│  make imbh_oneshot SCENARIO=b6pc_nocool METHOD=gdisph                  │"
+	@echo "│                                                                         │"
+	@echo "│  # Test cooling effect:                                                │"
+	@echo "│  make imbh_oneshot SCENARIO=b3pc_nocool METHOD=gdisph                  │"
+	@echo "│  make imbh_oneshot SCENARIO=b3pc_cool METHOD=gdisph                    │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Config files:  $(CONFIG_DIR)/simulation/scenarios/<scenario>/<method>.json"
+	@echo "  Results:       $(RESULTS_DIR)/<scenario>/<METHOD>/"
+	@echo "  Animations:    $(IMBH_DIR)/animations/<scenario>/<METHOD>/"
+	@echo ""
+
+# Main one-shot target: run simulation + generate all animations
+imbh_oneshot: imbh_check_dim imbh_oneshot_validate imbh_oneshot_run imbh_oneshot_animate
+	@echo ""
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ ONE-SHOT COMPLETE: $(SCENARIO) / $(METHOD_UPPER)"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Scenario:   $(SCENARIO)"
+	@echo "  Method:     $(METHOD_UPPER)"
+	@echo "  Config:     $(SCENARIO_CONFIG)"
+	@echo ""
+	@echo "  Results:    $(ONESHOT_RESULTS)/"
+	@echo "  Animations: $(ONESHOT_ANIM_DIR)/"
+	@echo ""
+	@echo "  Generated animations:"
+	@ls -1 $(ONESHOT_ANIM_DIR)/*.gif 2>/dev/null | xargs -I {} basename {} || echo "    (none found)"
+	@echo ""
+
+# Validate that config exists
+imbh_oneshot_validate:
+	@if [ ! -f "$(SCENARIO_CONFIG)" ]; then \
+		echo "❌ ERROR: Config not found: $(SCENARIO_CONFIG)"; \
+		echo ""; \
+		echo "Available scenarios:"; \
+		ls -d $(CONFIG_DIR)/simulation/scenarios/*/ 2>/dev/null | xargs -I {} basename {} || echo "  (none)"; \
+		echo ""; \
+		echo "Available methods for $(SCENARIO):"; \
+		ls $(SCENARIO_DIR)/*.json 2>/dev/null | xargs -I {} basename {} .json || echo "  (none)"; \
+		exit 1; \
+	fi
+	@echo "✓ Config validated: $(SCENARIO_CONFIG)"
+
+# Run the simulation using preset config
+imbh_oneshot_run:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running simulation: $(SCENARIO) / $(METHOD_UPPER)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Scenario: $(SCENARIO)"
+	@echo "  Method:   $(METHOD_UPPER)"
+	@echo "  Config:   $(SCENARIO_CONFIG)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(ONESHOT_RESULTS)/checkpoints
+	./build/sph $(SCENARIO_CONFIG)
+	@echo ""
+	@echo "✓ Simulation complete: $(ONESHOT_RESULTS)/"
+	@echo "  Snapshots: $$(ls $(ONESHOT_RESULTS)/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' ')"
+
+# Generate all animations
+imbh_oneshot_animate:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating animations: $(SCENARIO) / $(METHOD_UPPER)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(ONESHOT_ANIM_DIR)
+	@# Main tidal disruption with energy panel
+	@echo "[1/7] Tidal disruption (with energy panel)..."
+	@python $(SCRIPTS_DIR)/animate_single_run.py $(ONESHOT_RESULTS) \
+		-o $(ONESHOT_ANIM_DIR)/tidal.gif --mode tidal --fps $(FPS)
+	@# Shock diagnostics (3x2 panel) - lab frame
+	@echo "[2/7] Shock diagnostics (lab frame)..."
+	@python $(SCRIPTS_DIR)/animate_shock_diagnostics.py $(ONESHOT_RESULTS) \
+		-o $(ONESHOT_ANIM_DIR)/shock_diagnostics.gif --fps $(FPS)
+	@# Shock diagnostics (3x2 panel) - center of mass frame
+	@echo "[3/7] Shock diagnostics (COM frame)..."
+	@python $(SCRIPTS_DIR)/animate_shock_diagnostics.py $(ONESHOT_RESULTS) \
+		-o $(ONESHOT_ANIM_DIR)/shock_diagnostics_com.gif --fps $(FPS) --center-of-mass
+	@# Density animation
+	@echo "[4/7] Density field..."
+	@python $(SCRIPTS_DIR)/animate_single_run.py $(ONESHOT_RESULTS) \
+		-o $(ONESHOT_ANIM_DIR)/density.gif --mode density --fps $(FPS)
+	@# Temperature animation
+	@echo "[5/7] Temperature field..."
+	@python $(SCRIPTS_DIR)/animate_single_run.py $(ONESHOT_RESULTS) \
+		-o $(ONESHOT_ANIM_DIR)/temperature.gif --mode temperature --fps $(FPS)
+	@# Mach number animation
+	@echo "[6/7] Mach number field..."
+	@python $(SCRIPTS_DIR)/animate_single_run.py $(ONESHOT_RESULTS) \
+		-o $(ONESHOT_ANIM_DIR)/mach.gif --mode mach --fps $(FPS)
+	@# Shock indicator animation
+	@echo "[7/7] Shock indicator..."
+	@python $(SCRIPTS_DIR)/animate_single_run.py $(ONESHOT_RESULTS) \
+		-o $(ONESHOT_ANIM_DIR)/shock.gif --mode shock --fps $(FPS)
+	@echo ""
+	@echo "✓ All animations generated in $(ONESHOT_ANIM_DIR)/"
+	@ls -lh $(ONESHOT_ANIM_DIR)/*.gif
+
+# Clean one-shot results for current scenario/method
+imbh_oneshot_clean:
+	@echo "Cleaning $(SCENARIO)/$(METHOD_UPPER)..."
+	rm -rf $(ONESHOT_RESULTS)
+	rm -rf $(ONESHOT_ANIM_DIR)
+	@echo "✓ Cleaned"
+
+# Clean ALL one-shot results for a scenario
+imbh_oneshot_clean_scenario:
+	@echo "Cleaning all results for scenario: $(SCENARIO)..."
+	rm -rf $(RESULTS_DIR)/$(SCENARIO)
+	rm -rf $(IMBH_DIR)/animations/$(SCENARIO)
+	@echo "✓ Cleaned all methods for $(SCENARIO)"
+
+# ============================================================================
+# §2c CONVENIENCE TARGETS (Pre-configured Scenarios)
+# ============================================================================
+#
+# Quick targets for common scenarios - no need to specify SCENARIO and METHOD
+#
+# ============================================================================
+
+# Standard b=3pc adiabatic scenario
+imbh_b3pc_gdisph: SCENARIO := b3pc_nocool
+imbh_b3pc_gdisph: METHOD := gdisph
+imbh_b3pc_gdisph: imbh_oneshot
+
+imbh_b3pc_gsph: SCENARIO := b3pc_nocool
+imbh_b3pc_gsph: METHOD := gsph
+imbh_b3pc_gsph: imbh_oneshot
+
+# Close encounter b=1.5pc
+imbh_b1p5pc_gdisph: SCENARIO := b1p5pc_optimal
+imbh_b1p5pc_gdisph: METHOD := gdisph
+imbh_b1p5pc_gdisph: imbh_oneshot
+
+imbh_b1p5pc_gsph: SCENARIO := b1p5pc_optimal
+imbh_b1p5pc_gsph: METHOD := gsph
+imbh_b1p5pc_gsph: imbh_oneshot
+
+# Wide orbit b=6pc
+imbh_b6pc_gdisph: SCENARIO := b6pc_nocool
+imbh_b6pc_gdisph: METHOD := gdisph
+imbh_b6pc_gdisph: imbh_oneshot
+
+imbh_b6pc_gsph: SCENARIO := b6pc_nocool
+imbh_b6pc_gsph: METHOD := gsph
+imbh_b6pc_gsph: imbh_oneshot
+
+# With cooling
+imbh_cool_gdisph: SCENARIO := b3pc_cool
+imbh_cool_gdisph: METHOD := gdisph
+imbh_cool_gdisph: imbh_oneshot
+
+imbh_cool_gsph: SCENARIO := b3pc_cool
+imbh_cool_gsph: METHOD := gsph
+imbh_cool_gsph: imbh_oneshot
 
 # ============================================================================
 # §3 RELAXATION - Quick Test Target (Legacy)
@@ -1928,6 +2212,118 @@ imbh_thermal_compare_clean:
 	@echo "✓ Cleaned thermal comparison outputs"
 
 # ============================================================================
+# §8b ORGANIZED ANIMATION OUTPUTS (CoM Frame)
+# ============================================================================
+#
+# All animations are saved to: animations/tidal_disruption/
+# with descriptive prefixes for easy identification.
+#
+# Targets:
+#   imbh_anim_main       : Main 6-panel animation (CoM frame)
+#   imbh_anim_shock      : Shock diagnostics animation (2D + 1D profiles)
+#   imbh_anim_all        : Generate all animations
+#
+# ============================================================================
+
+# Animation output directory
+ANIM_DIR := $(IMBH_DIR)/animations/tidal_disruption
+
+# Main 6-panel animation (CoM frame: cloud centered, IMBH moves)
+imbh_anim_main:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🎬 Creating Main Animation (CoM Frame)"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@if [ ! -d "$(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool" ]; then \
+		echo "❌ Results not found: $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool"; \
+		echo "   Run simulation first."; \
+		exit 1; \
+	fi
+	@SNAP_COUNT=$$(ls -1 $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+	if [ "$$SNAP_COUNT" -lt 10 ]; then \
+		echo "❌ Insufficient snapshots (found: $$SNAP_COUNT, need: 10+)"; \
+		exit 1; \
+	fi; \
+	echo "Found $$SNAP_COUNT snapshots"; \
+	echo ""; \
+	mkdir -p $(ANIM_DIR); \
+	echo "Output: $(ANIM_DIR)/main_com_frame.gif"; \
+	echo ""; \
+	python3 $(SCRIPTS_DIR)/animate_single_run.py \
+		$(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool \
+		-o $(ANIM_DIR)/main_com_frame.gif \
+		--mode tidal \
+		--fps 12; \
+	echo ""; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo "  ✓ Main animation complete!"; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo "📁 Output: $(ANIM_DIR)/main_com_frame.gif"; \
+	if [ -f $(ANIM_DIR)/main_com_frame.gif ]; then \
+		GIF_SIZE=$$(du -h $(ANIM_DIR)/main_com_frame.gif | cut -f1); \
+		echo "   Size: $$GIF_SIZE"; \
+	fi; \
+	echo ""
+
+# Shock diagnostics animation (2D scatter + 1D profiles with adiabatic references)
+imbh_anim_shock:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🔬 Creating Shock Diagnostics Animation"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@if [ ! -d "$(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool" ]; then \
+		echo "❌ Results not found: $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool"; \
+		echo "   Run simulation first."; \
+		exit 1; \
+	fi
+	@SNAP_COUNT=$$(ls -1 $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+	if [ "$$SNAP_COUNT" -lt 10 ]; then \
+		echo "❌ Insufficient snapshots (found: $$SNAP_COUNT, need: 10+)"; \
+		exit 1; \
+	fi; \
+	echo "Found $$SNAP_COUNT snapshots"; \
+	echo ""; \
+	mkdir -p $(ANIM_DIR); \
+	echo "Output: $(ANIM_DIR)/shock_diagnostics_com.gif"; \
+	echo ""; \
+	echo "Features:"; \
+	echo "  • 2D density & temperature (XY, XZ planes)"; \
+	echo "  • 1D profiles: ρ/ρ₀, P/P₀, T/T₀ vs position"; \
+	echo "  • Adiabatic reference lines (γ=5/3 Lane-Emden)"; \
+	echo "  • CoM frame: cloud stays centered"; \
+	echo ""; \
+	python3 $(SCRIPTS_DIR)/animate_shock_diagnostics.py \
+		$(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool \
+		--output $(ANIM_DIR)/shock_diagnostics_com.gif \
+		--fps 12; \
+	echo ""; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo "  ✓ Shock diagnostics animation complete!"; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo "📁 Output: $(ANIM_DIR)/shock_diagnostics_com.gif"; \
+	if [ -f $(ANIM_DIR)/shock_diagnostics_com.gif ]; then \
+		GIF_SIZE=$$(du -h $(ANIM_DIR)/shock_diagnostics_com.gif | cut -f1); \
+		echo "   Size: $$GIF_SIZE"; \
+	fi; \
+	echo ""
+
+# Generate all animations
+imbh_anim_all: imbh_anim_main imbh_anim_shock
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  ✓ All animations complete!"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "📁 Output directory: $(ANIM_DIR)/"
+	@ls -lh $(ANIM_DIR)/*.gif 2>/dev/null || echo "   No GIF files found"
+	@echo ""
+
+# Clean animation outputs
+imbh_anim_clean:
+	@echo "Cleaning animation outputs..."
+	@rm -rf $(ANIM_DIR)/*.gif
+	@echo "✓ Cleaned: $(ANIM_DIR)/"
+
+# ============================================================================
 # §5 IMBH SIMULATION - Single Runs
 # ============================================================================
 
@@ -2503,7 +2899,6 @@ config = { \
         'BH_initial_velocity': {'0': 0.0, '1': 0.0, '2': 0.0}, \
         'cloud_initial_position': {'0': -20.0, '1': 3.0, '2': 0.0}, \
         'cloud_initial_velocity': {'0': 10.0, '1': 0.0, '2': 0.0}, \
-        'cloud_scale_factor': 0.005, \
         'impact_parameter_b': 3.0, \
         'softening_epsilon': 0.05 \
     }, \

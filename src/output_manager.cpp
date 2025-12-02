@@ -304,6 +304,7 @@ OutputMetadata OutputManager::build_metadata(std::shared_ptr<Simulation> sim,
     compute_energies(particle_ptrs, params->gravity.is_valid,
                     params->type,
                     (params->type == SPHType::SRGSPH) ? params->srgsph.c_speed : 1.0,
+                    params->external_bh,
                     metadata.kinetic_energy,
                     metadata.thermal_energy,
                     metadata.potential_energy);
@@ -319,6 +320,7 @@ void OutputManager::compute_energies(const std::vector<SPHParticle*>& particles,
                                      bool use_gravity,
                                      SPHType sph_type,
                                      real c_speed,
+                                     const SPHParameters::ExternalBH& external_bh,
                                      real& kinetic,
                                      real& thermal,
                                      real& potential) const {
@@ -345,7 +347,7 @@ void OutputManager::compute_energies(const std::vector<SPHParticle*>& particles,
             // Internal (thermal) energy: m * ε
             thermal += p->mass * p->ene;
             
-            // Gravitational potential energy
+            // Gravitational potential energy (self-gravity only, with 0.5 factor)
             if (use_gravity) {
                 potential += 0.5 * p->mass * p->phi;
             }
@@ -366,11 +368,33 @@ void OutputManager::compute_energies(const std::vector<SPHParticle*>& particles,
             // Thermal energy: m * u
             thermal += p->mass * p->ene;
             
-            // Gravitational potential energy: 0.5 * m * phi
+            // Gravitational potential energy (self-gravity only, with 0.5 factor)
             if (use_gravity) {
                 potential += 0.5 * p->mass * p->phi;
             }
         }
+    }
+    
+    // Add external BH potential (NO 0.5 factor - it's an external potential)
+    if (external_bh.enabled) {
+        real external_potential = 0.0;
+        const real soft_sq = external_bh.softening * external_bh.softening;
+        
+        #pragma omp parallel for reduction(+:external_potential)
+        for (size_t i = 0; i < particles.size(); ++i) {
+            const SPHParticle* p = particles[i];
+            if (p->is_ghost) continue;
+            
+            // Distance from particle to BH
+            vec_t r_vec = p->pos - external_bh.position;
+            real r_sq = inner_product(r_vec, r_vec);
+            real r_soft = std::sqrt(r_sq + soft_sq);
+            
+            // External potential: Φ = -G * M_BH / r (no 0.5 factor!)
+            external_potential += p->mass * (-external_bh.G_constant * external_bh.mass / r_soft);
+        }
+        
+        potential += external_potential;
     }
 }
 

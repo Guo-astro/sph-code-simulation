@@ -132,6 +132,7 @@ private:
      * @param use_gravity Whether gravity is enabled
      * @param sph_type SPH formulation type (for relativistic energy)
      * @param c_speed Speed of light in code units (for SRGSPH)
+     * @param external_bh External BH parameters (for IMBH potential)
      * @param kinetic Output kinetic energy
      * @param thermal Output thermal energy
      * @param potential Output potential energy
@@ -140,6 +141,7 @@ private:
                          bool use_gravity,
                          SPHType sph_type,
                          real c_speed,
+                         const SPHParameters::ExternalBH& external_bh,
                          real& kinetic,
                          real& thermal,
                          real& potential) const;

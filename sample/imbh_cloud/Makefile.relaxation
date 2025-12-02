@@ -1,0 +1,357 @@
+# ============================================================================
+# LANE-EMDEN RELAXATION MAKEFILE
+# ============================================================================
+#
+# PURPOSE:
+#   Generate relaxed initial conditions for IMBH-cloud simulations using
+#   Lane-Emden polytropic spheres with analytical force relaxation.
+#
+# USAGE:
+#   # Quick test (10k particles, ~2-5 min)
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_10k
+#
+#   # Production run (200k particles, ~4-8 hours)
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_200k
+#
+#   # With SPH method selection (run + visualize)
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_oneshot SIZE=10k METHOD=gdisph
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_oneshot SIZE=10k METHOD=gsph
+#
+#   # Visualization only (after simulation completed)
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_oneshot_viz SIZE=10k METHOD=gdisph
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_oneshot_viz SIZE=10k METHOD=gsph
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_10k_viz
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_200k_viz
+#
+#   # Quality check
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_check_quality SIZE=10k METHOD=gdisph
+#
+#   # Cleaning
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_oneshot_clean SIZE=10k METHOD=gdisph
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_oneshot_clean_size SIZE=10k
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_clean_all
+#
+#   # Show help
+#   make -f sample/imbh_cloud/Makefile.relaxation relax_help
+#
+# PARAMETERS:
+#   SIZE    - Particle count: 10k (testing), 200k (production)
+#   METHOD  - SPH method: gdisph (recommended), gsph (pure Riemann)
+#
+# OUTPUT:
+#   Results:    sample/imbh_cloud/results/relaxation/<SIZE>/<METHOD>/
+#   Animations: sample/imbh_cloud/animations/relaxation/<SIZE>/<METHOD>/
+#   Final IC:   sample/imbh_cloud/results/relaxation/<SIZE>/<METHOD>/snapshot_NNNN.csv
+#
+# ============================================================================
+
+# Paths
+IMBH_DIR := sample/imbh_cloud
+RESULTS_DIR := $(IMBH_DIR)/results/relaxation
+CONFIG_DIR := $(IMBH_DIR)/config/presets/relaxation
+SCRIPTS_DIR := $(IMBH_DIR)/scripts
+ANIM_DIR := $(IMBH_DIR)/animations/relaxation
+
+# Default parameters
+SIZE ?= 10k
+METHOD ?= gdisph
+FPS ?= 10
+
+# Method in uppercase for folder naming
+METHOD_UPPER := $(shell echo $(METHOD) | tr '[:lower:]' '[:upper:]')
+
+# Derived paths
+SCENARIO_DIR := $(CONFIG_DIR)/scenarios/$(SIZE)
+SCENARIO_CONFIG := $(SCENARIO_DIR)/$(METHOD).json
+ONESHOT_RESULTS := $(RESULTS_DIR)/$(SIZE)/$(METHOD_UPPER)
+ONESHOT_ANIM_DIR := $(ANIM_DIR)/$(SIZE)/$(METHOD_UPPER)
+
+# ============================================================================
+# PHONY TARGETS
+# ============================================================================
+
+.PHONY: relax_help relax_check_dim \
+        relax_oneshot relax_oneshot_validate relax_oneshot_run relax_oneshot_viz \
+        relax_oneshot_clean relax_oneshot_clean_size \
+        relax_10k relax_10k_viz relax_10k_gdisph relax_10k_gsph \
+        relax_200k relax_200k_viz relax_200k_gdisph relax_200k_gsph \
+        relax_clean_all relax_list_configs
+
+# ============================================================================
+# HELP
+# ============================================================================
+
+relax_help:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  LANE-EMDEN RELAXATION - Generate Relaxed Initial Conditions"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Generate relaxed Lane-Emden n=1.5 polytropic spheres for IMBH-cloud"
+	@echo "  simulations. Uses analytical force relaxation to reach equilibrium."
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make relax_10k              # Test run (~2-5 min, 10k particles)      │"
+	@echo "│  make relax_200k             # Production (~4-8 hrs, 200k particles)   │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SCENARIO-BASED USAGE                                                  │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make relax_oneshot SIZE=10k METHOD=gdisph                             │"
+	@echo "│  make relax_oneshot SIZE=10k METHOD=gsph                               │"
+	@echo "│  make relax_oneshot SIZE=200k METHOD=gdisph                            │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SIZE OPTIONS                                                          │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  10k    Testing:    ~10,648 particles (N=22), 400k steps (~2-5 min)    │"
+	@echo "│  200k   Production: ~200,000 particles (N=100), 100k steps (~4-8 hrs)  │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SPH METHODS                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  gdisph   Godunov DISPH (recommended for relaxation)                   │"
+	@echo "│           - Riemann solver + density-independent formulation           │"
+	@echo "│           - Balsara switch for viscosity limiting                      │"
+	@echo "│                                                                         │"
+	@echo "│  gsph     Godunov SPH (pure Riemann solver)                            │"
+	@echo "│           - No artificial viscosity parameters                         │"
+	@echo "│           - Can be noisier during relaxation                           │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  VISUALIZATION                                                         │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make relax_10k_viz          # Visualize 10k results                   │"
+	@echo "│  make relax_200k_viz         # Visualize 200k results                  │"
+	@echo "│  make relax_oneshot_viz SIZE=10k METHOD=gdisph                         │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  CLEANING                                                              │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make relax_oneshot_clean SIZE=10k METHOD=gdisph                       │"
+	@echo "│  make relax_oneshot_clean_size SIZE=10k   # Clean all methods for size │"
+	@echo "│  make relax_clean_all                     # Clean everything           │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Config files:  $(CONFIG_DIR)/scenarios/<size>/<method>.json"
+	@echo "  Results:       $(RESULTS_DIR)/<size>/<METHOD>/"
+	@echo "  Animations:    $(ANIM_DIR)/<size>/<METHOD>/"
+	@echo ""
+
+# ============================================================================
+# DIMENSION CHECK
+# ============================================================================
+
+relax_check_dim:
+	@if ! grep -q "DIM=3" build/CMakeCache.txt 2>/dev/null && \
+	   ! grep -q "DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
+		echo "❌ ERROR: This test requires DIM=3"; \
+		echo "   Current build may not be configured for 3D."; \
+		echo ""; \
+		echo "   To rebuild with DIM=3:"; \
+		echo "     cd build && cmake -DDIM=3 .. && make -j"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "✓ DIM=3 confirmed"
+
+# ============================================================================
+# ONE-SHOT RELAXATION (Scenario-Based)
+# ============================================================================
+
+relax_oneshot: relax_check_dim relax_oneshot_validate relax_oneshot_run relax_oneshot_viz
+	@echo ""
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ RELAXATION COMPLETE: $(SIZE) / $(METHOD_UPPER)"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Size:       $(SIZE)"
+	@echo "  Method:     $(METHOD_UPPER)"
+	@echo "  Config:     $(SCENARIO_CONFIG)"
+	@echo ""
+	@echo "  Results:    $(ONESHOT_RESULTS)/"
+	@echo "  Animations: $(ONESHOT_ANIM_DIR)/"
+	@echo ""
+	@echo "  Final snapshot (use as IC for simulations):"
+	@ls -1 $(ONESHOT_RESULTS)/snapshot_*.csv 2>/dev/null | tail -1 || echo "    (not found)"
+	@echo ""
+
+# Validate config exists
+relax_oneshot_validate:
+	@if [ ! -f "$(SCENARIO_CONFIG)" ]; then \
+		echo "❌ ERROR: Config not found: $(SCENARIO_CONFIG)"; \
+		echo ""; \
+		echo "Available sizes:"; \
+		ls -d $(CONFIG_DIR)/scenarios/*/ 2>/dev/null | xargs -I {} basename {} || echo "  (none)"; \
+		echo ""; \
+		echo "Available methods for $(SIZE):"; \
+		ls $(SCENARIO_DIR)/*.json 2>/dev/null | xargs -I {} basename {} .json || echo "  (none)"; \
+		exit 1; \
+	fi
+	@echo "✓ Config validated: $(SCENARIO_CONFIG)"
+
+# Run relaxation
+relax_oneshot_run:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running Relaxation: $(SIZE) / $(METHOD_UPPER)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Size:   $(SIZE)"
+	@echo "  Method: $(METHOD_UPPER)"
+	@echo "  Config: $(SCENARIO_CONFIG)"
+	@echo ""
+	@echo "  Lane-Emden Parameters:"
+	@echo "    • Polytropic index: n=1.5 (γ=5/3)"
+	@echo "    • ξ₁ = 3.6537540101 (first zero)"
+	@echo "    • Central density: ρ_c = 1.43 [code units]"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(ONESHOT_RESULTS)
+	@echo "Starting at $$(date '+%Y-%m-%d %H:%M:%S')..."
+	@./build/sph $(SCENARIO_CONFIG) 2>&1 | tee $(ONESHOT_RESULTS)/run.log || \
+		(echo "❌ Simulation failed! Check $(ONESHOT_RESULTS)/run.log"; exit 1)
+	@echo ""
+	@echo "Completed at $$(date '+%Y-%m-%d %H:%M:%S')"
+	@if [ -f $(ONESHOT_RESULTS)/energy.dat ]; then \
+		echo "✓ Relaxation complete!"; \
+		SNAPSHOT_COUNT=$$(ls -1 $(ONESHOT_RESULTS)/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+		echo "  Snapshots: $$SNAPSHOT_COUNT"; \
+	else \
+		echo "❌ Energy file not found - simulation may have failed"; \
+		exit 1; \
+	fi
+
+# Visualize relaxation results
+relax_oneshot_viz:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Visualizing: $(SIZE) / $(METHOD_UPPER)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@if [ ! -d "$(ONESHOT_RESULTS)" ]; then \
+		echo "❌ No results found: $(ONESHOT_RESULTS)"; \
+		echo "   Run relaxation first with: make relax_oneshot SIZE=$(SIZE) METHOD=$(METHOD)"; \
+		exit 1; \
+	fi
+	@mkdir -p $(ONESHOT_ANIM_DIR)
+	@echo "Generating 6-panel animation with Lane-Emden analytic overlay..."
+	@python3 $(SCRIPTS_DIR)/visualize_relaxation.py \
+		$(ONESHOT_RESULTS) \
+		$(ONESHOT_ANIM_DIR) || \
+		(echo "⚠️  Visualization failed (matplotlib required)"; \
+		 echo "   pip3 install matplotlib numpy scipy"; \
+		 exit 1)
+	@echo ""
+	@if [ -f $(ONESHOT_ANIM_DIR)/relaxation_animation.gif ]; then \
+		GIF_SIZE=$$(du -h $(ONESHOT_ANIM_DIR)/relaxation_animation.gif | cut -f1); \
+		echo "✓ Animation: relaxation_animation.gif ($$GIF_SIZE)"; \
+	fi
+	@if [ -f $(ONESHOT_ANIM_DIR)/relaxation_summary.png ]; then \
+		echo "✓ Summary:   relaxation_summary.png"; \
+	fi
+	@echo ""
+	@echo "  View: open $(ONESHOT_ANIM_DIR)/relaxation_animation.gif"
+
+# Clean results for current size/method
+relax_oneshot_clean:
+	@echo "Cleaning $(SIZE)/$(METHOD_UPPER)..."
+	rm -rf $(ONESHOT_RESULTS)
+	rm -rf $(ONESHOT_ANIM_DIR)
+	@echo "✓ Cleaned"
+
+# Clean all methods for a size
+relax_oneshot_clean_size:
+	@echo "Cleaning all methods for size $(SIZE)..."
+	rm -rf $(RESULTS_DIR)/$(SIZE)
+	rm -rf $(ANIM_DIR)/$(SIZE)
+	@echo "✓ Cleaned"
+
+# Clean everything
+relax_clean_all:
+	@echo "Cleaning all relaxation results..."
+	rm -rf $(RESULTS_DIR)
+	rm -rf $(ANIM_DIR)
+	@echo "✓ Cleaned all"
+
+# ============================================================================
+# CONVENIENCE TARGETS
+# ============================================================================
+
+# 10k particle runs
+relax_10k: SIZE := 10k
+relax_10k: METHOD := gdisph
+relax_10k: relax_oneshot
+
+relax_10k_viz: SIZE := 10k
+relax_10k_viz: METHOD := gdisph
+relax_10k_viz: relax_oneshot_viz
+
+relax_10k_gdisph: SIZE := 10k
+relax_10k_gdisph: METHOD := gdisph
+relax_10k_gdisph: relax_oneshot
+
+relax_10k_gsph: SIZE := 10k
+relax_10k_gsph: METHOD := gsph
+relax_10k_gsph: relax_oneshot
+
+# 200k particle runs
+relax_200k: SIZE := 200k
+relax_200k: METHOD := gdisph
+relax_200k: relax_oneshot
+
+relax_200k_viz: SIZE := 200k
+relax_200k_viz: METHOD := gdisph
+relax_200k_viz: relax_oneshot_viz
+
+relax_200k_gdisph: SIZE := 200k
+relax_200k_gdisph: METHOD := gdisph
+relax_200k_gdisph: relax_oneshot
+
+relax_200k_gsph: SIZE := 200k
+relax_200k_gsph: METHOD := gsph
+relax_200k_gsph: relax_oneshot
+
+# ============================================================================
+# UTILITY TARGETS
+# ============================================================================
+
+# List available configs
+relax_list_configs:
+	@echo "Available relaxation configurations:"
+	@echo ""
+	@find $(CONFIG_DIR)/scenarios -name "*.json" 2>/dev/null | sort | while read f; do \
+		echo "  $$f"; \
+	done || echo "  (no configs found - run setup first)"
+	@echo ""
+
+# Check quality of relaxation
+relax_check_quality: 
+	@echo "Checking relaxation quality for $(SIZE)/$(METHOD_UPPER)..."
+	@FINAL_SNAP=$$(ls -1 $(ONESHOT_RESULTS)/snapshot_*.csv 2>/dev/null | tail -1); \
+	if [ -z "$$FINAL_SNAP" ]; then \
+		echo "❌ No snapshots found"; \
+		exit 1; \
+	fi; \
+	echo "Analyzing: $$FINAL_SNAP"; \
+	python3 -c " \
+import numpy as np; \
+import sys; \
+data = np.loadtxt('$$FINAL_SNAP', delimiter=',', skiprows=61); \
+vel = data[:, 4:7]; \
+v_mag = np.sqrt(np.sum(vel**2, axis=1)); \
+rho = data[:, 11]; \
+r = np.sqrt(np.sum(data[:, 1:4]**2, axis=1)); \
+print(f'  Particles: {len(data)}'); \
+print(f'  Velocity:  max={v_mag.max():.6f}, median={np.median(v_mag):.6f}'); \
+print(f'  Density:   [{rho.min():.3f}, {rho.max():.3f}]'); \
+central = rho[r < 0.1]; \
+if len(central) > 0: \
+    print(f'  Central ρ: {central.mean():.3f} (analytic: 1.43)'); \
+quality = 'GOOD' if v_mag.max() < 0.01 else 'NEEDS MORE STEPS'; \
+print(f'  Quality:   {quality}'); \
+"
