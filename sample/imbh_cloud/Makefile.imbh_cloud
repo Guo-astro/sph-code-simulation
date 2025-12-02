@@ -10,120 +10,270 @@
 #   - Koyama & Inutsuka (2000) thermal equilibrium
 #   - GDISPH method for tidal disruption dynamics
 #
-# Usage Examples:
-# ===============
+# ============================================================================
+# TABLE OF CONTENTS
+# ============================================================================
+#
+#   §0  PATH DEFINITIONS & PHONY TARGETS
+#   §1  HELP
+#   §2  UTILITIES (dimension check)
+#   §3  RELAXATION (create initial conditions)
+#       - imbh_relax_2k      : Testing (10k particles)
+#       - imbh_relax_200k    : Production (200k particles)
+#       - imbh_relax_resume  : Resume from checkpoint
+#   §4  HYDROSTATIC TESTS (validate self-gravity)
+#       - imbh_hydrostatic_2k/200k
+#   §5  IMBH SIMULATION (tidal disruption)
+#       - simulation_10k_b3pc : From relaxed IC
+#   §6  CONTINUATION (extend existing runs)
+#   §6b CONCATENATED ANIMATIONS (combine multi-segment runs)
+#       - imbh_concat_nocool_t0to4       : Standard visualization
+#       - imbh_concat_nocool_t0to4_tidal : Tidal physics visualization
+#   §7  THERMAL COMPARISON (with/without cooling)
+#   §8  SINGLE RUN VISUALIZATION
+#       - imbh_nocool_viz       : Standard 3x3 grid
+#       - imbh_nocool_tidal_viz : Tidal physics 3x4 grid
+#   §9  PARAMETER SCANS
+#   §10 COMPARISON PLOTS
+#   §11 CLEANUP
+#   §12 TEMPLATE-BASED SIMULATIONS (Easy to add new cases!)
+#       - sim_<case>       : Run simulation
+#       - sim_<case>_viz   : Standard visualization
+#       - sim_<case>_tidal : Tidal physics visualization
+#
+# ============================================================================
+# QUICK START
+# ============================================================================
 #
 # Single run (b = 3 pc):
 #   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_b3pc_run
 #
-# Parameter scan (b = 3, 4, 5, 6 pc):
-#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_scan_run
+# Complete workflow:
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_relax_2k
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_hydrostatic_2k
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud simulation_10k_b3pc
+#
+# Template-based (recommended for new cases):
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud sim_200k_b3pc_cool
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud sim_200k_b3pc_cool_viz
 #
 # Visualization:
-#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_visualize
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_nocool_viz
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_nocool_tidal_viz
 #
-# Clean all results:
-#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_clean
-#
+# ============================================================================
+# §0 PATH DEFINITIONS & PHONY TARGETS
 # ============================================================================
 
 # Path definitions
 IMBH_DIR := sample/imbh_cloud
-PRESET_DIR := $(IMBH_DIR)/config/presets
+CONFIG_DIR := $(IMBH_DIR)/config/presets
 RESULTS_DIR := $(IMBH_DIR)/results
 SCRIPTS_DIR := $(IMBH_DIR)/scripts
 
-# Targets are phony (always run)
-.PHONY: imbh_help imbh_quick_test \
-        imbh_relax_2k imbh_relax_2k_viz \
-        imbh_relax_200k imbh_relax_200k_viz \
-        imbh_relax_resume \
-        imbh_hydrostatic_2k imbh_hydrostatic_2k_viz \
-        imbh_hydrostatic_200k imbh_hydrostatic_200k_viz \
-        imbh_b3pc_run imbh_b6pc_run \
-        imbh_scan_impact imbh_scan_velocity imbh_scan_full \
-        imbh_visualize imbh_compare_impact imbh_compare_velocity \
-        imbh_clean imbh_relax_clean imbh_check_dim
+# Organized config subdirectories
+RELAX_CONFIG_DIR := $(CONFIG_DIR)/relaxation
+HYDRO_CONFIG_DIR := $(CONFIG_DIR)/hydrostatic
+SIM_CONFIG_DIR := $(CONFIG_DIR)/simulation
+CONT_CONFIG_DIR := $(CONFIG_DIR)/continuation
+
+# Legacy alias (for backward compatibility)
+PRESET_DIR := $(CONFIG_DIR)
 
 # ============================================================================
-# Help Target
+# SIMULATION CASE REGISTRY
+# ============================================================================
+# To add a new simulation case:
+#   1. Create JSON config in $(SIM_CONFIG_DIR)/simulation_<name>.json
+#   2. Add the case name to SIMULATION_CASES below
+#   3. Run: make -f sample/imbh_cloud/Makefile.imbh_cloud sim_<name>
+#   4. Visualize: make -f sample/imbh_cloud/Makefile.imbh_cloud sim_<name>_viz
+#
+# Config folder structure:
+#   config/presets/
+#   ├── relaxation/     # ic_relax_*.json
+#   ├── hydrostatic/    # ic_verify_*.json  
+#   ├── simulation/     # simulation_*.json
+#   └── continuation/   # continue_*.json
+#
+# Example:
+#   SIMULATION_CASES += 200k_b3pc_cool
+#   Then:
+#   make sim_200k_b3pc_cool       # Run simulation
+#   make sim_200k_b3pc_cool_viz   # Standard visualization
+#   make sim_200k_b3pc_cool_tidal # Tidal physics visualization
+# ============================================================================
+
+# Registry of available simulation cases (add new ones here)
+SIMULATION_CASES := 10k_b3pc_cool 10k_b3pc_nocool 10k_b1p5pc_optimal 200k_b6pc 200k_b3pc_cool
+
+# Auto-generate phony targets for all registered cases
+SIM_RUN_TARGETS := $(addprefix sim_,$(SIMULATION_CASES))
+SIM_VIZ_TARGETS := $(addsuffix _viz,$(SIM_RUN_TARGETS))
+SIM_TIDAL_TARGETS := $(addsuffix _tidal,$(SIM_RUN_TARGETS))
+SIM_CLEAN_TARGETS := $(addsuffix _clean,$(SIM_RUN_TARGETS))
+
+# All targets are phony (always run)
+.PHONY: imbh_help imbh_check_dim imbh_quick_test \
+        imbh_relax_2k imbh_relax_2k_viz \
+        imbh_relax_200k imbh_relax_200k_viz \
+        imbh_relax_resume imbh_relax_clean \
+        imbh_hydrostatic_2k imbh_hydrostatic_2k_viz \
+        imbh_hydrostatic_200k imbh_hydrostatic_200k_viz \
+        simulation_10k_b3pc simulation_10k_b3pc_check \
+        imbh_continue_help imbh_continue_list imbh_continue_generate imbh_continue_b3pc_nocool \
+        imbh_thermal_compare_run imbh_thermal_compare_viz imbh_thermal_compare_animate imbh_thermal_compare_clean \
+        imbh_nocool_viz imbh_nocool_tidal_viz imbh_relaxed_2k_b3pc_nocool_viz \
+        imbh_b3pc_run imbh_b6pc_run imbh_b1p5pc_optimal imbh_b1p5pc_optimal_viz \
+        imbh_scan_impact imbh_scan_velocity imbh_scan_full \
+        imbh_compare_impact imbh_compare_velocity imbh_visualize \
+        imbh_clean imbh_list_cases \
+        $(SIM_RUN_TARGETS) $(SIM_VIZ_TARGETS) $(SIM_TIDAL_TARGETS) $(SIM_CLEAN_TARGETS)
+
+# ============================================================================
+# §1 HELP
 # ============================================================================
 
 imbh_help:
-	@echo "=========================================="
-	@echo "  IMBH-Cloud Tidal Disruption Targets"
-	@echo "=========================================="
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  IMBH-Cloud Tidal Disruption Simulation"
+	@echo "══════════════════════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "Quick Test & Relaxation:"
-	@echo "  imbh_quick_test     - ONE-SHOT: Relaxation test (legacy, see imbh_relax_2k)"
-	@echo "  imbh_relax_2k       - TESTING: 2k particles (N=22), 20k steps - fast test run"
-	@echo "  imbh_relax_2k_viz   - Visualize 2k particle relaxation results"
-	@echo "  imbh_relax_200k     - PRODUCTION: 200k particles (N=100), 100k steps"
-	@echo "  imbh_relax_200k_viz - Visualize 200k particle relaxation results"
-	@echo "  imbh_relax_resume   - Resume relaxation from checkpoint (requires SNAPSHOT=path)"
-	@echo "                        Example: make imbh_relax_resume SNAPSHOT=results/.../snapshot_0021.csv"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  §3 RELAXATION (Create Initial Conditions)                             │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  imbh_relax_2k        Testing:    10k particles, 400k steps            │"
+	@echo "│  imbh_relax_2k_viz    Visualize 10k relaxation results                 │"
+	@echo "│  imbh_relax_200k      Production: 200k particles, 100k steps           │"
+	@echo "│  imbh_relax_200k_viz  Visualize 200k relaxation results                │"
+	@echo "│  imbh_relax_resume    Resume from checkpoint (SNAPSHOT=path)           │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "Hydrostatic Self-Gravity Test (NEW!):"
-	@echo "  imbh_hydrostatic_2k      - TESTING: Test self-gravity on relaxed 2k sphere (10 t_cross)"
-	@echo "  imbh_hydrostatic_2k_viz  - Visualize 2k hydrostatic test results"
-	@echo "  imbh_hydrostatic_200k    - PRODUCTION: Test self-gravity on relaxed 200k sphere"
-	@echo "  imbh_hydrostatic_200k_viz - Visualize 200k hydrostatic test results"
-	@echo "  Note: Must run relaxation first! Tests stability >> tidal disruption timescale"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  §4 HYDROSTATIC TESTS (Validate Self-Gravity)                          │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  imbh_hydrostatic_2k      Test self-gravity on 10k sphere (10 t_cross) │"
+	@echo "│  imbh_hydrostatic_2k_viz  Visualize 10k hydrostatic test               │"
+	@echo "│  imbh_hydrostatic_200k    Test self-gravity on 200k sphere             │"
+	@echo "│  imbh_hydrostatic_200k_viz Visualize 200k hydrostatic test             │"
+	@echo "│  Note: Requires relaxation first!                                      │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "Single Runs:"
-	@echo "  imbh_b3pc_run    - Run with impact parameter b=3pc, v=10km/s"
-	@echo "  imbh_b6pc_run    - Run with impact parameter b=6pc, v=10km/s"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  §5 IMBH SIMULATION (Tidal Disruption from Relaxed IC)                 │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  simulation_10k_b3pc       Run tidal disruption (b=3pc, relaxed IC)    │"
+	@echo "│  simulation_10k_b3pc_check Verify relaxed snapshot exists              │"
+	@echo "│  imbh_b3pc_run             Run with b=3pc, v=10km/s                    │"
+	@echo "│  imbh_b6pc_run             Run with b=6pc, v=10km/s                    │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "Parameter Scans:"
-	@echo "  imbh_scan_impact - Impact parameter scan: b=3,4,5,6 pc (v=10km/s fixed) [4 runs]"
-	@echo "  imbh_scan_velocity - Velocity scan: v=0,5,10,15,20 km/s (b=4pc fixed) [5 runs]"
-	@echo "  imbh_scan_full   - Full matrix scan: 4 impact x 5 velocity [20 runs]"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  §6 CONTINUATION (Extend Existing Runs)                                │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  imbh_continue_help        Help on continuation                        │"
+	@echo "│  imbh_continue_list        List available configs                      │"
+	@echo "│  imbh_continue_generate    Auto-generate config from snapshot          │"
+	@echo "│  imbh_continue_b3pc_nocool Continue b3pc_nocool from snapshot_0100     │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "Comparison & Visualization:"
-	@echo "  imbh_compare_impact   - Generate impact parameter comparison plots"
-	@echo "  imbh_compare_velocity - Generate velocity comparison plots"
-	@echo "  imbh_visualize        - Generate all IMBH disruption plots and animations"
-	@echo "                          (NOTE: For relaxation viz, use imbh_relax_viz)"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  §6b CONCATENATED ANIMATIONS (Combine Multi-Segment Runs)              │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  imbh_concat_help               Help on concatenation                  │"
+	@echo "│  imbh_concat_nocool_t0to4       Combine nocool t=0→4 (single mode)     │"
+	@echo "│  imbh_concat_nocool_t0to4_tidal Combine nocool t=0→4 (tidal mode)      │"
+	@echo "│  Note: Merges snapshots from original + continuation runs by time      │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "Cleanup:"
-	@echo "  imbh_clean       - Remove all results"
-	@echo "  imbh_relax_clean - Remove only relaxation results"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  §7 THERMAL COMPARISON (With vs Without Cooling)                       │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  imbh_thermal_compare_run     Run WITH and WITHOUT K&I cooling         │"
+	@echo "│  imbh_thermal_compare_viz     Generate comparison animations           │"
+	@echo "│  imbh_thermal_compare_animate Visualize existing results only          │"
+	@echo "│  imbh_thermal_compare_clean   Clean thermal comparison outputs         │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "Examples:"
-	@echo "  # Complete workflow (relaxation + hydrostatic + IMBH):"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  §8 SINGLE RUN VISUALIZATION                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  imbh_nocool_viz       Standard 3x3 grid (3D, projections, energy)     │"
+	@echo "│  imbh_nocool_tidal_viz Tidal 3x4 grid (cross-sections, shock, Mach)    │"
+	@echo "│  Note: Cross-sections show XY/XZ/YZ density, temperature, shocks       │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  §9 PARAMETER SCANS                                                    │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  imbh_scan_impact     b=3,4,5,6 pc at v=10km/s    [4 runs]             │"
+	@echo "│  imbh_scan_velocity   v=0,5,10,15,20 km/s at b=4pc [5 runs]            │"
+	@echo "│  imbh_scan_full       Full matrix 4×5             [20 runs]            │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  §10 COMPARISON & §11 CLEANUP                                          │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  imbh_compare_impact   Impact parameter comparison plots               │"
+	@echo "│  imbh_compare_velocity Velocity comparison plots                       │"
+	@echo "│  imbh_visualize        Generate all plots and animations               │"
+	@echo "│  imbh_clean            Remove all results                              │"
+	@echo "│  imbh_relax_clean      Remove only relaxation results                  │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  §12 TEMPLATE-BASED SIMULATIONS (Easy to Add New Cases!)               │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  imbh_list_cases       List all registered simulation cases            │"
+	@echo "│  sim_<case>            Run simulation for <case>                       │"
+	@echo "│  sim_<case>_viz        Standard 3x3 visualization                      │"
+	@echo "│  sim_<case>_tidal      Tidal physics 3x4 visualization                 │"
+	@echo "│  sim_<case>_clean      Clean results for <case>                        │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  Available cases: $(SIMULATION_CASES)"
+	@echo "│                                                                         │"
+	@echo "│  To add a new case:                                                     │"
+	@echo "│    1. Create: config/presets/simulation_<name>.json                     │"
+	@echo "│    2. Edit Makefile: SIMULATION_CASES += <name>                         │"
+	@echo "│    3. Run: make sim_<name>                                              │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  QUICK START EXAMPLES"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  # Complete workflow (relaxation → hydrostatic → IMBH):"
 	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_relax_2k"
 	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_hydrostatic_2k"
-	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_b3pc_run"
+	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud simulation_10k_b3pc"
 	@echo ""
-	@echo "  # Production workflow:"
-	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_relax_200k"
-	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_hydrostatic_200k"
+	@echo "  # Template-based simulation (recommended for new cases):"
+	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud sim_200k_b3pc_cool"
+	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud sim_200k_b3pc_cool_viz"
+	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud sim_200k_b3pc_cool_tidal"
 	@echo ""
 	@echo "  # Visualization only:"
-	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_relax_2k_viz"
-	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_hydrostatic_2k_viz"
+	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_nocool_viz"
+	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_nocool_tidal_viz"
 	@echo ""
 
 # ============================================================================
-# Dimension Check
+# §2 UTILITIES
 # ============================================================================
 
 imbh_check_dim: build/sph
 	@if ! grep -q "SPH_DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
 		echo "❌ Error: IMBH-cloud simulation requires DIM=3"; \
 		echo ""; \
-		echo "Current build is configured for DIM=$$(grep 'SPH_DIM:STRING=' build/CMakeCache.txt 2>/dev/null | cut -d'=' -f2 || echo 'unknown')"; \
+		echo "Current build: DIM=$$(grep 'SPH_DIM:STRING=' build/CMakeCache.txt 2>/dev/null | cut -d'=' -f2 || echo 'unknown')"; \
 		echo ""; \
-		echo "To fix:"; \
-		echo "  1. Reconfigure CMake: cd ../../build && cmake -DSPH_DIM=3 .."; \
-		echo "  2. Rebuild: make clean && make -j8"; \
-		echo "  3. Re-run this target"; \
+		echo "To fix: cd build && cmake -DSPH_DIM=3 .. && make -j8"; \
 		exit 1; \
 	fi
 	@echo "✓ DIM=3 confirmed"
 
 # ============================================================================
-# Quick Test Target - ONE-SHOT: Legacy Particle Lane-Emden Relaxation + Viz
+# §3 RELAXATION - Quick Test Target (Legacy)
 # ============================================================================
 
 imbh_quick_test: imbh_check_dim
@@ -217,7 +367,7 @@ imbh_quick_test: imbh_check_dim
 	@echo ""
 
 # ============================================================================
-# Testing Relaxation: 2k Particles (N=22), 20k Steps
+# §3 RELAXATION - Testing: 2k Particles
 # ============================================================================
 
 imbh_relax_2k: imbh_check_dim
@@ -236,8 +386,8 @@ imbh_relax_2k: imbh_check_dim
 	@echo "════════════════════════════════════════════════════════"
 	@echo "  STEP 1/4: Setup"
 	@echo "════════════════════════════════════════════════════════"
-	@mkdir -p $(RESULTS_DIR)/lane_emden_2k_relax
-	@echo "✓ Results directory: $(RESULTS_DIR)/lane_emden_2k_relax"
+	@mkdir -p $(RESULTS_DIR)/ic_relax_10k
+	@echo "✓ Results directory: $(RESULTS_DIR)/ic_relax_10k"
 	@echo ""
 	@echo "════════════════════════════════════════════════════════"
 	@echo "  STEP 2/4: Running Relaxation Simulation"
@@ -258,15 +408,15 @@ imbh_relax_2k: imbh_check_dim
 	@echo "  • M_total = 1.0 [code units]"
 	@echo ""
 	@echo "Starting simulation (2-5 minutes)..."
-	@./build/sph $(PRESET_DIR)/lane_emden_2k_relax.json 2>&1 | tee $(RESULTS_DIR)/lane_emden_2k_relax/run.log || \
-		(echo "❌ Simulation failed! Check $(RESULTS_DIR)/lane_emden_2k_relax/run.log"; exit 1)
+	@./build/sph $(RELAX_CONFIG_DIR)/ic_relax_10k.json 2>&1 | tee $(RESULTS_DIR)/ic_relax_10k/run.log || \
+		(echo "❌ Simulation failed! Check $(RESULTS_DIR)/ic_relax_10k/run.log"; exit 1)
 	@echo ""
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_relax/energy.dat ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_relax_10k/energy.dat ]; then \
 		echo "✓ Simulation complete!"; \
 		echo ""; \
 		echo "📊 Energy conservation check:"; \
-		tail -1 $(RESULTS_DIR)/lane_emden_2k_relax/energy.dat; \
-		SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/lane_emden_2k_relax/snapshot_*.csv 2>/dev/null | wc -l); \
+		tail -1 $(RESULTS_DIR)/ic_relax_10k/energy.dat; \
+		SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/ic_relax_10k/snapshot_*.csv 2>/dev/null | wc -l); \
 		echo "📁 Snapshots generated: $$SNAPSHOT_COUNT"; \
 	else \
 		echo "❌ Energy file not found - simulation may have failed"; \
@@ -287,17 +437,17 @@ imbh_relax_2k: imbh_check_dim
 	@echo "This will take 1-3 minutes..."
 	@chmod +x $(SCRIPTS_DIR)/visualize_relaxation.py
 	@python3 $(SCRIPTS_DIR)/visualize_relaxation.py \
-		$(RESULTS_DIR)/lane_emden_2k_relax \
-		$(RESULTS_DIR)/lane_emden_2k_relax || \
+		$(RESULTS_DIR)/ic_relax_10k \
+		$(RESULTS_DIR)/ic_relax_10k || \
 		(echo "⚠️  Visualization failed (matplotlib required)"; echo "   Simulation data is still valid")
 	@echo ""
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_animation.gif ]; then \
-		GIF_SIZE=$$(du -h $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_animation.gif | cut -f1); \
+	@if [ -f $(RESULTS_DIR)/ic_relax_10k/relaxation_animation.gif ]; then \
+		GIF_SIZE=$$(du -h $(RESULTS_DIR)/ic_relax_10k/relaxation_animation.gif | cut -f1); \
 		echo "✓ Animation created: relaxation_animation.gif ($$GIF_SIZE)"; \
 	else \
 		echo "⚠️  Animation not created (check matplotlib installation)"; \
 	fi
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_summary.png ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_relax_10k/relaxation_summary.png ]; then \
 		echo "✓ Summary plot created: relaxation_summary.png"; \
 	fi
 	@echo ""
@@ -305,8 +455,8 @@ imbh_relax_2k: imbh_check_dim
 	@echo "  STEP 4/4: Quality Verification"
 	@echo "════════════════════════════════════════════════════════"
 	@echo "Checking relaxation quality..."
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_relax/snapshot_0020.csv ]; then \
-		python3 -c "import numpy as np; import sys; data = np.loadtxt('$(RESULTS_DIR)/lane_emden_2k_relax/snapshot_0020.csv', delimiter=',', skiprows=61); vel = data[:, 4:7]; v_mag = np.sqrt(np.sum(vel**2, axis=1)); rho = data[:, 11]; r = np.sqrt(np.sum(data[:, 1:4]**2, axis=1)); print(f'  • Final velocity: max={v_mag.max():.6f}, median={np.median(v_mag):.6f} [code units]'); print(f'  • Density range: [{rho.min():.3f}, {rho.max():.3f}] [code units]'); print(f'  • Particle radius: [0, {r.max():.3f}] [code units]'); central = rho[r < 0.05]; print(f'  • Central density (r<0.05): mean={central.mean():.3f} (analytic ρ_c=1.43)') if len(central) > 0 else print('  ⚠️  No particles in central region (r<0.05)')"; \
+	@if [ -f $(RESULTS_DIR)/ic_relax_10k/snapshot_0020.csv ]; then \
+		python3 -c "import numpy as np; import sys; data = np.loadtxt('$(RESULTS_DIR)/ic_relax_10k/snapshot_0020.csv', delimiter=',', skiprows=61); vel = data[:, 4:7]; v_mag = np.sqrt(np.sum(vel**2, axis=1)); rho = data[:, 11]; r = np.sqrt(np.sum(data[:, 1:4]**2, axis=1)); print(f'  • Final velocity: max={v_mag.max():.6f}, median={np.median(v_mag):.6f} [code units]'); print(f'  • Density range: [{rho.min():.3f}, {rho.max():.3f}] [code units]'); print(f'  • Particle radius: [0, {r.max():.3f}] [code units]'); central = rho[r < 0.05]; print(f'  • Central density (r<0.05): mean={central.mean():.3f} (analytic ρ_c=1.43)') if len(central) > 0 else print('  ⚠️  No particles in central region (r<0.05)')"; \
 	else \
 		echo "  ⚠️  Final snapshot not found"; \
 	fi
@@ -316,13 +466,13 @@ imbh_relax_2k: imbh_check_dim
 	@echo "══════════════════════════════════════════════════════════"
 	@echo ""
 	@echo "📁 Results location:"
-	@echo "   $(RESULTS_DIR)/lane_emden_2k_relax/"
+	@echo "   $(RESULTS_DIR)/ic_relax_10k/"
 	@echo ""
 	@echo "📊 Generated files:"
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_animation.gif ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_relax_10k/relaxation_animation.gif ]; then \
 		echo "   ✓ relaxation_animation.gif - 6-panel animation with analytic overlay"; \
 	fi
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_summary.png ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_relax_10k/relaxation_summary.png ]; then \
 		echo "   ✓ relaxation_summary.png   - Final state summary"; \
 	fi
 	@echo "   ✓ snapshot_*.csv           - Particle data (21 snapshots)"
@@ -330,15 +480,15 @@ imbh_relax_2k: imbh_check_dim
 	@echo "   ✓ run.log                  - Simulation log"
 	@echo ""
 	@echo "🎬 View animation:"
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_animation.gif ]; then \
-		echo "   open $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_animation.gif"; \
+	@if [ -f $(RESULTS_DIR)/ic_relax_10k/relaxation_animation.gif ]; then \
+		echo "   open $(RESULTS_DIR)/ic_relax_10k/relaxation_animation.gif"; \
 	else \
 		echo "   (Animation not available - install matplotlib)"; \
 	fi
 	@echo ""
 	@echo "📈 View summary:"
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_summary.png ]; then \
-		echo "   open $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_summary.png"; \
+	@if [ -f $(RESULTS_DIR)/ic_relax_10k/relaxation_summary.png ]; then \
+		echo "   open $(RESULTS_DIR)/ic_relax_10k/relaxation_summary.png"; \
 	else \
 		echo "   (Summary plot not available - install matplotlib)"; \
 	fi
@@ -357,7 +507,7 @@ imbh_relax_2k: imbh_check_dim
 	@echo ""
 
 # ============================================================================
-# Testing Relaxation Visualization Only - No Simulation
+# §3 RELAXATION - Visualization (2k)
 # ============================================================================
 
 imbh_relax_2k_viz:
@@ -365,15 +515,15 @@ imbh_relax_2k_viz:
 	@echo "  🎬 Visualizing 2k Particle Relaxation Results"
 	@echo "══════════════════════════════════════════════════════════"
 	@echo ""
-	@if [ ! -d "$(RESULTS_DIR)/lane_emden_2k_relax" ]; then \
+	@if [ ! -d "$(RESULTS_DIR)/ic_relax_10k" ]; then \
 		echo "❌ No 2k relaxation results found!"; \
-		echo "   Expected directory: $(RESULTS_DIR)/lane_emden_2k_relax"; \
+		echo "   Expected directory: $(RESULTS_DIR)/ic_relax_10k"; \
 		echo ""; \
 		echo "   Run relaxation first:"; \
 		echo "   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_relax_2k"; \
 		exit 1; \
 	fi
-	@SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/lane_emden_2k_relax/snapshot_*.csv 2>/dev/null | wc -l); \
+	@SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/ic_relax_10k/snapshot_*.csv 2>/dev/null | wc -l); \
 	if [ $$SNAPSHOT_COUNT -lt 2 ]; then \
 		echo "❌ Insufficient snapshots found (need at least 2)"; \
 		echo "   Found: $$SNAPSHOT_COUNT snapshots"; \
@@ -386,21 +536,21 @@ imbh_relax_2k_viz:
 	@echo ""
 	@chmod +x $(SCRIPTS_DIR)/visualize_relaxation.py
 	@python3 $(SCRIPTS_DIR)/visualize_relaxation.py \
-		$(RESULTS_DIR)/lane_emden_2k_relax \
-		$(RESULTS_DIR)/lane_emden_2k_relax || \
+		$(RESULTS_DIR)/ic_relax_10k \
+		$(RESULTS_DIR)/ic_relax_10k || \
 		(echo "❌ Visualization failed!"; \
 		 echo "   Check that matplotlib and numpy are installed"; \
 		 echo "   pip3 install matplotlib numpy scipy"; \
 		 exit 1)
 	@echo ""
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_animation.gif ]; then \
-		GIF_SIZE=$$(du -h $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_animation.gif | cut -f1); \
+	@if [ -f $(RESULTS_DIR)/ic_relax_10k/relaxation_animation.gif ]; then \
+		GIF_SIZE=$$(du -h $(RESULTS_DIR)/ic_relax_10k/relaxation_animation.gif | cut -f1); \
 		echo "✓ Animation created: relaxation_animation.gif ($$GIF_SIZE)"; \
 	else \
 		echo "❌ Animation not created"; \
 		exit 1; \
 	fi
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_summary.png ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_relax_10k/relaxation_summary.png ]; then \
 		echo "✓ Summary plot created: relaxation_summary.png"; \
 	fi
 	@echo ""
@@ -409,15 +559,15 @@ imbh_relax_2k_viz:
 	@echo "══════════════════════════════════════════════════════════"
 	@echo ""
 	@echo "📁 Output files:"
-	@echo "   $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_animation.gif"
-	@echo "   $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_summary.png"
+	@echo "   $(RESULTS_DIR)/ic_relax_10k/relaxation_animation.gif"
+	@echo "   $(RESULTS_DIR)/ic_relax_10k/relaxation_summary.png"
 	@echo ""
 	@echo "🎬 View animation:"
-	@echo "   open $(RESULTS_DIR)/lane_emden_2k_relax/relaxation_animation.gif"
+	@echo "   open $(RESULTS_DIR)/ic_relax_10k/relaxation_animation.gif"
 	@echo ""
 
 # ============================================================================
-# Production Relaxation: 200k Particles, 100k Steps
+# §3 RELAXATION - Production: 200k Particles
 # ============================================================================
 
 imbh_relax_200k: imbh_check_dim
@@ -450,23 +600,23 @@ imbh_relax_200k: imbh_check_dim
 	@echo "════════════════════════════════════════════════════════"
 	@echo "  STEP 1/4: Setup"
 	@echo "════════════════════════════════════════════════════════"
-	@mkdir -p $(RESULTS_DIR)/lane_emden_200k_relax
-	@echo "✓ Results directory: $(RESULTS_DIR)/lane_emden_200k_relax"
+	@mkdir -p $(RESULTS_DIR)/ic_relax_200k
+	@echo "✓ Results directory: $(RESULTS_DIR)/ic_relax_200k"
 	@echo ""
 	@echo "════════════════════════════════════════════════════════"
 	@echo "  STEP 2/4: Running Relaxation (4-8 hours)"
 	@echo "════════════════════════════════════════════════════════"
 	@echo "Starting simulation at $$(date '+%Y-%m-%d %H:%M:%S')..."
 	@echo ""
-	@./build/sph $(PRESET_DIR)/lane_emden_200k_relax.json 2>&1 | tee $(RESULTS_DIR)/lane_emden_200k_relax/run.log || \
-		(echo "❌ Simulation failed! Check $(RESULTS_DIR)/lane_emden_200k_relax/run.log"; exit 1)
+	@./build/sph $(RELAX_CONFIG_DIR)/ic_relax_200k.json 2>&1 | tee $(RESULTS_DIR)/ic_relax_200k/run.log || \
+		(echo "❌ Simulation failed! Check $(RESULTS_DIR)/ic_relax_200k/run.log"; exit 1)
 	@echo ""
 	@echo "Simulation completed at $$(date '+%Y-%m-%d %H:%M:%S')"
-	@if [ -f $(RESULTS_DIR)/lane_emden_200k_relax/energy.dat ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_relax_200k/energy.dat ]; then \
 		echo "✓ Simulation complete!"; \
 		echo ""; \
 		echo "📊 Final energy (last 3 timesteps):"; \
-		tail -3 $(RESULTS_DIR)/lane_emden_200k_relax/energy.dat; \
+		tail -3 $(RESULTS_DIR)/ic_relax_200k/energy.dat; \
 	else \
 		echo "❌ Energy file not found - simulation may have failed"; \
 		exit 1; \
@@ -478,44 +628,44 @@ imbh_relax_200k: imbh_check_dim
 	@echo "Creating animation and plots (2-5 minutes)..."
 	@chmod +x $(SCRIPTS_DIR)/visualize_relaxation.py
 	@python3 $(SCRIPTS_DIR)/visualize_relaxation.py \
-		$(RESULTS_DIR)/lane_emden_200k_relax \
-		$(RESULTS_DIR)/lane_emden_200k_relax || \
+		$(RESULTS_DIR)/ic_relax_200k \
+		$(RESULTS_DIR)/ic_relax_200k || \
 		(echo "⚠️  Visualization failed (data is still available)"; echo "   Install matplotlib: pip3 install matplotlib numpy scipy")
 	@echo ""
-	@if [ -f $(RESULTS_DIR)/lane_emden_200k_relax/relaxation_animation.gif ]; then \
-		GIF_SIZE=$$(du -h $(RESULTS_DIR)/lane_emden_200k_relax/relaxation_animation.gif | cut -f1); \
+	@if [ -f $(RESULTS_DIR)/ic_relax_200k/relaxation_animation.gif ]; then \
+		GIF_SIZE=$$(du -h $(RESULTS_DIR)/ic_relax_200k/relaxation_animation.gif | cut -f1); \
 		echo "✓ Animation created: relaxation_animation.gif ($$GIF_SIZE)"; \
 	fi
-	@if [ -f $(RESULTS_DIR)/lane_emden_200k_relax/relaxation_summary.png ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_relax_200k/relaxation_summary.png ]; then \
 		echo "✓ Summary plot created: relaxation_summary.png"; \
 	fi
 	@echo ""
 	@echo "════════════════════════════════════════════════════════"
 	@echo "  STEP 4/4: Quality Verification"
 	@echo "════════════════════════════════════════════════════════"
-	@if [ -f $(RESULTS_DIR)/lane_emden_200k_relax/snapshot_0050.csv ]; then \
-		python3 -c "import numpy as np; data = np.loadtxt('$(RESULTS_DIR)/lane_emden_200k_relax/snapshot_0050.csv', delimiter=',', skiprows=61); vel = data[:, 4:7]; v_mag = np.sqrt(np.sum(vel**2, axis=1)); rho = data[:, 11]; r = np.sqrt(np.sum(data[:, 1:4]**2, axis=1)); print(f'  • Final velocity: max={v_mag.max():.6f}, median={np.median(v_mag):.6f}'); print(f'  • Density range: [{rho.min():.3f}, {rho.max():.3f}]'); print(f'  • Negative densities: {(rho<0).sum()}/{len(rho)} particles'); central = rho[r < 0.05]; print(f'  • Central density (r<0.05): mean={central.mean():.3f} (analytic=1.43)') if len(central) > 0 else None"; \
+	@if [ -f $(RESULTS_DIR)/ic_relax_200k/snapshot_0050.csv ]; then \
+		python3 -c "import numpy as np; data = np.loadtxt('$(RESULTS_DIR)/ic_relax_200k/snapshot_0050.csv', delimiter=',', skiprows=61); vel = data[:, 4:7]; v_mag = np.sqrt(np.sum(vel**2, axis=1)); rho = data[:, 11]; r = np.sqrt(np.sum(data[:, 1:4]**2, axis=1)); print(f'  • Final velocity: max={v_mag.max():.6f}, median={np.median(v_mag):.6f}'); print(f'  • Density range: [{rho.min():.3f}, {rho.max():.3f}]'); print(f'  • Negative densities: {(rho<0).sum()}/{len(rho)} particles'); central = rho[r < 0.05]; print(f'  • Central density (r<0.05): mean={central.mean():.3f} (analytic=1.43)') if len(central) > 0 else None"; \
 	fi
 	@echo ""
 	@echo "══════════════════════════════════════════════════════════"
 	@echo "  ✓ PRODUCTION RELAXATION COMPLETE!"
 	@echo "══════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "📁 Results: $(RESULTS_DIR)/lane_emden_200k_relax/"
+	@echo "📁 Results: $(RESULTS_DIR)/ic_relax_200k/"
 	@echo ""
 	@echo "📊 Generated files:"
 	@echo "   ✓ 51 snapshots (snapshot_0000.csv to snapshot_0050.csv)"
 	@echo "   ✓ energy.dat - Energy evolution"
-	@if [ -f $(RESULTS_DIR)/lane_emden_200k_relax/relaxation_animation.gif ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_relax_200k/relaxation_animation.gif ]; then \
 		echo "   ✓ relaxation_animation.gif - 6-panel evolution"; \
 	fi
-	@if [ -f $(RESULTS_DIR)/lane_emden_200k_relax/relaxation_summary.png ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_relax_200k/relaxation_summary.png ]; then \
 		echo "   ✓ relaxation_summary.png - Final state"; \
 	fi
 	@echo ""
 	@echo "🎬 View results:"
-	@if [ -f $(RESULTS_DIR)/lane_emden_200k_relax/relaxation_animation.gif ]; then \
-		echo "   open $(RESULTS_DIR)/lane_emden_200k_relax/relaxation_animation.gif"; \
+	@if [ -f $(RESULTS_DIR)/ic_relax_200k/relaxation_animation.gif ]; then \
+		echo "   open $(RESULTS_DIR)/ic_relax_200k/relaxation_animation.gif"; \
 	fi
 	@echo ""
 	@echo "📝 Next steps:"
@@ -526,7 +676,7 @@ imbh_relax_200k: imbh_check_dim
 	@echo ""
 
 # ============================================================================
-# Production Relaxation Visualization Only
+# §3 RELAXATION - Visualization (200k)
 # ============================================================================
 
 imbh_relax_200k_viz:
@@ -534,15 +684,15 @@ imbh_relax_200k_viz:
 	@echo "  🎬 Visualizing 200k Particle Relaxation Results"
 	@echo "══════════════════════════════════════════════════════════"
 	@echo ""
-	@if [ ! -d "$(RESULTS_DIR)/lane_emden_200k_relax" ]; then \
+	@if [ ! -d "$(RESULTS_DIR)/ic_relax_200k" ]; then \
 		echo "❌ No 200k relaxation results found!"; \
-		echo "   Expected: $(RESULTS_DIR)/lane_emden_200k_relax"; \
+		echo "   Expected: $(RESULTS_DIR)/ic_relax_200k"; \
 		echo ""; \
 		echo "   Run relaxation first:"; \
 		echo "   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_relax_200k"; \
 		exit 1; \
 	fi
-	@SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/lane_emden_200k_relax/snapshot_*.csv 2>/dev/null | wc -l); \
+	@SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/ic_relax_200k/snapshot_*.csv 2>/dev/null | wc -l); \
 	if [ $$SNAPSHOT_COUNT -lt 2 ]; then \
 		echo "❌ Insufficient snapshots (need ≥2, found $$SNAPSHOT_COUNT)"; \
 		exit 1; \
@@ -552,12 +702,12 @@ imbh_relax_200k_viz:
 	@echo "Generating animation (2-5 minutes for 200k particles)..."
 	@chmod +x $(SCRIPTS_DIR)/visualize_relaxation.py
 	@python3 $(SCRIPTS_DIR)/visualize_relaxation.py \
-		$(RESULTS_DIR)/lane_emden_200k_relax \
-		$(RESULTS_DIR)/lane_emden_200k_relax || \
+		$(RESULTS_DIR)/ic_relax_200k \
+		$(RESULTS_DIR)/ic_relax_200k || \
 		(echo "❌ Visualization failed!"; exit 1)
 	@echo ""
-	@if [ -f $(RESULTS_DIR)/lane_emden_200k_relax/relaxation_animation.gif ]; then \
-		GIF_SIZE=$$(du -h $(RESULTS_DIR)/lane_emden_200k_relax/relaxation_animation.gif | cut -f1); \
+	@if [ -f $(RESULTS_DIR)/ic_relax_200k/relaxation_animation.gif ]; then \
+		GIF_SIZE=$$(du -h $(RESULTS_DIR)/ic_relax_200k/relaxation_animation.gif | cut -f1); \
 		echo "✓ Animation: relaxation_animation.gif ($$GIF_SIZE)"; \
 	fi
 	@echo ""
@@ -565,14 +715,14 @@ imbh_relax_200k_viz:
 	@echo "  ✓ VISUALIZATION COMPLETE!"
 	@echo "══════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "📁 Output: $(RESULTS_DIR)/lane_emden_200k_relax/"
+	@echo "📁 Output: $(RESULTS_DIR)/ic_relax_200k/"
 	@echo ""
 	@echo "🎬 View:"
-	@echo "   open $(RESULTS_DIR)/lane_emden_200k_relax/relaxation_animation.gif"
+	@echo "   open $(RESULTS_DIR)/ic_relax_200k/relaxation_animation.gif"
 	@echo ""
 
 # ============================================================================
-# Hydrostatic Self-Gravity Test: 2k Particles (Testing)
+# §4 HYDROSTATIC - Testing: 2k Particles
 # ============================================================================
 
 imbh_hydrostatic_2k: imbh_check_dim
@@ -605,12 +755,12 @@ imbh_hydrostatic_2k: imbh_check_dim
 	@echo ""
 	@echo "Checking configuration (JSON as SSOT)..."
 	@SNAPSHOT_PATH=$$(python3 -c "import json; \
-		config = json.load(open('$(PRESET_DIR)/lane_emden_2k_hydrostatic.json')); \
+		config = json.load(open('$(HYDRO_CONFIG_DIR)/ic_verify_10k_hydrostatic.json')); \
 		print(config.get('resumeFromSnapshot', ''))" 2>/dev/null || echo ""); \
 	if [ -z "$$SNAPSHOT_PATH" ]; then \
 		echo "❌ ERROR: No resumeFromSnapshot specified in JSON config!"; \
 		echo ""; \
-		echo "Please edit: $(PRESET_DIR)/lane_emden_2k_hydrostatic.json"; \
+		echo "Please edit: $(HYDRO_CONFIG_DIR)/ic_verify_10k_hydrostatic.json"; \
 		echo "And set 'resumeFromSnapshot' to a valid snapshot path"; \
 		echo ""; \
 		exit 1; \
@@ -634,24 +784,24 @@ imbh_hydrostatic_2k: imbh_check_dim
 	@echo "════════════════════════════════════════════════════════"
 	@echo "  STEP 1/3: Setup"
 	@echo "════════════════════════════════════════════════════════"
-	@mkdir -p $(RESULTS_DIR)/lane_emden_2k_hydrostatic
-	@echo "✓ Results directory: $(RESULTS_DIR)/lane_emden_2k_hydrostatic"
+	@mkdir -p $(RESULTS_DIR)/ic_verify_10k_hydrostatic
+	@echo "✓ Results directory: $(RESULTS_DIR)/ic_verify_10k_hydrostatic"
 	@echo ""
 	@echo "════════════════════════════════════════════════════════"
 	@echo "  STEP 2/3: Running Hydrostatic Test (5-10 minutes)"
 	@echo "════════════════════════════════════════════════════════"
 	@echo "Starting simulation at $$(date '+%Y-%m-%d %H:%M:%S')..."
 	@echo ""
-	@./build/sph $(PRESET_DIR)/lane_emden_2k_hydrostatic.json 2>&1 | tee $(RESULTS_DIR)/lane_emden_2k_hydrostatic/run.log || \
-		(echo "❌ Simulation failed! Check $(RESULTS_DIR)/lane_emden_2k_hydrostatic/run.log"; exit 1)
+	@./build/sph $(HYDRO_CONFIG_DIR)/ic_verify_10k_hydrostatic.json 2>&1 | tee $(RESULTS_DIR)/ic_verify_10k_hydrostatic/run.log || \
+		(echo "❌ Simulation failed! Check $(RESULTS_DIR)/ic_verify_10k_hydrostatic/run.log"; exit 1)
 	@echo ""
 	@echo "Simulation completed at $$(date '+%Y-%m-%d %H:%M:%S')"
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_hydrostatic/energy.dat ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_verify_10k_hydrostatic/energy.dat ]; then \
 		echo "✓ Simulation complete!"; \
 		echo ""; \
 		echo "📊 Energy conservation check:"; \
-		tail -1 $(RESULTS_DIR)/lane_emden_2k_hydrostatic/energy.dat; \
-		SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/lane_emden_2k_hydrostatic/snapshot_*.csv 2>/dev/null | wc -l); \
+		tail -1 $(RESULTS_DIR)/ic_verify_10k_hydrostatic/energy.dat; \
+		SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/ic_verify_10k_hydrostatic/snapshot_*.csv 2>/dev/null | wc -l); \
 		echo "📁 Snapshots generated: $$SNAPSHOT_COUNT"; \
 	else \
 		echo "❌ Energy file not found - simulation may have failed"; \
@@ -664,15 +814,15 @@ imbh_hydrostatic_2k: imbh_check_dim
 	@echo "Creating hydrostatic test animation (2-4 minutes)..."
 	@chmod +x $(SCRIPTS_DIR)/visualize_hydrostatic.py
 	@python3 $(SCRIPTS_DIR)/visualize_hydrostatic.py \
-		$(RESULTS_DIR)/lane_emden_2k_hydrostatic \
-		$(RESULTS_DIR)/lane_emden_2k_hydrostatic || \
+		$(RESULTS_DIR)/ic_verify_10k_hydrostatic \
+		$(RESULTS_DIR)/ic_verify_10k_hydrostatic || \
 		(echo "⚠️  Visualization failed (data is still available)"; echo "   Install matplotlib: pip3 install matplotlib numpy")
 	@echo ""
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_hydrostatic/hydrostatic_animation.gif ]; then \
-		GIF_SIZE=$$(du -h $(RESULTS_DIR)/lane_emden_2k_hydrostatic/hydrostatic_animation.gif | cut -f1); \
+	@if [ -f $(RESULTS_DIR)/ic_verify_10k_hydrostatic/hydrostatic_animation.gif ]; then \
+		GIF_SIZE=$$(du -h $(RESULTS_DIR)/ic_verify_10k_hydrostatic/hydrostatic_animation.gif | cut -f1); \
 		echo "✓ Animation created: hydrostatic_animation.gif ($$GIF_SIZE)"; \
 	fi
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_hydrostatic/hydrostatic_summary.png ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_verify_10k_hydrostatic/hydrostatic_summary.png ]; then \
 		echo "✓ Summary plot created: hydrostatic_summary.png"; \
 	fi
 	@echo ""
@@ -680,13 +830,13 @@ imbh_hydrostatic_2k: imbh_check_dim
 	@echo "  ✓ HYDROSTATIC TEST COMPLETE!"
 	@echo "══════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "📁 Results: $(RESULTS_DIR)/lane_emden_2k_hydrostatic/"
+	@echo "📁 Results: $(RESULTS_DIR)/ic_verify_10k_hydrostatic/"
 	@echo ""
 	@echo "📊 Generated files:"
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_hydrostatic/hydrostatic_animation.gif ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_verify_10k_hydrostatic/hydrostatic_animation.gif ]; then \
 		echo "   ✓ hydrostatic_animation.gif - 6-panel evolution with quality metrics"; \
 	fi
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_hydrostatic/hydrostatic_summary.png ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_verify_10k_hydrostatic/hydrostatic_summary.png ]; then \
 		echo "   ✓ hydrostatic_summary.png - Final state analysis"; \
 	fi
 	@echo "   ✓ snapshot_*.csv - Particle data (50 snapshots)"
@@ -694,8 +844,8 @@ imbh_hydrostatic_2k: imbh_check_dim
 	@echo "   ✓ run.log - Simulation log"
 	@echo ""
 	@echo "🎬 View results:"
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_hydrostatic/hydrostatic_animation.gif ]; then \
-		echo "   open $(RESULTS_DIR)/lane_emden_2k_hydrostatic/hydrostatic_animation.gif"; \
+	@if [ -f $(RESULTS_DIR)/ic_verify_10k_hydrostatic/hydrostatic_animation.gif ]; then \
+		echo "   open $(RESULTS_DIR)/ic_verify_10k_hydrostatic/hydrostatic_animation.gif"; \
 	fi
 	@echo ""
 	@echo "✅ Verification checklist:"
@@ -711,7 +861,7 @@ imbh_hydrostatic_2k: imbh_check_dim
 	@echo ""
 
 # ============================================================================
-# Hydrostatic Self-Gravity Test Visualization Only (2k)
+# §4 HYDROSTATIC - Visualization (2k)
 # ============================================================================
 
 imbh_hydrostatic_2k_viz:
@@ -719,15 +869,15 @@ imbh_hydrostatic_2k_viz:
 	@echo "  🎬 Visualizing 2k Hydrostatic Test Results"
 	@echo "══════════════════════════════════════════════════════════"
 	@echo ""
-	@if [ ! -d "$(RESULTS_DIR)/lane_emden_2k_hydrostatic" ]; then \
+	@if [ ! -d "$(RESULTS_DIR)/ic_verify_10k_hydrostatic" ]; then \
 		echo "❌ No 2k hydrostatic test results found!"; \
-		echo "   Expected: $(RESULTS_DIR)/lane_emden_2k_hydrostatic"; \
+		echo "   Expected: $(RESULTS_DIR)/ic_verify_10k_hydrostatic"; \
 		echo ""; \
 		echo "   Run test first:"; \
 		echo "   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_hydrostatic_2k"; \
 		exit 1; \
 	fi
-	@SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/lane_emden_2k_hydrostatic/snapshot_*.csv 2>/dev/null | wc -l); \
+	@SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/ic_verify_10k_hydrostatic/snapshot_*.csv 2>/dev/null | wc -l); \
 	if [ $$SNAPSHOT_COUNT -lt 2 ]; then \
 		echo "❌ Insufficient snapshots (need ≥2, found $$SNAPSHOT_COUNT)"; \
 		exit 1; \
@@ -737,12 +887,12 @@ imbh_hydrostatic_2k_viz:
 	@echo "Generating animation and summary plots..."
 	@chmod +x $(SCRIPTS_DIR)/visualize_hydrostatic.py
 	@python3 $(SCRIPTS_DIR)/visualize_hydrostatic.py \
-		$(RESULTS_DIR)/lane_emden_2k_hydrostatic \
-		$(RESULTS_DIR)/lane_emden_2k_hydrostatic || \
+		$(RESULTS_DIR)/ic_verify_10k_hydrostatic \
+		$(RESULTS_DIR)/ic_verify_10k_hydrostatic || \
 		(echo "❌ Visualization failed!"; exit 1)
 	@echo ""
-	@if [ -f $(RESULTS_DIR)/lane_emden_2k_hydrostatic/hydrostatic_animation.gif ]; then \
-		GIF_SIZE=$$(du -h $(RESULTS_DIR)/lane_emden_2k_hydrostatic/hydrostatic_animation.gif | cut -f1); \
+	@if [ -f $(RESULTS_DIR)/ic_verify_10k_hydrostatic/hydrostatic_animation.gif ]; then \
+		GIF_SIZE=$$(du -h $(RESULTS_DIR)/ic_verify_10k_hydrostatic/hydrostatic_animation.gif | cut -f1); \
 		echo "✓ Animation: hydrostatic_animation.gif ($$GIF_SIZE)"; \
 	fi
 	@echo ""
@@ -750,11 +900,11 @@ imbh_hydrostatic_2k_viz:
 	@echo "  ✓ VISUALIZATION COMPLETE!"
 	@echo "══════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "🎬 View: open $(RESULTS_DIR)/lane_emden_2k_hydrostatic/hydrostatic_animation.gif"
+	@echo "🎬 View: open $(RESULTS_DIR)/ic_verify_10k_hydrostatic/hydrostatic_animation.gif"
 	@echo ""
 
 # ============================================================================
-# Hydrostatic Self-Gravity Test: 200k Particles (Production)
+# §4 HYDROSTATIC - Production: 200k Particles
 # ============================================================================
 
 imbh_hydrostatic_200k: imbh_check_dim
@@ -777,7 +927,7 @@ imbh_hydrostatic_200k: imbh_check_dim
 	@echo "  ✓ Jeans mass resolution: N_J > 50-100 particles"
 	@echo "  ✓ Test >> tidal disruption timescale"
 	@echo ""
-	@if [ ! -f "$(RESULTS_DIR)/lane_emden_200k_relax/snapshot_0050.csv" ]; then \
+	@if [ ! -f "$(RESULTS_DIR)/ic_relax_200k/snapshot_0050.csv" ]; then \
 		echo "❌ ERROR: Relaxed 200k initial conditions not found!"; \
 		echo ""; \
 		echo "You must run 200k relaxation first:"; \
@@ -794,16 +944,16 @@ imbh_hydrostatic_200k: imbh_check_dim
 	@echo "════════════════════════════════════════════════════════"
 	@echo "  STEP 1/4: Setup"
 	@echo "════════════════════════════════════════════════════════"
-	@mkdir -p $(RESULTS_DIR)/lane_emden_200k_hydrostatic
-	@echo "✓ Results directory: $(RESULTS_DIR)/lane_emden_200k_hydrostatic"
+	@mkdir -p $(RESULTS_DIR)/ic_verify_200k_hydrostatic
+	@echo "✓ Results directory: $(RESULTS_DIR)/ic_verify_200k_hydrostatic"
 	@echo ""
 	@echo "════════════════════════════════════════════════════════"
 	@echo "  STEP 2/4: Updating Configuration"
 	@echo "════════════════════════════════════════════════════════"
 	@python3 -c "import json; \
-		config = json.load(open('$(PRESET_DIR)/lane_emden_200k_hydrostatic.json')); \
-		config['resumeFromSnapshot'] = '$(RESULTS_DIR)/lane_emden_200k_relax/snapshot_0050.csv'; \
-		json.dump(config, open('$(PRESET_DIR)/lane_emden_200k_hydrostatic.json', 'w'), indent=2)"
+		config = json.load(open('$(HYDRO_CONFIG_DIR)/ic_verify_200k_hydrostatic.json')); \
+		config['resumeFromSnapshot'] = '$(RESULTS_DIR)/ic_relax_200k/snapshot_0050.csv'; \
+		json.dump(config, open('$(HYDRO_CONFIG_DIR)/ic_verify_200k_hydrostatic.json', 'w'), indent=2)"
 	@echo "✓ Configuration updated"
 	@echo ""
 	@echo "════════════════════════════════════════════════════════"
@@ -811,13 +961,13 @@ imbh_hydrostatic_200k: imbh_check_dim
 	@echo "════════════════════════════════════════════════════════"
 	@echo "Starting simulation at $$(date '+%Y-%m-%d %H:%M:%S')..."
 	@echo ""
-	@./build/sph $(PRESET_DIR)/lane_emden_200k_hydrostatic.json 2>&1 | tee $(RESULTS_DIR)/lane_emden_200k_hydrostatic/run.log || \
+	@./build/sph $(HYDRO_CONFIG_DIR)/ic_verify_200k_hydrostatic.json 2>&1 | tee $(RESULTS_DIR)/ic_verify_200k_hydrostatic/run.log || \
 		(echo "❌ Simulation failed!"; exit 1)
 	@echo ""
 	@echo "Simulation completed at $$(date '+%Y-%m-%d %H:%M:%S')"
-	@if [ -f $(RESULTS_DIR)/lane_emden_200k_hydrostatic/energy.dat ]; then \
+	@if [ -f $(RESULTS_DIR)/ic_verify_200k_hydrostatic/energy.dat ]; then \
 		echo "✓ Simulation complete!"; \
-		tail -1 $(RESULTS_DIR)/lane_emden_200k_hydrostatic/energy.dat; \
+		tail -1 $(RESULTS_DIR)/ic_verify_200k_hydrostatic/energy.dat; \
 	fi
 	@echo ""
 	@echo "════════════════════════════════════════════════════════"
@@ -825,22 +975,22 @@ imbh_hydrostatic_200k: imbh_check_dim
 	@echo "════════════════════════════════════════════════════════"
 	@chmod +x $(SCRIPTS_DIR)/visualize_hydrostatic.py
 	@python3 $(SCRIPTS_DIR)/visualize_hydrostatic.py \
-		$(RESULTS_DIR)/lane_emden_200k_hydrostatic \
-		$(RESULTS_DIR)/lane_emden_200k_hydrostatic || \
+		$(RESULTS_DIR)/ic_verify_200k_hydrostatic \
+		$(RESULTS_DIR)/ic_verify_200k_hydrostatic || \
 		(echo "⚠️  Visualization skipped")
 	@echo ""
 	@echo "══════════════════════════════════════════════════════════"
 	@echo "  ✓ PRODUCTION HYDROSTATIC TEST COMPLETE!"
 	@echo "══════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "📁 Results: $(RESULTS_DIR)/lane_emden_200k_hydrostatic/"
+	@echo "📁 Results: $(RESULTS_DIR)/ic_verify_200k_hydrostatic/"
 	@echo ""
 	@echo "✅ Self-gravity implementation verified at production resolution!"
 	@echo "   Ready for IMBH tidal disruption simulations."
 	@echo ""
 
 # ============================================================================
-# Hydrostatic Self-Gravity Test Visualization Only (200k)
+# §4 HYDROSTATIC - Visualization (200k)
 # ============================================================================
 
 imbh_hydrostatic_200k_viz:
@@ -848,21 +998,21 @@ imbh_hydrostatic_200k_viz:
 	@echo "  🎬 Visualizing 200k Hydrostatic Test Results"
 	@echo "══════════════════════════════════════════════════════════"
 	@echo ""
-	@if [ ! -d "$(RESULTS_DIR)/lane_emden_200k_hydrostatic" ]; then \
+	@if [ ! -d "$(RESULTS_DIR)/ic_verify_200k_hydrostatic" ]; then \
 		echo "❌ No 200k hydrostatic results found!"; \
 		echo "   Run test first: make imbh_hydrostatic_200k"; \
 		exit 1; \
 	fi
 	@chmod +x $(SCRIPTS_DIR)/visualize_hydrostatic.py
 	@python3 $(SCRIPTS_DIR)/visualize_hydrostatic.py \
-		$(RESULTS_DIR)/lane_emden_200k_hydrostatic \
-		$(RESULTS_DIR)/lane_emden_200k_hydrostatic
+		$(RESULTS_DIR)/ic_verify_200k_hydrostatic \
+		$(RESULTS_DIR)/ic_verify_200k_hydrostatic
 	@echo ""
 	@echo "✓ Visualization complete!"
 	@echo ""
 
 # ============================================================================
-# Resume Relaxation from Checkpoint
+# §3 RELAXATION - Resume from Checkpoint
 # ============================================================================
 
 imbh_relax_resume: imbh_check_dim
@@ -880,7 +1030,7 @@ imbh_relax_resume: imbh_check_dim
 		echo ""; \
 		echo "Example:"; \
 		echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_relax_resume \\"; \
-		echo "       SNAPSHOT=sample/imbh_cloud/results/lane_emden_2k_relax/snapshot_0020.csv \\"; \
+		echo "       SNAPSHOT=sample/imbh_cloud/results/ic_relax_10k/snapshot_0020.csv \\"; \
 		echo "       STEPS=20000 FREQ=1000"; \
 		echo ""; \
 		echo "Parameters:"; \
@@ -896,10 +1046,10 @@ imbh_relax_resume: imbh_check_dim
 		echo "   Looking for: $(SNAPSHOT)"; \
 		echo ""; \
 		echo "Available snapshots from 2k run:"; \
-		ls -1 $(RESULTS_DIR)/lane_emden_2k_relax/snapshot_*.csv 2>/dev/null || echo "   (none found)"; \
+		ls -1 $(RESULTS_DIR)/ic_relax_10k/snapshot_*.csv 2>/dev/null || echo "   (none found)"; \
 		echo ""; \
 		echo "Available snapshots from 200k run:"; \
-		ls -1 $(RESULTS_DIR)/lane_emden_200k_relax/snapshot_*.csv 2>/dev/null || echo "   (none found)"; \
+		ls -1 $(RESULTS_DIR)/ic_relax_200k/snapshot_*.csv 2>/dev/null || echo "   (none found)"; \
 		exit 1; \
 	fi
 	@RELAX_STEPS=$${STEPS:-10000}; \
@@ -1017,7 +1167,768 @@ imbh_relax_resume: imbh_check_dim
 	echo ""
 
 # ============================================================================
-# Single Run Targets
+# §5 IMBH SIMULATION - From Relaxed Initial Condition
+# ============================================================================
+
+simulation_10k_b3pc_check:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🔍 Checking Relaxed Initial Condition Availability"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@SNAPSHOT="$(RESULTS_DIR)/ic_relax_10k/snapshot_0032.csv"; \
+	if [ ! -f "$$SNAPSHOT" ]; then \
+		echo "❌ Relaxed snapshot not found!"; \
+		echo "   Expected: $$SNAPSHOT"; \
+		echo ""; \
+		echo "You need to run relaxation first:"; \
+		echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_relax_2k"; \
+		echo ""; \
+		exit 1; \
+	else \
+		echo "✓ Found relaxed initial condition: $$SNAPSHOT"; \
+		echo ""; \
+		FILESIZE=$$(du -h "$$SNAPSHOT" | cut -f1); \
+		LINECOUNT=$$(wc -l < "$$SNAPSHOT"); \
+		echo "File properties:"; \
+		echo "  Size: $$FILESIZE"; \
+		echo "  Lines: $$LINECOUNT"; \
+		echo ""; \
+		echo "Checking header..."; \
+		head -5 "$$SNAPSHOT"; \
+		echo ""; \
+		echo "✓ Snapshot appears valid"; \
+		echo ""; \
+		echo "Configuration file:"; \
+		echo "  $(SIM_CONFIG_DIR)/simulation_10k_b3pc.json"; \
+		echo ""; \
+	fi
+
+simulation_10k_b3pc: imbh_check_dim simulation_10k_b3pc_check
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🌌 IMBH Tidal Disruption from Relaxed IC"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "Purpose:"
+	@echo "  Simulate IMBH (10⁵ M_☉) tidal disruption of relaxed"
+	@echo "  molecular cloud starting from equilibrium state."
+	@echo ""
+	@echo "Physics:"
+	@echo "  • Cloud: Relaxed Lane-Emden n=1.5 sphere (~2000 particles)"
+	@echo "  • IMBH Mass: M_BH = 10⁵ M_☉"
+	@echo "  • Impact parameter: b = 3 pc (strong disruption)"
+	@echo "  • Relative velocity: v = 10 km/s"
+	@echo "  • Initial BH position: (-20, 0, 0) pc"
+	@echo "  • BH velocity: (+10, 0, 0) km/s toward cloud at origin"
+	@echo ""
+	@echo "Expected timeline:"
+	@echo "  t = 0.0 Myr:  Cloud at origin (equilibrium)"
+	@echo "  t ~ 1.5 Myr:  Pericenter passage → peak tidal forces"
+	@echo "  t = 2.0 Myr:  Post-encounter, tidal tails formed"
+	@echo ""
+	@echo "Configuration:"
+	@echo "  JSON: $(SIM_CONFIG_DIR)/simulation_10k_b3pc.json"
+	@echo "  IC:   $(RESULTS_DIR)/ic_relax_10k/snapshot_0032.csv"
+	@echo ""
+	@echo "⚠️  IMPORTANT NOTES:"
+	@echo "  1. This simulation requires IMBH external force module"
+	@echo "  2. If not implemented, you'll see an error about missing force"
+	@echo "  3. See docs/RESEARCH_SETUP.md for implementation details"
+	@echo ""
+	@read -p "Press Enter to start IMBH simulation or Ctrl+C to cancel..." dummy
+	@echo ""
+	@echo "════════════════════════════════════════════════════════"
+	@echo "  STEP 1/3: Setup"
+	@echo "════════════════════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/imbh_relaxed_2k_b3pc
+	@mkdir -p $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/checkpoints
+	@echo "✓ Results directory: $(RESULTS_DIR)/imbh_relaxed_2k_b3pc"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════"
+	@echo "  STEP 2/3: Running IMBH Simulation (~10-30 minutes)"
+	@echo "════════════════════════════════════════════════════════"
+	@echo "Starting simulation at $$(date '+%Y-%m-%d %H:%M:%S')..."
+	@echo ""
+	@./build/sph $(SIM_CONFIG_DIR)/simulation_10k_b3pc.json 2>&1 | tee $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/run.log || \
+		(echo ""; \
+		 echo "❌ Simulation failed! Check $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/run.log"; \
+		 echo ""; \
+		 echo "Common issues:"; \
+		 echo "  1. IMBH external force module not implemented"; \
+		 echo "  2. Configuration parameter mismatch"; \
+		 echo "  3. Snapshot file format incompatibility"; \
+		 echo ""; \
+		 echo "See docs/RESEARCH_SETUP.md section 'Using Relaxed Initial Conditions'"; \
+		 echo "and docs/QUICK_START_IMBH.md for troubleshooting."; \
+		 exit 1)
+	@echo ""
+	@echo "Simulation completed at $$(date '+%Y-%m-%d %H:%M:%S')"
+	@if [ -f $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/energy.dat ]; then \
+		echo "✓ Simulation complete!"; \
+		echo ""; \
+		echo "📊 Energy conservation check:"; \
+		tail -1 $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/energy.dat; \
+		SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/snapshot_*.csv 2>/dev/null | wc -l); \
+		echo "📁 Snapshots generated: $$SNAPSHOT_COUNT"; \
+	else \
+		echo "❌ Energy file not found - simulation may have failed"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "════════════════════════════════════════════════════════"
+	@echo "  STEP 3/3: Quick Verification"
+	@echo "════════════════════════════════════════════════════════"
+	@echo "Checking simulation output files..."
+	@ls -lh $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/snapshot_*.csv 2>/dev/null | wc -l | xargs -I {} echo "  ✓ Generated {} snapshot files"
+	@echo "  ✓ Check energy.dat for energy conservation"
+	@echo "  ✓ Check run.log for simulation details"
+	@echo ""
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  ✓ IMBH SIMULATION COMPLETE!"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "📁 Results: $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/"
+	@echo ""
+	@echo "📊 Generated files:"
+	@echo "   ✓ snapshot_*.csv - Particle data (~100 snapshots)"
+	@echo "   ✓ energy.dat - Energy conservation tracking"
+	@echo "   ✓ run.log - Simulation log"
+	@echo "   ✓ checkpoints/ - Auto-saved checkpoints"
+	@echo ""
+	@echo "📈 Next steps:"
+	@echo "   1. Check energy conservation:"
+	@echo "      cat $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/energy.dat"
+	@echo ""
+	@echo "   2. Visualize results (create Python visualization script):"
+	@echo "      python3 scripts/visualize_imbh_cloud.py $(RESULTS_DIR)/imbh_relaxed_2k_b3pc"
+	@echo ""
+	@echo "   3. Create animation:"
+	@echo "      python3 scripts/animate_tidal_disruption.py $(RESULTS_DIR)/imbh_relaxed_2k_b3pc"
+	@echo ""
+	@echo "   4. Parameter variations:"
+	@echo "      • Edit config: $(SIM_CONFIG_DIR)/simulation_10k_b3pc.json"
+	@echo "      • Change impact_parameter_b: 3 → 4, 5, or 6 pc"
+	@echo "      • Change BH_initial_velocity: 10 → 5, 15, or 20 km/s"
+	@echo "      • Update output_directory to avoid overwriting"
+	@echo ""
+	@echo "📚 Documentation:"
+	@echo "   • Full guide: sample/imbh_cloud/docs/RESEARCH_SETUP.md"
+	@echo "   • Quick start: sample/imbh_cloud/docs/QUICK_START_IMBH.md"
+	@echo ""
+
+# ============================================================================
+# §6 CONTINUATION - Extend Existing Simulations
+# ============================================================================
+#
+# Continue/extend simulations from intermediate snapshots.
+# Key: resetTimeOnResume=false (continues from snapshot time, not t=0)
+#
+# Usage:
+#   1. Auto-generate continuation config:
+#      make imbh_continue_generate ORIG_CONFIG=config/presets/simulation_10k_b3pc_nocool.json \
+#          SNAPSHOT=results/imbh_relaxed_2k_b3pc_nocool/snapshot_0100.csv END_TIME=4.0
+#
+#   2. Run existing continuation config:
+#      make imbh_continue_b3pc_nocool
+#
+# ============================================================================
+
+CONTINUE_DIR := $(IMBH_DIR)/config/continue
+
+.PHONY: imbh_continue_help imbh_continue_generate imbh_continue_b3pc_nocool imbh_continue_list
+
+imbh_continue_help:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🔄 SIMULATION CONTINUATION TARGETS"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "Purpose: Extend completed/interrupted simulations from snapshots"
+	@echo ""
+	@echo "IMPORTANT: These differ from 'new simulation' targets!"
+	@echo "  • New simulation: resetTimeOnResume=true (restarts at t=0)"
+	@echo "  • Continuation:   resetTimeOnResume=false (continues from snapshot time)"
+	@echo ""
+	@echo "Available Targets:"
+	@echo ""
+	@echo "  imbh_continue_help      - Show this help"
+	@echo "  imbh_continue_list      - List available continuation configs"
+	@echo "  imbh_continue_generate  - Auto-generate continuation config"
+	@echo "  imbh_continue_b3pc_nocool - Continue b3pc_nocool from snapshot_0100"
+	@echo ""
+	@echo "Generate New Continuation Config:"
+	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_continue_generate \\"
+	@echo "      ORIG_CONFIG=config/presets/simulation_10k_b3pc_nocool.json \\"
+	@echo "      SNAPSHOT=results/imbh_relaxed_2k_b3pc_nocool/snapshot_0100.csv \\"
+	@echo "      END_TIME=4.0"
+	@echo ""
+	@echo "Run Existing Continuation Config:"
+	@echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_continue_b3pc_nocool"
+	@echo ""
+
+imbh_continue_list:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  📋 Available Continuation Configs"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@if [ -d "$(CONTINUE_DIR)" ]; then \
+		CONFIG_COUNT=$$(ls -1 $(CONTINUE_DIR)/*.json 2>/dev/null | wc -l); \
+		if [ $$CONFIG_COUNT -gt 0 ]; then \
+			echo "Found $$CONFIG_COUNT continuation config(s):"; \
+			echo ""; \
+			for f in $(CONTINUE_DIR)/*.json; do \
+				echo "  📄 $$f"; \
+				if grep -q '"source_snapshot"' "$$f" 2>/dev/null; then \
+					echo "     └─ From: $$(grep '"source_snapshot"' "$$f" | cut -d'"' -f4)"; \
+				fi; \
+			done; \
+		else \
+			echo "No continuation configs found in $(CONTINUE_DIR)"; \
+			echo ""; \
+			echo "Generate one with:"; \
+			echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_continue_generate ..."; \
+		fi; \
+	else \
+		echo "Continuation directory does not exist: $(CONTINUE_DIR)"; \
+		echo ""; \
+		echo "Create it with:"; \
+		echo "  mkdir -p $(CONTINUE_DIR)"; \
+	fi
+	@echo ""
+
+imbh_continue_generate:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🔧 Generate Continuation Config"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@if [ -z "$(ORIG_CONFIG)" ] || [ -z "$(SNAPSHOT)" ] || [ -z "$(END_TIME)" ]; then \
+		echo "❌ Missing required parameters!"; \
+		echo ""; \
+		echo "Usage:"; \
+		echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_continue_generate \\"; \
+		echo "      ORIG_CONFIG=<path> SNAPSHOT=<path> END_TIME=<float>"; \
+		echo ""; \
+		echo "Example:"; \
+		echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_continue_generate \\"; \
+		echo "      ORIG_CONFIG=sample/imbh_cloud/config/presets/simulation_10k_b3pc_nocool.json \\"; \
+		echo "      SNAPSHOT=sample/imbh_cloud/results/imbh_relaxed_2k_b3pc_nocool/snapshot_0100.csv \\"; \
+		echo "      END_TIME=4.0"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(ORIG_CONFIG)" ]; then \
+		echo "❌ Original config not found: $(ORIG_CONFIG)"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SNAPSHOT)" ]; then \
+		echo "❌ Snapshot not found: $(SNAPSHOT)"; \
+		exit 1; \
+	fi
+	@echo "Running generate_continue_config.py..."
+	@echo ""
+	@mkdir -p $(CONTINUE_DIR)
+	@chmod +x $(SCRIPTS_DIR)/generate_continue_config.py
+	@python3 $(SCRIPTS_DIR)/generate_continue_config.py \
+		--original-config "$(ORIG_CONFIG)" \
+		--snapshot "$(SNAPSHOT)" \
+		--end-time $(END_TIME)
+	@echo ""
+	@echo "✓ Continuation config generated!"
+	@echo ""
+
+# Pre-built continuation target: b3pc_nocool from snapshot_0100
+imbh_continue_b3pc_nocool: imbh_check_dim
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🔄 CONTINUE: IMBH b=3pc No-Cooling from snapshot_0100"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@CONFIG="$(CONTINUE_DIR)/simulation_10k_b3pc_nocool_from_snap0100.json"; \
+	if [ ! -f "$$CONFIG" ]; then \
+		echo "❌ Continuation config not found: $$CONFIG"; \
+		echo ""; \
+		echo "Generate it with:"; \
+		echo "  make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_continue_generate \\"; \
+		echo "      ORIG_CONFIG=sample/imbh_cloud/config/presets/simulation_10k_b3pc_nocool.json \\"; \
+		echo "      SNAPSHOT=sample/imbh_cloud/results/imbh_relaxed_2k_b3pc_nocool/snapshot_0100.csv \\"; \
+		echo "      END_TIME=4.0"; \
+		exit 1; \
+	fi; \
+	SNAPSHOT="sample/imbh_cloud/results/imbh_relaxed_2k_b3pc_nocool/snapshot_0100.csv"; \
+	if [ ! -f "$$SNAPSHOT" ]; then \
+		echo "❌ Source snapshot not found: $$SNAPSHOT"; \
+		echo ""; \
+		echo "This continuation requires an existing completed/interrupted simulation."; \
+		exit 1; \
+	fi; \
+	echo "Configuration: $$CONFIG"; \
+	echo "Source snapshot: $$SNAPSHOT"; \
+	echo ""; \
+	echo "KEY SETTING: resetTimeOnResume=false"; \
+	echo "  → Simulation will CONTINUE from snapshot time, not restart at t=0"; \
+	echo ""; \
+	read -p "Press Enter to start continuation or Ctrl+C to cancel..." dummy; \
+	echo ""; \
+	echo "Starting continuation at $$(date '+%Y-%m-%d %H:%M:%S')..."; \
+	./build/sph "$$CONFIG" 2>&1 | tee $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/continue.log; \
+	echo ""; \
+	echo "✓ Continuation complete!"; \
+	echo ""; \
+	SNAPSHOT_COUNT=$$(ls -1 $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/snapshot_*.csv 2>/dev/null | wc -l); \
+	echo "📁 Total snapshots: $$SNAPSHOT_COUNT"; \
+	echo "📊 Check energy.dat for energy conservation"; \
+	echo ""
+
+# ============================================================================
+# §6b CONCATENATED ANIMATIONS - Combine Multiple Run Segments
+# ============================================================================
+#
+# Create animations from original + continuation runs concatenated together.
+# Snapshots are sorted by simulation time and merged automatically.
+#
+# Usage:
+#   make imbh_concat_help              # Show help
+#   make imbh_concat_nocool_t0to4      # Concatenate nocool t=0→4 Myr
+#   make imbh_concat_nocool_t0to4_tidal # Same with tidal mode
+#
+# ============================================================================
+
+.PHONY: imbh_concat_help imbh_concat_nocool_t0to4 imbh_concat_nocool_t0to4_tidal
+
+imbh_concat_help:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🎬 CONCATENATED ANIMATION TARGETS"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "Purpose: Create animations combining original + continuation runs"
+	@echo ""
+	@echo "The script automatically:"
+	@echo "  • Discovers snapshots from multiple directories"
+	@echo "  • Sorts them by simulation time"
+	@echo "  • Removes overlapping duplicates (prefers later segment)"
+	@echo "  • Creates unified animation across all segments"
+	@echo ""
+	@echo "Available Targets:"
+	@echo ""
+	@echo "  imbh_concat_help               - Show this help"
+	@echo "  imbh_concat_nocool_t0to4       - Combine nocool t=0→2 + t=2→4 (single mode)"
+	@echo "  imbh_concat_nocool_t0to4_tidal - Same with tidal physics mode (3x4 grid)"
+	@echo ""
+	@echo "Custom Concatenation:"
+	@echo "  python3 $(SCRIPTS_DIR)/animate_concatenated.py \\"
+	@echo "      --input-dirs <dir1> <dir2> [<dir3>...] \\"
+	@echo "      --output-dir <output> --mode single|tidal --bh-mass 100000"
+	@echo ""
+	@echo "Example (custom):"
+	@echo "  python3 $(SCRIPTS_DIR)/animate_concatenated.py \\"
+	@echo "      --input-dirs $(RESULTS_DIR)/imbh_relaxed_10k_b3pc_nocool \\"
+	@echo "                   $(RESULTS_DIR)/continuation/10k_b3pc_nocool_t2to4 \\"
+	@echo "      --output-dir $(RESULTS_DIR)/combined/nocool_full \\"
+	@echo "      --mode tidal --bh-mass 100000"
+	@echo ""
+
+# Concatenate nocool: original (t=0→2) + continuation (t=2→4)
+imbh_concat_nocool_t0to4:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🎬 CONCATENATED ANIMATION: No-Cooling t=0→4 Myr"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@ORIG_DIR="$(RESULTS_DIR)/imbh_relaxed_10k_b3pc_nocool"; \
+	CONT_DIR="$(RESULTS_DIR)/continuation/10k_b3pc_nocool_t2to4"; \
+	OUT_DIR="$(RESULTS_DIR)/combined/nocool_full"; \
+	echo "Source directories:"; \
+	echo "  1. Original:     $$ORIG_DIR"; \
+	echo "  2. Continuation: $$CONT_DIR"; \
+	echo ""; \
+	echo "Output: $$OUT_DIR"; \
+	echo "Mode: single (3x3 diagnostic grid)"; \
+	echo ""; \
+	if [ ! -d "$$ORIG_DIR" ]; then \
+		echo "❌ Original results not found: $$ORIG_DIR"; \
+		echo "   Run simulation first!"; \
+		exit 1; \
+	fi; \
+	if [ ! -d "$$CONT_DIR" ]; then \
+		echo "❌ Continuation results not found: $$CONT_DIR"; \
+		echo "   Run continuation first!"; \
+		exit 1; \
+	fi; \
+	mkdir -p "$$OUT_DIR"; \
+	echo "Running concatenated animation..."; \
+	echo ""; \
+	python3 $(SCRIPTS_DIR)/animate_concatenated.py \
+		--input-dirs "$$ORIG_DIR" "$$CONT_DIR" \
+		--output-dir "$$OUT_DIR" \
+		--mode single --bh-mass 100000 --fps 10; \
+	echo ""; \
+	echo "✅ Animation saved to: $$OUT_DIR/concatenated_single.gif"
+
+imbh_concat_nocool_t0to4_tidal:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🎬 CONCATENATED ANIMATION: No-Cooling t=0→4 Myr (Tidal Mode)"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@ORIG_DIR="$(RESULTS_DIR)/imbh_relaxed_10k_b3pc_nocool"; \
+	CONT_DIR="$(RESULTS_DIR)/continuation/10k_b3pc_nocool_t2to4"; \
+	OUT_DIR="$(RESULTS_DIR)/combined/nocool_full"; \
+	echo "Source directories:"; \
+	echo "  1. Original:     $$ORIG_DIR"; \
+	echo "  2. Continuation: $$CONT_DIR"; \
+	echo ""; \
+	echo "Output: $$OUT_DIR"; \
+	echo "Mode: tidal (3x4 cross-section grid)"; \
+	echo ""; \
+	if [ ! -d "$$ORIG_DIR" ]; then \
+		echo "❌ Original results not found: $$ORIG_DIR"; \
+		echo "   Run simulation first!"; \
+		exit 1; \
+	fi; \
+	if [ ! -d "$$CONT_DIR" ]; then \
+		echo "❌ Continuation results not found: $$CONT_DIR"; \
+		echo "   Run continuation first!"; \
+		exit 1; \
+	fi; \
+	mkdir -p "$$OUT_DIR"; \
+	echo "Running concatenated animation (tidal mode)..."; \
+	echo ""; \
+	python3 $(SCRIPTS_DIR)/animate_concatenated.py \
+		--input-dirs "$$ORIG_DIR" "$$CONT_DIR" \
+		--output-dir "$$OUT_DIR" \
+		--mode tidal --bh-mass 100000 --fps 10; \
+	echo ""; \
+	echo "✅ Animation saved to: $$OUT_DIR/concatenated_tidal.gif"
+
+# ============================================================================
+# §7 THERMAL COMPARISON - With vs Without Cooling
+# ============================================================================
+
+imbh_thermal_compare_run: imbh_check_dim simulation_10k_b3pc_check
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🔥 THERMAL PHYSICS COMPARISON"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "Purpose:"
+	@echo "  Compare IMBH tidal disruption with and without"
+	@echo "  Koyama & Inutsuka (2000) thermal equilibrium cooling"
+	@echo ""
+	@echo "Physics comparison:"
+	@echo "  [1] WITH Cooling (thermal equilibrium):"
+	@echo "      • Koyama-Inutsuka cooling curve active"
+	@echo "      • Temperature locked to n-T equilibrium"
+	@echo "      • Shock heating immediately radiated away"
+	@echo "      • Mimics ISM thermal state (P/k ~ 10³⁻⁴ K cm⁻³)"
+	@echo ""
+	@echo "  [2] WITHOUT Cooling (adiabatic):"
+	@echo "      • Pure adiabatic evolution (γ = 5/3)"
+	@echo "      • Shock heating preserved in gas"
+	@echo "      • Temperature rises at compression sites"
+	@echo "      • Higher pressure support against gravity"
+	@echo ""
+	@echo "Expected differences:"
+	@echo "  • Cooling ON:  More compact, denser tidal tails"
+	@echo "  • Cooling OFF: Puffier, thermally supported structures"
+	@echo "  • Cooling ON:  Lower post-shock temperatures"
+	@echo "  • Cooling OFF: Hot shocked gas (T >> T_equilibrium)"
+	@echo ""
+	@echo "Unit system (GALACTIC):"
+	@echo "  [Length]  = 1 kpc  (scale: 1 code unit = 1e-3 kpc = 1 pc)"
+	@echo "  [Mass]    = 1e10 M_☉  (scale: 1 code unit = 1e-5 × 1e10 M_☉ = 1e5 M_☉)"
+	@echo "  [Velocity]= 1 km/s"
+	@echo "  [Time]    = 0.978 Myr  (derived: L/V = 1 kpc / 1 km/s)"
+	@echo "  [Density] = 6.77e-23 g/cm³  (M/L³)"
+	@echo "  [Pressure]= 6.77e-13 dyne/cm²  (M V²/L³)"
+	@echo ""
+	@echo "Simulation parameters (IDENTICAL except cooling):"
+	@echo "  • M_BH = 10⁵ M_☉"
+	@echo "  • Impact parameter b = 3 pc"
+	@echo "  • Relative velocity v = 10 km/s"
+	@echo "  • Initial separation = 20 pc"
+	@echo "  • Cloud mass M_cloud ~ 10⁴ M_☉ (Lane-Emden n=1.5)"
+	@echo "  • Cloud radius R ~ 5 pc"
+	@echo ""
+	@read -p "Press Enter to run BOTH simulations sequentially (~20-60 min) or Ctrl+C to cancel..." dummy
+	@echo ""
+	@echo "════════════════════════════════════════════════════════"
+	@echo "  [RUN 1/2] WITH Koyama-Inutsuka Cooling"
+	@echo "════════════════════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/imbh_relaxed_2k_b3pc
+	@mkdir -p $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/checkpoints
+	@echo "Configuration: $(SIM_CONFIG_DIR)/simulation_10k_b3pc_cool.json"
+	@echo "Output: $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/"
+	@echo ""
+	@echo "Starting WITH cooling at $$(date '+%Y-%m-%d %H:%M:%S')..."
+	@./build/sph $(SIM_CONFIG_DIR)/simulation_10k_b3pc_cool.json 2>&1 | tee $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/run.log || \
+		(echo "❌ Simulation WITH cooling failed!"; exit 1)
+	@echo "✓ Completed WITH cooling at $$(date '+%Y-%m-%d %H:%M:%S')"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════"
+	@echo "  [RUN 2/2] WITHOUT Cooling (Adiabatic)"
+	@echo "════════════════════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool
+	@mkdir -p $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/checkpoints
+	@echo "Configuration: $(SIM_CONFIG_DIR)/simulation_10k_b3pc_nocool.json"
+	@echo "Output: $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/"
+	@echo ""
+	@echo "Starting WITHOUT cooling at $$(date '+%Y-%m-%d %H:%M:%S')..."
+	@./build/sph $(SIM_CONFIG_DIR)/simulation_10k_b3pc_nocool.json 2>&1 | tee $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/run.log || \
+		(echo "❌ Simulation WITHOUT cooling failed!"; exit 1)
+	@echo "✓ Completed WITHOUT cooling at $$(date '+%Y-%m-%d %H:%M:%S')"
+	@echo ""
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  ✓ THERMAL COMPARISON COMPLETE!"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "📁 Results directories:"
+	@echo "   [WITH cooling]:    $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/"
+	@echo "   [WITHOUT cooling]: $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/"
+	@echo ""
+	@echo "📊 Quick comparison:"
+	@echo "   Energy files:"
+	@echo "     WITH:    $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/energy.dat"
+	@echo "     WITHOUT: $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/energy.dat"
+	@echo ""
+	@echo "📈 Analysis suggestions:"
+	@echo "   1. Compare final density distributions"
+	@echo "   2. Compare temperature evolution (cooling ON should be cooler)"
+	@echo "   3. Compare tail morphology (cooling affects fragmentation)"
+	@echo "   4. Energy conservation check (both should conserve E_total)"
+	@echo ""
+	@echo "See RESEARCH_SETUP.md Appendix for thermal physics details"
+	@echo ""
+
+imbh_thermal_compare_viz:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  📊 Creating Thermal Comparison Animations & Plots"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@if [ ! -d "$(RESULTS_DIR)/imbh_relaxed_2k_b3pc" ] || [ ! -d "$(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool" ]; then \
+		echo "❌ Missing simulation results!"; \
+		echo "   Run thermal comparison first:"; \
+		echo "   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_thermal_compare_run"; \
+		exit 1; \
+	fi
+	@SNAP_COUNT_COOL=$$(ls -1 $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+	SNAP_COUNT_NOCOOL=$$(ls -1 $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+	echo "Found simulation results:"; \
+	echo "  • WITH cooling:    $$SNAP_COUNT_COOL snapshots"; \
+	echo "  • WITHOUT cooling: $$SNAP_COUNT_NOCOOL snapshots"; \
+	echo ""; \
+	if [ "$$SNAP_COUNT_COOL" -lt 2 ] || [ "$$SNAP_COUNT_NOCOOL" -lt 2 ]; then \
+		echo "⚠️  Warning: Very few snapshots found"; \
+		echo "   Simulations may still be running or failed"; \
+		echo "   Expected: ~100 snapshots each for full run (t=0 to 2.0 Myr)"; \
+		echo ""; \
+		read -p "Continue with available data? (y/N): " confirm; \
+		if [ "$$confirm" != "y" ] && [ "$$confirm" != "Y" ]; then \
+			echo "Cancelled."; \
+			exit 1; \
+		fi; \
+	fi; \
+	echo "Creating animations (this may take 5-15 minutes)..."; \
+	echo ""; \
+	mkdir -p $(RESULTS_DIR)/thermal_comparison; \
+	chmod +x $(SCRIPTS_DIR)/animate_thermal_3d_multiview.py; \
+	python3 $(SCRIPTS_DIR)/animate_thermal_3d_multiview.py \
+		$(RESULTS_DIR)/imbh_relaxed_2k_b3pc \
+		$(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool \
+		$(RESULTS_DIR)/thermal_comparison || \
+		(echo "❌ Animation failed!"; \
+		 echo "   Make sure matplotlib is installed: pip3 install matplotlib numpy"; \
+		 exit 1); \
+	echo ""; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo "  ✓ THERMAL COMPARISON VISUALIZATIONS COMPLETE!"; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo ""; \
+	echo "📁 Output directory: $(RESULTS_DIR)/thermal_comparison/"; \
+	echo ""; \
+	echo "📊 Generated files:"; \
+	if [ -f $(RESULTS_DIR)/thermal_comparison/thermal_comparison_edge_on.gif ]; then \
+		GIF_SIZE=$$(du -h $(RESULTS_DIR)/thermal_comparison/thermal_comparison_edge_on.gif | cut -f1); \
+		echo "   ✓ thermal_comparison_edge_on.gif      ($$GIF_SIZE) - XY projection (tidal tail view)"; \
+	fi; \
+	if [ -f $(RESULTS_DIR)/thermal_comparison/thermal_comparison_face_on.gif ]; then \
+		GIF_SIZE=$$(du -h $(RESULTS_DIR)/thermal_comparison/thermal_comparison_face_on.gif | cut -f1); \
+		echo "   ✓ thermal_comparison_face_on.gif      ($$GIF_SIZE) - XZ projection (perpendicular)"; \
+	fi; \
+	if [ -f $(RESULTS_DIR)/thermal_comparison/thermal_comparison_3d_rotating.gif ]; then \
+		GIF_SIZE=$$(du -h $(RESULTS_DIR)/thermal_comparison/thermal_comparison_3d_rotating.gif | cut -f1); \
+		echo "   ✓ thermal_comparison_3d_rotating.gif  ($$GIF_SIZE) - 3D perspective rotation"; \
+	fi; \
+	echo ""; \
+	echo "🔬 Views:"; \
+	echo "   • Edge-on:  XY plane - Shows tidal tail development"; \
+	echo "   • Face-on:  XZ plane - Perpendicular to impact parameter"; \
+	echo "   • 3D:       Rotating perspective view"; \
+	echo ""; \
+	echo "🎯 Physics (CORRECTED):"; \
+	echo "   • IMBH: Stationary at origin [0,0,0] pc"; \
+	echo "   • Cloud: Starts at [-20, 3, 0] pc with v=[10, 0, 0] km/s"; \
+	echo "   • Impact parameter b = 3 pc"; \
+	echo ""; \
+	echo "📖 Scientific Context:"; \
+	echo "   See RESEARCH_SETUP.md Appendix B for thermal physics details"; \
+	echo ""
+
+# ============================================================================
+# §8 SINGLE RUN VISUALIZATION
+# ============================================================================
+
+imbh_nocool_viz:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  📊 Creating IMBH Tidal Disruption Animation (No Cooling)"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@if [ ! -d "$(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool" ]; then \
+		echo "❌ Results directory not found!"; \
+		echo "   Expected: $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool"; \
+		echo ""; \
+		echo "Run simulation first:"; \
+		echo "   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_sim_nocool"; \
+		exit 1; \
+	fi
+	@SNAP_COUNT=$$(ls -1 $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+	echo "Found $$SNAP_COUNT snapshots in results directory"; \
+	echo ""; \
+	if [ "$$SNAP_COUNT" -lt 2 ]; then \
+		echo "❌ Not enough snapshots found!"; \
+		echo "   Expected: ~100 snapshots for full run"; \
+		exit 1; \
+	fi; \
+	echo "Creating comprehensive animation..."; \
+	echo "  • 3D particle distribution"; \
+	echo "  • XY plane (edge-on view)"; \
+	echo "  • XZ plane (face-on view)"; \
+	echo "  • Density histogram"; \
+	echo "  • Energy evolution"; \
+	echo "  • Cloud COM trajectory"; \
+	echo ""; \
+	mkdir -p $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool; \
+	chmod +x $(SCRIPTS_DIR)/animate_single_run.py; \
+	python3 $(SCRIPTS_DIR)/animate_single_run.py \
+		--input-dir $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool \
+		--output-dir $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool \
+		--bh-mass 100000 \
+		--fps 10 || \
+		(echo "❌ Animation failed!"; \
+		 echo "   Install dependencies: pip3 install matplotlib numpy pillow"; \
+		 exit 1); \
+	echo ""; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo "  ✓ ANIMATION COMPLETE!"; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo ""; \
+	echo "📁 Output: $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/imbh_disruption_animation.gif"; \
+	if [ -f $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/imbh_disruption_animation.gif ]; then \
+		GIF_SIZE=$$(du -h $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/imbh_disruption_animation.gif | cut -f1); \
+		echo "   Size: $$GIF_SIZE"; \
+	fi; \
+	echo ""; \
+	echo "🎯 Physics:"; \
+	echo "   • IMBH: 10⁵ M_☉ stationary at origin [0,0,0] pc"; \
+	echo "   • Cloud: ~10⁴ M_☉ starts at [-20,3,0] pc"; \
+	echo "   • Initial velocity: [10,0,0] km/s"; \
+	echo "   • Impact parameter: b=3 pc"; \
+	echo "   • Runtime: 2 Myr ($$SNAP_COUNT snapshots)"; \
+	echo ""
+
+# Alias for consistency
+imbh_relaxed_2k_b3pc_nocool_viz: imbh_nocool_viz
+
+# Tidal physics animation with cross-sections
+imbh_nocool_tidal_viz:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🎬 Creating Tidal Physics Animation (Cross-Sections)"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@if [ ! -d "$(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool" ]; then \
+		echo "❌ Missing simulation results!"; \
+		echo "   Run: make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_nocool_run"; \
+		exit 1; \
+	fi
+	@SNAP_COUNT=$$(ls $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+	if [ "$$SNAP_COUNT" -lt 10 ]; then \
+		echo "❌ Insufficient snapshots (found: $$SNAP_COUNT, need: 10+)"; \
+		exit 1; \
+	fi; \
+	echo "Creating tidal physics animation with cross-sections..."; \
+	echo "  • XY/XZ/YZ density slices (in-plane vs vertical compression)"; \
+	echo "  • XY/XZ/YZ temperature slices (shock heating)"; \
+	echo "  • Shock detection map (P/P_adiabatic)"; \
+	echo "  • Mach number distribution"; \
+	echo "  • Tidal deformation (R_XY vs R_Z)"; \
+	echo ""; \
+	mkdir -p $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool; \
+	chmod +x $(SCRIPTS_DIR)/animate_single_run.py; \
+	python3 $(SCRIPTS_DIR)/animate_single_run.py \
+		--input-dir $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool \
+		--output-dir $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool \
+		--bh-mass 100000 \
+		--fps 10 \
+		--mode tidal || \
+		(echo "❌ Animation failed!"; \
+		 echo "   Install dependencies: pip3 install matplotlib numpy pillow"; \
+		 exit 1); \
+	echo ""; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo "  ✓ TIDAL PHYSICS ANIMATION COMPLETE!"; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo ""; \
+	echo "📁 Output: $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/tidal_physics_animation.gif"; \
+	if [ -f $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/tidal_physics_animation.gif ]; then \
+		GIF_SIZE=$$(du -h $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/tidal_physics_animation.gif | cut -f1); \
+		echo "   Size: $$GIF_SIZE"; \
+	fi; \
+	echo ""
+
+# Animation-only target (no simulation dependency)
+imbh_thermal_compare_animate:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🎬 Creating Thermal Comparison Animations (Visualization Only)"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@if [ ! -d "$(RESULTS_DIR)/imbh_relaxed_2k_b3pc" ] || [ ! -d "$(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool" ]; then \
+		echo "❌ Missing simulation results!"; \
+		echo "   Required directories:"; \
+		echo "   • $(RESULTS_DIR)/imbh_relaxed_2k_b3pc"; \
+		echo "   • $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool"; \
+		echo ""; \
+		echo "   Run simulations first:"; \
+		echo "   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_thermal_compare_run"; \
+		exit 1; \
+	fi
+	@SNAP_COUNT_COOL=$$(ls -1 $(RESULTS_DIR)/imbh_relaxed_2k_b3pc/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+	SNAP_COUNT_NOCOOL=$$(ls -1 $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+	echo "Found simulation results:"; \
+	echo "  • WITH cooling:    $$SNAP_COUNT_COOL snapshots"; \
+	echo "  • WITHOUT cooling: $$SNAP_COUNT_NOCOOL snapshots"; \
+	echo ""; \
+	echo "Creating animations (5-15 minutes)..."; \
+	echo ""; \
+	mkdir -p $(RESULTS_DIR)/thermal_comparison; \
+	chmod +x $(SCRIPTS_DIR)/animate_thermal_3d_multiview.py; \
+	python3 $(SCRIPTS_DIR)/animate_thermal_3d_multiview.py \
+		$(RESULTS_DIR)/imbh_relaxed_2k_b3pc \
+		$(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool \
+		$(RESULTS_DIR)/thermal_comparison || \
+		(echo "❌ Animation failed!"; \
+		 echo "   Install dependencies: pip3 install matplotlib numpy"; \
+		 exit 1); \
+	echo ""; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo "  ✓ ANIMATIONS COMPLETE!"; \
+	echo "══════════════════════════════════════════════════════════"; \
+	echo ""; \
+	echo "📁 Output: $(RESULTS_DIR)/thermal_comparison/"; \
+	ls -lh $(RESULTS_DIR)/thermal_comparison/*.gif 2>/dev/null || true; \
+	echo ""
+
+imbh_thermal_compare_clean:
+	@echo "Cleaning thermal comparison results..."
+	@rm -rf $(RESULTS_DIR)/imbh_relaxed_2k_b3pc
+	@rm -rf $(RESULTS_DIR)/imbh_relaxed_2k_b3pc_nocool
+	@rm -rf $(RESULTS_DIR)/thermal_comparison
+	@echo "✓ Cleaned thermal comparison outputs"
+
+# ============================================================================
+# §5 IMBH SIMULATION - Single Runs
 # ============================================================================
 
 imbh_b3pc_run: imbh_check_dim
@@ -1038,7 +1949,7 @@ imbh_b6pc_run: imbh_check_dim
 	@echo "  Running IMBH Simulation (b = 6 pc)"
 	@echo "=========================================="
 	@echo ""
-	@cp $(PRESET_DIR)/imbh_cloud_b6pc_gdisph.json $(IMBH_DIR)/imbh_cloud.json
+	@cp $(SIM_CONFIG_DIR)/simulation_200k_b6pc.json $(IMBH_DIR)/imbh_cloud.json
 	@mkdir -p $(RESULTS_DIR)/b6pc_gdisph
 	@./build/sph imbh_cloud
 	@echo ""
@@ -1047,10 +1958,9 @@ imbh_b6pc_run: imbh_check_dim
 	@echo ""
 
 # ============================================================================
-# Parameter Scan Targets
+# §9 PARAMETER SCANS
 # ============================================================================
 
-# Impact parameter scan (fixed velocity v=10km/s)
 imbh_scan_impact: imbh_check_dim
 	@echo "=========================================="
 	@echo "  IMBH Impact Parameter Scan"
@@ -1200,7 +2110,7 @@ imbh_scan_full: imbh_check_dim
 	@echo "=========================================="
 
 # ============================================================================
-# Visualization Targets
+# §10 COMPARISON PLOTS
 # ============================================================================
 
 imbh_compare_impact:
@@ -1275,13 +2185,13 @@ imbh_visualize:
 	@echo ""
 
 # ============================================================================
-# Cleanup Targets
+# §11 CLEANUP
 # ============================================================================
 
 imbh_relax_clean:
 	@echo "Cleaning relaxation results..."
-	@rm -rf $(RESULTS_DIR)/lane_emden_2k_relax
-	@rm -rf $(RESULTS_DIR)/lane_emden_200k_relax
+	@rm -rf $(RESULTS_DIR)/ic_relax_10k
+	@rm -rf $(RESULTS_DIR)/ic_relax_200k
 	@rm -rf $(RESULTS_DIR)/resumed_relax
 	@echo "✓ Relaxation cleanup complete"
 
@@ -1289,8 +2199,8 @@ imbh_clean:
 	@echo "Cleaning IMBH-cloud results..."
 	@rm -rf $(RESULTS_DIR)/b*pc_v*_gdisph
 	@rm -rf $(RESULTS_DIR)/b*pc_gdisph
-	@rm -rf $(RESULTS_DIR)/lane_emden_2k_relax
-	@rm -rf $(RESULTS_DIR)/lane_emden_200k_relax
+	@rm -rf $(RESULTS_DIR)/ic_relax_10k
+	@rm -rf $(RESULTS_DIR)/ic_relax_200k
 	@rm -rf $(RESULTS_DIR)/resumed_relax
 	@rm -rf $(RESULTS_DIR)/plots
 	@rm -rf $(RESULTS_DIR)/comparison_plots
@@ -1298,3 +2208,326 @@ imbh_clean:
 	@echo "✓ IMBH-cloud cleanup complete"
 	@rm -f $(IMBH_DIR)/imbh_cloud.json
 	@echo "✓ Full cleanup complete"
+
+# ============================================================================
+# §12 TEMPLATE-BASED SIMULATION TARGETS
+# ============================================================================
+#
+# This section provides a DRY (Don't Repeat Yourself) pattern for adding
+# new simulation cases. Instead of writing 100+ lines per case, just:
+#
+#   1. Create config: $(SIM_CONFIG_DIR)/simulation_<NAME>.json
+#   2. Add to registry: SIMULATION_CASES += <NAME>
+#   3. Use: make sim_<NAME>, make sim_<NAME>_viz, make sim_<NAME>_tidal
+#
+# The targets automatically:
+#   - Check DIM=3
+#   - Extract output directory from JSON config
+#   - Create results directory
+#   - Run simulation with logging
+#   - Generate visualizations
+# ============================================================================
+
+# List all available simulation cases
+imbh_list_cases:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  📋 Registered Simulation Cases"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "Available cases (from SIMULATION_CASES registry):"
+	@for case in $(SIMULATION_CASES); do \
+		CONFIG="$(SIM_CONFIG_DIR)/simulation_$${case}.json"; \
+		if [ -f "$$CONFIG" ]; then \
+			echo "  ✓ $$case"; \
+			echo "    Config: $$CONFIG"; \
+		else \
+			echo "  ❌ $$case (missing: $$CONFIG)"; \
+		fi; \
+	done
+	@echo ""
+	@echo "Usage:"
+	@echo "  make sim_<case>       # Run simulation"
+	@echo "  make sim_<case>_viz   # Standard 3x3 visualization"
+	@echo "  make sim_<case>_tidal # Tidal physics 3x4 visualization"
+	@echo "  make sim_<case>_clean # Clean results"
+	@echo ""
+	@echo "To add a new case:"
+	@echo "  1. Create: $(SIM_CONFIG_DIR)/simulation_<name>.json"
+	@echo "  2. Edit Makefile: SIMULATION_CASES += <name>"
+	@echo "  3. Run: make sim_<name>"
+	@echo ""
+
+# Helper function to extract outputDirectory from JSON config
+# Usage: $(call get_output_dir,config_path)
+define get_output_dir
+$(shell python3 -c "import json; print(json.load(open('$(1)'))['outputDirectory'])" 2>/dev/null || echo "$(RESULTS_DIR)/unknown")
+endef
+
+# Helper function to extract BH mass from JSON config
+define get_bh_mass
+$(shell python3 -c "import json; c=json.load(open('$(1)')); print(c.get('imbh_parameters',{}).get('M_BH', 100000))" 2>/dev/null || echo "100000")
+endef
+
+# Template target for running a simulation case
+# Pattern: sim_<case>
+define SIM_RUN_TEMPLATE
+sim_$(1): imbh_check_dim
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🌌 Running Simulation: $(1)"
+	@echo "══════════════════════════════════════════════════════════"
+	@CONFIG="$$(SIM_CONFIG_DIR)/simulation_$(1).json"; \
+	if [ ! -f "$$$$CONFIG" ]; then \
+		echo "❌ Configuration not found: $$$$CONFIG"; \
+		echo ""; \
+		echo "Available configs:"; \
+		ls -1 $$(SIM_CONFIG_DIR)/simulation_*.json 2>/dev/null | sed 's/.*simulation_/  • /; s/.json//'; \
+		exit 1; \
+	fi; \
+	OUTPUT_DIR=$$$$(python3 -c "import json; print(json.load(open('$$$$CONFIG'))['outputDirectory'])" 2>/dev/null); \
+	if [ -z "$$$$OUTPUT_DIR" ]; then \
+		echo "❌ Cannot extract outputDirectory from $$$$CONFIG"; \
+		exit 1; \
+	fi; \
+	echo ""; \
+	echo "Configuration: $$$$CONFIG"; \
+	echo "Output Dir:    $$$$OUTPUT_DIR"; \
+	echo ""; \
+	mkdir -p "$$$$OUTPUT_DIR"; \
+	mkdir -p "$$$$OUTPUT_DIR/checkpoints"; \
+	echo "Starting simulation at $$$$(date '+%Y-%m-%d %H:%M:%S')..."; \
+	echo ""; \
+	./build/sph "$$$$CONFIG" 2>&1 | tee "$$$$OUTPUT_DIR/run.log" || \
+		(echo ""; echo "❌ Simulation failed! Check $$$$OUTPUT_DIR/run.log"; exit 1); \
+	echo ""; \
+	echo "✓ Simulation complete at $$$$(date '+%Y-%m-%d %H:%M:%S')"; \
+	if [ -f "$$$$OUTPUT_DIR/energy.dat" ]; then \
+		SNAPSHOT_COUNT=$$$$(ls -1 "$$$$OUTPUT_DIR"/snapshot_*.csv 2>/dev/null | wc -l); \
+		echo "📁 Snapshots: $$$$SNAPSHOT_COUNT"; \
+		echo "📊 Energy file: $$$$OUTPUT_DIR/energy.dat"; \
+	fi; \
+	echo ""; \
+	echo "Next steps:"; \
+	echo "  Visualize: make sim_$(1)_viz"; \
+	echo "  Tidal viz: make sim_$(1)_tidal"; \
+	echo ""
+endef
+
+# Template target for standard visualization (3x3 grid)
+# Pattern: sim_<case>_viz
+define SIM_VIZ_TEMPLATE
+sim_$(1)_viz:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  📊 Standard Visualization: $(1)"
+	@echo "══════════════════════════════════════════════════════════"
+	@CONFIG="$$(SIM_CONFIG_DIR)/simulation_$(1).json"; \
+	if [ ! -f "$$$$CONFIG" ]; then \
+		echo "❌ Configuration not found: $$$$CONFIG"; \
+		exit 1; \
+	fi; \
+	OUTPUT_DIR=$$$$(python3 -c "import json; print(json.load(open('$$$$CONFIG'))['outputDirectory'])" 2>/dev/null); \
+	BH_MASS=$$$$(python3 -c "import json; c=json.load(open('$$$$CONFIG')); print(c.get('imbh_parameters',{}).get('M_BH', 100000))" 2>/dev/null); \
+	if [ ! -d "$$$$OUTPUT_DIR" ]; then \
+		echo "❌ Results not found: $$$$OUTPUT_DIR"; \
+		echo "   Run simulation first: make sim_$(1)"; \
+		exit 1; \
+	fi; \
+	echo ""; \
+	echo "Input:  $$$$OUTPUT_DIR"; \
+	echo "BH Mass: $$$$BH_MASS M_☉"; \
+	echo "Mode:   single (3x3 grid)"; \
+	echo ""; \
+	python3 $$(SCRIPTS_DIR)/animate_single_run.py \
+		--input-dir "$$$$OUTPUT_DIR" \
+		--output-dir "$$$$OUTPUT_DIR" \
+		--bh-mass "$$$$BH_MASS" \
+		--mode single \
+		--fps 10; \
+	echo ""; \
+	echo "✓ Visualization complete!"; \
+	echo "🎬 Animation: $$$$OUTPUT_DIR/imbh_disruption_animation.gif"; \
+	echo ""
+endef
+
+# Template target for tidal physics visualization (3x4 grid with cross-sections)
+# Pattern: sim_<case>_tidal
+define SIM_TIDAL_TEMPLATE
+sim_$(1)_tidal:
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🌊 Tidal Physics Visualization: $(1)"
+	@echo "══════════════════════════════════════════════════════════"
+	@CONFIG="$$(SIM_CONFIG_DIR)/simulation_$(1).json"; \
+	if [ ! -f "$$$$CONFIG" ]; then \
+		echo "❌ Configuration not found: $$$$CONFIG"; \
+		exit 1; \
+	fi; \
+	OUTPUT_DIR=$$$$(python3 -c "import json; print(json.load(open('$$$$CONFIG'))['outputDirectory'])" 2>/dev/null); \
+	BH_MASS=$$$$(python3 -c "import json; c=json.load(open('$$$$CONFIG')); print(c.get('imbh_parameters',{}).get('M_BH', 100000))" 2>/dev/null); \
+	if [ ! -d "$$$$OUTPUT_DIR" ]; then \
+		echo "❌ Results not found: $$$$OUTPUT_DIR"; \
+		echo "   Run simulation first: make sim_$(1)"; \
+		exit 1; \
+	fi; \
+	echo ""; \
+	echo "Input:  $$$$OUTPUT_DIR"; \
+	echo "BH Mass: $$$$BH_MASS M_☉"; \
+	echo "Mode:   tidal (3x4 grid with cross-sections)"; \
+	echo ""; \
+	python3 $$(SCRIPTS_DIR)/animate_single_run.py \
+		--input-dir "$$$$OUTPUT_DIR" \
+		--output-dir "$$$$OUTPUT_DIR" \
+		--bh-mass "$$$$BH_MASS" \
+		--mode tidal \
+		--fps 10; \
+	echo ""; \
+	echo "✓ Tidal visualization complete!"; \
+	echo "🎬 Animation: $$$$OUTPUT_DIR/imbh_tidal_physics.gif"; \
+	echo ""
+endef
+
+# Template target for cleaning simulation results
+# Pattern: sim_<case>_clean
+define SIM_CLEAN_TEMPLATE
+sim_$(1)_clean:
+	@echo "Cleaning results for: $(1)"
+	@CONFIG="$$(SIM_CONFIG_DIR)/simulation_$(1).json"; \
+	if [ ! -f "$$$$CONFIG" ]; then \
+		echo "❌ Configuration not found: $$$$CONFIG"; \
+		exit 1; \
+	fi; \
+	OUTPUT_DIR=$$$$(python3 -c "import json; print(json.load(open('$$$$CONFIG'))['outputDirectory'])" 2>/dev/null); \
+	if [ -d "$$$$OUTPUT_DIR" ]; then \
+		rm -rf "$$$$OUTPUT_DIR"; \
+		echo "✓ Cleaned: $$$$OUTPUT_DIR"; \
+	else \
+		echo "⚠️  Directory not found: $$$$OUTPUT_DIR"; \
+	fi
+endef
+
+# Generate targets for all registered simulation cases
+$(foreach case,$(SIMULATION_CASES),$(eval $(call SIM_RUN_TEMPLATE,$(case))))
+$(foreach case,$(SIMULATION_CASES),$(eval $(call SIM_VIZ_TEMPLATE,$(case))))
+$(foreach case,$(SIMULATION_CASES),$(eval $(call SIM_TIDAL_TEMPLATE,$(case))))
+$(foreach case,$(SIMULATION_CASES),$(eval $(call SIM_CLEAN_TEMPLATE,$(case))))
+
+# ============================================================================
+# §13 GENERIC CONTINUATION TARGET
+# ============================================================================
+#
+# Continue any simulation from a snapshot with custom end time
+#
+# Usage:
+#   make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_continue \
+#        SNAPSHOT=path/to/snapshot.csv \
+#        END_TIME=4.0 \
+#        [CONFIG=base_config.json]
+#
+# Example:
+#   make imbh_continue \
+#        SNAPSHOT=sample/imbh_cloud/results/imbh_relaxed_2k_b3pc_nocool/snapshot_0100.csv \
+#        END_TIME=4.0
+# ============================================================================
+
+.PHONY: imbh_continue
+
+imbh_continue: imbh_check_dim
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  🔄 Continue Simulation from Snapshot"
+	@echo "══════════════════════════════════════════════════════════"
+	@if [ -z "$(SNAPSHOT)" ]; then \
+		echo "❌ ERROR: SNAPSHOT parameter required!"; \
+		echo ""; \
+		echo "Usage:"; \
+		echo "  make imbh_continue SNAPSHOT=<path> END_TIME=<time>"; \
+		echo ""; \
+		echo "Example:"; \
+		echo "  make imbh_continue \\"; \
+		echo "       SNAPSHOT=sample/imbh_cloud/results/imbh_relaxed_2k_b3pc_nocool/snapshot_0100.csv \\"; \
+		echo "       END_TIME=4.0"; \
+		echo ""; \
+		echo "Available snapshots:"; \
+		find $(RESULTS_DIR) -name "snapshot_*.csv" 2>/dev/null | head -10 || echo "  (none found)"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SNAPSHOT)" ]; then \
+		echo "❌ ERROR: Snapshot not found: $(SNAPSHOT)"; \
+		exit 1; \
+	fi
+	@END=$${END_TIME:-4.0}; \
+	OUTPUT_DIR=$$(dirname "$(SNAPSHOT)"); \
+	CURRENT_TIME=$$(head -20 "$(SNAPSHOT)" | grep "^# Time (code):" | cut -d: -f2 | tr -d ' '); \
+	echo ""; \
+	echo "Snapshot:     $(SNAPSHOT)"; \
+	echo "Current time: $$CURRENT_TIME [code units]"; \
+	echo "End time:     $$END [code units]"; \
+	echo "Output dir:   $$OUTPUT_DIR"; \
+	echo ""; \
+	if [ -z "$$CURRENT_TIME" ]; then \
+		echo "⚠️  Could not read current time from snapshot header"; \
+		CURRENT_TIME="unknown"; \
+	fi; \
+	echo "Creating continuation config..."; \
+	CONT_CONFIG="$$OUTPUT_DIR/continue_config.json"; \
+	python3 -c " \
+import json \
+config = { \
+    'name': 'continuation', \
+    'description': 'Continue from $(SNAPSHOT)', \
+    'outputDirectory': '$$OUTPUT_DIR', \
+    'outputFormat': 'csv', \
+    'enableEnergyFile': True, \
+    'SPHType': 'gdisph', \
+    'use2ndOrderGSPH': False, \
+    'kernel': 'wendland', \
+    'neighborNumber': 50, \
+    'gamma': 1.6666666666666667, \
+    'cflSound': 0.3, \
+    'cflForce': 0.125, \
+    'avAlpha': 1.0, \
+    'useBalsaraSwitch': True, \
+    'useTimeDependentAV': False, \
+    'maxTreeLevel': 20, \
+    'leafParticleNumber': 1, \
+    'iterativeSmoothingLength': True, \
+    'periodic': False, \
+    'startTime': 0.0, \
+    'endTime': $$END, \
+    'outputTime': 0.02, \
+    'useGravity': True, \
+    'G': 1.0, \
+    'resumeFromSnapshot': '$(SNAPSHOT)', \
+    'resetTimeOnResume': False, \
+    'imbh_parameters': { \
+        'enabled': True, \
+        'M_BH': 100000.0, \
+        'BH_initial_position': {'0': 0.0, '1': 0.0, '2': 0.0}, \
+        'BH_initial_velocity': {'0': 0.0, '1': 0.0, '2': 0.0}, \
+        'cloud_initial_position': {'0': -20.0, '1': 3.0, '2': 0.0}, \
+        'cloud_initial_velocity': {'0': 10.0, '1': 0.0, '2': 0.0}, \
+        'cloud_scale_factor': 0.005, \
+        'impact_parameter_b': 3.0, \
+        'softening_epsilon': 0.05 \
+    }, \
+    'checkpoint': { \
+        'enabled': True, \
+        'saveInterval': 500, \
+        'directory': '$$OUTPUT_DIR/checkpoints', \
+        'saveOnExit': True, \
+        'maxCheckpoints': 5, \
+        'autoResume': False \
+    } \
+} \
+json.dump(config, open('$$CONT_CONFIG', 'w'), indent=2) \
+print('✓ Config: $$CONT_CONFIG') \
+"; \
+	echo ""; \
+	echo "════════════════════════════════════════════════════════"; \
+	echo "  Starting Continuation..."; \
+	echo "════════════════════════════════════════════════════════"; \
+	echo ""; \
+	./build/sph "$$CONT_CONFIG" 2>&1 | tee "$$OUTPUT_DIR/continue.log" || \
+		(echo ""; echo "❌ Continuation failed! Check $$OUTPUT_DIR/continue.log"; exit 1); \
+	echo ""; \
+	echo "✓ Continuation complete!"; \
+	SNAPSHOT_COUNT=$$(ls -1 "$$OUTPUT_DIR"/snapshot_*.csv 2>/dev/null | wc -l); \
+	echo "📁 Total snapshots: $$SNAPSHOT_COUNT"; \
+	echo ""

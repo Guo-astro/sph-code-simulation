@@ -226,6 +226,39 @@ UnitSystem UnitSystem::create_relativistic_jet(real length_pc, real density_scal
     return units;
 }
 
+UnitSystem UnitSystem::create_imbh_encounter(real length_pc, real mass_1e3Msun, real velocity_kms) {
+    // IMBH-cloud encounter units
+    // Optimized for 10^4-10^6 M_sun IMBH interacting with 10^2-10^5 M_sun molecular clouds
+    // Typical scales: L ~ pc, M ~ 10^3 M_sun, V ~ km/s
+    //
+    // Example: With defaults (1 pc, 1000 M_sun, 1 km/s):
+    //   - IMBH M = 10^5 M_sun = 100 code_mass
+    //   - Cloud M = 10^4 M_sun = 10 code_mass
+    //   - Cloud R = 5 pc = 5 code_length
+    //   - Velocity = 10 km/s = 10 code_velocity
+    //   - Time = (1 pc) / (1 km/s) = 0.978 kyr
+    
+    real length_cm = length_pc * PC_TO_CM;
+    real mass_g = mass_1e3Msun * 1.0e3 * MSUN_TO_G;  // 10^3 M_sun to grams
+    real velocity_cms = velocity_kms * KM_TO_CM;
+    
+    // Convert pc to kpc for GALACTIC unit system
+    real length_kpc = length_pc / 1000.0;  // 1 pc = 0.001 kpc
+    
+    UnitSystem units(Type::GALACTIC, length_kpc, mass_1e3Msun * 1.0e3, velocity_kms);
+    
+    // Override labels for clarity
+    units.m_length_label = "pc";
+    units.m_mass_label = "1000 M_sun";
+    units.m_time_label = "kyr";
+    units.m_velocity_label = "km/s";
+    units.m_energy_label = "erg";
+    units.m_density_label = "M_sun/pc³";
+    units.m_pressure_label = "erg/cm³";
+    
+    return units;
+}
+
 // Compute derived conversion factors
 void UnitSystem::compute_derived_factors() {
     m_velocity_to_cgs = m_length_to_cgs / m_time_to_cgs;

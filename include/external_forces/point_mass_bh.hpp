@@ -86,7 +86,7 @@ class PointMassBlackHole : public Module
 {
 public:
     PointMassBlackHole();
-    ~PointMassBlackHole() override = default;
+    ~PointMassBlackHole() = default;
     
     /**
      * @brief Initialize BH force with parameters

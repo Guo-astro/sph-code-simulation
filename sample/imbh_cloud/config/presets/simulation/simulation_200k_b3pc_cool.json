@@ -1,0 +1,151 @@
+{
+  "name": "simulation_200k_b3pc_cool",
+  "description": "IMBH tidal disruption with 200k particle Lane-Emden sphere (WITH cooling)",
+  
+  "comment": "=== IMBH-Cloud Tidal Disruption - Production Run (200k particles) ===",
+  "comment2": "This configuration loads from ic_relax_200k (production relaxation)",
+  "comment3": "CORRECT PHYSICS: IMBH stationary at origin, cloud at [-20,3,0]pc moving with v=[10,0,0]km/s",
+  "comment4": "Impact parameter b=3pc (strong tidal disruption expected)",
+  "comment5": "WITH Koyama-Inutsuka cooling for thermal equilibrium",
+  
+  "units": {
+    "type": "IMBH_ENCOUNTER",
+    "length_pc": 1.0,
+    "mass_1e3Msun": 1.0,
+    "velocity_kms": 1.0,
+    "comment": "IMBH Encounter units: [L]=1pc, [M]=1000 M_☉, [V]=km/s, [T]=0.978 kyr"
+  },
+  
+  "outputDirectory": "sample/imbh_cloud/results/imbh_200k_b3pc_cool",
+  "outputFormat": "csv",
+  "enableEnergyFile": true,
+  
+  "SPHType": "gdisph",
+  "use2ndOrderGSPH": false,
+  "kernel": "wendland",
+  "neighborNumber": 50,
+  "gamma": 1.6666666666666667,
+  
+  "cflSound": 0.3,
+  "cflForce": 0.125,
+  
+  "avAlpha": 1.0,
+  "useBalsaraSwitch": true,
+  "useTimeDependentAV": false,
+  
+  "maxTreeLevel": 20,
+  "leafParticleNumber": 1,
+  "iterativeSmoothingLength": true,
+  "periodic": false,
+  
+  "startTime": 0.0,
+  "endTime": 2.0,
+  "outputTime": 0.02,
+  
+  "useGravity": true,
+  "G": 1.0,
+  
+  "resumeFromSnapshot": "sample/imbh_cloud/results/ic_relax_200k/snapshot_0010.csv",
+  "resetTimeOnResume": true,
+  
+  "physics": {
+    "gamma": 1.6666666666666667,
+    "gravitational_constant": 1.0,
+    "use_gravity": true
+  },
+  
+  "checkpoint": {
+    "enabled": true,
+    "saveInterval": 500,
+    "directory": "sample/imbh_cloud/results/imbh_200k_b3pc_cool/checkpoints",
+    "saveOnExit": true,
+    "maxCheckpoints": 5,
+    "autoResume": false,
+    "resumeFile": "sample/imbh_cloud/results/ic_relax_200k/snapshot_0010.csv",
+    "resetTimeOnResume": true
+  },
+  
+  "imbh_parameters": {
+    "enabled": true,
+    "comment": "Correct physics: IMBH stationary, cloud moves toward it",
+    "M_BH": 100000.0,
+    "BH_initial_position": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0
+    },
+    "BH_initial_velocity": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0
+    },
+    "cloud_initial_position": {
+      "0": -20.0,
+      "1": 3.0,
+      "2": 0.0
+    },
+    "cloud_initial_velocity": {
+      "0": 10.0,
+      "1": 0.0,
+      "2": 0.0
+    },
+    "cloud_scale_factor": 0.005,
+    "impact_parameter_b": 3.0,
+    "softening_epsilon": 0.05,
+    "note": "IMBH at origin (standard frame). Cloud starts at [-20,3,0]pc, velocity [10,0,0]km/s. Impact parameter b=3pc (y-offset)."
+  },
+  
+  "numerical": {
+    "neighbor_number": 50,
+    "kernel": "wendland",
+    "SPHType": "gdisph",
+    "use_gravity": true,
+    "periodic": false,
+    "iterative_smoothing_length": true,
+    "max_tree_level": 20,
+    "leaf_particle_number": 32
+  },
+  
+  "simulation": {
+    "start_time": 0.0,
+    "end_time": 2.0,
+    "output_time": 0.02,
+    "energy_time": 0.01,
+    "output_directory": "sample/imbh_cloud/results/imbh_200k_b3pc_cool",
+    "comment": "end_time = 2.0 Myr ≈ 4 crossing times (R/v = 5pc/10km/s = 0.49 Myr)"
+  },
+  
+  "timestep": {
+    "CFL_sound": 0.3,
+    "CFL_force": 0.25,
+    "max_timestep": 0.01,
+    "comment": "Conservative timestep for tidal dynamics"
+  },
+  
+  "artificial_viscosity": {
+    "alpha": 1.0,
+    "use_balsara_switch": true,
+    "use_time_dependent_av": true,
+    "alpha_max": 2.0,
+    "alpha_min": 0.1,
+    "use_artificial_conductivity": false
+  },
+  
+  "thermal": {
+    "enable_cooling": true,
+    "cooling_type": "koyama_inutsuka",
+    "N_H_column": 1e20,
+    "thermal_relax_time": 0.01,
+    "comment": "Thermal equilibrium maintained (t_cool << t_tidal)"
+  },
+  
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  }
+}

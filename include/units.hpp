@@ -137,6 +137,23 @@ public:
         real density_scale = PROTON_MASS_G
     );
 
+    /**
+     * @brief Create IMBH-cloud encounter unit system
+     * 
+     * Optimized for IMBH (10^4-10^6 M_sun) - molecular cloud (10^2-10^5 M_sun) interactions.
+     * Typical scales: L ~ pc, M ~ 10^3 M_sun, V ~ km/s
+     * 
+     * @param length_pc Code unit length in parsecs (default: 1 pc)
+     * @param mass_1e3Msun Code unit mass in 10^3 M_sun (default: 1.0 → 1000 M_sun)
+     * @param velocity_kms Code unit velocity in km/s (default: 1.0)
+     * @return UnitSystem configured for IMBH-cloud encounter simulations
+     */
+    static UnitSystem create_imbh_encounter(
+        real length_pc = 1.0,
+        real mass_1e3Msun = 1.0,
+        real velocity_kms = 1.0
+    );
+
     // Conversion methods: code units → physical units (CGS)
     real to_physical_length(real code_val) const;
     real to_physical_mass(real code_val) const;

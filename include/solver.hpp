@@ -21,6 +21,11 @@ class LaneEmdenRelaxation;
 
 class Module;
 
+// Forward declaration for external forces
+namespace external_forces {
+    class PointMassBlackHole;
+}
+
 enum struct Sample {
     ShockTube,
     ShockTube2D,
@@ -57,6 +62,15 @@ class Solver {
     std::shared_ptr<Module> m_pre;
     std::shared_ptr<Module> m_fforce;
     std::shared_ptr<Module> m_gforce;
+    
+    // External forces (IMBH, moving potentials, etc.)
+    std::shared_ptr<external_forces::PointMassBlackHole> m_external_bh;
+    bool m_use_external_bh;
+    
+    // Cloud initial conditions (for shifting particles after snapshot load)
+    vec_t m_cloud_initial_position;
+    vec_t m_cloud_initial_velocity;
+    bool m_has_cloud_initial_conditions;
     
     // relaxation
     std::shared_ptr<LaneEmdenRelaxation> m_lane_emden_relax;

@@ -1,0 +1,133 @@
+{
+  "name": "simulation_10k_b1p5pc_nocool_OPTIMAL",
+  "description": "OPTIMAL TIDAL DISRUPTION: b=1.5pc (close encounter, strong tidal shocks)",
+  
+  "comment": "=== OPTIMAL IMPACT PARAMETER FOR TIDAL PHYSICS STUDY ===",
+  "comment2": "Based on tidal radius r_t = 10.77 pc for M_BH=10^5, M_cloud=10^4, R_cloud=5pc",
+  "comment3": "b = 1.5 pc << r_t → STRONG tidal interaction with shock formation",
+  "comment4": "Pericenter passage: t_peri = b/v = 1.5pc / 10km/s = 0.147 Myr = 147 kyr",
+  "comment5": "Hill radius: r_H = 0.48 pc (10% of R_cloud) → tidal truncation expected",
+  "comment6": "PHYSICS: Cloud passes close to IMBH → strong compression → tidal shocks → possible fragmentation",
+  
+  "units": {
+    "type": "IMBH_ENCOUNTER",
+    "length_pc": 1.0,
+    "mass_1e3Msun": 1.0,
+    "velocity_kms": 1.0,
+    "comment": "[L]=1pc, [M]=1000 M_☉, [V]=km/s, [T]=0.978 kyr"
+  },
+  
+  "outputDirectory": "sample/imbh_cloud/results/imbh_b1p5pc_optimal",
+  "outputFormat": "csv",
+  "enableEnergyFile": true,
+  
+  "SPHType": "gdisph",
+  "use2ndOrderGSPH": false,
+  "kernel": "wendland",
+  "neighborNumber": 50,
+  "gamma": 1.6666666666666667,
+  
+  "cflSound": 0.3,
+  "cflForce": 0.125,
+  
+  "avAlpha": 1.0,
+  "useBalsaraSwitch": true,
+  "useTimeDependentAV": false,
+  
+  "maxTreeLevel": 20,
+  "leafParticleNumber": 1,
+  "iterativeSmoothingLength": true,
+  "periodic": false,
+  
+  "startTime": 0.0,
+  "endTime": 1.5,
+  "outputTime": 0.01,
+  
+  "useGravity": true,
+  "G": 1.0,
+  
+  "resumeFromSnapshot": "sample/imbh_cloud/results/ic_relax_10k/snapshot_0032.csv",
+  "resetTimeOnResume": true,
+  
+  "checkpoint": {
+    "enabled": true,
+    "saveInterval": 500,
+    "directory": "sample/imbh_cloud/results/imbh_b1p5pc_optimal/checkpoints",
+    "saveOnExit": true,
+    "maxCheckpoints": 5,
+    "autoResume": false,
+    "resumeFile": "sample/imbh_cloud/results/ic_relax_10k/snapshot_0032.csv",
+    "resetTimeOnResume": true
+  },
+  
+  "imbh_parameters": {
+    "enabled": true,
+    "comment": "OPTIMAL CONFIGURATION: Close encounter for maximum tidal physics",
+    "M_BH": 100000.0,
+    "BH_initial_position": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0
+    },
+    "BH_initial_velocity": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0
+    },
+    "cloud_initial_position": {
+      "0": -20.0,
+      "1": 1.5,
+      "2": 0.0
+    },
+    "cloud_initial_velocity": {
+      "0": 10.0,
+      "1": 0.0,
+      "2": 0.0
+    },
+    "cloud_scale_factor": 0.005,
+    "impact_parameter_b": 1.5,
+    "softening_epsilon": 0.05,
+    "note": "b=1.5pc optimal for detecting tidal shocks and compression. Expect strong in-plane (XY) compression."
+  },
+  
+  "simulation": {
+    "start_time": 0.0,
+    "end_time": 1.5,
+    "output_time": 0.01,
+    "energy_time": 0.005,
+    "output_directory": "sample/imbh_cloud/results/imbh_b1p5pc_optimal",
+    "comment": "Shorter runtime (1.5 Myr) with finer output (0.01 Myr = 10 kyr) to resolve tidal shock passage",
+    "comment2": "150 snapshots total for detailed shock analysis"
+  },
+  
+  "timestep": {
+    "CFL_sound": 0.3,
+    "CFL_force": 0.2,
+    "max_timestep": 0.005,
+    "comment": "Stricter timestep control for shock resolution"
+  },
+  
+  "artificial_viscosity": {
+    "alpha": 1.0,
+    "use_balsara_switch": true,
+    "use_time_dependent_av": true,
+    "alpha_max": 2.0,
+    "alpha_min": 0.1,
+    "use_artificial_conductivity": false
+  },
+  
+  "thermal": {
+    "enable_cooling": false,
+    "comment": "ADIABATIC ONLY - preserve tidal shock heating for analysis"
+  },
+  
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  }
+}

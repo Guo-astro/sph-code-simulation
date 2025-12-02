@@ -1,0 +1,442 @@
+\documentclass[twocolumn]{aastex62}
+\usepackage{amsmath}     
+\usepackage{wasysym}           
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{epstopdf}
+\usepackage{mathrsfs}
+\usepackage{anyfontsize}
+\usepackage{natbib}
+%\usepackage{physymb}
+\usepackage{color}
+\usepackage{lipsum}
+\usepackage{diagbox}
+\DeclareMathOperator{\ord}{ord}
+\DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
+
+\newcommand{\ed}[1]{\textbf{\color{red}#1}}
+
+\shorttitle{The Persistence of Pancakes}
+\shortauthors{Coughlin et al.}
+\begin{document}
+\title{The Persistence of Pancakes and the Revival of Self-gravity in Tidal Disruption Events}
+\correspondingauthor{Eric R.~Coughlin}
+
+\author[0000-0003-3765-6401]{Eric R.~Coughlin}
+\email{ecoughli@syr.edu}
+\affiliation{Department of Physics, Syracuse University, Syracuse, NY 13244, USA}
+\affiliation{Department of Astrophysical Sciences, Princeton University, Princeton, NJ 08544, USA}
+
+\author[0000-0002-2137-4146]{C.~J.~Nixon}
+\affiliation{School of Physics and Astronomy, University of Leicester, Leicester, LE1 7RH, UK}
+
+\author[0000-0003-1354-1984]{Patrick R. Miles}
+\affiliation{Department of Physics, Syracuse University, Syracuse, NY 13244, USA}
+
+\begin{abstract}
+The destruction of a star by the tides of a supermassive black hole (SMBH) powers a bright accretion flare, and the theoretical modeling of such tidal disruption events (TDEs) can provide a direct means of inferring SMBH properties from observations. Previously it has been shown that TDEs with $\beta = r_{\rm t}/r_{\rm p} = 1$, where $r_{\rm t}$ is the tidal disruption radius and $r_{\rm p}$ is the pericenter distance of the star, form an in-plane caustic, or ``pancake,'' where the tidally disrupted debris is compressed into a one-dimensional line within the orbital plane of the star. Here we show that this result applies generally to all TDEs for which the star is fully disrupted, i.e., that satisfy $\beta \gtrsim 1$. We show that the location of this caustic is always outside of the tidal disruption radius of the star and the compression of the gas near the caustic is at most mildly supersonic, which results in an adiabatic increase in the gas density above the tidal density of the black hole. As such, this in-plane pancake revitalizes the influence of self-gravity even for large $\beta$, in agreement with recent simulations. This finding suggests that for all TDEs in which the star is fully disrupted, self-gravity is revived post-pericenter, keeps the stream of debris narrowly confined in its transverse directions, and renders the debris prone to gravitational instability.
+\end{abstract}
+
+\keywords{black hole physics --- galaxies: nuclei --- hydrodynamics --- methods: analytical}
+
+
+\section{Introduction}
+The tidal disruption of a star by a supermassive black hole (SMBH) can illuminate the center of a galaxy for months to years (e.g., \citealt{rees88}), and these tidal disruption events (TDEs) have been discovered with ever-increasing frequency (e.g., \citealt{gezari12, hung17, holoien19, vanvelzen19, gomez20,holoien20}). The number of observed TDEs will rise unprecedentedly in the era of the Vera Rubin Telescope \citep{ivezic19}, and our understanding of the physical evolution of TDEs is necessary for maximizing the potential of such observations.
+
+To this end, three-dimensional hydrodynamical simulations have proved useful for detailing the intricacies of TDEs (e.g., \citealt{bicknell83, evans89, laguna93, lodato09, guillochon13, hayasaki13,coughlin15,mainetti17,golightly19a, miles20, law-smith20}). Alternatively, an analytic approach to describing the evolution of the debris from a TDE is the impulse, or frozen-in, approximation, which assumes that the gas parcels comprising the disrupted star move precisely with the center of mass (COM) until reaching the tidal radius $r_{\rm t}$ and execute ballistic orbits thereafter (e.g., \citealt{lacy82, lodato09, stone13,coughlin19}). The tidal radius $r_{\rm t} = R_{\star}\left(M_{\bullet}/M_{\star}\right)^{1/3}$ is roughly the distance from the SMBH at which the tidal force equals the self-gravity of a star with mass $M_{\star}$ and radius $R_{\star}$. While the frozen-in approximation certainly misses the level of detail captured by numerical simulations, it is relatively simple and unfettered by the enormous range of spatial and temporal scales endemic to TDEs that make hydrodynamical simulations expensive.
+
+For an encounter in which the pericenter distance of the COM, $r_{\rm p}$, is less than the tidal radius, the impact parameter $\beta \equiv r_{\rm t}/r_{\rm p}$ satisfies $\beta > 1$; in this case neglecting the effects of pressure and self-gravity is likely to be upheld reasonably well while the COM is within the tidal radius. However, the neglect of such terms becomes questionable once the stellar debris recedes beyond $r_{\rm t}$. \citet{kochanek94} argued that, if the tidally disrupted debris is freely expanding post-pericenter, then there is a critical $\beta$ above which self-gravity is never important. In terms of the central density of the star $\rho_{\rm c}$ and the average stellar density $\rho_{\star}$, this critical $\beta$ is $\beta \simeq \left(\rho_{\rm c}/\rho_{\star}\right)^{1/3}$ \citep{steinberg19}. For a $\gamma = 5/3$ polytropic star, $\rho_{\rm c}/\rho_{\star} \simeq 8$, and self-gravity should be negligible for $\beta \gtrsim 2$. 
+
+In contrast to this expectation, \citet{steinberg19} found numerically that disruptions of $\gamma = 5/3$ polytropes with $\beta$'s as large as 7, while dominated by the tidal shear of the black hole within a substantial fraction of the tidal radius (and thus validating the neglect of self-gravity that underlies the impulse approximation; see their Figure 3), yielded a large amount ($\gtrsim 30\%$ of the stellar mass) of self-gravitating material by the time the COM exited the tidal radius. \citet{steinberg19} suggested that the origin of this behavior arises from the fact that the gas parcels near pericenter do not necessarily undergo free expansion, but instead can be \emph{compressed} within the plane of the orbit, as found by \citet{coughlin16} for the case of $\beta = 1$. In particular, \citet{coughlin16} showed that the initial conditions inherent to the impulse approximation for a $\beta = 1$ encounter result in the formation of a caustic, or ``pancake,'' within the orbital plane of the stellar COM where the gas parcels would -- in the absence of pressure -- geometrically focus to a line. As such, self-gravity can be ``revived'' at a later time from these compressive effects, even though it may be completely overwhelmed by the tidal shear of the SMBH initially.
+
+Here we show that the pancake described in \citet{coughlin16} exists for large $\beta$'s, supporting the interpretation in \citet{steinberg19}. In Section \ref{sec:model} we describe the model and present results, and we discuss and conclude in Section \ref{sec:discussion}.
+
+\section{In-plane caustic}
+\label{sec:model}
+We assume that the fluid elements of the star move ballistically in the gravitational field of the SMBH once the COM crosses the tidal radius, and that the distance between a fluid element and the COM, $s$, is much less than the distance between the COM and the SMBH, $r_{\star}$. We analyze fluid elements that are within the orbital plane of the COM, which we define as the $x$-$y$ plane with the $x$-direction parallel to the pericenter vector of the COM and $y$ parallel to the velocity vector of the star at pericenter (see Figure \ref{fig:tde}). 
+
+\begin{figure*}[htbp] 
+   \centering
+   \includegraphics[width=0.995\textwidth]{TDE_Diagram.png} 
+   \caption{A diagram of a TDE under the impulse approximation. The distance of the COM from the SMBH, $r_{\star}$, reaches the tidal radius, $r_{\rm t}$, which marks the point where the star is ``destroyed'' and fluid elements follow ballistic orbits thereafter. The orientation of the pericenter distance of the star, $r_{\rm p}$, defines the $x$-axis, while the velocity of the COM at $r_{\rm p}$ defines the $y$-axis. The caustic occurs at $r_{\rm c}$ when the gas parcels in the orbital plane of the stellar COM collapse to a line. The zoom-in of the star in the left of the figure shows the distance between a fluid element and the COM, $s$, and the angle the fluid element makes with the $x$-axis, $\psi$.}
+   \label{fig:tde}
+\end{figure*}
+
+One method of determining the location of the in-plane caustic (the ``pancake'') is to numerically integrate the equations of motion for a large number of fluid elements and find where they cross, which was done in \citet{coughlin16}. However, a more elegant approach is to use the tidal approximation to first simplify the equations of motion, as described in \citet{sari10} and implemented in the case of a TDE in \citet{stone13}. In this approximation the leading order (in $s/r_{\star}$) Lagrangian of a fluid element is
+
+\begin{equation}
+\mathscr{L} = 
+\dot{s}^2+s^2\dot\psi^2-s^2\left(1+\cos\phi_{\star}\right)^3\left(1-3\cos^2\left[\psi-\phi_{\star}\right]\right) \label{Lag1}.
+\end{equation}
+Here $\psi$ is the angular position of the fluid element relative to the positive $x$-axis, and we let the stellar COM follow a parabolic trajectory so that $r_{\star}$ and the angle that the COM makes relative to the positive $x$-axis $\phi_{\star}$ satisfy
+
+\begin{equation}
+r_{\star} = \frac{2 r_{\rm p}}{1+\cos\phi_{\star}}, \quad \frac{1}{\left(1+\cos\phi_{\star}\right)^2}\frac{d\phi_{\star}}{d\tau} = 1. \label{com1}
+\end{equation}
+The pericenter distance of the star is $r_{\rm p}$, and the dimensionless, time-like variable $\tau$ is related to time $t$ via $\tau = t\sqrt{GM/(8 r_{\rm p}^3)}$; dots in Equation \eqref{Lag1} denote differentiation with respect to $\tau$. Since the initial position of the COM coincides with the tidal radius, the initial condition for the angle $\phi_{\star}$ satisfies 
+
+\begin{equation}
+\cos\left[\phi_{\star}(\tau = 0)\right] = \frac{2}{\beta}-1,
+\end{equation}
+where $\beta = r_{\rm t}/r_{\rm p}$. 
+
+The equations of motion are the Euler-Lagrange equations, $d/d\tau\left[\partial \mathscr{L}/\partial \dot{s}\right]-\partial\mathscr{L}/\partial s = 0$ and similarly with $s \rightarrow \psi$. Since the entire star moves with the COM upon entering the tidal radius, we have $\dot{s}(\tau = 0) = \dot{\psi}(\tau = 0) = 0$, while the initial position satisfies\footnote{Every term in the Lagrangian is proportional to $s^2$, and hence we can set $s(\tau = 0) = 1$ without loss of generality.} $s(\tau = 0) = 1$ and $\psi(\tau = 0) = \psi_{0}$. The caustic is the location where curves with different $\psi_0$ converge to a single value of $\psi$. As described in \citet{sari10} and \citet{stone13}, there are analytic solutions to the Euler-Lagrange equations, but we find that numerically integrating the equations as a function of the initial angle $\psi_{0}$ offers a straightforward means of finding the pancake.
+
+The top two panels of Figure \ref{fig:psicurves} show the evolution of the angle $\psi(\tau)$ for a number of different $\psi_{0}$ when $\beta = 1$ (left panel) and $\beta = 2$ (right panel). For $\beta = 1$ ($\beta = 2$), at a time of $\tau_{\rm c} \simeq 0.849$ ($\tau_{\rm c} \simeq 1.52$) all of the curves intersect at the common angle $\psi_{\rm c} \simeq 0.732$ ($\psi_{\rm c} = 0.112$) or $\psi_{\rm c}\pm \pi$, shown by the cyan points. Thus, at $\tau_{\rm c}$ the orbits of the fluid elements collapse to a line, and the front and back of the star switch places; the curves are color-coded according to the front (blue) and back (orange) immediately prior to the caustic\footnote{The ``front of the star'' is the collection of gas parcels within $\psi_{\rm c}$ and $\psi_{\rm c}+\pi$ at a time just prior to $\tau_{\rm c}$.}. The bottom two panels show a ring of fluid elements for $\beta = 1$ (left) and $\beta = 2$ (right) at a number of different times to illustrate the formation of the caustic. 
+
+\begin{figure*}[htbp] 
+   \centering
+   \includegraphics[width=0.495\textwidth]{psi_curves_b1-eps-converted-to.pdf} 
+    \includegraphics[width=0.495\textwidth]{psi_curves_b2-eps-converted-to.pdf} 
+    \includegraphics[width=0.4875\textwidth]{pancake_beta1-eps-converted-to.pdf} 
+    \includegraphics[width=0.505\textwidth]{pancake_beta2-eps-converted-to.pdf} 
+   \caption{The top two panels show the evolution of the angle $\psi$ as a function of time for a number of different initial angles, which sample the range $\{-\pi$, $\pi\}$; the top-left (top-right) panel is for $\beta = 1$ ($\beta = 2$). The vertical, dashed lines indicate the time at which the caustic occurs $\tau_{\rm c}$, which is where all of the curves intersect at $\psi_{\rm c}$ or $\psi_{\rm c}\pm \pi$, these values denoted by the cyan points.  At this time, therefore, every circle of points within the plane of the disrupted star collapses to a line, and the front and back of the star switch places; the colors denote the front (blue) and back (orange) of the star immediately prior to the caustic. The bottom two panels illustrate the positions of the gas parcels when $\beta = 1$ (left) and $\beta = 2$ (right) at times that bracket the pre and post-caustic evolution. The color-coding matches that of the lines in the top two panels.} 
+   \label{fig:psicurves}
+\end{figure*}
+
+\begin{figure}[htbp] 
+   \centering
+   \includegraphics[width=0.475\textwidth]{rc_of_beta-eps-converted-to.pdf} 
+   \caption{The position of the COM normalized by the tidal radius, $r_{\rm c}/r_{\rm t}$ (blue), and the angle that the caustic makes, $\psi_{\rm c}$ (orange, dot-dashed), at the time the caustic occurs as functions of $\beta = r_{\rm t}/r_{\rm p}$. The blue curve shows that the caustic exists independent of $\beta$ and outside of the tidal disruption radius.}
+   \label{fig:rcbeta}
+\end{figure}
+
+Figure \ref{fig:rcbeta} shows the position of the COM when the caustic occurs, $r_{\rm c}$, divided by the tidal radius, $r_{\rm t}$, as a function of $\beta$ (blue curve) and the angle that the caustic makes with the positive $x$-axis (orange, dot-dashed curve). We see that the distance where the caustic occurs reaches a relative minimum from the SMBH of $\simeq 1.1 r_{\rm t}$ at $\beta \simeq 3$ and the caustic is always outside of the tidal radius. The angle that the caustic makes with the $x$-axis also reaches a minimum of $\psi_{\rm c} \simeq 0.1$ near $\beta \simeq 2$, where the caustic is nearly parallel to the pericenter vector (see the bottom-right panel of Figure \ref{fig:psicurves}). 
+
+Figure \ref{fig:psicurves} shows that there are regions near the angles $\psi_{\rm c}\pm \pi/2$ at $\tau_{\rm c}$ where fluid elements rapidly increase or decrease by $\pi$. The fluid elements at $\psi_{\rm c}\pm \pi/2$ are thus directly in front of ($\psi_{\rm c}+\pi/2$) and behind ($\psi_{\rm c}-\pi/2$) the COM at the time the caustic occurs and reach a coordinate singularity $s(\tau_{\rm c}) = 0$. At $\tau_{\rm c}-\epsilon$ these fluid elements move only in the $s$-direction in the limit that $\epsilon \rightarrow 0$, and hence the rate at which the surface of the debris converges toward the COM (i.e., the rate of change of the stream diameter) at $\tau_{\rm c}$ is $2|\partial s/\partial t| = \beta^{3/2}v_{\star}|\partial s/\partial \tau|/2$, where $v_{\star} = \sqrt{2GM_{\star}/R_{\star}}$ is the escape speed of the star with mass $M_{\star}$ and radius $R_{\star}$ and the derivative is taken as $\epsilon \rightarrow 0$. Figure \ref{fig:vonvstar} shows the ratio $v / v_{\star}$ as a function of $\beta$, and illustrates that this value is of the order unity. Thus the compression from the in-plane caustic is approximately adiabatic and does not form a strong shock.
+
+\begin{figure}[htbp] 
+   \centering
+   \includegraphics[width=0.47\textwidth]{vonvstar-eps-converted-to.pdf} 
+   \caption{The speed at which material converges onto the COM normalized by the stellar escape speed, $v / v_{\star}$, as a function of $\beta$. Because this ratio is always on the order of unity, the compression that occurs at the in-plane pancake is at most very mildly supersonic, meaning that a strong shock does not form.}
+   \label{fig:vonvstar}
+\end{figure}
+
+By definition the mass of a fluid element is conserved, and hence the density\footnote{The out-of-plane motion of the fluid elements, which we ignore here, implies that the true variation in the density is more complicated than this; we discuss this further in Section \ref{sec:discussion} below, but the solution for the density given by Equation \eqref{rho} can be more accurately interpreted as a column density, i.e., the true density integrated over the height of the debris.} $\rho$ satisfies
+
+\begin{equation}
+\rho(s,\psi,\tau) = \rho_0(s_0,\psi_0)J^{-1}, \label{rho}
+\end{equation}
+where $J$ is the Jacobian that relates the time-dependent positions of the fluid elements $\{s,\psi\}$ to their initial positions $\{s_0,\psi_0\}$. Since the equations of motion are independent of $s_0$ the Jacobian is simply $J = \partial\psi/\partial\psi_0$. Figure \ref{fig:rhorhob} shows the average density of a ring of fluid elements as a function of the position of the center of mass relative to the tidal radius for the $\beta$ in the legend; the density was determined by interpolating the Jacobian for a number of different $\psi_0$, calculating the derivative, and averaging over the particles. The density is plotted relative to the tidal density of the SMBH, $\rho_{\bullet} \simeq M_{\bullet}/r_{\star}^3$, and this ratio is normalized to unity when the star enters the tidal radius, which reflects the fact that the self-gravity of the material is dominated by the tidal field of the black hole interior to $\sim r_{\rm t}$. As functions of time all of the curves start at the green point, move to the left where they reach their pericenter distance ($ = 1/\beta$), and move back to larger distances from the SMBH. Prior to hitting the caustic the density increases back above the tidal density of the SMBH owing to the compression in the plane.
+
+\begin{figure}[htbp]
+   \centering
+   \includegraphics[width=0.47\textwidth]{rho_av-eps-converted-to.pdf} 
+   \caption{The ratio of the average density of a ring of fluid elements $\rho$ to the density of the black hole, $\rho_{\bullet} \simeq M_{\bullet}/r_{\star}^3$; this ratio has been normalized to unity at the time the star enters the tidal radius of the SMBH, that time shown by the green circle. This ratio is plotted as a function of the distance of the stellar COM relative to the tidal radius, and different curves correspond to the $\beta$ shown in the legend. In time each curve starts at the green point, the center of mass moves to smaller radii (left), reaches pericenter, and moves back to larger radii (right). Because of the compressive effects of the caustic, the ratio of the density to the black hole density increases post-pericenter, and would diverge at the location of the caustic in the absence of pressure.}
+   \label{fig:rhorhob}
+\end{figure}
+
+\section{Discussion and Conclusions}
+\label{sec:discussion}
+The analysis in Section \ref{sec:model} indicates that a ``pancake,'' or a caustic where the fluid elements within the orbital plane of a tidally disrupted star collapse to a line, exists for TDEs with large $\beta$ (Figure \ref{fig:rcbeta}). The rate of compression of the gas near the caustic is at most mildly supersonic (Figure \ref{fig:vonvstar}), which implies that the convergence does not generate a strong shock. The ratio of the density to the tidal density of the SMBH increases as the stellar COM moves out from pericenter (Figure \ref{fig:rhorhob}), and would diverge to infinity at the location of the caustic in the absence of pressure.
+
+Gas pressure maintains a finite maximum in the density, which we can estimate by equating the pressure $p$ to the ram pressure of the converging flow $\rho v^2$. Since $v / v_{\star} \simeq 1$ (Figure \ref{fig:vonvstar}) with $v_{\star} = \sqrt{2GM_{\star}/R_{\star}}$, the compression occurs adiabatically and the specific entropy is approximately preserved, and the sound speed increases to roughly the stellar escape speed. It follows that at the time of maximum compression the density is comparable to the original stellar density, because the configuration reaches a state with zero velocity and the sound speed is comparable to the escape speed of the star (i.e., it is in the same equilibrium state as the original star). Since the caustic occurs outside of the tidal disruption radius, this demonstrates that the in-plane pancake revives self-gravity in high-$\beta$ encounters, in agreement with the findings and interpretation of \citet{steinberg19}. 
+
+More quantitatively, the velocity profile is nearly homologous in the direction perpendicular to the caustic as the flow converges, which arises from the independence of the equations of motion on the initial radius within the star. Approximating the distribution of debris as a cylinder, which is reasonable from the bottom panels of Figure \ref{fig:psicurves}, then the convergence will excite predominantly the $f$-mode of the adiabatic cylinder. We therefore expect the pancake to generate time-dependent oscillations of the fluid at the frequency associated with the $f$-mode of an adiabatic cylinder, in agreement with the findings of \citet[see their Figure 4]{coughlin20b}. 
+
+The caustic augments the self-gravity of the material to the point where the stretching stream of debris becomes quasi-hydrostatic in the transverse directions. As such, the stream is gravitationally unstable provided that the dominant contribution to the hydrostatic balance comes from gas pressure, with the instability leading to the formation of self-bound knots that are distributed along the length of the stream in a manner that can be determined from a stability analysis \citep{coughlin15, coughlin20a}. The fact that the in-plane pancake exists for large $\beta$ implies not only that self-gravity remains important for confining the stream in these deeply plunging encounters, but that variability in the fallback rate as distinct clumps of debris return to pericenter is a feature of TDEs irrespective of how large $\beta$ becomes. 
+
+We did not consider the motion perpendicular to the orbital plane of the star, which generates a distinct caustic as fluid elements cross the plane of the COM; as $\beta$ becomes large, this caustic occurs roughly coincidently with the pericenter distance of the star \citep{carter83, stone13}. The motion of the gas out of the plane will certainly affect the estimates of the density. However, the out-of-plane motion should be nearly symmetric about the point of maximum compression (the ``bounce''; \citealt{carter83, stone13}), and hence the density will increase (decrease) more rapidly as the star approaches (recedes from) pericenter. We therefore expect the net effect of the out-of-plane motion to be small by the time the in-plane caustic occurs, and hence our estimate of the density near the caustic -- that it is comparable to the original stellar density -- is likely unaffected by these additional physical considerations. The simulations of \citet{steinberg19} point to the validity of these arguments.
+
+The arguments above suggest that the in-plane compression of the gas augments the average density of the material to a value comparable to that of the initial star. Because of the fact that the initial star possesses a density profile that has regions above and below the average density, we expect the same to be true of the post-pancake debris: the highest-density regions near the COM will be safely above the self-gravitating limit, while the low-density, outer extremities will likely not be self-gravitating. There are also subtleties related to the breakdown of the approximation that the entire star moves with the center of mass at the tidal radius; in reality different shells of the star likely possess varying degrees of differential motion with respect to one another that consequently modify the nature of the caustic (see Figure 10 of \citet{coughlin16} and their discussion related to this point). Again, the simulations of \citet{steinberg19} reflect the notion that these additional complications do not completely stifle the revitalizing influence of self-gravity (those authors also note that the self-gravitating material is confined to a denser ``core'' of material surrounded by a non-self-gravitating ``sheath''). 
+
+We adopted the tidal limit in our analysis in Section \ref{sec:model}, which assumes that the distance of the stellar COM to the SMBH is much greater than the size of the star itself, and we also did not include general relativistic effects. These approximations break down at sufficiently large $\beta$, the former (latter) becoming increasingly important as the SMBH mass decreases (increases; e.g., \citealt{kesden12, stone13, gafton15, stone19, darbha19}). It would be interesting to redo the analysis with general relativistic terms included to determine the modifications to the location at which the in-plane pancake occurs or, indeed, if it precludes its existence altogether above some $\beta$.
+
+Another consequence of the vertical motion (not included in our model) arises from the increase in the gas pressure as a result of the compression near pericenter, with the increase either occurring adiabatically or through the formation of a shock \citep{bicknell83, kobayashi04, brassart08, guillochon09}. It is possible that, at the expense of reducing the vertical motion of the gas, the increase in the pressure serves to impart a more isotropic rebound of the fluid, altering the in-plane motion and correspondingly the location (or existence) of the pancake. While such a redistribution of the kinetic energy probably occurs to some degree, this effect likely does not modify the motion of the gas within the plane to the point where the in-plane pancake can be prevented entirely, because the caustic generated from the vertical collapse occurs simultaneously only for a ring of fluid elements (out of the plane) at a given initial displacement from the center of mass. Instead of compressing isotropically around the center of mass, the points of maximum compression at a given time (i.e., where the caustic occurs) therefore coincide with a line within the orbital plane. The pressure \emph{gradient} responsible for accelerating the fluid is thus still maximized out of the plane, and hence the pressure that builds to resist the vertical compression serves primarily to halt (and reverse) that compression instead of redistributing the energy within the plane. The simulations of \citet{steinberg19} also substantiate the notion that the in-plane pancake is not prevented by this additional effect.
+
+The role of stellar spin in modifying the disruption dynamics has also been investigated relatively recently \citep{golightly19b, kagaya19, sacchi19}. It is straightforward to include this effect in the model presented in Section \ref{sec:model}; if the star is initially rotating with a uniform angular velocity $\Omega_{\star} = \lambda\sqrt{GM_{\star}/R_{\star}^{3/2}}$, where $\lambda$ is the rotational velocity of the star relative to breakup (i.e., for $\lambda = 1$ the star is rotating near breakup and hence we require $\lambda \lesssim 1$), then the only modification\footnote{Assuming that the stellar spin axis is perfectly aligned or anti-aligned with the angular momentum vector of the star; if the spin axis is tilted, then $\lambda$ is the projection of the angular velocity onto the orbital plane of the star (see also \citealt{golightly19b} for further analysis of the tilted case).} to a rotation-less disruption is that the initial angular velocity of a fluid element within the star becomes 
+
+\begin{equation}
+\frac{\partial\varphi}{\partial \tau}\bigg{|}_{\tau = 0} = \frac{\lambda\sqrt{8}}{\beta^{3/2}},
+\end{equation}
+which clearly reduces to the case analyzed in detail in Section \ref{sec:model} when $\lambda = 0$. Note that positive $\lambda$ implies that the star is rotating such that its angular momentum vector is aligned with that of the orbit of the COM, while negative $\lambda$ implies retrograde rotation. What this expression illustrates is that, even for stars rotating near breakup\footnote{Such an encounter would be extremely rare if the disrupted star was placed on a centrophyllic orbit through ordinary two-body relaxation in the host galaxy, but could be more plausible if the star entered the loss cone of the SMBH through a more exotic mechanism, such as a repeated encounter (e.g., \citealt{sacchi19}) or through interactions with a SMBH binary \citep{coughlin17}.}, the initial rotation of the star is negligible once $\beta$ becomes greater than about 2. Thus, while rapid stellar rotation could substantially modify the disruption dynamics for modest $\beta$ (as suggested by the simulations of \citealt{golightly19a}, who found that fractions of breakup $\lambda \gtrsim 0.2$ were necessary to generate even modest differences between irrotational disruptions for $\beta = 1$) and conceivably prevent the formation of the caustic, the existence of the pancake is not heavily affected by the initial spin of the star once $\beta$ becomes large. 
+
+\acknowledgements
+We thank Elad Steinberg and the anonymous referee for useful comments and suggestions. E.R.C. acknowledges support from NASA through the Hubble Fellowship Program, grant No.~HST-HF2-51433.001-A awarded by the Space Telescope Science Institute, which is operated by the Association of Universities for Research in Astronomy, Incorporated, under NASA contract NAS5-26555. E.R.C. and P.R.M. acknowledge support from the National Science Foundation through grant AST-2006684. C.J.N. is supported by the Science and Technology Facilities Council (grant number ST/M005917/1). This project has received funding from the European Union’s Horizon 2020 research and innovation program under the Marie Sk\l{}odowska-Curie grant agreement No 823823 (Dustbusters RISE project).
+
+\newpage
+
+\bibliographystyle{aasjournal}
+%\bibliography{refs}
+
+\begin{thebibliography}{}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+\providecommand{\url}[1]{\href{#1}{#1}}
+\providecommand{\dodoi}[1]{doi:~\href{http://doi.org/#1}{\nolinkurl{#1}}}
+\providecommand{\doeprint}[1]{\href{http://ascl.net/#1}{\nolinkurl{http://ascl.net/#1}}}
+\providecommand{\doarXiv}[1]{\href{https://arxiv.org/abs/#1}{\nolinkurl{https://arxiv.org/abs/#1}}}
+
+\bibitem[{{Bicknell} \& {Gingold}(1983)}]{bicknell83}
+{Bicknell}, G.~V., \& {Gingold}, R.~A. 1983, \apj, 273, 749,
+  \dodoi{10.1086/161410}
+
+\bibitem[{{Brassart} \& {Luminet}(2008)}]{brassart08}
+{Brassart}, M., \& {Luminet}, J.~P. 2008, \aap, 481, 259,
+  \dodoi{10.1051/0004-6361:20078264}
+
+\bibitem[{{Carter} \& {Luminet}(1983)}]{carter83}
+{Carter}, B., \& {Luminet}, J.~P. 1983, \aap, 121, 97
+
+\bibitem[{{Coughlin} {et~al.}(2017){Coughlin}, {Armitage}, {Nixon}, \&
+  {Begelman}}]{coughlin17}
+{Coughlin}, E.~R., {Armitage}, P.~J., {Nixon}, C., \& {Begelman}, M.~C. 2017,
+  \mnras, 465, 3840, \dodoi{10.1093/mnras/stw2913}
+
+\bibitem[{{Coughlin} \& {Nixon}(2015)}]{coughlin15}
+{Coughlin}, E.~R., \& {Nixon}, C. 2015, \apjl, 808, L11,
+  \dodoi{10.1088/2041-8205/808/1/L11}
+
+\bibitem[{{Coughlin} {et~al.}(2016){Coughlin}, {Nixon}, {Begelman}, {Armitage},
+  \& {Price}}]{coughlin16}
+{Coughlin}, E.~R., {Nixon}, C., {Begelman}, M.~C., {Armitage}, P.~J., \&
+  {Price}, D.~J. 2016, \mnras, 455, 3612, \dodoi{10.1093/mnras/stv2511}
+
+\bibitem[{Coughlin \& Nixon(2019)}]{coughlin19}
+Coughlin, E.~R., \& Nixon, C.~J. 2019, The Astrophysical Journal, 883, L17,
+  \dodoi{10.3847/2041-8213/ab412d}
+
+\bibitem[{{Coughlin} \& {Nixon}(2020)}]{coughlin20a}
+{Coughlin}, E.~R., \& {Nixon}, C.~J. 2020, \apjs, 247, 51,
+  \dodoi{10.3847/1538-4365/ab77c2}
+
+\bibitem[{{Coughlin} {et~al.}(2020){Coughlin}, {Nixon}, {Barnes}, {Metzger}, \&
+  {Margutti}}]{coughlin20b}
+{Coughlin}, E.~R., {Nixon}, C.~J., {Barnes}, J., {Metzger}, B.~D., \&
+  {Margutti}, R. 2020, \apjl, 896, L38, \dodoi{10.3847/2041-8213/ab9a4e}
+
+\bibitem[{{Darbha} {et~al.}(2019){Darbha}, {Coughlin}, {Kasen}, \&
+  {Nixon}}]{darbha19}
+{Darbha}, S., {Coughlin}, E.~R., {Kasen}, D., \& {Nixon}, C. 2019, \mnras, 488,
+  5267, \dodoi{10.1093/mnras/stz1923}
+
+\bibitem[{{Evans} \& {Kochanek}(1989)}]{evans89}
+{Evans}, C.~R., \& {Kochanek}, C.~S. 1989, \apjl, 346, L13,
+  \dodoi{10.1086/185567}
+
+\bibitem[{{Gafton} {et~al.}(2015){Gafton}, {Tejeda}, {Guillochon}, {Korobkin},
+  \& {Rosswog}}]{gafton15}
+{Gafton}, E., {Tejeda}, E., {Guillochon}, J., {Korobkin}, O., \& {Rosswog}, S.
+  2015, \mnras, 449, 771, \dodoi{10.1093/mnras/stv350}
+
+\bibitem[{{Gezari} {et~al.}(2012){Gezari}, {Chornock}, {Rest}, {Huber},
+  {Forster}, {Berger}, {Challis}, {Neill}, {Martin}, {Heckman}, {Lawrence},
+  {Norman}, {Narayan}, {Foley}, {Marion}, {Scolnic}, {Chomiuk}, {Soderberg},
+  {Smith}, {Kirshner}, {Riess}, {Smartt}, {Stubbs}, {Tonry}, {Wood-Vasey},
+  {Burgett}, {Chambers}, {Grav}, {Heasley}, {Kaiser}, {Kudritzki}, {Magnier},
+  {Morgan}, \& {Price}}]{gezari12}
+{Gezari}, S., {Chornock}, R., {Rest}, A., {et~al.} 2012, \nat, 485, 217,
+  \dodoi{10.1038/nature10990}
+
+\bibitem[{Golightly {et~al.}(2019)Golightly, Coughlin, \& Nixon}]{golightly19b}
+Golightly, E. C.~A., Coughlin, E.~R., \& Nixon, C.~J. 2019, The Astrophysical
+  Journal, 872, 163, \dodoi{10.3847/1538-4357/aafd2f}
+
+\bibitem[{{Golightly} {et~al.}(2019){Golightly}, {Nixon}, \&
+  {Coughlin}}]{golightly19a}
+{Golightly}, E.~C.~A., {Nixon}, C.~J., \& {Coughlin}, E.~R. 2019, \apjl, 882,
+  L26, \dodoi{10.3847/2041-8213/ab380d}
+
+\bibitem[{Gomez {et~al.}(2020)Gomez, Nicholl, Short, Margutti, Alexander,
+  Blanchard, Berger, Eftekhari, Schulze, Anderson, Arcavi, Chornock,
+  Cowperthwaite, Galbany, Herzog, Hiramatsu, Hosseinzadeh, Laskar, Bravo,
+  Patton, \& Terreran}]{gomez20}
+Gomez, S., Nicholl, M., Short, P., {et~al.} 2020, The Tidal Disruption Event AT
+  2018hyz II: Light Curve Modeling of a Partially Disrupted Star.
+\newblock \doarXiv{2003.05469}
+
+\bibitem[{Guillochon \& Ramirez-Ruiz(2013)}]{guillochon13}
+Guillochon, J., \& Ramirez-Ruiz, E. 2013, The Astrophysical Journal, 767, 25,
+  \dodoi{10.1088/0004-637x/767/1/25}
+
+\bibitem[{{Guillochon} {et~al.}(2009){Guillochon}, {Ramirez-Ruiz}, {Rosswog},
+  \& {Kasen}}]{guillochon09}
+{Guillochon}, J., {Ramirez-Ruiz}, E., {Rosswog}, S., \& {Kasen}, D. 2009, \apj,
+  705, 844, \dodoi{10.1088/0004-637X/705/1/844}
+
+\bibitem[{Hayasaki {et~al.}(2013)Hayasaki, Stone, \& Loeb}]{hayasaki13}
+Hayasaki, K., Stone, N., \& Loeb, A. 2013, Monthly Notices of the Royal
+  Astronomical Society, 434, 909–924, \dodoi{10.1093/mnras/stt871}
+
+\bibitem[{Holoien {et~al.}(2019)Holoien, Huber, Shappee, Eracleous, Auchettl,
+  Brown, Tucker, Chambers, Kochanek, Stanek, \& et~al.}]{holoien19}
+Holoien, T. W.-S., Huber, M.~E., Shappee, B.~J., {et~al.} 2019, The
+  Astrophysical Journal, 880, 120, \dodoi{10.3847/1538-4357/ab2ae1}
+
+\bibitem[{{Holoien} {et~al.}(2020){Holoien}, {Auchettl}, {Tucker}, {Shappee},
+  {Patel}, {Miller-Jones}, {Mockler}, {Groenewald}, {Brown}, {Kochanek},
+  {Stanek}, {Chen}, {Dong}, {Prieto}, {Thompson}, {Beaton}, {Connor},
+  {Cowperthwaite}, {Dahmen}, {French}, {Morrell}, {Buckley}, {Gromadzki},
+  {Roy}, {Coulter}, {Dimitriadis}, {Foley}, {Kilpatrick}, {Piro},
+  {Rojas-Bravo}, {Siebert}, \& {van Velzen}}]{holoien20}
+{Holoien}, T. W.~S., {Auchettl}, K., {Tucker}, M.~A., {et~al.} 2020, arXiv
+  e-prints, arXiv:2003.13693.
+\newblock \doarXiv{2003.13693}
+
+\bibitem[{Hung {et~al.}(2017)Hung, Gezari, Blagorodnova, Roth, Cenko, Kulkarni,
+  Horesh, Arcavi, McCully, Yan, \& et~al.}]{hung17}
+Hung, T., Gezari, S., Blagorodnova, N., {et~al.} 2017, The Astrophysical
+  Journal, 842, 29, \dodoi{10.3847/1538-4357/aa7337}
+
+\bibitem[{{Ivezi{\'c}} {et~al.}(2019){Ivezi{\'c}}, {Kahn}, {Tyson}, {Abel},
+  {Acosta}, {Allsman}, {Alonso}, {AlSayyad}, {Anderson}, {Andrew}, {Angel},
+  {Angeli}, {Ansari}, {Antilogus}, {Araujo}, {Armstrong}, {Arndt}, {Astier},
+  {Aubourg}, {Auza}, {Axelrod}, {Bard}, {Barr}, {Barrau}, {Bartlett}, {Bauer},
+  {Bauman}, {Baumont}, {Bechtol}, {Bechtol}, {Becker}, {Becla}, {Beldica},
+  {Bellavia}, {Bianco}, {Biswas}, {Blanc}, {Blazek}, {Bland ford}, {Bloom},
+  {Bogart}, {Bond}, {Booth}, {Borgland}, {Borne}, {Bosch}, {Boutigny},
+  {Brackett}, {Bradshaw}, {Brand t}, {Brown}, {Bullock}, {Burchat}, {Burke},
+  {Cagnoli}, {Calabrese}, {Callahan}, {Callen}, {Carlin}, {Carlson}, {Chand
+  rasekharan}, {Charles-Emerson}, {Chesley}, {Cheu}, {Chiang}, {Chiang},
+  {Chirino}, {Chow}, {Ciardi}, {Claver}, {Cohen-Tanugi}, {Cockrum}, {Coles},
+  {Connolly}, {Cook}, {Cooray}, {Covey}, {Cribbs}, {Cui}, {Cutri}, {Daly},
+  {Daniel}, {Daruich}, {Daubard}, {Daues}, {Dawson}, {Delgado}, {Dellapenna},
+  {de Peyster}, {de Val-Borro}, {Digel}, {Doherty}, {Dubois},
+  {Dubois-Felsmann}, {Durech}, {Economou}, {Eifler}, {Eracleous}, {Emmons},
+  {Fausti Neto}, {Ferguson}, {Figueroa}, {Fisher-Levine}, {Focke}, {Foss},
+  {Frank}, {Freemon}, {Gangler}, {Gawiser}, {Geary}, {Gee}, {Geha}, {Gessner},
+  {Gibson}, {Gilmore}, {Glanzman}, {Glick}, {Goldina}, {Goldstein}, {Goodenow},
+  {Graham}, {Gressler}, {Gris}, {Guy}, {Guyonnet}, {Haller}, {Harris},
+  {Hascall}, {Haupt}, {Hernand ez}, {Herrmann}, {Hileman}, {Hoblitt},
+  {Hodgson}, {Hogan}, {Howard}, {Huang}, {Huffer}, {Ingraham}, {Innes},
+  {Jacoby}, {Jain}, {Jammes}, {Jee}, {Jenness}, {Jernigan}, {Jevremovi{\'c}},
+  {Johns}, {Johnson}, {Johnson}, {Jones}, {Juramy-Gilles}, {Juri{\'c}},
+  {Kalirai}, {Kallivayalil}, {Kalmbach}, {Kantor}, {Karst}, {Kasliwal},
+  {Kelly}, {Kessler}, {Kinnison}, {Kirkby}, {Knox}, {Kotov}, {Krabbendam},
+  {Krughoff}, {Kub{\'a}nek}, {Kuczewski}, {Kulkarni}, {Ku}, {Kurita}, {Lage},
+  {Lambert}, {Lange}, {Langton}, {Le Guillou}, {Levine}, {Liang}, {Lim},
+  {Lintott}, {Long}, {Lopez}, {Lotz}, {Lupton}, {Lust}, {MacArthur}, {Mahabal},
+  {Mand elbaum}, {Markiewicz}, {Marsh}, {Marshall}, {Marshall}, {May},
+  {McKercher}, {McQueen}, {Meyers}, {Migliore}, {Miller}, {Mills}, {Miraval},
+  {Moeyens}, {Moolekamp}, {Monet}, {Moniez}, {Monkewitz}, {Montgomery},
+  {Morrison}, {Mueller}, {Muller}, {Mu{\~n}oz Arancibia}, {Neill}, {Newbry},
+  {Nief}, {Nomerotski}, {Nordby}, {O'Connor}, {Oliver}, {Olivier}, {Olsen},
+  {O'Mullane}, {Ortiz}, {Osier}, {Owen}, {Pain}, {Palecek}, {Parejko},
+  {Parsons}, {Pease}, {Peterson}, {Peterson}, {Petravick}, {Libby Petrick},
+  {Petry}, {Pierfederici}, {Pietrowicz}, {Pike}, {Pinto}, {Plante}, {Plate},
+  {Plutchak}, {Price}, {Prouza}, {Radeka}, {Rajagopal}, {Rasmussen},
+  {Regnault}, {Reil}, {Reiss}, {Reuter}, {Ridgway}, {Riot}, {Ritz}, {Robinson},
+  {Roby}, {Roodman}, {Rosing}, {Roucelle}, {Rumore}, {Russo}, {Saha},
+  {Sassolas}, {Schalk}, {Schellart}, {Schindler}, {Schmidt}, {Schneider},
+  {Schneider}, {Schoening}, {Schumacher}, {Schwamb}, {Sebag}, {Selvy},
+  {Sembroski}, {Seppala}, {Serio}, {Serrano}, {Shaw}, {Shipsey}, {Sick},
+  {Silvestri}, {Slater}, {Smith}, {Smith}, {Sobhani}, {Soldahl},
+  {Storrie-Lombardi}, {Stover}, {Strauss}, {Street}, {Stubbs}, {Sullivan},
+  {Sweeney}, {Swinbank}, {Szalay}, {Takacs}, {Tether}, {Thaler}, {Thayer},
+  {Thomas}, {Thornton}, {Thukral}, {Tice}, {Trilling}, {Turri}, {Van Berg},
+  {Vanden Berk}, {Vetter}, {Virieux}, {Vucina}, {Wahl}, {Walkowicz}, {Walsh},
+  {Walter}, {Wang}, {Wang}, {Warner}, {Wiecha}, {Willman}, {Winters},
+  {Wittman}, {Wolff}, {Wood-Vasey}, {Wu}, {Xin}, {Yoachim}, \&
+  {Zhan}}]{ivezic19}
+{Ivezi{\'c}}, {\v{Z}}., {Kahn}, S.~M., {Tyson}, J.~A., {et~al.} 2019, \apj,
+  873, 111, \dodoi{10.3847/1538-4357/ab042c}
+
+\bibitem[{{Kagaya} {et~al.}(2019){Kagaya}, {Yoshida}, \& {Tanikawa}}]{kagaya19}
+{Kagaya}, K., {Yoshida}, S., \& {Tanikawa}, A. 2019, arXiv e-prints,
+  arXiv:1901.05644.
+\newblock \doarXiv{1901.05644}
+
+\bibitem[{{Kesden}(2012)}]{kesden12}
+{Kesden}, M. 2012, \prd, 85, 024037, \dodoi{10.1103/PhysRevD.85.024037}
+
+\bibitem[{{Kobayashi} {et~al.}(2004){Kobayashi}, {Laguna}, {Phinney}, \&
+  {M{\'e}sz{\'a}ros}}]{kobayashi04}
+{Kobayashi}, S., {Laguna}, P., {Phinney}, E.~S., \& {M{\'e}sz{\'a}ros}, P.
+  2004, \apj, 615, 855, \dodoi{10.1086/424684}
+
+\bibitem[{{Kochanek}(1994)}]{kochanek94}
+{Kochanek}, C.~S. 1994, \apj, 422, 508, \dodoi{10.1086/173745}
+
+\bibitem[{{Lacy} {et~al.}(1982){Lacy}, {Townes}, \& {Hollenbach}}]{lacy82}
+{Lacy}, J.~H., {Townes}, C.~H., \& {Hollenbach}, D.~J. 1982, \apj, 262, 120,
+  \dodoi{10.1086/160402}
+
+\bibitem[{{Laguna} {et~al.}(1993){Laguna}, {Miller}, {Zurek}, \&
+  {Davies}}]{laguna93}
+{Laguna}, P., {Miller}, W.~A., {Zurek}, W.~H., \& {Davies}, M.~B. 1993, \apjl,
+  410, L83, \dodoi{10.1086/186885}
+
+\bibitem[{{Law-Smith} {et~al.}(2020){Law-Smith}, {Coulter}, {Guillochon},
+  {Mockler}, \& {Ramirez-Ruiz}}]{law-smith20}
+{Law-Smith}, J. A.~P., {Coulter}, D.~A., {Guillochon}, J., {Mockler}, B., \&
+  {Ramirez-Ruiz}, E. 2020, arXiv e-prints, arXiv:2007.10996.
+\newblock \doarXiv{2007.10996}
+
+\bibitem[{{Lodato} {et~al.}(2009){Lodato}, {King}, \& {Pringle}}]{lodato09}
+{Lodato}, G., {King}, A.~R., \& {Pringle}, J.~E. 2009, \mnras, 392, 332,
+  \dodoi{10.1111/j.1365-2966.2008.14049.x}
+
+\bibitem[{Mainetti {et~al.}(2017)Mainetti, Lupi, Campana, Colpi, Coughlin,
+  Guillochon, \& Ramirez-Ruiz}]{mainetti17}
+Mainetti, D., Lupi, A., Campana, S., {et~al.} 2017, aa, 600, A124,
+  \dodoi{10.1051/0004-6361/201630092}
+
+\bibitem[{{Miles} {et~al.}(2020){Miles}, {Coughlin}, \& {Nixon}}]{miles20}
+{Miles}, P.~R., {Coughlin}, E.~R., \& {Nixon}, C.~J. 2020, arXiv e-prints,
+  arXiv:2006.09375.
+\newblock \doarXiv{2006.09375}
+
+\bibitem[{{Rees}(1988)}]{rees88}
+{Rees}, M.~J. 1988, \nat, 333, 523, \dodoi{10.1038/333523a0}
+
+\bibitem[{{Sacchi} \& {Lodato}(2019)}]{sacchi19}
+{Sacchi}, A., \& {Lodato}, G. 2019, \mnras, 486, 1833,
+  \dodoi{10.1093/mnras/stz981}
+
+\bibitem[{{Sari} {et~al.}(2010){Sari}, {Kobayashi}, \& {Rossi}}]{sari10}
+{Sari}, R., {Kobayashi}, S., \& {Rossi}, E.~M. 2010, \apj, 708, 605,
+  \dodoi{10.1088/0004-637X/708/1/605}
+
+\bibitem[{{Steinberg} {et~al.}(2019){Steinberg}, {Coughlin}, {Stone}, \&
+  {Metzger}}]{steinberg19}
+{Steinberg}, E., {Coughlin}, E.~R., {Stone}, N.~C., \& {Metzger}, B.~D. 2019,
+  \mnras, 485, L146, \dodoi{10.1093/mnrasl/slz048}
+
+\bibitem[{{Stone} {et~al.}(2013){Stone}, {Sari}, \& {Loeb}}]{stone13}
+{Stone}, N., {Sari}, R., \& {Loeb}, A. 2013, \mnras, 435, 1809,
+  \dodoi{10.1093/mnras/stt1270}
+
+\bibitem[{{Stone} {et~al.}(2019){Stone}, {Kesden}, {Cheng}, \& {van
+  Velzen}}]{stone19}
+{Stone}, N.~C., {Kesden}, M., {Cheng}, R.~M., \& {van Velzen}, S. 2019, General
+  Relativity and Gravitation, 51, 30, \dodoi{10.1007/s10714-019-2510-9}
+
+\bibitem[{{van Velzen} {et~al.}(2019){van Velzen}, {Gezari}, {Cenko}, {Kara},
+  {Miller-Jones}, {Hung}, {Bright}, {Roth}, {Blagorodnova}, {Huppenkothen},
+  {Yan}, {Ofek}, {Sollerman}, {Frederick}, {Ward}, {Graham}, {Fender},
+  {Kasliwal}, {Canella}, {Stein}, {Giomi}, {Brinnel}, {van Santen}, {Nordin},
+  {Bellm}, {Dekany}, {Fremling}, {Golkhou}, {Kupfer}, {Kulkarni}, {Laher},
+  {Mahabal}, {Masci}, {Miller}, {Neill}, {Riddle}, {Rigault}, {Rusholme},
+  {Soumagnac}, \& {Tachibana}}]{vanvelzen19}
+{van Velzen}, S., {Gezari}, S., {Cenko}, S.~B., {et~al.} 2019, \apj, 872, 198,
+  \dodoi{10.3847/1538-4357/aafe0c}
+
+\end{thebibliography}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\end{document}
+
+
+

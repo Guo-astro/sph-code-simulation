@@ -1,0 +1,100 @@
+{
+  "name": "continue_10k_b3pc_nocool",
+  "description": "Continue IMBH tidal disruption from snapshot_0100 (t=2.0 Myr)",
+  
+  "comment": "=== CONTINUATION from imbh_relaxed_2k_b3pc_nocool ===",
+  "comment2": "Extends simulation from t=2.0 to t=4.0 Myr",
+  "comment3": "Uses resetTimeOnResume: false to CONTINUE from snapshot time",
+  
+  "units": {
+    "type": "IMBH_ENCOUNTER",
+    "length_pc": 1.0,
+    "mass_1e3Msun": 1.0,
+    "velocity_kms": 1.0,
+    "comment": "IMBH Encounter units: [L]=1pc, [M]=1000 M_☉, [V]=km/s, [T]=0.978 kyr"
+  },
+  
+  "outputDirectory": "sample/imbh_cloud/results/continuation/10k_b3pc_nocool_t2to4",
+  "outputFormat": "csv",
+  "enableEnergyFile": true,
+  
+  "SPHType": "gdisph",
+  "use2ndOrderGSPH": false,
+  "kernel": "wendland",
+  "neighborNumber": 50,
+  "gamma": 1.6666666666666667,
+  
+  "cflSound": 0.3,
+  "cflForce": 0.125,
+  
+  "avAlpha": 1.0,
+  "useBalsaraSwitch": true,
+  "useTimeDependentAV": false,
+  
+  "maxTreeLevel": 20,
+  "leafParticleNumber": 1,
+  "iterativeSmoothingLength": true,
+  "periodic": false,
+  
+  "startTime": 0.0,
+  "endTime": 4.0,
+  "outputTime": 0.02,
+  
+  "useGravity": true,
+  "G": 1.0,
+  
+  "resumeFromSnapshot": "sample/imbh_cloud/results/imbh_relaxed_2k_b3pc_nocool/snapshot_0100.csv",
+  "resetTimeOnResume": false,
+  
+  "physics": {
+    "gamma": 1.6666666666666667,
+    "gravitational_constant": 1.0,
+    "use_gravity": true
+  },
+  
+  "checkpoint": {
+    "enabled": true,
+    "saveInterval": 500,
+    "directory": "sample/imbh_cloud/results/continuation/10k_b3pc_nocool_t2to4/checkpoints",
+    "saveOnExit": true,
+    "maxCheckpoints": 5,
+    "autoResume": false,
+    "resumeFile": "sample/imbh_cloud/results/imbh_relaxed_2k_b3pc_nocool/snapshot_0100.csv",
+    "resetTimeOnResume": false
+  },
+  
+  "imbh_parameters": {
+    "enabled": true,
+    "comment": "Correct physics: IMBH stationary, cloud moves toward it",
+    "M_BH": 100000.0,
+    "BH_initial_position": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0
+    },
+    "BH_initial_velocity": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0
+    },
+    "cloud_initial_position": {
+      "0": -20.0,
+      "1": 3.0,
+      "2": 0.0
+    },
+    "cloud_initial_velocity": {
+      "0": 10.0,
+      "1": 0.0,
+      "2": 0.0
+    },
+    "cloud_scale_factor": 0.005,
+    "impact_parameter_b": 3.0,
+    "softening_epsilon": 0.05,
+    "note": "CONTINUATION: cloud position/velocity will be loaded from snapshot"
+  },
+  
+  "thermal": {
+    "enable_cooling": false,
+    "comment": "NO cooling - adiabatic evolution"
+  }
+}
