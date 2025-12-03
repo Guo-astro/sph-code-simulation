@@ -139,6 +139,13 @@ void CSVWriter::write_header(const OutputMetadata& metadata) {
     m_file << "# balsara: Balsara factor\n";
     m_file << "# gradh: grad-h term factor\n";
     m_file << "# phi: Gravitational potential [code units]\n";
+#if DIM == 1
+    m_file << "# grav_acc_x: Gravitational acceleration [code units]\n";
+#elif DIM == 2
+    m_file << "# grav_acc_x, grav_acc_y: Gravitational acceleration [code units]\n";
+#else
+    m_file << "# grav_acc_x, grav_acc_y, grav_acc_z: Gravitational acceleration [code units]\n";
+#endif
     m_file << "# neighbor: Number of neighbors\n";
     m_file << "# is_ghost: Ghost particle flag (0=real, 1=ghost)\n";
     m_file << "#\n";
@@ -161,7 +168,13 @@ void CSVWriter::write_column_names() {
     m_file << "acc_x,acc_y,acc_z,";
 #endif
     m_file << "mass,dens,pres,ene,sml,sound,";
-    m_file << "alpha,balsara,gradh,phi,neighbor,is_ghost\n";
+#if DIM == 1
+    m_file << "alpha,balsara,gradh,phi,grav_acc_x,neighbor,is_ghost\n";
+#elif DIM == 2
+    m_file << "alpha,balsara,gradh,phi,grav_acc_x,grav_acc_y,neighbor,is_ghost\n";
+#else
+    m_file << "alpha,balsara,gradh,phi,grav_acc_x,grav_acc_y,grav_acc_z,neighbor,is_ghost\n";
+#endif
 }
 
 bool CSVWriter::write_particles(const std::vector<SPHParticle*>& particles) {
@@ -212,6 +225,16 @@ bool CSVWriter::write_particles(const std::vector<SPHParticle*>& particles) {
         m_file << p->balsara << ",";
         m_file << p->gradh << ",";
         m_file << p->phi << ",";
+        
+        // Gravitational acceleration (dimension-aware)
+#if DIM == 1
+        m_file << p->grav_acc[0] << ",";
+#elif DIM == 2
+        m_file << p->grav_acc[0] << "," << p->grav_acc[1] << ",";
+#else
+        m_file << p->grav_acc[0] << "," << p->grav_acc[1] << "," << p->grav_acc[2] << ",";
+#endif
+        
         m_file << p->neighbor << ",";
         m_file << (p->is_ghost ? 1 : 0) << "\n";
     }
@@ -382,8 +405,22 @@ bool CSVWriter::read_particles(const std::string& filepath, std::vector<SPHParti
             fields.push_back(field);
         }
         
-        // Verify we have all 22 columns (including is_ghost)
-        if (fields.size() != 22) {
+        // Verify we have expected number of columns
+        // DIM=3: 25 columns (id, pos*3, vel*3, acc*3, mass, dens, pres, ene, sml, sound, alpha, balsara, gradh, phi, grav_acc*3, neighbor, is_ghost)
+        // DIM=2: 21 columns, DIM=1: 18 columns (with vel_t)
+        // Also accept old format without grav_acc (22 columns for DIM=3)
+#if DIM == 3
+        const size_t expected_cols_new = 25;
+        const size_t expected_cols_old = 22;
+#elif DIM == 2
+        const size_t expected_cols_new = 21;
+        const size_t expected_cols_old = 18;
+#else
+        const size_t expected_cols_new = 18;
+        const size_t expected_cols_old = 15;
+#endif
+        const bool has_grav_acc = (fields.size() == expected_cols_new);
+        if (fields.size() != expected_cols_new && fields.size() != expected_cols_old) {
             // Clean up allocated particles
             for (auto* p : particles) {
                 delete p;
@@ -427,6 +464,24 @@ bool CSVWriter::read_particles(const std::string& filepath, std::vector<SPHParti
             p->balsara = safe_stod(fields[idx++], 1.0);  // May be uninitialized
             p->gradh = safe_stod(fields[idx++], 1.0);    // May be uninitialized - default to 1.0
             p->phi = safe_stod(fields[idx++], 0.0);      // May be uninitialized
+            
+            // Gravitational acceleration (optional - new format)
+            if (has_grav_acc) {
+#if DIM == 1
+                p->grav_acc[0] = safe_stod(fields[idx++], 0.0);
+#elif DIM == 2
+                p->grav_acc[0] = safe_stod(fields[idx++], 0.0);
+                p->grav_acc[1] = safe_stod(fields[idx++], 0.0);
+#else
+                p->grav_acc[0] = safe_stod(fields[idx++], 0.0);
+                p->grav_acc[1] = safe_stod(fields[idx++], 0.0);
+                p->grav_acc[2] = safe_stod(fields[idx++], 0.0);
+#endif
+            } else {
+                // Old format without grav_acc - initialize to zero
+                p->grav_acc = vec_t(0.0);
+            }
+            
             p->neighbor = std::stoi(fields[idx++]);
             p->is_ghost = (std::stoi(fields[idx++]) != 0);
             

@@ -4,12 +4,15 @@
 #include <sstream>
 #include <string>
 #include <random>
+#include <limits>
 
 #include "solver.hpp"
 #include "simulation.hpp"
 #include "particle.hpp"
 #include "exception.hpp"
 #include "parameters.hpp"
+#include "kernel/kernel_function.hpp"
+#include "periodic.hpp"
 
 namespace sph
 {
@@ -274,7 +277,11 @@ void Solver::make_lane_emden()
     
     std::cout << "Lane-Emden: Mapped " << mapped_positions.size() << " particles to Lane-Emden radii" << std::endl;
     
-    // Step 3: Create SPH particles with mapped positions
+    // ========================================================================
+    // Step 3: Create SPH particles with mapped positions (POSITIONS ONLY)
+    // ========================================================================
+    // First pass: place particles and set mass only
+    // Thermodynamic quantities will be set AFTER computing SPH density
     count_added = 0;
     for(size_t ip = 0; ip < mapped_positions.size(); ++ip) {
         vec_t pos = mapped_positions[ip];
@@ -289,42 +296,105 @@ void Solver::make_lane_emden()
             continue;
         }
         
-        // Density from Lane-Emden: ρ(r) = ρ_c * θ^(3/2)
-        const real dens = rho_center * std::pow(theta, 1.5);
+        // Density from Lane-Emden (used for initial smoothing length estimate)
+        const real dens_analytic = rho_center * std::pow(theta, 1.5);
         
-        if(dens <= 1e-10) {
+        if(dens_analytic <= 1e-10) {
             continue;
         }
-        
-        // Pressure from polytropic relation: P = K * ρ^γ
-        const real pres = K * std::pow(dens, gamma);
-        
-        // Internal energy: u = P / ((γ-1) * ρ)
-        const real ene = pres / ((gamma - 1.0) * dens);
         
         SPHParticle p_i;
         p_i.pos = pos;
         p_i.vel = 0.0;  // Initially at rest (hydrostatic equilibrium)
-        p_i.dens = dens;
-        p_i.pres = pres;
-        p_i.ene = ene;
         p_i.mass = particle_mass;
         p_i.id = count_added;
+        
+        // Initial guess for smoothing length based on local analytic density
+        // h ~ (N_neighbor * m / ρ / A)^(1/DIM) where A is geometric factor
+        constexpr real A = DIM == 2 ? M_PI : 4.0 * M_PI / 3.0;
+        const int N_neighbor = m_param->physics.neighbor_number;
+        p_i.sml = std::pow(N_neighbor * particle_mass / (dens_analytic * A), 1.0 / DIM);
+        
+        // Store analytic density temporarily (will be overwritten by SPH density)
+        p_i.dens = dens_analytic;
         
         p.emplace_back(p_i);
         count_added++;
     }
     
-    std::cout << "Lane-Emden: Created " << p.size() << " glass-mapped particles" << std::endl;
+    std::cout << "Lane-Emden: Created " << p.size() << " particles (positions set)" << std::endl;
+    
+    // ========================================================================
+    // Step 4: Compute SPH density using kernel sums (SELF-CONSISTENT)
+    // ========================================================================
+    // This ensures ρ_SPH is computed from actual particle positions
+    // Then we set internal energy using ρ_SPH so P = K ρ_SPH^γ exactly
+    
+    std::cout << "Lane-Emden: Computing SPH density from kernel sums..." << std::endl;
+    
+    auto * kernel = m_sim->get_kernel().get();
+    auto * periodic = m_sim->get_periodic().get();
+    const int num_particles = static_cast<int>(p.size());
+    
+    // Compute SPH density for each particle
+    real max_dens_ratio = 0.0;
+    real min_dens_ratio = std::numeric_limits<real>::max();
+    real sum_dens_ratio = 0.0;
+    
+    for(int i = 0; i < num_particles; ++i) {
+        auto & p_i = p[i];
+        const vec_t & pos_i = p_i.pos;
+        const real h_i = p_i.sml;
+        
+        // Store analytic density for comparison
+        const real dens_analytic = p_i.dens;
+        
+        // Compute SPH density: ρ_i = Σ_j m_j W(|r_i - r_j|, h_i)
+        real dens_sph = 0.0;
+        for(int j = 0; j < num_particles; ++j) {
+            const vec_t r_ij = periodic->calc_r_ij(pos_i, p[j].pos);
+            const real r = std::abs(r_ij);
+            
+            if(r < h_i) {
+                dens_sph += p[j].mass * kernel->w(r, h_i);
+            }
+        }
+        
+        // Update particle with SPH density
+        p_i.dens = dens_sph;
+        
+        // Compute pressure from polytropic EOS using SPH density
+        // P = K * ρ_SPH^γ (SELF-CONSISTENT)
+        const real pres = K * std::pow(dens_sph, gamma);
+        p_i.pres = pres;
+        
+        // Internal energy from EOS: u = P / ((γ-1) * ρ)
+        // This ensures (γ-1) * ρ_SPH * u = P = K * ρ_SPH^γ
+        const real ene = pres / ((gamma - 1.0) * dens_sph);
+        p_i.ene = ene;
+        
+        // Track density ratio for diagnostics
+        const real ratio = dens_sph / dens_analytic;
+        if(ratio > max_dens_ratio) max_dens_ratio = ratio;
+        if(ratio < min_dens_ratio) min_dens_ratio = ratio;
+        sum_dens_ratio += ratio;
+    }
+    
+    const real avg_dens_ratio = sum_dens_ratio / num_particles;
+    std::cout << "Lane-Emden: SPH density / analytic density ratio:" << std::endl;
+    std::cout << "  Min: " << min_dens_ratio << ", Max: " << max_dens_ratio 
+              << ", Avg: " << avg_dens_ratio << std::endl;
+    
+    std::cout << "Lane-Emden: Created " << p.size() << " self-consistent particles" << std::endl;
     std::cout << "Lane-Emden: Particle mass = " << particle_mass << std::endl;
 #if DIM == 2
-    std::cout << "Lane-Emden: Using GLASS-MAKING method with radius mapping (2D)" << std::endl;
-    std::cout << "Lane-Emden: Initial SPH density should be much closer to analytic values" << std::endl;
-    std::cout << "Lane-Emden: This disk is in approximate hydrostatic equilibrium" << std::endl;
+    std::cout << "Lane-Emden: Using GLASS-MAKING method with SPH-consistent EOS (2D)" << std::endl;
+    std::cout << "Lane-Emden: Internal energy set from SPH density (not analytic)" << std::endl;
+    std::cout << "Lane-Emden: This ensures P = K * ρ_SPH^γ exactly at t=0" << std::endl;
 #else
-    std::cout << "Lane-Emden: Using GLASS-MAKING method with radius mapping" << std::endl;
-    std::cout << "Lane-Emden: Initial SPH density should be much closer to analytic values" << std::endl;
-    std::cout << "Lane-Emden: This sphere is in approximate hydrostatic equilibrium" << std::endl;
+    std::cout << "Lane-Emden: Using GLASS-MAKING method with SPH-consistent EOS" << std::endl;
+    std::cout << "Lane-Emden: Internal energy set from SPH density (not analytic)" << std::endl;
+    std::cout << "Lane-Emden: This ensures P = K * ρ_SPH^γ exactly at t=0" << std::endl;
 #endif
     std::cout << "Lane-Emden: Relaxation will fine-tune to exact numerical equilibrium" << std::endl;
     

@@ -5,6 +5,9 @@
 #include "simulation.hpp"
 #include "bhtree.hpp"
 
+#include <iostream>
+#include <atomic>
+
 #ifdef EXHAUSTIVE_SEARCH
 #include "exhaustive_search.hpp"
 #endif
@@ -57,6 +60,11 @@ void GravityForce::calculation(std::shared_ptr<Simulation> sim)
 
     auto & particles = sim->get_particles();
     const int num = sim->get_particle_num();
+    
+    // Debug output
+    static std::atomic<int> grav_debug_count{0};
+    bool should_debug = grav_debug_count.load() < 3;
+    
 #ifdef EXHAUSTIVE_SEARCH
     auto * periodic = sim->get_periodic().get();
 #else
@@ -80,11 +88,26 @@ void GravityForce::calculation(std::shared_ptr<Simulation> sim)
             force -= r_ij * (m_constant * p_j.mass * (g(r, p_i.sml) + g(r, p_j.sml)) * 0.5);
         }
 
-        p_i.acc += force;
+        p_i.grav_acc = force;  // Store gravity acceleration separately
+        // Note: grav_acc is NOT added to acc here - that's done after fluid force
         p_i.phi = phi;
 #else
         tree->tree_force(p_i);
 #endif
+    }
+    
+    // Debug: Check particle 0's grav_acc after computation
+    if (should_debug) {
+        int expected = grav_debug_count.load();
+        if (grav_debug_count.compare_exchange_strong(expected, expected + 1)) {
+            std::cerr << "[GRAVITY-CALC] #" << expected 
+                      << " t=" << sim->get_time()
+                      << " grav_acc[0]=(" << particles[0].grav_acc[0] 
+                      << "," << particles[0].grav_acc[1] 
+                      << "," << particles[0].grav_acc[2] << ")"
+                      << " |grav_acc|=" << std::abs(particles[0].grav_acc)
+                      << std::endl;
+        }
     }
 }
 

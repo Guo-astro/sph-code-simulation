@@ -1,11 +1,11 @@
 {
-  "name": "hydro_10k_GSPH",
-  "description": "Hydrostatic equilibrium test - 10k particles, GSPH (pure Riemann, no AV)",
+  "name": "hydro_fresh_ic_test",
+  "description": "Hydrostatic test with freshly generated Lane-Emden IC (testing SPH density consistency fix)",
   
-  "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/10k/GSPH/snapshot_0020.csv",
-  "resetTimeOnResume": true,
+  "N": 15,
+  "sample": "lane_emden",
   
-  "outputDirectory": "sample/imbh_cloud/results/hydrostatic/10k/GSPH",
+  "outputDirectory": "sample/imbh_cloud/results/hydrostatic/fresh_ic_test",
   "outputFormat": "csv",
   "enableEnergyFile": true,
   
@@ -25,8 +25,8 @@
   "cflForce": 0.125,
   
   "startTime": 0.0,
-  "endTime": 100.0,
-  "outputTime": 1.0,
+  "endTime": 10.0,
+  "outputTime": 0.5,
   
   "gamma": 1.666666667,
   

@@ -237,15 +237,21 @@ hydro_oneshot_run:
 	@echo "    • Energy conserved (drift < 1%)"
 	@echo ""
 	@echo "════════════════════════════════════════════════════════════════"
-	@mkdir -p $(ONESHOT_RESULTS)
-	@echo "Starting at $$(date '+%Y-%m-%d %H:%M:%S')..."
-	@./build/sph $(SCENARIO_CONFIG) 2>&1 | tee $(ONESHOT_RESULTS)/run.log || \
-		(echo "❌ Simulation failed! Check $(ONESHOT_RESULTS)/run.log"; exit 1)
-	@echo ""
-	@echo "Completed at $$(date '+%Y-%m-%d %H:%M:%S')"
-	@if [ -f $(ONESHOT_RESULTS)/energy.dat ]; then \
+	@# Read outputDirectory from config JSON (Single Source of Truth)
+	@CONFIG_OUTPUT_DIR=$$(python3 -c "import json; print(json.load(open('$(SCENARIO_CONFIG)'))['outputDirectory'])" 2>/dev/null); \
+	if [ -z "$$CONFIG_OUTPUT_DIR" ]; then \
+		CONFIG_OUTPUT_DIR="$(ONESHOT_RESULTS)"; \
+	fi; \
+	echo "  Output:   $$CONFIG_OUTPUT_DIR"; \
+	mkdir -p "$$CONFIG_OUTPUT_DIR"; \
+	echo "Starting at $$(date '+%Y-%m-%d %H:%M:%S')..."; \
+	./build/sph $(SCENARIO_CONFIG) 2>&1 | tee "$$CONFIG_OUTPUT_DIR/run.log" || \
+		(echo "❌ Simulation failed! Check $$CONFIG_OUTPUT_DIR/run.log"; exit 1); \
+	echo ""; \
+	echo "Completed at $$(date '+%Y-%m-%d %H:%M:%S')"; \
+	if [ -f "$$CONFIG_OUTPUT_DIR/energy.dat" ]; then \
 		echo "✓ Simulation complete!"; \
-		SNAPSHOT_COUNT=$$(ls -1 $(ONESHOT_RESULTS)/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+		SNAPSHOT_COUNT=$$(ls -1 "$$CONFIG_OUTPUT_DIR"/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
 		echo "  Snapshots: $$SNAPSHOT_COUNT"; \
 	else \
 		echo "❌ Energy file not found - simulation may have failed"; \
@@ -258,22 +264,30 @@ hydro_oneshot_viz:
 	@echo "════════════════════════════════════════════════════════════════"
 	@echo "  Visualizing: $(SIZE) / $(METHOD_UPPER)"
 	@echo "════════════════════════════════════════════════════════════════"
-	@if [ ! -d "$(ONESHOT_RESULTS)" ]; then \
-		echo "❌ No results found: $(ONESHOT_RESULTS)"; \
+	@# Read outputDirectory from config JSON (Single Source of Truth)
+	@CONFIG_OUTPUT_DIR=$$(python3 -c "import json; print(json.load(open('$(SCENARIO_CONFIG)'))['outputDirectory'])" 2>/dev/null); \
+	if [ -z "$$CONFIG_OUTPUT_DIR" ]; then \
+		CONFIG_OUTPUT_DIR="$(ONESHOT_RESULTS)"; \
+		echo "  Using default results path: $$CONFIG_OUTPUT_DIR"; \
+	else \
+		echo "  Results path from config: $$CONFIG_OUTPUT_DIR"; \
+	fi; \
+	if [ ! -d "$$CONFIG_OUTPUT_DIR" ]; then \
+		echo "❌ No results found: $$CONFIG_OUTPUT_DIR"; \
 		echo "   Run test first with:"; \
 		echo "   make hydro_oneshot SIZE=$(SIZE) METHOD=$(METHOD)"; \
 		exit 1; \
-	fi
-	@mkdir -p $(ONESHOT_ANIM_DIR)
-	@echo "Generating hydrostatic equilibrium animation..."
-	@if [ -f "$(SCRIPTS_DIR)/visualize_hydrostatic.py" ]; then \
+	fi; \
+	mkdir -p $(ONESHOT_ANIM_DIR); \
+	echo "Generating hydrostatic equilibrium animation..."; \
+	if [ -f "$(SCRIPTS_DIR)/visualize_hydrostatic.py" ]; then \
 		python3 $(SCRIPTS_DIR)/visualize_hydrostatic.py \
-			$(ONESHOT_RESULTS) \
+			"$$CONFIG_OUTPUT_DIR" \
 			$(ONESHOT_ANIM_DIR) || \
 			echo "⚠️  Visualization script failed"; \
 	else \
 		python3 $(SCRIPTS_DIR)/visualize_relaxation.py \
-			$(ONESHOT_RESULTS) \
+			"$$CONFIG_OUTPUT_DIR" \
 			$(ONESHOT_ANIM_DIR) || \
 			echo "⚠️  Visualization failed (using relaxation visualizer)"; \
 	fi

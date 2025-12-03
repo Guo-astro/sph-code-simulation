@@ -1,8 +1,8 @@
 {
   "name": "hydro_10k_GSPH",
-  "description": "Hydrostatic equilibrium test - 10k particles, GSPH (pure Riemann, no AV)",
+  "description": "Hydrostatic equilibrium test - 10k particles, GSPH with exact Riemann solver",
   
-  "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/10k/GSPH/snapshot_0024.csv",
+  "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/10k/GSPH/snapshot_0020.csv",
   "resetTimeOnResume": true,
   
   "outputDirectory": "sample/imbh_cloud/results/hydrostatic/10k/GSPH",
@@ -13,7 +13,7 @@
   "use2ndOrderGSPH": false,
   "kernel": "wendland",
   "neighborNumber": 50,
-  "riemannSolver": "hll",
+  "riemannSolver": "iterative",
   
   "useGravity": true,
   "G": 1.0,

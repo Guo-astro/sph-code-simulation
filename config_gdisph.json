@@ -2,14 +2,14 @@
   "name": "hydro_10k_GSPH",
   "description": "Hydrostatic equilibrium test - 10k particles, GSPH (pure Riemann, no AV)",
   
-  "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/10k/GSPH/snapshot_0020.csv",
+  "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/10k/GSPH/snapshot_0024.csv",
   "resetTimeOnResume": true,
   
-  "outputDirectory": "sample/imbh_cloud/results/hydrostatic/10k/GSPH",
+  "outputDirectory": "sample/imbh_cloud/results/hydrostatic/10k/GDISPH",
   "outputFormat": "csv",
   "enableEnergyFile": true,
   
-  "SPHType": "gsph",
+  "SPHType": "gdisph",
   "use2ndOrderGSPH": false,
   "kernel": "wendland",
   "neighborNumber": 50,

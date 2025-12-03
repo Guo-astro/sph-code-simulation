@@ -146,7 +146,11 @@ int BHTree::neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor
 void BHTree::tree_force(SPHParticle & p_i)
 {
     p_i.phi = 0.0;
+    p_i.grav_acc = vec_t(0.0);  // Initialize gravity acceleration
     m_root.calc_force(p_i, m_theta2, m_g_constant, m_periodic.get());
+    // Note: grav_acc is stored but NOT added to acc here.
+    // This allows the gravity-aware Riemann solver to use grav_acc,
+    // and then gravity is added to acc AFTER fluid force calculation.
 }
 
 // --------------------------------------------------------------------------------------------------------------- //
@@ -372,7 +376,7 @@ void BHTree::BHNode::calc_force(SPHParticle & p_i, const real theta2, const real
                     // r_ij points FROM j TO i (outward from j's perspective)  
                     // Attractive force points FROM i TO j (opposite of r_ij)
                     // So force = -r_ij * |force|, and we ADD it
-                    p_i.acc -= r_ij * (g_constant * p->mass * (g(r, p_i.sml) + g(r, p->sml)) * 0.5);
+                    p_i.grav_acc -= r_ij * (g_constant * p->mass * (g(r, p_i.sml) + g(r, p->sml)) * 0.5);
                 }
                 p = p->next;
             }
@@ -388,7 +392,7 @@ void BHTree::BHNode::calc_force(SPHParticle & p_i, const real theta2, const real
         // Can use monopole approximation safely
         const real r_inv = 1.0 / std::sqrt(d2);
         p_i.phi -= g_constant * mass * r_inv;
-        p_i.acc -= d * (g_constant * mass * pow3(r_inv));
+        p_i.grav_acc -= d * (g_constant * mass * pow3(r_inv));
     }
 }
 

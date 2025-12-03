@@ -1009,6 +1009,17 @@ void Solver::run()
         update_ghost_particles();   // Mirror N to ghost particles
     }
 
+    // For GSPH with gravity, we need to compute initial grav_acc
+    // so the gravity-aware Riemann solver has correct gravity information
+    // on the very first timestep
+    if(m_param->gravity.is_valid && 
+       (m_param->type == SPHType::GSPH || m_param->type == SPHType::GDISPH)) {
+#ifndef EXHAUSTIVE_SEARCH
+        m_sim->make_tree();
+#endif
+        m_gforce->calculation(m_sim);  // Initialize grav_acc for all particles
+    }
+
     // Write initial snapshot
     // DEBUG: Check density before writing
     {
@@ -1535,8 +1546,28 @@ void Solver::initialize()
         update_ghost_particles();
     }
     
+    // Compute gravity BEFORE fluid force so grav_acc is available for
+    // gravity-aware Riemann solver in GSPH
+    if(m_param->gravity.is_valid) {
+        m_gforce->calculation(m_sim);
+    }
+    
     m_fforce->calculation(m_sim);
-    m_gforce->calculation(m_sim);
+    
+    // Add gravity acceleration to total acceleration AFTER fluid force
+    if(m_param->gravity.is_valid) {
+        auto & p = m_sim->get_particles();
+        const int num = m_sim->get_particle_num();
+#pragma omp parallel for
+        for(int i = 0; i < num; ++i) {
+            p[i].acc += p[i].grav_acc;
+        }
+    }
+    
+    // Apply external BH force if enabled (must be called in initialize too!)
+    if(m_use_external_bh) {
+        m_external_bh->calculation(m_sim);
+    }
 }
 
 void Solver::integrate()
@@ -1554,8 +1585,24 @@ void Solver::integrate()
     // This ensures ghosts have current N, h, etc. for force calculation
     update_ghost_particles();
     
+    // Compute gravity BEFORE fluid force so that grav_acc is available
+    // for the gravity-aware Riemann solver in GSPH
+    if(m_param->gravity.is_valid) {
+        m_gforce->calculation(m_sim);
+    }
+    
     m_fforce->calculation(m_sim);
-    m_gforce->calculation(m_sim);
+    
+    // Add gravity acceleration to total acceleration AFTER fluid force
+    // (fluid force overwrites acc, so gravity must be added after)
+    if(m_param->gravity.is_valid) {
+        auto & p = m_sim->get_particles();
+        const int num = m_sim->get_particle_num();
+#pragma omp parallel for
+        for(int i = 0; i < num; ++i) {
+            p[i].acc += p[i].grav_acc;
+        }
+    }
     
     // Apply external BH force if enabled
     if(m_use_external_bh) {

@@ -49,12 +49,19 @@ def lane_emden_theta(xi, tol=1e-10):
     
     d²θ/dξ² + (2/ξ) dθ/dξ + θ^n = 0
     θ(0) = 1, θ'(0) = 0
+    
+    Note: This function handles unsorted input arrays by sorting internally
+    and restoring the original order before returning.
     """
     n = POLYTROPIC_N
     
     # Initial conditions with Taylor series near ξ=0
     xi_array = np.atleast_1d(xi)
-    theta = np.ones_like(xi_array)
+    theta = np.ones_like(xi_array, dtype=float)
+    
+    # Sort the input and remember original order for restoration
+    sort_idx = np.argsort(xi_array)
+    xi_sorted = xi_array[sort_idx]
     
     # RK4 integration
     dxi = 0.001
@@ -62,7 +69,12 @@ def lane_emden_theta(xi, tol=1e-10):
     theta_current = 1.0 - (dxi**2) / 6.0  # Taylor expansion
     dtheta_current = -dxi / 3.0
     
-    for i, xi_target in enumerate(xi_array):
+    for sorted_i, xi_target in enumerate(xi_sorted):
+        # Handle xi values near or below zero
+        if xi_target <= dxi:
+            theta[sort_idx[sorted_i]] = 1.0 - xi_target**2 / 6.0
+            continue
+            
         while xi_current < xi_target:
             # RK4 step
             k1_theta = dtheta_current
@@ -85,7 +97,8 @@ def lane_emden_theta(xi, tol=1e-10):
                 theta_current = 0
                 break
         
-        theta[i] = max(theta_current, 0)
+        # Store result at the correct original position
+        theta[sort_idx[sorted_i]] = max(theta_current, 0)
     
     return theta
 
@@ -123,7 +136,12 @@ def load_snapshot(filepath):
 def load_energy_file(filepath):
     """Load energy.dat file."""
     try:
-        data = np.loadtxt(filepath, skiprows=1)
+        data = np.loadtxt(filepath, skiprows=1, ndmin=2)
+        # Handle case where file has only one row (returns shape (1, N))
+        # or zero rows (returns shape (0, 0) or similar)
+        if data.size == 0:
+            print("Warning: Energy file is empty")
+            return None
         return data
     except Exception as e:
         print(f"Warning: Could not load energy file: {e}")
@@ -135,15 +153,36 @@ def compute_crossing_time(snapshot_data):
     Estimate crossing time t_cross = R / <v_sound>.
     
     For Lane-Emden sphere: R = 1.0 (code units)
-    Sound speed: c_s = sqrt(γ * P / ρ)
+    Sound speed is pre-computed in column 15 of snapshot data.
+    Falls back to computing from P/ρ if needed.
     """
-    # Extract density and pressure
+    # Try to use pre-computed sound speed (column 15)
+    if snapshot_data.shape[1] > 15:
+        c_s = snapshot_data[:, 15]  # Column 15: sound speed
+        # Filter out invalid values
+        valid_mask = np.isfinite(c_s) & (c_s > 0)
+        if np.sum(valid_mask) > 0:
+            c_s_avg = np.median(c_s[valid_mask])
+            R = 1.0
+            t_cross = R / c_s_avg
+            return t_cross, c_s_avg
+    
+    # Fallback: compute from pressure and density
     rho = snapshot_data[:, 11]  # Column 11: density
     pres = snapshot_data[:, 12]  # Column 12: pressure
     
+    # Filter out invalid values (zero or negative density/pressure)
+    valid_mask = (rho > 0) & (pres > 0) & np.isfinite(rho) & np.isfinite(pres)
+    
+    if np.sum(valid_mask) == 0:
+        # Last resort: use typical Lane-Emden values
+        print("Warning: Could not compute sound speed from data, using default")
+        c_s_avg = 0.7  # Typical for Lane-Emden n=1.5
+        return 1.0 / c_s_avg, c_s_avg
+    
     # Compute sound speed
-    c_s = np.sqrt(GAMMA * pres / rho)
-    c_s_avg = np.median(c_s)  # Use median (more robust than mean)
+    c_s = np.sqrt(GAMMA * pres[valid_mask] / rho[valid_mask])
+    c_s_avg = np.median(c_s)
     
     R = 1.0  # Sphere radius in code units
     t_cross = R / c_s_avg
@@ -328,9 +367,10 @@ def create_hydrostatic_animation(results_dir, output_dir):
         ax4.grid(True, alpha=0.3)
         
         # Panel 5: Energy evolution
+        # Columns: 0=time, 1=kinetic, 2=thermal, 3=potential, 4=total
         if energy_data is not None:
             time_energy = energy_data[:, 0]
-            total_energy = energy_data[:, 1]
+            total_energy = energy_data[:, 4]  # Total energy is column 4
             
             # Normalize to initial total energy
             E0 = total_energy[0]
@@ -520,6 +560,79 @@ def create_summary_plot(final_snapshot_file, times, rms_errors, max_velocities,
     plt.close(fig)
 
 
+def find_data_directory(results_dir):
+    """
+    Auto-detect the correct data directory containing snapshots.
+    
+    Handles cases where:
+    1. Snapshots are directly in results_dir
+    2. Snapshots are in a 'continue' subdirectory
+    3. Snapshots are in the parent GSPH folder when using GSPH_CONTINUE
+    4. Need to search sibling directories
+    
+    Returns:
+        Tuple of (data_dir, energy_file_path) or (None, None) if not found
+    """
+    results_path = Path(results_dir)
+    
+    # Strategy 1: Check if snapshots exist in the provided directory
+    snapshots = list(results_path.glob('snapshot_*.csv'))
+    if snapshots:
+        energy_file = results_path / 'energy.dat'
+        return str(results_path), str(energy_file) if energy_file.exists() else None
+    
+    # Strategy 2: Check 'continue' subdirectory
+    continue_dir = results_path / 'continue'
+    if continue_dir.exists():
+        snapshots = list(continue_dir.glob('snapshot_*.csv'))
+        if snapshots:
+            energy_file = continue_dir / 'energy.dat'
+            return str(continue_dir), str(energy_file) if energy_file.exists() else None
+    
+    # Strategy 3: Handle *_CONTINUE pattern - look for base directory without _CONTINUE
+    dir_name = results_path.name
+    if dir_name.endswith('_CONTINUE') or dir_name.endswith('_continue'):
+        base_name = dir_name.rsplit('_', 1)[0]  # Remove _CONTINUE suffix
+        base_dir = results_path.parent / base_name
+        
+        if base_dir.exists():
+            # Check if data is in base_dir directly
+            snapshots = list(base_dir.glob('snapshot_*.csv'))
+            if snapshots:
+                energy_file = base_dir / 'energy.dat'
+                return str(base_dir), str(energy_file) if energy_file.exists() else None
+            
+            # Check if data is in base_dir/continue
+            continue_subdir = base_dir / 'continue'
+            if continue_subdir.exists():
+                snapshots = list(continue_subdir.glob('snapshot_*.csv'))
+                if snapshots:
+                    energy_file = continue_subdir / 'energy.dat'
+                    return str(continue_subdir), str(energy_file) if energy_file.exists() else None
+    
+    # Strategy 4: Search all sibling directories
+    parent_dir = results_path.parent
+    if parent_dir.exists():
+        for sibling in parent_dir.iterdir():
+            if sibling.is_dir():
+                snapshots = list(sibling.glob('snapshot_*.csv'))
+                if snapshots:
+                    print(f"  Found data in sibling directory: {sibling}")
+                    energy_file = sibling / 'energy.dat'
+                    return str(sibling), str(energy_file) if energy_file.exists() else None
+                
+                # Also check continue subdirectory
+                continue_subdir = sibling / 'continue'
+                if continue_subdir.exists():
+                    snapshots = list(continue_subdir.glob('snapshot_*.csv'))
+                    if snapshots:
+                        print(f"  Found data in: {continue_subdir}")
+                        energy_file = continue_subdir / 'energy.dat'
+                        return str(continue_subdir), str(energy_file) if energy_file.exists() else None
+    
+    return None, None
+
+
 if __name__ == '__main__':
     if len(sys.argv) != 3:
         print("Usage: python3 visualize_hydrostatic.py <results_dir> <output_dir>")
@@ -538,7 +651,29 @@ if __name__ == '__main__':
     print(f"Output directory: {output_dir}")
     print("")
     
-    create_hydrostatic_animation(results_dir, output_dir)
+    # Auto-detect data directory
+    data_dir, energy_file = find_data_directory(results_dir)
+    
+    if data_dir is None:
+        print(f"Error: No snapshots found in {results_dir}")
+        print("")
+        print("Searched locations:")
+        print(f"  - {results_dir}")
+        print(f"  - {results_dir}/continue")
+        dir_name = Path(results_dir).name
+        if '_CONTINUE' in dir_name.upper():
+            base_name = dir_name.rsplit('_', 1)[0]
+            print(f"  - {Path(results_dir).parent / base_name}")
+            print(f"  - {Path(results_dir).parent / base_name / 'continue'}")
+        print("")
+        print("Please check that simulations have been run and snapshots exist.")
+        sys.exit(1)
+    
+    if data_dir != results_dir:
+        print(f"Auto-detected data directory: {data_dir}")
+        print("")
+    
+    create_hydrostatic_animation(data_dir, output_dir)
     
     print("")
     print("=" * 60)

@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <iostream>
+#include <cmath>
 
 #include "parameters.hpp"
 #include "pre_interaction.hpp"
@@ -34,6 +36,11 @@ void PreInteraction::initialize(std::shared_ptr<SPHParameters> param)
         m_kernel_ratio = 1.0;
     }
     m_first = true;
+    
+    // Jeans length resolution check parameters
+    m_gravity_enabled = param->gravity.is_valid;
+    m_G = param->gravity.constant;
+    m_jeans_warning_issued = false;
 }
 
 void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
@@ -162,6 +169,58 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
     }
 
     sim->set_h_per_v_sig(h_per_v_sig.min());
+
+    // ========================================================================
+    // JEANS LENGTH RESOLUTION CHECK (Truelove et al. 1997)
+    // ========================================================================
+    // For self-gravitating systems, the Jeans length λ_J = c_s * sqrt(π / (G ρ))
+    // must be resolved to avoid artificial fragmentation.
+    // Criterion: h / λ_J < 0.25 (Truelove criterion)
+    // ========================================================================
+    if(m_gravity_enabled && m_G > 0.0) {
+        real max_jeans_ratio = 0.0;
+        int worst_particle_id = -1;
+        real worst_h = 0.0;
+        real worst_lambda_J = 0.0;
+        real worst_rho = 0.0;
+        real worst_cs = 0.0;
+        
+        for(int i = 0; i < num; ++i) {
+            const auto& p_i = particles[i];
+            if(p_i.dens > 0.0 && p_i.sound > 0.0) {
+                // Jeans length: λ_J = c_s * sqrt(π / (G ρ))
+                const real lambda_J = p_i.sound * std::sqrt(M_PI / (m_G * p_i.dens));
+                const real jeans_ratio = p_i.sml / lambda_J;
+                
+                if(jeans_ratio > max_jeans_ratio) {
+                    max_jeans_ratio = jeans_ratio;
+                    worst_particle_id = i;
+                    worst_h = p_i.sml;
+                    worst_lambda_J = lambda_J;
+                    worst_rho = p_i.dens;
+                    worst_cs = p_i.sound;
+                }
+            }
+        }
+        
+        // Truelove criterion: h/λ_J < 0.25 to avoid artificial fragmentation
+        constexpr real TRUELOVE_THRESHOLD = 0.25;
+        if(max_jeans_ratio > TRUELOVE_THRESHOLD && !m_jeans_warning_issued) {
+            std::cerr << "\n*** JEANS LENGTH RESOLUTION WARNING ***" << std::endl;
+            std::cerr << "Truelove criterion violated: h/λ_J = " << max_jeans_ratio 
+                      << " > " << TRUELOVE_THRESHOLD << std::endl;
+            std::cerr << "Worst particle: id=" << worst_particle_id << std::endl;
+            std::cerr << "  h = " << worst_h << ", λ_J = " << worst_lambda_J << std::endl;
+            std::cerr << "  ρ = " << worst_rho << ", c_s = " << worst_cs << std::endl;
+            std::cerr << "Risk: Artificial gravitational fragmentation may occur!" << std::endl;
+            std::cerr << "Suggestion: Increase resolution (more particles) or use pressure floor." << std::endl;
+            std::cerr << "**********************************************\n" << std::endl;
+            m_jeans_warning_issued = true;
+        } else if(max_jeans_ratio <= TRUELOVE_THRESHOLD && m_jeans_warning_issued) {
+            // Reset warning flag if condition is no longer violated
+            m_jeans_warning_issued = false;
+        }
+    }
 
 #ifndef EXHAUSTIVE_SEARCH
     tree->set_kernel();

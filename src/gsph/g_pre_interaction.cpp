@@ -76,6 +76,7 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
         // density etc.
         real dens_i = 0.0;
+        real dh_dens_i = 0.0;  // For grad-h correction
         real v_sig_max = p_i.sound * 2.0;
         const vec_t & pos_i = p_i.pos;
         int n_neighbor = 0;
@@ -91,6 +92,7 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
             ++n_neighbor;
             dens_i += p_j.mass * kernel->w(r, p_i.sml);
+            dh_dens_i += p_j.mass * kernel->dhw(r, p_i.sml);  // Derivative w.r.t. h
 
             if(i != j) {
                 const real v_sig = p_i.sound + p_j.sound - 3.0 * inner_product(r_ij, p_i.vel - p_j.vel) / r;
@@ -102,6 +104,9 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
         p_i.dens = dens_i;
         p_i.pres = (m_gamma - 1.0) * dens_i * p_i.ene;
+        // Grad-h correction factor: Ω_i = 1 / (1 + (h/Dρ) * dρ/dh)
+        // This corrects for variable smoothing length in the kernel gradient
+        p_i.gradh = 1.0 / (1.0 + p_i.sml / (DIM * dens_i) * dh_dens_i);
         p_i.neighbor = n_neighbor;
 
         const real h_per_v_sig_i = p_i.sml / v_sig_max;

@@ -56,19 +56,6 @@ namespace sph
             auto *tree = sim->get_tree().get();
             const real dt = sim->get_dt();
 
-            // for MUSCL
-            auto &grad_d = sim->get_vector_array("grad_density");
-            auto &grad_p = sim->get_vector_array("grad_pressure");
-            vec_t *grad_v[DIM] = {
-                sim->get_vector_array("grad_velocity_0").data(),
-#if DIM == 2
-                sim->get_vector_array("grad_velocity_1").data(),
-#elif DIM == 3
-                sim->get_vector_array("grad_velocity_1").data(),
-                sim->get_vector_array("grad_velocity_2").data(),
-#endif
-            };
-
 #pragma omp parallel for
             for (int i = 0; i < num; ++i)
             {
@@ -109,70 +96,68 @@ namespace sph
                     const real ve_j = inner_product(p_j.vel, e_ij);
                     real vstar, pstar;
 
-                    if (m_is_2nd_order)
-                    {
-                        // Murante et al. (2011)
-
-                        real right[4], left[4];
-                        const real delta_i = 0.5 * (1.0 - p_i.sound * dt * r_inv);
-                        const real delta_j = 0.5 * (1.0 - p_j.sound * dt * r_inv);
-
-                        // velocity
-                        const real dv_ij = ve_i - ve_j;
-                        vec_t dv_i, dv_j;
-                        for (int k = 0; k < DIM; ++k)
-                        {
-                            dv_i[k] = inner_product(grad_v[k][i], e_ij);
-                            dv_j[k] = inner_product(grad_v[k][j], e_ij);
-                        }
-                        const real dve_i = inner_product(dv_i, e_ij) * r;
-                        const real dve_j = inner_product(dv_j, e_ij) * r;
-                        right[0] = ve_i - limiter(dv_ij, dve_i) * delta_i;
-                        left[0] = ve_j + limiter(dv_ij, dve_j) * delta_j;
-
-                        // density
-                        const real dd_ij = p_i.dens - p_j.dens;
-                        const real dd_i = inner_product(grad_d[i], e_ij) * r;
-                        const real dd_j = inner_product(grad_d[j], e_ij) * r;
-                        right[1] = p_i.dens - limiter(dd_ij, dd_i) * delta_i;
-                        left[1] = p_j.dens + limiter(dd_ij, dd_j) * delta_j;
-
-                        // pressure
-                        const real dp_ij = p_i.pres - p_j.pres;
-                        const real dp_i = inner_product(grad_p[i], e_ij) * r;
-                        const real dp_j = inner_product(grad_p[j], e_ij) * r;
-                        right[2] = p_i.pres - limiter(dp_ij, dp_i) * delta_i;
-                        left[2] = p_j.pres + limiter(dp_ij, dp_j) * delta_j;
-
-                        // sound speed
-                        right[3] = std::sqrt(m_gamma * right[2] / right[1]);
-                        left[3] = std::sqrt(m_gamma * left[2] / left[1]);
-
-                        m_solver(left, right, pstar, vstar);
-                    }
-                    else
-                    {
-                        const real right[4] = {
-                            ve_i,
-                            p_i.dens,
-                            p_i.pres,
-                            p_i.sound,
-                        };
-                        const real left[4] = {
-                            ve_j,
-                            p_j.dens,
-                            p_j.pres,
-                            p_j.sound,
-                        };
-
-                        m_solver(left, right, pstar, vstar);
-                    }
-
+                    // ================================================================
+                    // WELL-BALANCED GSPH RIEMANN SOLVER FOR SELF-GRAVITY
+                    // ================================================================
+                    // In hydrostatic equilibrium: ∇P = ρg
+                    // The pressure gradient balances gravity, but the Riemann solver
+                    // interprets P_i ≠ P_j as a discontinuity → spurious v* ≠ 0.
+                    //
+                    // Solution: Extrapolate pressures to interface accounting for
+                    // the hydrostatic pressure gradient. In equilibrium, the
+                    // extrapolated pressures match → v* ≈ 0.
+                    //
+                    // Geometry:
+                    //   r_ij = r_i - r_j, e_ij points from j toward i
+                    //   Interface is at midpoint, distance r/2 from each particle
+                    //   g = dot(grav_acc, e_ij): gravity component along pair axis
+                    // ================================================================
+                    
+                    const real g_i = inner_product(p_i.grav_acc, e_ij);
+                    const real g_j = inner_product(p_j.grav_acc, e_ij);
+                    
+                    // Extrapolate pressures to interface (at r/2 from each particle)
+                    const real half_r = 0.5 * r;
+                    const real p_i_interface = p_i.pres - p_i.dens * g_i * half_r;
+                    const real p_j_interface = p_j.pres + p_j.dens * g_j * half_r;
+                    
+                    // Ensure pressures remain positive
+                    const real p_floor = 1.0e-10;
+                    const real p_i_safe = std::max(p_i_interface, p_floor);
+                    const real p_j_safe = std::max(p_j_interface, p_floor);
+                    
+                    // Sound speeds with extrapolated pressures
+                    const real c_i_interface = std::sqrt(m_gamma * p_i_safe / p_i.dens);
+                    const real c_j_interface = std::sqrt(m_gamma * p_j_safe / p_j.dens);
+                    
+                    // Solve Riemann problem with well-balanced pressures
+                    const real right[4] = {
+                        ve_i,
+                        p_i.dens,
+                        p_i_safe,
+                        c_i_interface,
+                    };
+                    const real left[4] = {
+                        ve_j,
+                        p_j.dens,
+                        p_j_safe,
+                        c_j_interface,
+                    };
+                    
+                    m_solver(left, right, pstar, vstar);
+                    
                     const vec_t dw_i = kernel->dw(r_ij, r, h_i);
                     const vec_t dw_j = kernel->dw(r_ij, r, p_j.sml);
                     const vec_t v_ij = e_ij * vstar;
                     const real rho2_inv_j = 1.0 / sqr(p_j.dens);
-                    const vec_t f = dw_i * (p_j.mass * pstar * rho2_inv_i) + dw_j * (p_j.mass * pstar * rho2_inv_j);
+                    
+                    // Grad-h correction (Springel & Hernquist 2002)
+                    const real omega_i = p_i.gradh;
+                    const real omega_j = p_j.gradh;
+                    
+                    // Standard GSPH force with pstar from well-balanced Riemann solver
+                    const vec_t f = dw_i * (p_j.mass * pstar * rho2_inv_i * omega_i) 
+                                  + dw_j * (p_j.mass * pstar * rho2_inv_j * omega_j);
 
                     acc -= f;
                     dene -= inner_product(f, v_ij - v_i);

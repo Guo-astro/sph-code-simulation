@@ -22,6 +22,11 @@ protected:
     real m_kernel_ratio;
     bool m_iteration;
     bool m_first;
+    
+    // Jeans length resolution check (Truelove et al. 1997 criterion)
+    bool m_gravity_enabled;
+    real m_G;  // Gravitational constant
+    bool m_jeans_warning_issued;  // Avoid spamming warnings
 
     virtual real newton_raphson(
         const SPHParticle & p_i,
