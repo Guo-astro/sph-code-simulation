@@ -8,30 +8,26 @@
 #   using them in IMBH encounter simulations.
 #
 # USAGE:
-#   # Quick test (10k particles, short duration)
+#   # Run test (10k particles, default GDISPH)
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_10k
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_200k
 #
-#   # Long stability test
-#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_10k_long
-#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_200k_long
-#
-#   # With full parameter selection (run + visualize)
-#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gdisph DURATION=short
-#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gdisph DURATION=long
-#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gsph DURATION=short
+#   # Select SIZE and METHOD
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gdisph
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gsph
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=200k METHOD=gdisph
 #
 #   # Visualization only (after simulation completed)
-#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_viz SIZE=10k METHOD=gdisph DURATION=short
-#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_viz SIZE=10k METHOD=gsph DURATION=long
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_viz SIZE=10k METHOD=gdisph
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_viz SIZE=10k  METHOD=gsph
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_10k_viz
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_200k_viz
 #
 #   # Stability report (energy, density, velocity analysis)
-#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_stability_report SIZE=10k METHOD=gdisph DURATION=short
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_stability_report SIZE=10k METHOD=gdisph
 #
 #   # Cleaning
-#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_clean SIZE=10k METHOD=gdisph DURATION=short
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_clean SIZE=10k METHOD=gdisph
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_clean_size SIZE=10k
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_clean_all
 #
@@ -41,11 +37,19 @@
 # PARAMETERS:
 #   SIZE     - Particle count: 10k (testing), 200k (production)
 #   METHOD   - SPH method: gdisph (recommended), gsph (pure Riemann)
-#   DURATION - Test length: short (t=100), long (t=1000)
+#
+# CONFIG FILES (SSOT):
+#   sample/imbh_cloud/config/presets/hydrostatic/scenarios/
+#   ├── 10k/
+#   │   ├── gdisph.json
+#   │   └── gsph.json
+#   └── 200k/
+#       ├── gdisph.json
+#       └── gsph.json
 #
 # OUTPUT:
-#   Results:    sample/imbh_cloud/results/hydrostatic/<SIZE>/<METHOD>_<DURATION>/
-#   Animations: sample/imbh_cloud/animations/hydrostatic/<SIZE>/<METHOD>_<DURATION>/
+#   Results:    sample/imbh_cloud/results/hydrostatic/<SIZE>/<METHOD>/
+#   Animations: sample/imbh_cloud/animations/hydrostatic/<SIZE>/<METHOD>/
 #
 # PREREQUISITES:
 #   Requires relaxed initial conditions from Makefile.relaxation:
@@ -64,7 +68,6 @@ RELAX_RESULTS := $(IMBH_DIR)/results/relaxation
 # Default parameters
 SIZE ?= 10k
 METHOD ?= gdisph
-DURATION ?= short
 FPS ?= 10
 
 # Method in uppercase for folder naming
@@ -72,9 +75,9 @@ METHOD_UPPER := $(shell echo $(METHOD) | tr '[:lower:]' '[:upper:]')
 
 # Derived paths
 SCENARIO_DIR := $(CONFIG_DIR)/scenarios/$(SIZE)
-SCENARIO_CONFIG := $(SCENARIO_DIR)/$(METHOD)_$(DURATION).json
-ONESHOT_RESULTS := $(RESULTS_DIR)/$(SIZE)/$(METHOD_UPPER)_$(DURATION)
-ONESHOT_ANIM_DIR := $(ANIM_DIR)/$(SIZE)/$(METHOD_UPPER)_$(DURATION)
+SCENARIO_CONFIG := $(SCENARIO_DIR)/$(METHOD).json
+ONESHOT_RESULTS := $(RESULTS_DIR)/$(SIZE)/$(METHOD_UPPER)
+ONESHOT_ANIM_DIR := $(ANIM_DIR)/$(SIZE)/$(METHOD_UPPER)
 
 # ============================================================================
 # PHONY TARGETS
@@ -83,10 +86,8 @@ ONESHOT_ANIM_DIR := $(ANIM_DIR)/$(SIZE)/$(METHOD_UPPER)_$(DURATION)
 .PHONY: hydro_help hydro_check_dim hydro_check_ic \
         hydro_oneshot hydro_oneshot_validate hydro_oneshot_run hydro_oneshot_viz \
         hydro_oneshot_clean hydro_oneshot_clean_size \
-        hydro_10k hydro_10k_long hydro_10k_viz \
-        hydro_10k_gdisph hydro_10k_gsph \
-        hydro_200k hydro_200k_long hydro_200k_viz \
-        hydro_200k_gdisph hydro_200k_gsph \
+        hydro_10k hydro_10k_viz hydro_10k_gdisph hydro_10k_gsph \
+        hydro_200k hydro_200k_viz hydro_200k_gdisph hydro_200k_gsph \
         hydro_clean_all hydro_list_configs hydro_stability_report
 
 # ============================================================================
@@ -104,18 +105,18 @@ hydro_help:
 	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
 	@echo "│  QUICK START                                                           │"
 	@echo "├─────────────────────────────────────────────────────────────────────────┤"
-	@echo "│  make hydro_10k              # Short test (~5-10 min)                  │"
-	@echo "│  make hydro_10k_long         # Long stability test (~30 min)           │"
-	@echo "│  make hydro_200k             # Production test (~1-2 hours)            │"
+	@echo "│  make hydro_10k              # 10k GDISPH test (~5-10 min)              │"
+	@echo "│  make hydro_10k_gsph         # 10k GSPH test                            │"
+	@echo "│  make hydro_200k             # 200k GDISPH test (~1-2 hours)            │"
 	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
 	@echo "│  SCENARIO-BASED USAGE                                                  │"
 	@echo "├─────────────────────────────────────────────────────────────────────────┤"
-	@echo "│  make hydro_oneshot SIZE=10k METHOD=gdisph DURATION=short              │"
-	@echo "│  make hydro_oneshot SIZE=10k METHOD=gdisph DURATION=long               │"
-	@echo "│  make hydro_oneshot SIZE=10k METHOD=gsph DURATION=short                │"
-	@echo "│  make hydro_oneshot SIZE=200k METHOD=gdisph DURATION=short             │"
+	@echo "│  make hydro_oneshot SIZE=10k METHOD=gdisph                             │"
+	@echo "│  make hydro_oneshot SIZE=10k METHOD=gsph                               │"
+	@echo "│  make hydro_oneshot SIZE=200k METHOD=gdisph                            │"
+	@echo "│  make hydro_oneshot SIZE=200k METHOD=gsph                              │"
 	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
@@ -123,13 +124,6 @@ hydro_help:
 	@echo "├─────────────────────────────────────────────────────────────────────────┤"
 	@echo "│  10k    Testing:    ~10,648 particles                                  │"
 	@echo "│  200k   Production: ~200,000 particles                                 │"
-	@echo "└─────────────────────────────────────────────────────────────────────────┘"
-	@echo ""
-	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
-	@echo "│  DURATION OPTIONS                                                      │"
-	@echo "├─────────────────────────────────────────────────────────────────────────┤"
-	@echo "│  short  Quick test: t=100 (few dynamical times)                        │"
-	@echo "│  long   Stability:  t=1000 (many dynamical times)                      │"
 	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
@@ -154,13 +148,14 @@ hydro_help:
 	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
 	@echo "│  VISUALIZATION & ANALYSIS                                              │"
 	@echo "├─────────────────────────────────────────────────────────────────────────┤"
-	@echo "│  make hydro_10k_viz                    # Visualize results             │"
-	@echo "│  make hydro_stability_report SIZE=10k # Generate stability report      │"
+	@echo "│  make hydro_10k_viz                           # Visualize results      │"
+	@echo "│  make hydro_oneshot_viz SIZE=10k METHOD=gsph  # Specific viz           │"
+	@echo "│  make hydro_stability_report SIZE=10k METHOD=gdisph                    │"
 	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "  Config files:  $(CONFIG_DIR)/scenarios/<size>/<method>_<duration>.json"
-	@echo "  Results:       $(RESULTS_DIR)/<size>/<METHOD>_<duration>/"
-	@echo "  Animations:    $(ANIM_DIR)/<size>/<METHOD>_<duration>/"
+	@echo "  Config files:  $(CONFIG_DIR)/scenarios/<size>/<method>.json"
+	@echo "  Results:       $(RESULTS_DIR)/<size>/<METHOD>/"
+	@echo "  Animations:    $(ANIM_DIR)/<size>/<METHOD>/"
 	@echo ""
 	@echo "  PREREQUISITE: Relaxed IC from Makefile.relaxation"
 	@echo ""
@@ -189,7 +184,7 @@ hydro_check_ic:
 		echo "❌ ERROR: Initial condition not found: $$IC_PATH"; \
 		echo ""; \
 		echo "   Run relaxation first:"; \
-		echo "   make -f sample/imbh_cloud/Makefile.relaxation relax_$(SIZE)"; \
+		echo "   make -f sample/imbh_cloud/Makefile.relaxation relax_oneshot SIZE=$(SIZE) METHOD=$(METHOD)"; \
 		exit 1; \
 	fi; \
 	echo "✓ Initial condition found: $$IC_PATH"
@@ -201,12 +196,11 @@ hydro_check_ic:
 hydro_oneshot: hydro_check_dim hydro_oneshot_validate hydro_check_ic hydro_oneshot_run hydro_oneshot_viz
 	@echo ""
 	@echo "══════════════════════════════════════════════════════════════════════════"
-	@echo "  ✅ HYDROSTATIC TEST COMPLETE: $(SIZE) / $(METHOD_UPPER) / $(DURATION)"
+	@echo "  ✅ HYDROSTATIC TEST COMPLETE: $(SIZE) / $(METHOD_UPPER)"
 	@echo "══════════════════════════════════════════════════════════════════════════"
 	@echo ""
 	@echo "  Size:     $(SIZE)"
 	@echo "  Method:   $(METHOD_UPPER)"
-	@echo "  Duration: $(DURATION)"
 	@echo "  Config:   $(SCENARIO_CONFIG)"
 	@echo ""
 	@echo "  Results:    $(ONESHOT_RESULTS)/"
@@ -231,11 +225,10 @@ hydro_oneshot_validate:
 hydro_oneshot_run:
 	@echo ""
 	@echo "════════════════════════════════════════════════════════════════"
-	@echo "  Running Hydrostatic Test: $(SIZE) / $(METHOD_UPPER) / $(DURATION)"
+	@echo "  Running Hydrostatic Test: $(SIZE) / $(METHOD_UPPER)"
 	@echo "════════════════════════════════════════════════════════════════"
 	@echo "  Size:     $(SIZE)"
 	@echo "  Method:   $(METHOD_UPPER)"
-	@echo "  Duration: $(DURATION)"
 	@echo "  Config:   $(SCENARIO_CONFIG)"
 	@echo ""
 	@echo "  Stability Criteria:"
@@ -263,12 +256,12 @@ hydro_oneshot_run:
 hydro_oneshot_viz:
 	@echo ""
 	@echo "════════════════════════════════════════════════════════════════"
-	@echo "  Visualizing: $(SIZE) / $(METHOD_UPPER) / $(DURATION)"
+	@echo "  Visualizing: $(SIZE) / $(METHOD_UPPER)"
 	@echo "════════════════════════════════════════════════════════════════"
 	@if [ ! -d "$(ONESHOT_RESULTS)" ]; then \
 		echo "❌ No results found: $(ONESHOT_RESULTS)"; \
 		echo "   Run test first with:"; \
-		echo "   make hydro_oneshot SIZE=$(SIZE) METHOD=$(METHOD) DURATION=$(DURATION)"; \
+		echo "   make hydro_oneshot SIZE=$(SIZE) METHOD=$(METHOD)"; \
 		exit 1; \
 	fi
 	@mkdir -p $(ONESHOT_ANIM_DIR)
@@ -292,9 +285,9 @@ hydro_oneshot_viz:
 	@echo ""
 	@echo "  View: open $(ONESHOT_ANIM_DIR)/"
 
-# Clean results for current size/method/duration
+# Clean results for current size/method
 hydro_oneshot_clean:
-	@echo "Cleaning $(SIZE)/$(METHOD_UPPER)_$(DURATION)..."
+	@echo "Cleaning $(SIZE)/$(METHOD_UPPER)..."
 	rm -rf $(ONESHOT_RESULTS)
 	rm -rf $(ONESHOT_ANIM_DIR)
 	@echo "✓ Cleaned"
@@ -320,53 +313,35 @@ hydro_clean_all:
 # 10k particle runs
 hydro_10k: SIZE := 10k
 hydro_10k: METHOD := gdisph
-hydro_10k: DURATION := short
 hydro_10k: hydro_oneshot
-
-hydro_10k_long: SIZE := 10k
-hydro_10k_long: METHOD := gdisph
-hydro_10k_long: DURATION := long
-hydro_10k_long: hydro_oneshot
 
 hydro_10k_viz: SIZE := 10k
 hydro_10k_viz: METHOD := gdisph
-hydro_10k_viz: DURATION := short
 hydro_10k_viz: hydro_oneshot_viz
 
 hydro_10k_gdisph: SIZE := 10k
 hydro_10k_gdisph: METHOD := gdisph
-hydro_10k_gdisph: DURATION := short
 hydro_10k_gdisph: hydro_oneshot
 
 hydro_10k_gsph: SIZE := 10k
 hydro_10k_gsph: METHOD := gsph
-hydro_10k_gsph: DURATION := short
 hydro_10k_gsph: hydro_oneshot
 
 # 200k particle runs
 hydro_200k: SIZE := 200k
 hydro_200k: METHOD := gdisph
-hydro_200k: DURATION := short
 hydro_200k: hydro_oneshot
-
-hydro_200k_long: SIZE := 200k
-hydro_200k_long: METHOD := gdisph
-hydro_200k_long: DURATION := long
-hydro_200k_long: hydro_oneshot
 
 hydro_200k_viz: SIZE := 200k
 hydro_200k_viz: METHOD := gdisph
-hydro_200k_viz: DURATION := short
 hydro_200k_viz: hydro_oneshot_viz
 
 hydro_200k_gdisph: SIZE := 200k
 hydro_200k_gdisph: METHOD := gdisph
-hydro_200k_gdisph: DURATION := short
 hydro_200k_gdisph: hydro_oneshot
 
 hydro_200k_gsph: SIZE := 200k
 hydro_200k_gsph: METHOD := gsph
-hydro_200k_gsph: DURATION := short
 hydro_200k_gsph: hydro_oneshot
 
 # ============================================================================
@@ -386,7 +361,7 @@ hydro_list_configs:
 hydro_stability_report:
 	@echo ""
 	@echo "════════════════════════════════════════════════════════════════"
-	@echo "  Stability Report: $(SIZE) / $(METHOD_UPPER) / $(DURATION)"
+	@echo "  Stability Report: $(SIZE) / $(METHOD_UPPER)"
 	@echo "════════════════════════════════════════════════════════════════"
 	@if [ ! -d "$(ONESHOT_RESULTS)" ]; then \
 		echo "❌ No results found. Run test first."; \

@@ -6,115 +6,71 @@ This directory contains pre-configured JSON files for hydrostatic equilibrium te
 
 Verify that relaxed Lane-Emden spheres maintain hydrostatic equilibrium with self-gravity enabled. This is a crucial validation step before using the initial conditions in IMBH encounter simulations.
 
-## Directory Structure
+## Directory Structure (SSOT)
 
 ```
 scenarios/
 ├── 10k/                        # Testing: ~10,648 particles
-│   ├── gdisph_short.json       # GDISPH, t=100 (quick test)
-│   ├── gdisph_long.json        # GDISPH, t=1000 (stability)
-│   ├── gsph_short.json         # GSPH, t=100
-│   └── gsph_long.json          # GSPH, t=1000
+│   ├── gdisph.json             # GDISPH method
+│   └── gsph.json               # GSPH method
 └── 200k/                       # Production: ~200,000 particles
-    ├── gdisph_short.json
-    ├── gdisph_long.json
-    ├── gsph_short.json
-    └── gsph_long.json
+    ├── gdisph.json
+    └── gsph.json
 ```
+
+Each JSON file is the **Single Source of Truth (SSOT)** for that size/method combination.
 
 ## Prerequisites
 
 **Requires relaxed initial conditions from Makefile.relaxation:**
 ```bash
-make -f sample/imbh_cloud/Makefile.relaxation relax_10k
+make -f sample/imbh_cloud/Makefile.relaxation relax_oneshot SIZE=10k METHOD=gdisph
 ```
 
-## Duration Options
+## Test Parameters
 
-### short (Quick Test)
-- **End time**: t = 100 code units
+- **End time**: t = 100 code units (~few dynamical times)
 - **Output interval**: dt = 1.0 (~100 snapshots)
 - **Runtime**: ~5-10 minutes (10k), ~1-2 hours (200k)
-- **Purpose**: Quick verification that IC is stable
-
-### long (Stability Test)
-- **End time**: t = 1000 code units
-- **Output interval**: dt = 10.0 (~100 snapshots)
-- **Runtime**: ~30-60 minutes (10k), ~8-12 hours (200k)
-- **Purpose**: Extended stability verification
 
 ## SPH Methods
 
 ### gdisph
 - Godunov DISPH with pure Riemann solver (`avAlpha=0`)
 - Balsara switch enabled
-- Recommended for production simulations
+- Density-independent formulation
 
 ### gsph
-- Godunov SPH (pure Riemann solver)
-- No artificial viscosity parameters
-- Good for comparison studies
+- Godunov SPH with pure Riemann solver
+- No artificial viscosity at all
+- All dissipation from Riemann solver
 
 ## Usage
 
 ```bash
-# Quick test (10k, short)
-make -f sample/imbh_cloud/Makefile.hydrostatic hydro_10k
+# Run hydrostatic test
+make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gdisph
+make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gsph
 
-# Long stability test
-make -f sample/imbh_cloud/Makefile.hydrostatic hydro_10k_long
+# Visualization
+make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_viz SIZE=10k METHOD=gdisph
 
-# With method selection
-make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gdisph DURATION=short
-make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=10k METHOD=gsph DURATION=long
-
-# Generate stability report
-make -f sample/imbh_cloud/Makefile.hydrostatic hydro_stability_report SIZE=10k METHOD=gdisph DURATION=short
-```
-
-## Output Structure
-
-```
-results/hydrostatic/
-├── 10k/
-│   ├── GDISPH_short/
-│   │   ├── snapshot_0000.csv
-│   │   └── ...
-│   ├── GDISPH_long/
-│   ├── GSPH_short/
-│   └── GSPH_long/
-└── 200k/
-    └── ...
+# Stability report
+make -f sample/imbh_cloud/Makefile.hydrostatic hydro_stability_report SIZE=10k METHOD=gdisph
 ```
 
 ## Stability Criteria
 
-| Criterion | Threshold | Description |
-|-----------|-----------|-------------|
-| Energy drift | < 1% | Total energy should be conserved |
-| Density RMS | < 5% | Density profile should remain stable |
-| Velocity ratio | < 1% c_s | Velocities should remain small |
+A hydrostatic test **passes** if:
+- **Density RMS change** < 5%
+- **Max velocity** < 1% of sound speed
+- **Energy drift** < 1%
 
-### Interpretation
+## Important: Snapshot Naming
 
-- **✅ PASS**: All criteria met → IC ready for IMBH simulations
-- **⚠️ MARGINAL**: Minor deviations → May need more relaxation
-- **❌ FAIL**: Large deviations → Sphere is unstable, check relaxation
+The config files reference `snapshot_final.csv` as the initial condition. After running relaxation, you may need to update this path to match the actual final snapshot number (e.g., `snapshot_0024.csv`).
 
-## Physics Notes
-
-| Timescale | Value | Description |
-|-----------|-------|-------------|
-| t_cross | ~1.0 | Sound crossing time (R/c_s) |
-| t_dyn | ~1.0 | Dynamical time (√(R³/GM)) |
-
-A simulation of t=100 tests ~100 dynamical times.
-A simulation of t=1000 tests ~1000 dynamical times.
-
-## Next Steps
-
-After successful hydrostatic test:
+Check the actual file:
 ```bash
-# Run IMBH encounter simulation
-make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b3pc_nocool METHOD=gdisph
+ls sample/imbh_cloud/results/relaxation/10k/GSPH/snapshot_*.csv | tail -1
 ```

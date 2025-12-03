@@ -1,18 +1,11 @@
 {
-  "name": "hydro_10k_GDISPH_long",
-  "description": "Hydrostatic equilibrium test - 10k particles, GDISPH, long duration stability test",
+  "name": "hydro_200k_GDISPH",
+  "description": "Hydrostatic equilibrium test - 200k particles, GDISPH (Riemann + optional AV)",
   
-  "scenario": {
-    "size": "10k",
-    "duration": "long",
-    "end_time": 1000,
-    "purpose": "Extended stability verification"
-  },
-  
-  "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/10k/GDISPH/snapshot_0400.csv",
+  "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/200k/GDISPH/snapshot_final.csv",
   "resetTimeOnResume": true,
   
-  "outputDirectory": "sample/imbh_cloud/results/hydrostatic/10k/GDISPH_long",
+  "outputDirectory": "sample/imbh_cloud/results/hydrostatic/200k/GDISPH",
   "outputFormat": "csv",
   "enableEnergyFile": true,
   
@@ -36,8 +29,8 @@
   "cflForce": 0.125,
   
   "startTime": 0.0,
-  "endTime": 1000.0,
-  "outputTime": 10.0,
+  "endTime": 100.0,
+  "outputTime": 1.0,
   
   "gamma": 1.666666667,
   

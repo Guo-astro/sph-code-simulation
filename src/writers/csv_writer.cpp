@@ -1,6 +1,7 @@
 #include "writers/csv_writer.hpp"
 #include <iomanip>
 #include <sstream>
+#include <cmath>
 
 namespace sph {
 
@@ -323,6 +324,24 @@ bool CSVWriter::read_metadata(const std::string& filepath, OutputMetadata& metad
     return true;
 }
 
+// Helper to parse double, treating out-of-range denormals as zero
+static double safe_stod(const std::string& s, double default_val = 0.0) {
+    try {
+        double val = std::stod(s);
+        // Check for denormals (very small values that may be uninitialized memory)
+        if (std::abs(val) < 1e-300 && val != 0.0) {
+            return default_val;
+        }
+        return val;
+    } catch (const std::out_of_range&) {
+        // Denormal or out of range - treat as default
+        return default_val;
+    } catch (const std::invalid_argument&) {
+        // Invalid input - treat as default
+        return default_val;
+    }
+}
+
 bool CSVWriter::read_particles(const std::string& filepath, std::vector<SPHParticle*>& particles) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
@@ -404,10 +423,10 @@ bool CSVWriter::read_particles(const std::string& filepath, std::vector<SPHParti
             p->ene = std::stod(fields[idx++]);
             p->sml = std::stod(fields[idx++]);
             p->sound = std::stod(fields[idx++]);
-            p->alpha = std::stod(fields[idx++]);
-            p->balsara = std::stod(fields[idx++]);
-            p->gradh = std::stod(fields[idx++]);
-            p->phi = std::stod(fields[idx++]);
+            p->alpha = safe_stod(fields[idx++], 1.0);    // May be uninitialized
+            p->balsara = safe_stod(fields[idx++], 1.0);  // May be uninitialized
+            p->gradh = safe_stod(fields[idx++], 1.0);    // May be uninitialized - default to 1.0
+            p->phi = safe_stod(fields[idx++], 0.0);      // May be uninitialized
             p->neighbor = std::stoi(fields[idx++]);
             p->is_ghost = (std::stoi(fields[idx++]) != 0);
             

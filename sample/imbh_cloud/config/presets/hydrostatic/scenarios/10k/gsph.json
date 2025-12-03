@@ -1,23 +1,16 @@
 {
-  "name": "hydro_200k_GSPH_short",
-  "description": "Hydrostatic equilibrium test - 200k particles, GSPH (pure Riemann), short duration",
+  "name": "hydro_10k_GSPH",
+  "description": "Hydrostatic equilibrium test - 10k particles, GSPH (pure Riemann, no AV)",
   
-  "scenario": {
-    "size": "200k",
-    "duration": "short",
-    "end_time": 100,
-    "purpose": "Production stability check with pure Riemann"
-  },
-  
-  "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/200k/GSPH/snapshot_0050.csv",
+  "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/10k/GSPH/snapshot_0024.csv",
   "resetTimeOnResume": true,
   
-  "outputDirectory": "sample/imbh_cloud/results/hydrostatic/200k/GSPH_short",
+  "outputDirectory": "sample/imbh_cloud/results/hydrostatic/10k/GSPH",
   "outputFormat": "csv",
   "enableEnergyFile": true,
   
   "SPHType": "gsph",
-  "use2ndOrderGSPH": true,
+  "use2ndOrderGSPH": false,
   "kernel": "wendland",
   "neighborNumber": 50,
   "riemannSolver": "hll",
