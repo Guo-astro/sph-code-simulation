@@ -1,0 +1,33 @@
+{
+    "name": "hydrostatic_gsph_with_gradh",
+    "description": "Hydrostatic equilibrium test with grad-h correction enabled (default, stable)",
+    
+    "outputDirectory": "sample/gradh_study/results/with_gradh",
+    "outputFormat": "csv",
+    "enableEnergyFile": true,
+    
+    "SPHType": "gsph",
+    "use2ndOrderGSPH": false,
+    "useGradH": true,
+    "riemannSolver": "iterative",
+    
+    "kernel": "wendland",
+    "neighborNumber": 32,
+    
+    "periodic": true,
+    "rangeMax": [0.5, 0.5],
+    "rangeMin": [-0.5, -0.5],
+    
+    "startTime": 0.0,
+    "endTime": 10.0,
+    "outputTime": 0.1,
+    
+    "gamma": 1.6666666666666667,
+    
+    "avAlpha": 1.0,
+    "useBalsaraSwitch": false,
+    
+    "leafParticleNumber": 16,
+    "N": 64,
+    "iterativeSmoothingLength": true
+}

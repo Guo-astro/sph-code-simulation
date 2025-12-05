@@ -78,6 +78,7 @@ class Solver {
     int m_relaxation_steps;
     int m_relaxation_output_freq;  // Output frequency during relaxation
     bool m_relaxation_only;  // If true, exit after relaxation without simulation
+    real m_relaxation_timestep_factor;  // Safety factor for relaxation timestep (default 0.1)
     
     // Resume configuration (JSON as SSOT - snapshot provides particle data only)
     bool m_resume_from_checkpoint;

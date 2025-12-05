@@ -22,6 +22,7 @@ void PreInteraction::initialize(std::shared_ptr<SPHParameters> param)
 {
     sph::PreInteraction::initialize(param);
     m_is_2nd_order = param->gsph.is_2nd_order;
+    m_use_gradh = param->gsph.use_gradh;
 }
 
 void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
@@ -106,7 +107,12 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
         p_i.pres = (m_gamma - 1.0) * dens_i * p_i.ene;
         // Grad-h correction factor: Ω_i = 1 / (1 + (h/Dρ) * dρ/dh)
         // This corrects for variable smoothing length in the kernel gradient
-        p_i.gradh = 1.0 / (1.0 + p_i.sml / (DIM * dens_i) * dh_dens_i);
+        // When disabled (use_gradh=false), set to 1.0 which causes core collapse in hydrostatic tests
+        if(m_use_gradh) {
+            p_i.gradh = 1.0 / (1.0 + p_i.sml / (DIM * dens_i) * dh_dens_i);
+        } else {
+            p_i.gradh = 1.0;  // No grad-h correction
+        }
         p_i.neighbor = n_neighbor;
 
         const real h_per_v_sig_i = p_i.sml / v_sig_max;

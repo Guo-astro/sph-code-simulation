@@ -95,6 +95,7 @@ struct SPHParameters {
     struct GSPH {
         bool is_2nd_order;
         RiemannSolverType riemann_solver;  // Riemann solver type: HLL (default) or ITERATIVE
+        bool use_gradh;  // Enable grad-h correction (default: true). Disabling causes core collapse in hydrostatic tests.
     } gsph;
 
     struct SRGSPH {

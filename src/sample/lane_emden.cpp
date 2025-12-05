@@ -363,15 +363,26 @@ void Solver::make_lane_emden()
         // Update particle with SPH density
         p_i.dens = dens_sph;
         
-        // Compute pressure from polytropic EOS using SPH density
-        // P = K * ρ_SPH^γ (SELF-CONSISTENT)
-        const real pres = K * std::pow(dens_sph, gamma);
-        p_i.pres = pres;
+        // ====================================================================
+        // CRITICAL FIX: Use ANALYTIC density for internal energy
+        // This ensures K = P/rho^gamma is CONSTANT (isentropic) everywhere
+        // 
+        // For true Lane-Emden equilibrium:
+        //   P = K * rho_analytic^gamma (constant K everywhere)
+        //   u = K * rho_analytic^(gamma-1) / (gamma - 1)
+        //
+        // Previously using SPH density caused K variation of ~17% across radius
+        // ====================================================================
+        const real pres_analytic = K * std::pow(dens_analytic, gamma);
+        const real ene_analytic = pres_analytic / ((gamma - 1.0) * dens_analytic);
         
-        // Internal energy from EOS: u = P / ((γ-1) * ρ)
-        // This ensures (γ-1) * ρ_SPH * u = P = K * ρ_SPH^γ
-        const real ene = pres / ((gamma - 1.0) * dens_sph);
-        p_i.ene = ene;
+        // Store internal energy based on ANALYTIC density (constant K)
+        p_i.ene = ene_analytic;
+        
+        // Pressure will be recomputed from SPH density during simulation:
+        // P = (gamma-1) * rho_SPH * u
+        // This gives consistent pressure support from SPH's perspective
+        p_i.pres = (gamma - 1.0) * dens_sph * ene_analytic;
         
         // Track density ratio for diagnostics
         const real ratio = dens_sph / dens_analytic;
@@ -385,18 +396,16 @@ void Solver::make_lane_emden()
     std::cout << "  Min: " << min_dens_ratio << ", Max: " << max_dens_ratio 
               << ", Avg: " << avg_dens_ratio << std::endl;
     
-    std::cout << "Lane-Emden: Created " << p.size() << " self-consistent particles" << std::endl;
+    std::cout << "Lane-Emden: Created " << p.size() << " particles with ISENTROPIC IC" << std::endl;
     std::cout << "Lane-Emden: Particle mass = " << particle_mass << std::endl;
 #if DIM == 2
-    std::cout << "Lane-Emden: Using GLASS-MAKING method with SPH-consistent EOS (2D)" << std::endl;
-    std::cout << "Lane-Emden: Internal energy set from SPH density (not analytic)" << std::endl;
-    std::cout << "Lane-Emden: This ensures P = K * ρ_SPH^γ exactly at t=0" << std::endl;
+    std::cout << "Lane-Emden: Using GLASS-MAKING method with ANALYTIC density for entropy (2D)" << std::endl;
 #else
-    std::cout << "Lane-Emden: Using GLASS-MAKING method with SPH-consistent EOS" << std::endl;
-    std::cout << "Lane-Emden: Internal energy set from SPH density (not analytic)" << std::endl;
-    std::cout << "Lane-Emden: This ensures P = K * ρ_SPH^γ exactly at t=0" << std::endl;
+    std::cout << "Lane-Emden: Using GLASS-MAKING method with ANALYTIC density for entropy" << std::endl;
 #endif
-    std::cout << "Lane-Emden: Relaxation will fine-tune to exact numerical equilibrium" << std::endl;
+    std::cout << "Lane-Emden: Internal energy u = K * rho_analytic^(gamma-1) / (gamma-1)" << std::endl;
+    std::cout << "Lane-Emden: This ensures K = const everywhere (isentropic)" << std::endl;
+    std::cout << "Lane-Emden: K = " << K << " (polytropic constant)" << std::endl;
     
     // Store parameters for relaxation module
     m_sample_parameters["alpha"] = alpha;

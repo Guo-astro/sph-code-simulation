@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 #include <chrono>
 
 #include "solver.hpp"
@@ -591,6 +592,9 @@ void Solver::read_parameterfile(const char * filename)
     if(m_param->type == SPHType::GSPH || m_param->type == SPHType::GDISPH) {
         m_param->gsph.is_2nd_order = input.get<bool>("use2ndOrderGSPH", true);
         
+        // Grad-h correction: enabled by default. Disabling causes core collapse in hydrostatic tests.
+        m_param->gsph.use_gradh = input.get<bool>("useGradH", true);
+        
         // Riemann solver selection: "hll", "iterative", or "kitajima"
         std::string riemann_solver_str = input.get<std::string>("riemannSolver", "hll");
         if(riemann_solver_str == "iterative") {
@@ -642,10 +646,12 @@ void Solver::read_parameterfile(const char * filename)
     m_relaxation_steps = input.get<int>("relaxationSteps", 0);
     m_relaxation_output_freq = input.get<int>("relaxationOutputFreq", 10);
     m_relaxation_only = input.get<bool>("relaxationOnly", false);
+    m_relaxation_timestep_factor = input.get<real>("relaxationTimestepFactor", 0.1);
     
     if(m_use_relaxation) {
         std::cout << "Relaxation enabled: " << m_relaxation_steps << " steps" << std::endl;
         std::cout << "Relaxation output frequency: every " << m_relaxation_output_freq << " steps" << std::endl;
+        std::cout << "Relaxation timestep factor: " << m_relaxation_timestep_factor << std::endl;
         if(m_relaxation_only) {
             std::cout << "Relaxation-only mode: Will exit after relaxation without running simulation" << std::endl;
         }
@@ -1199,13 +1205,22 @@ void Solver::initialize()
                 m_sample_parameters["M_total"] = snapshot_data.M_total;
                 std::cout << "  - Restored Lane-Emden parameters from snapshot" << std::endl;
                 
-                // Set snapshot counter to continue from resumed step
-                // snapshot_data.relaxation_step / output_freq gives the snapshot number
-                if(m_relaxation_output_freq > 0) {
-                    m_snapshot_counter = (snapshot_data.relaxation_step / m_relaxation_output_freq) + 1;
-                    std::cout << "  - Snapshot counter set to: " << m_snapshot_counter << " (next: snapshot_" 
-                              << std::setfill('0') << std::setw(4) << m_snapshot_counter << ".csv)" << std::endl;
+                // For resume, find the highest existing snapshot number and continue from there
+                // This handles cases where output frequency changed between runs
+                int max_existing = 0;
+                for(int i = 0; i < 10000; ++i) {
+                    std::ostringstream ss;
+                    ss << m_output_dir << "/snapshot_" << std::setfill('0') << std::setw(4) << i << ".csv";
+                    std::ifstream test(ss.str());
+                    if(test.good()) {
+                        max_existing = i;
+                    } else {
+                        break;  // Stop at first missing snapshot
+                    }
                 }
+                m_snapshot_counter = max_existing + 1;
+                std::cout << "  - Snapshot counter set to: " << m_snapshot_counter << " (next: snapshot_" 
+                          << std::setfill('0') << std::setw(4) << m_snapshot_counter << ".csv)" << std::endl;
             }
         } else {
             std::cerr << "Warning: Failed to load snapshot, starting from scratch" << std::endl;
@@ -1332,7 +1347,13 @@ void Solver::initialize()
         int last_percent = -1;
         int last_sub_percent = -1;
         
+        // Timing for ETA calculation
+        auto start_wall_time = std::chrono::steady_clock::now();
+        double avg_step_time = 0.0;
+        int timing_samples = 0;
+        
         for(int step = start_step; step < target_step; ++step) {
+            auto step_start = std::chrono::steady_clock::now();
             // Rebuild tree for accurate neighbor search
             // Particles move during relaxation, so tree must be updated
             auto& particles = m_sim->get_particles();
@@ -1359,8 +1380,8 @@ void Solver::initialize()
             m_timestep->calculation(m_sim);
             real dt_relax = m_sim->get_dt();
             
-            // For stability during relaxation, use a smaller fraction of CFL timestep
-            dt_relax *= 0.1;  // Safety factor for relaxation
+            // Apply configurable safety factor for relaxation timestep
+            dt_relax *= m_relaxation_timestep_factor;
             
             // Integrate positions with net acceleration
             // Zero velocities and integrate position directly from acceleration
@@ -1388,20 +1409,31 @@ void Solver::initialize()
             // Update accumulated time
             accumulated_time += dt_relax;
             
+            // Track step timing for ETA
+            auto step_end = std::chrono::steady_clock::now();
+            double step_duration = std::chrono::duration<double>(step_end - step_start).count();
+            
+            // Exponential moving average for step time (more weight on recent)
+            if(timing_samples == 0) {
+                avg_step_time = step_duration;
+            } else {
+                avg_step_time = 0.9 * avg_step_time + 0.1 * step_duration;
+            }
+            timing_samples++;
+            
             // Update progress bar (calculate based on steps completed from start)
-            int steps_completed = step - start_step;
+            int steps_completed = step - start_step + 1;  // +1 because step 0 is first completed step
             int percent = (steps_completed * 100) / m_relaxation_steps;
             
             // Calculate sub-progress within current output interval
             int steps_in_interval = step % m_relaxation_output_freq;
             int sub_percent = (steps_in_interval * 100) / m_relaxation_output_freq;
             
-            // Update display if main percent changed OR sub-percent changed significantly (every 5%)
-            bool should_update = (percent != last_percent) || 
-                                 ((sub_percent / 5) != (last_sub_percent / 5));
+            // Update display every step for real-time feedback
+            bool should_update = true;
             
             if(should_update) {
-                int bar_width = 50;
+                int bar_width = 30;
                 int filled = (steps_completed * bar_width) / m_relaxation_steps;
                 
                 // Calculate max acceleration for display
@@ -1411,17 +1443,28 @@ void Solver::initialize()
                     max_acc = std::max(max_acc, a);
                 }
                 
-                // Create sub-progress indicator (small bar showing progress to next snapshot)
-                int sub_bar_width = 10;
-                int sub_filled = (steps_in_interval * sub_bar_width) / m_relaxation_output_freq;
-                std::string sub_bar = "[" + std::string(sub_filled, '.') + std::string(sub_bar_width - sub_filled, ' ') + "]";
+                // Calculate ETA
+                int steps_remaining = m_relaxation_steps - steps_completed;
+                double eta_seconds = steps_remaining * avg_step_time;
+                int eta_hours = static_cast<int>(eta_seconds / 3600);
+                int eta_mins = static_cast<int>((eta_seconds - eta_hours * 3600) / 60);
+                int eta_secs = static_cast<int>(eta_seconds) % 60;
                 
-                std::cout << "\rProgress: [" << std::string(filled, '=') << std::string(bar_width - filled, ' ') 
-                          << "] " << percent << "% " << sub_bar << " " << sub_percent << "% to snapshot"
-                          << " | Step " << step << "/" << target_step
-                          << " | a_max=" << std::fixed << std::setprecision(2) << max_acc
-                          << " | dt=" << std::scientific << std::setprecision(2) << dt_relax
-                          << " | t=" << std::fixed << std::setprecision(3) << accumulated_time
+                std::ostringstream eta_str;
+                if(eta_hours > 0) {
+                    eta_str << eta_hours << "h" << std::setw(2) << std::setfill('0') << eta_mins << "m";
+                } else if(eta_mins > 0) {
+                    eta_str << eta_mins << "m" << std::setw(2) << std::setfill('0') << eta_secs << "s";
+                } else {
+                    eta_str << eta_secs << "s";
+                }
+                
+                // Use \33[2K to clear line, then \r to return to start
+                std::cout << "\33[2K\r[" << std::string(filled, '=') << std::string(bar_width - filled, ' ') 
+                          << "] " << std::setw(3) << std::setfill(' ') << percent << "% "
+                          << step << "/" << target_step
+                          << " ETA:" << eta_str.str()
+                          << " a=" << std::fixed << std::setprecision(0) << max_acc
                           << std::flush;
                 last_percent = percent;
                 last_sub_percent = sub_percent;
@@ -1429,6 +1472,9 @@ void Solver::initialize()
             
             // Output snapshots at specified frequency
             if(step % m_relaxation_output_freq == 0 || step == m_relaxation_steps - 1) {
+                // Print newline to clear progress bar before snapshot message
+                std::cout << std::endl;
+                
                 // Set simulation time to accumulated physical time
                 m_sim->set_time(accumulated_time);
                 

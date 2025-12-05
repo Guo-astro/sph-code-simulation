@@ -20,20 +20,36 @@ Expected behavior:
     - No expansion or collapse
 
 Usage:
+    # Standard incremental mode (default - only processes new snapshots)
     python3 visualize_hydrostatic.py <results_dir> <output_dir>
+    
+    # Force full rebuild from scratch
+    python3 visualize_hydrostatic.py <results_dir> <output_dir> --rebuild
     
     results_dir: Directory containing snapshot_*.csv and energy.dat
     output_dir: Directory to save plots and animations
+
+Incremental Mode:
+    By default, the script operates in incremental mode which:
+    - Stores metadata in .hydrostatic_gif_metadata.json
+    - Only renders new snapshot frames not previously processed
+    - Appends new frames to the existing GIF
+    - Much faster for long-running simulations with many snapshots
+    
+    Use --rebuild to force a complete regeneration of the GIF.
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from matplotlib.gridspec import GridSpec
 import glob
+import io
 import os
 import sys
+import json
+import argparse
 from pathlib import Path
+from PIL import Image
 
 # Lane-Emden n=1.5 analytical parameters (code units: M=1, R=1)
 XI_1 = 3.6537540101  # First zero of Lane-Emden equation
@@ -41,6 +57,85 @@ ALPHA = 1.0 / XI_1  # Scaling factor R/ξ₁
 RHO_C = 1.43009692  # Central density (analytical)
 GAMMA = 5.0 / 3.0  # Adiabatic index
 POLYTROPIC_N = 1.5  # Polytropic index
+G = 1.0  # Gravitational constant
+
+# Theoretical polytropic constant K for isentropic Lane-Emden
+# K = 4*pi*G*alpha^2*rho_c^(1/3)/(n+1) for n=1.5
+K_EXPECTED = 4.0 * np.pi * G * ALPHA**2 * RHO_C**(1.0/3.0) / (POLYTROPIC_N + 1)
+
+
+def load_gif_metadata(output_dir):
+    """Load metadata about previously processed frames."""
+    metadata_file = os.path.join(output_dir, '.hydrostatic_gif_metadata.json')
+    if os.path.exists(metadata_file):
+        try:
+            with open(metadata_file, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {'processed_snapshots': [], 'metrics': {'times': [], 'rms_errors': [], 
+            'max_velocities': [], 'median_velocities': [], 'K_variations': []}}
+
+
+def save_gif_metadata(output_dir, metadata):
+    """Save metadata about processed frames."""
+    metadata_file = os.path.join(output_dir, '.hydrostatic_gif_metadata.json')
+    with open(metadata_file, 'w') as f:
+        json.dump(metadata, f, indent=2)
+
+
+def append_frames_to_gif(existing_gif_path, new_frames, output_path, fps=5):
+    """
+    Append new frames to an existing GIF.
+    
+    Args:
+        existing_gif_path: Path to existing GIF file
+        new_frames: List of PIL Image objects to append
+        output_path: Path for output GIF (can be same as existing)
+        fps: Frames per second
+    """
+    frames = []
+    duration = int(1000 / fps)
+    
+    # Load existing frames if GIF exists
+    if os.path.exists(existing_gif_path):
+        try:
+            existing_gif = Image.open(existing_gif_path)
+            # Extract all frames from existing GIF
+            try:
+                while True:
+                    frames.append(existing_gif.copy())
+                    existing_gif.seek(existing_gif.tell() + 1)
+            except EOFError:
+                pass
+            print(f"  Loaded {len(frames)} existing frames from GIF")
+        except Exception as e:
+            print(f"  Warning: Could not load existing GIF: {e}")
+            frames = []
+    
+    # Append new frames
+    frames.extend(new_frames)
+    
+    if len(frames) > 0:
+        # Ensure all frames have the same size (use first frame as reference)
+        target_size = frames[0].size
+        resized_frames = []
+        for frame in frames:
+            if frame.size != target_size:
+                # Resize to match first frame, maintaining aspect ratio with padding
+                frame = frame.resize(target_size, Image.Resampling.LANCZOS)
+            resized_frames.append(frame)
+        
+        # Save combined GIF
+        resized_frames[0].save(
+            output_path,
+            save_all=True,
+            append_images=resized_frames[1:],
+            duration=duration,
+            loop=0
+        )
+        return len(resized_frames)
+    return 0
 
 
 def lane_emden_theta(xi, tol=1e-10):
@@ -227,8 +322,15 @@ def analyze_hydrostatic_quality(snapshot_data, analytic_density_func):
     }
 
 
-def create_hydrostatic_animation(results_dir, output_dir):
-    """Create comprehensive 6-panel animation showing hydrostatic equilibrium test."""
+def create_hydrostatic_animation(results_dir, output_dir, append_mode=True):
+    """
+    Create comprehensive 6-panel animation showing hydrostatic equilibrium test.
+    
+    Args:
+        results_dir: Directory containing snapshot CSV files
+        output_dir: Directory to save output files
+        append_mode: If True, only process new snapshots and append to existing GIF
+    """
     
     # Find all snapshots
     snapshot_files = sorted(glob.glob(os.path.join(results_dir, 'snapshot_*.csv')))
@@ -236,7 +338,25 @@ def create_hydrostatic_animation(results_dir, output_dir):
         print(f"Error: No snapshots found in {results_dir}")
         return
     
-    print(f"Found {len(snapshot_files)} snapshots")
+    print(f"Found {len(snapshot_files)} total snapshots")
+    
+    # Load metadata for incremental processing
+    metadata = load_gif_metadata(output_dir) if append_mode else {
+        'processed_snapshots': [], 
+        'metrics': {'times': [], 'rms_errors': [], 'max_velocities': [], 
+                   'median_velocities': [], 'K_variations': []}
+    }
+    
+    processed_set = set(metadata['processed_snapshots'])
+    new_snapshot_files = [f for f in snapshot_files if os.path.basename(f) not in processed_set]
+    
+    if append_mode and len(new_snapshot_files) == 0:
+        print("No new snapshots to process. GIF is up-to-date.")
+        return
+    
+    if append_mode and len(processed_set) > 0:
+        print(f"  Previously processed: {len(processed_set)} snapshots")
+        print(f"  New snapshots to add: {len(new_snapshot_files)}")
     
     # Load energy data
     energy_file = os.path.join(results_dir, 'energy.dat')
@@ -248,30 +368,29 @@ def create_hydrostatic_animation(results_dir, output_dir):
     print(f"Estimated crossing time: t_cross = {t_cross:.3f} code units")
     print(f"Average sound speed: c_s = {c_s_avg:.3f} code units")
     
-    # Setup figure
-    fig = plt.figure(figsize=(18, 10))
-    gs = GridSpec(2, 3, figure=fig, hspace=0.3, wspace=0.3)
+    # Quality metrics storage - restore from metadata if appending
+    times = metadata['metrics'].get('times', [])
+    rms_errors = metadata['metrics'].get('rms_errors', [])
+    max_velocities = metadata['metrics'].get('max_velocities', [])
+    median_velocities = metadata['metrics'].get('median_velocities', [])
+    K_variations = metadata['metrics'].get('K_variations', [])
     
-    ax1 = fig.add_subplot(gs[0, 0])  # 3D density
-    ax2 = fig.add_subplot(gs[0, 1])  # XY slice
-    ax3 = fig.add_subplot(gs[0, 2])  # Radial density profile
-    ax4 = fig.add_subplot(gs[1, 0])  # Velocity histogram
-    ax5 = fig.add_subplot(gs[1, 1])  # Energy evolution
-    ax6 = fig.add_subplot(gs[1, 2])  # Quality metrics
+    # Generate frames for new snapshots only
+    new_frames = []
     
-    # Quality metrics storage
-    times = []
-    rms_errors = []
-    max_velocities = []
-    median_velocities = []
-    
-    # Colorbar references (create once, reuse)
-    cbar1 = None
-    
-    def update(frame_num):
-        nonlocal cbar1
+    def render_frame(snapshot_file, frame_idx, total_frames):
+        """Render a single frame and return as PIL Image."""
+        # Setup figure
+        fig = plt.figure(figsize=(18, 10))
+        gs = GridSpec(2, 3, figure=fig, hspace=0.3, wspace=0.3)
         
-        snapshot_file = snapshot_files[frame_num]
+        ax1 = fig.add_subplot(gs[0, 0])  # 3D density
+        ax2 = fig.add_subplot(gs[0, 1])  # XY slice
+        ax3 = fig.add_subplot(gs[0, 2])  # Radial density profile
+        ax4 = fig.add_subplot(gs[1, 0])  # Velocity histogram
+        ax5 = fig.add_subplot(gs[1, 1])  # K(r) profile (polytropic constant)
+        ax6 = fig.add_subplot(gs[1, 2])  # Quality metrics
+        
         data = load_snapshot(snapshot_file)
         
         # Extract data
@@ -287,8 +406,8 @@ def create_hydrostatic_animation(results_dir, output_dir):
         step_num = int(os.path.basename(snapshot_file).split('_')[1].split('.')[0])
         
         # Try to get actual time from energy file
-        if energy_data is not None and frame_num < len(energy_data):
-            current_time = energy_data[frame_num, 0]
+        if energy_data is not None and frame_idx < len(energy_data):
+            current_time = energy_data[frame_idx, 0]
         else:
             current_time = step_num * 0.2  # Assume output frequency
         
@@ -299,10 +418,6 @@ def create_hydrostatic_animation(results_dir, output_dir):
         max_velocities.append(metrics['max_velocity'])
         median_velocities.append(metrics['median_velocity'])
         
-        # Clear all axes
-        for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
-            ax.clear()
-        
         # Panel 1: 3D density scatter
         scatter = ax1.scatter(pos[:, 0], pos[:, 1], c=rho, s=1, cmap='viridis',
                              vmin=0, vmax=RHO_C, alpha=0.6)
@@ -312,10 +427,7 @@ def create_hydrostatic_animation(results_dir, output_dir):
         ax1.set_xlim(-1.2, 1.2)
         ax1.set_ylim(-1.2, 1.2)
         ax1.set_aspect('equal')
-        
-        # Only create colorbar once
-        if cbar1 is None:
-            cbar1 = plt.colorbar(scatter, ax=ax1, label='Density [code units]')
+        plt.colorbar(scatter, ax=ax1, label='Density [code units]')
         
         # Panel 2: XY slice (|z| < 0.1)
         mask_xy = np.abs(pos[:, 2]) < 0.1
@@ -363,30 +475,51 @@ def create_hydrostatic_animation(results_dir, output_dir):
         ax4.set_ylabel('Particle count')
         ax4.set_title(f'Velocity Distribution\nMax: {metrics["max_velocity"]/c_s_avg:.4f} c_s')
         ax4.legend()
-        ax4.set_xlim(0, min(0.1, metrics['max_velocity'] / c_s_avg * 1.5))
+        # Ensure xlim upper bound is > 0 to avoid singular transformation
+        xlim_upper = max(0.001, min(0.1, metrics['max_velocity'] / c_s_avg * 1.5))
+        ax4.set_xlim(0, xlim_upper)
         ax4.grid(True, alpha=0.3)
         
-        # Panel 5: Energy evolution
-        # Columns: 0=time, 1=kinetic, 2=thermal, 3=potential, 4=total
-        if energy_data is not None:
-            time_energy = energy_data[:, 0]
-            total_energy = energy_data[:, 4]  # Total energy is column 4
-            
-            # Normalize to initial total energy
-            E0 = total_energy[0]
-            
-            ax5.plot(time_energy / t_cross, (total_energy - E0) / abs(E0) * 100,
-                    'k-', linewidth=2, label='Total (fractional drift)')
-            ax5.axhline(0, color='gray', linestyle='--', alpha=0.5)
-            ax5.axhline(1, color='red', linestyle=':', alpha=0.3, label='±1% threshold')
-            ax5.axhline(-1, color='red', linestyle=':', alpha=0.3)
-            ax5.axvline(current_time / t_cross, color='blue', linestyle='--', alpha=0.5,
-                       label=f't = {current_time/t_cross:.2f} t_cross')
-            ax5.set_xlabel('Time [crossing times]')
-            ax5.set_ylabel('Energy drift [%]')
-            ax5.set_title('Energy Conservation')
-            ax5.legend(loc='best')
-            ax5.grid(True, alpha=0.3)
+        # Panel 5: K(r) profile (polytropic constant)
+        # K = P / rho^gamma should be CONSTANT for isentropic Lane-Emden
+        pres = data[:, 12]  # Column 12: pressure
+        K_values = pres / rho**GAMMA
+        
+        # Bin K by radius
+        K_binned = []
+        K_std_binned = []
+        for i in range(len(r_bins) - 1):
+            mask_bin = (r >= r_bins[i]) & (r < r_bins[i+1])
+            if np.sum(mask_bin) > 0:
+                K_binned.append(np.mean(K_values[mask_bin]))
+                K_std_binned.append(np.std(K_values[mask_bin]))
+            else:
+                K_binned.append(np.nan)
+                K_std_binned.append(np.nan)
+        
+        K_binned = np.array(K_binned)
+        K_std_binned = np.array(K_std_binned)
+        
+        # Plot K(r) profile
+        ax5.plot(r_centers, K_binned, 'b-o', markersize=4, linewidth=2, label='K(r) SPH')
+        ax5.fill_between(r_centers, K_binned - K_std_binned, K_binned + K_std_binned,
+                        alpha=0.3, color='blue')
+        ax5.axhline(K_EXPECTED, color='red', linestyle='--', linewidth=2,
+                   label=f'K expected = {K_EXPECTED:.4f}')
+        ax5.set_xlabel('Radius r [code units]')
+        ax5.set_ylabel('K = P/ρ^γ')
+        
+        # Compute K variation metric
+        valid_K = K_binned[~np.isnan(K_binned) & (r_centers < 0.85)]
+        K_variation = np.std(valid_K) / np.mean(valid_K) * 100 if len(valid_K) > 0 else 0
+        K_mean = np.mean(valid_K) if len(valid_K) > 0 else 0
+        K_variations.append(K_variation)
+        
+        ax5.set_title(f'Polytropic Constant K(r)\nK_mean={K_mean:.4f}, Variation={K_variation:.1f}%')
+        ax5.legend(loc='best', fontsize=9)
+        ax5.grid(True, alpha=0.3)
+        ax5.set_xlim(0, 1.0)
+        ax5.set_ylim(0, K_EXPECTED * 1.5)
         
         # Panel 6: Quality metrics over time
         if len(times) > 1:
@@ -402,30 +535,446 @@ def create_hydrostatic_animation(results_dir, output_dir):
             ax6.legend(loc='best')
             ax6.grid(True, alpha=0.3)
         
-        # Main title
+        # Main title - use frame count (len(times)) which accumulates correctly across incremental runs
+        # Don't show total since old frames would have stale totals when new snapshots are added
         fig.suptitle(f'Hydrostatic Equilibrium Test (DISPH + Self-Gravity)\n'
                     f'Time: {current_time:.2f} code units = {current_time/t_cross:.2f} t_cross | '
-                    f'Snapshot: {frame_num + 1}/{len(snapshot_files)}',
+                    f'Frame #{len(times)}',
                     fontsize=14, fontweight='bold')
         
-        return []
+        # Convert figure to PIL Image using buffer (cross-platform compatible)
+        # Use tight_layout but NOT bbox_inches='tight' to maintain consistent frame sizes
+        fig.tight_layout(rect=[0, 0, 1, 0.95])  # Leave room for suptitle
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=100)
+        buf.seek(0)
+        img = Image.open(buf).convert('RGB')
+        plt.close(fig)
+        return img
     
-    # Create animation
-    print("Creating animation...")
-    anim = animation.FuncAnimation(fig, update, frames=len(snapshot_files),
-                                  interval=200, blit=False)
-    
-    # Save animation
+    # Process new snapshots
     output_file = os.path.join(output_dir, 'hydrostatic_animation.gif')
-    print(f"Saving animation to {output_file}...")
-    anim.save(output_file, writer='pillow', fps=5, dpi=100)
-    print(f"✓ Animation saved: {output_file}")
     
-    plt.close(fig)
+    if append_mode and len(new_snapshot_files) > 0:
+        print(f"Processing {len(new_snapshot_files)} new frames (incremental mode)...")
+        
+        # Generate frames for new snapshots only
+        for i, snapshot_file in enumerate(new_snapshot_files):
+            # Find the global index of this snapshot
+            global_idx = snapshot_files.index(snapshot_file)
+            print(f"  Rendering frame {i+1}/{len(new_snapshot_files)}: {os.path.basename(snapshot_file)}")
+            
+            frame_img = render_frame(snapshot_file, global_idx, len(snapshot_files))
+            new_frames.append(frame_img)
+            
+            # Track processed snapshots
+            metadata['processed_snapshots'].append(os.path.basename(snapshot_file))
+        
+        # Save updated metrics
+        metadata['metrics'] = {
+            'times': times,
+            'rms_errors': rms_errors,
+            'max_velocities': max_velocities,
+            'median_velocities': median_velocities,
+            'K_variations': K_variations
+        }
+        
+        # Append new frames to existing GIF
+        total_frames = append_frames_to_gif(output_file, new_frames, output_file, fps=5)
+        print(f"✓ Animation updated: {output_file} ({total_frames} total frames)")
+        
+        # Save metadata for next incremental update
+        save_gif_metadata(output_dir, metadata)
+        
+        # Create/update interactive HTML viewer
+        create_interactive_viewer(output_dir, metadata['processed_snapshots'])
+        
+    else:
+        # Full rebuild mode (no existing data or forced rebuild)
+        print(f"Creating full animation with {len(snapshot_files)} frames...")
+        
+        all_frames = []
+        for i, snapshot_file in enumerate(snapshot_files):
+            print(f"  Rendering frame {i+1}/{len(snapshot_files)}: {os.path.basename(snapshot_file)}")
+            frame_img = render_frame(snapshot_file, i, len(snapshot_files))
+            all_frames.append(frame_img)
+            metadata['processed_snapshots'].append(os.path.basename(snapshot_file))
+        
+        # Save metrics
+        metadata['metrics'] = {
+            'times': times,
+            'rms_errors': rms_errors,
+            'max_velocities': max_velocities,
+            'median_velocities': median_velocities,
+            'K_variations': K_variations
+        }
+        
+        # Save GIF
+        if len(all_frames) > 0:
+            all_frames[0].save(
+                output_file,
+                save_all=True,
+                append_images=all_frames[1:],
+                duration=200,
+                loop=0
+            )
+            print(f"✓ Animation saved: {output_file}")
+        
+        # Save metadata
+        save_gif_metadata(output_dir, metadata)
+    
+    # Create interactive HTML viewer with slider
+    create_interactive_viewer(output_dir, metadata['processed_snapshots'])
     
     # Create final summary plot
     create_summary_plot(snapshot_files[-1], times, rms_errors, max_velocities,
                        median_velocities, t_cross, c_s_avg, output_dir)
+
+
+def create_interactive_viewer(output_dir, snapshot_names):
+    """
+    Create an interactive HTML viewer with a slider to navigate frames.
+    
+    Args:
+        output_dir: Directory containing the frame images
+        snapshot_names: List of snapshot filenames that were processed
+    """
+    frames_dir = os.path.join(output_dir, 'frames')
+    os.makedirs(frames_dir, exist_ok=True)
+    
+    # Check if we need to extract frames from the GIF
+    gif_path = os.path.join(output_dir, 'hydrostatic_animation.gif')
+    frame_files = sorted(glob.glob(os.path.join(frames_dir, 'frame_*.png')))
+    
+    # Extract frames from GIF if frames directory is empty or has fewer frames
+    if os.path.exists(gif_path):
+        try:
+            gif = Image.open(gif_path)
+            n_gif_frames = 0
+            try:
+                while True:
+                    n_gif_frames += 1
+                    gif.seek(gif.tell() + 1)
+            except EOFError:
+                pass
+            
+            # Re-extract if frame count doesn't match
+            if len(frame_files) != n_gif_frames:
+                print(f"Extracting {n_gif_frames} frames for interactive viewer...")
+                gif = Image.open(gif_path)
+                frame_idx = 0
+                try:
+                    while True:
+                        frame_path = os.path.join(frames_dir, f'frame_{frame_idx:04d}.png')
+                        gif.save(frame_path)
+                        frame_idx += 1
+                        gif.seek(gif.tell() + 1)
+                except EOFError:
+                    pass
+                frame_files = sorted(glob.glob(os.path.join(frames_dir, 'frame_*.png')))
+                print(f"  Extracted {len(frame_files)} frames")
+        except Exception as e:
+            print(f"Warning: Could not extract frames from GIF: {e}")
+            return
+    
+    if len(frame_files) == 0:
+        print("Warning: No frames available for interactive viewer")
+        return
+    
+    # Generate HTML with embedded JavaScript slider
+    html_content = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydrostatic Equilibrium Test - Interactive Viewer</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }}
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+        }}
+        h1 {{
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4fc3f7;
+        }}
+        .viewer {{
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }}
+        .frame-container {{
+            text-align: center;
+            margin-bottom: 20px;
+        }}
+        .frame-container img {{
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }}
+        .controls {{
+            background: #0f3460;
+            padding: 20px;
+            border-radius: 8px;
+        }}
+        .slider-container {{
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }}
+        .slider-container label {{
+            min-width: 80px;
+            font-weight: 500;
+        }}
+        .slider-container input[type="range"] {{
+            flex: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #1a1a2e;
+            border-radius: 4px;
+            outline: none;
+        }}
+        .slider-container input[type="range"]::-webkit-slider-thumb {{
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4fc3f7;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.2s;
+        }}
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {{
+            background: #81d4fa;
+        }}
+        .frame-info {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }}
+        .frame-number {{
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4fc3f7;
+        }}
+        .playback-controls {{
+            display: flex;
+            gap: 10px;
+        }}
+        .playback-controls button {{
+            padding: 10px 20px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }}
+        .btn-play {{
+            background: #4caf50;
+            color: white;
+        }}
+        .btn-play:hover {{
+            background: #66bb6a;
+        }}
+        .btn-pause {{
+            background: #ff9800;
+            color: white;
+        }}
+        .btn-pause:hover {{
+            background: #ffb74d;
+        }}
+        .btn-step {{
+            background: #2196f3;
+            color: white;
+        }}
+        .btn-step:hover {{
+            background: #64b5f6;
+        }}
+        .speed-control {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .speed-control select {{
+            padding: 8px 12px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #eee;
+            cursor: pointer;
+        }}
+        .keyboard-hints {{
+            margin-top: 15px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 6px;
+            font-size: 0.9em;
+            color: #888;
+        }}
+        .keyboard-hints kbd {{
+            background: #0f3460;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 Hydrostatic Equilibrium Test - Interactive Viewer</h1>
+        <div class="viewer">
+            <div class="frame-container">
+                <img id="frameImage" src="frames/frame_0000.png" alt="Frame">
+            </div>
+            <div class="controls">
+                <div class="slider-container">
+                    <label for="frameSlider">Frame:</label>
+                    <input type="range" id="frameSlider" min="0" max="{len(frame_files) - 1}" value="0">
+                </div>
+                <div class="frame-info">
+                    <span class="frame-number">Frame: <span id="frameNum">1</span> / {len(frame_files)}</span>
+                    <div class="playback-controls">
+                        <button class="btn-step" onclick="stepBackward()">⏮ Prev</button>
+                        <button class="btn-play" id="playBtn" onclick="togglePlay()">▶ Play</button>
+                        <button class="btn-step" onclick="stepForward()">Next ⏭</button>
+                    </div>
+                    <div class="speed-control">
+                        <label for="speedSelect">Speed:</label>
+                        <select id="speedSelect" onchange="updateSpeed()">
+                            <option value="500">0.5x</option>
+                            <option value="200" selected>1x</option>
+                            <option value="100">2x</option>
+                            <option value="50">4x</option>
+                            <option value="25">8x</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="keyboard-hints">
+                    Keyboard: <kbd>Space</kbd> Play/Pause | <kbd>←</kbd> Previous | <kbd>→</kbd> Next | <kbd>Home</kbd> First | <kbd>End</kbd> Last
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const totalFrames = {len(frame_files)};
+        let currentFrame = 0;
+        let isPlaying = false;
+        let playInterval = null;
+        let playSpeed = 200;
+
+        const frameImage = document.getElementById('frameImage');
+        const frameSlider = document.getElementById('frameSlider');
+        const frameNum = document.getElementById('frameNum');
+        const playBtn = document.getElementById('playBtn');
+
+        // Preload images for smoother playback
+        const images = [];
+        for (let i = 0; i < totalFrames; i++) {{
+            const img = new Image();
+            img.src = `frames/frame_${{String(i).padStart(4, '0')}}.png`;
+            images.push(img);
+        }}
+
+        function updateFrame(frame) {{
+            currentFrame = Math.max(0, Math.min(totalFrames - 1, frame));
+            frameImage.src = `frames/frame_${{String(currentFrame).padStart(4, '0')}}.png`;
+            frameSlider.value = currentFrame;
+            frameNum.textContent = currentFrame + 1;
+        }}
+
+        function stepForward() {{
+            updateFrame(currentFrame + 1);
+        }}
+
+        function stepBackward() {{
+            updateFrame(currentFrame - 1);
+        }}
+
+        function togglePlay() {{
+            isPlaying = !isPlaying;
+            if (isPlaying) {{
+                playBtn.textContent = '⏸ Pause';
+                playBtn.className = 'btn-pause';
+                playInterval = setInterval(() => {{
+                    if (currentFrame >= totalFrames - 1) {{
+                        currentFrame = -1;  // Loop back
+                    }}
+                    stepForward();
+                }}, playSpeed);
+            }} else {{
+                playBtn.textContent = '▶ Play';
+                playBtn.className = 'btn-play';
+                clearInterval(playInterval);
+            }}
+        }}
+
+        function updateSpeed() {{
+            playSpeed = parseInt(document.getElementById('speedSelect').value);
+            if (isPlaying) {{
+                clearInterval(playInterval);
+                playInterval = setInterval(() => {{
+                    if (currentFrame >= totalFrames - 1) {{
+                        currentFrame = -1;
+                    }}
+                    stepForward();
+                }}, playSpeed);
+            }}
+        }}
+
+        frameSlider.addEventListener('input', (e) => {{
+            updateFrame(parseInt(e.target.value));
+        }});
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {{
+            switch(e.key) {{
+                case ' ':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'ArrowRight':
+                    stepForward();
+                    break;
+                case 'ArrowLeft':
+                    stepBackward();
+                    break;
+                case 'Home':
+                    updateFrame(0);
+                    break;
+                case 'End':
+                    updateFrame(totalFrames - 1);
+                    break;
+            }}
+        }});
+    </script>
+</body>
+</html>
+'''
+    
+    html_path = os.path.join(output_dir, 'interactive_viewer.html')
+    with open(html_path, 'w') as f:
+        f.write(html_content)
+    print(f"✓ Interactive viewer saved: {html_path}")
+    print(f"  Open in browser: file://{os.path.abspath(html_path)}")
 
 
 def create_summary_plot(final_snapshot_file, times, rms_errors, max_velocities,
@@ -634,12 +1183,37 @@ def find_data_directory(results_dir):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        print("Usage: python3 visualize_hydrostatic.py <results_dir> <output_dir>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description='Visualization script for Lane-Emden hydrostatic equilibrium test.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Standard run (incremental by default - only processes new snapshots)
+  python3 visualize_hydrostatic.py results/ output/
+  
+  # Force full rebuild from scratch
+  python3 visualize_hydrostatic.py results/ output/ --rebuild
+  
+  # Explicitly enable incremental mode (default behavior)
+  python3 visualize_hydrostatic.py results/ output/ --append
+  
+The incremental mode stores metadata in .hydrostatic_gif_metadata.json
+and only processes new snapshot files, appending them to the existing GIF.
+This is much faster for long-running simulations.
+        """
+    )
+    parser.add_argument('results_dir', help='Directory containing snapshot_*.csv and energy.dat')
+    parser.add_argument('output_dir', help='Directory to save plots and animations')
+    parser.add_argument('--rebuild', action='store_true', 
+                       help='Force full rebuild of GIF from scratch (ignore cached metadata)')
+    parser.add_argument('--append', action='store_true', default=True,
+                       help='Incremental mode: only process new snapshots (default)')
     
-    results_dir = sys.argv[1]
-    output_dir = sys.argv[2]
+    args = parser.parse_args()
+    
+    results_dir = args.results_dir
+    output_dir = args.output_dir
+    append_mode = not args.rebuild  # Default to append mode unless --rebuild is specified
     
     # Create output directory
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -649,6 +1223,7 @@ if __name__ == '__main__':
     print("=" * 60)
     print(f"Results directory: {results_dir}")
     print(f"Output directory: {output_dir}")
+    print(f"Mode: {'Incremental (append new frames)' if append_mode else 'Full rebuild'}")
     print("")
     
     # Auto-detect data directory
@@ -673,7 +1248,7 @@ if __name__ == '__main__':
         print(f"Auto-detected data directory: {data_dir}")
         print("")
     
-    create_hydrostatic_animation(data_dir, output_dir)
+    create_hydrostatic_animation(data_dir, output_dir, append_mode=append_mode)
     
     print("")
     print("=" * 60)

@@ -1,0 +1,38 @@
+{
+    "name": "selfgrav_gsph_no_gradh",
+    "description": "Self-gravitating hydrostatic equilibrium WITHOUT grad-h (WILL COLLAPSE)",
+    
+    "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/61k/GSPH/snapshot_0004.csv",
+    "resetTimeOnResume": true,
+    
+    "outputDirectory": "sample/gradh_study/results/selfgrav_no_gradh",
+    "outputFormat": "csv",
+    "enableEnergyFile": true,
+    
+    "SPHType": "gsph",
+    "use2ndOrderGSPH": false,
+    "useGradH": false,
+    "riemannSolver": "iterative",
+    
+    "kernel": "wendland",
+    "neighborNumber": 50,
+    
+    "useGravity": true,
+    "G": 1.0,
+    "theta": 0.5,
+    
+    "periodic": false,
+    
+    "cflSound": 0.3,
+    "cflForce": 0.125,
+    
+    "startTime": 0.0,
+    "endTime": 50.0,
+    "outputTime": 0.5,
+    
+    "gamma": 1.6666666666666667,
+    
+    "maxTreeLevel": 20,
+    "leafParticleNumber": 1,
+    "iterativeSmoothingLength": true
+}
