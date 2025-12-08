@@ -29,6 +29,10 @@ all:
 	@echo "  make sr_help                  # SR-GSPH relativistic test targets"
 	@echo "  make imbh_help                # IMBH-cloud tidal disruption targets"
 	@echo ""
+	@echo "Grad-h Study Test Suites:"
+	@echo "  make gradh_2d_help            # 2D Planar Lane-Emden grad-h study"
+	@echo "  make gradh_3d_help            # 3D Cylinder Lane-Emden grad-h study"
+	@echo ""
 	@echo "Quick IMBH shortcuts:"
 	@echo "  make imbh_relax_2k            # Testing: 2k particle relaxation"
 	@echo "  make imbh_relax_200k          # Production: 200k particle relaxation"
@@ -74,3 +78,7 @@ help: all
 
 # IMBH-Cloud Tidal Disruption preset-based system
 -include sample/imbh_cloud/Makefile.imbh_cloud
+
+# Grad-h Study Test Suites (GSPH/SSPH × grad-h comparison)
+-include sample/gradh_study_2d_planar/Makefile.gradh_2d_planar
+-include sample/gradh_study_3d_cylinder/Makefile.gradh_3d_cylinder

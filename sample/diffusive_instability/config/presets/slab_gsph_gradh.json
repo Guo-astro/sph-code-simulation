@@ -1,0 +1,48 @@
+{
+  "outputDirectory": "sample/diffusive_instability/results/slab_gradh",
+  "startTime": 0.0,
+  "endTime": 50.0,
+  "outputTime": 1.0,
+  "energyTime": 0.1,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "hdf5"
+      },
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "sample": "isothermal_slab",
+  "N": 200,
+  "rho_center": 1.0,
+  "sound_speed": 1.0,
+  "scale_height": 0.5,
+  "avAlpha": 1.0,
+  "avBeta": 2.0,
+  "useBalsaraSwitch": false,
+  "useTimeDependentAV": false,
+  "neighborNumber": 8,
+  "gamma": 1.4,
+  "kernel": "cubic_spline",
+  "iterativeSmoothingLength": true,
+  "periodic": false,
+  "rangeMax": [2.0],
+  "rangeMin": [-2.0],
+  "SPHType": "gsph",
+  "use2ndOrderGSPH": false,
+  "riemannSolver": "hll",
+  "useGradH": true,
+  "useGravity": true,
+  "G": 1.0,
+  "theta": 0.5,
+  "useFixedGravitySoftening": false,
+  "gravitySofteningType": "hernquist_katz"
+}

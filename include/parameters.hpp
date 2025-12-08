@@ -35,6 +35,11 @@ enum struct BoundaryType {
     INFLOW,      // Inflow boundary: ghosts keep their initial state (simulates infinite domain)
 };
 
+enum struct GravitySofteningType {
+    HERNQUIST_KATZ,  // Original: Hernquist & Katz (1989) spline, ε = h/2
+    WENDLAND_C4,     // True kernel-convolved: use same Wendland C4 as SPH
+};
+
 struct SPHParameters {
 
     struct Time {
@@ -90,6 +95,13 @@ struct SPHParameters {
         bool is_valid;
         real constant;
         real theta;
+        bool use_fixed_softening;  // If true, use fixed softening instead of h-dependent
+        real fixed_softening;      // Fixed softening length (only used if use_fixed_softening=true)
+        GravitySofteningType softening_type;  // HERNQUIST_KATZ (default) or WENDLAND_C4
+        bool use_kernel_gravity_1d;  // For 1D: use kernel-convolved gravity (default: true)
+        bool use_kernel_gravity_2d;  // For 2D: use kernel-convolved gravity (default: true)
+        bool use_kernel_gravity_planar_2d;  // For 2D planar slab: 1D gravity in y-direction
+        bool use_kernel_gravity_cylinder_3d;  // For 3D cylinder: 2D radial gravity in xy-plane
     } gravity;
 
     struct GSPH {

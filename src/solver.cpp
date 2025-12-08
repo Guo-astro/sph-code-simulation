@@ -37,6 +37,8 @@
 
 // relaxation
 #include "relaxation/lane_emden_relaxation.hpp"
+#include "relaxation/polytropic_slab_relaxation.hpp"
+#include "relaxation/polytropic_slab_2d_relaxation.hpp"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -184,6 +186,8 @@ Solver::Solver(int argc, char * argv[])
         WRITE_SAMPLE(Sample::Evrard, "Evrard collapse");
         WRITE_SAMPLE(Sample::EvrardColdCollapse, "Evrard cold collapse (demonstrates shock amplification)");
         WRITE_SAMPLE(Sample::LaneEmden, "Lane-Emden hydrostatic");
+        WRITE_SAMPLE(Sample::LaneEmdenCylinder, "Lane-Emden cylinder (3D, radial gravity in xy-plane)");
+        WRITE_SAMPLE(Sample::PolytropicSlab2D, "Polytropic slab 2D (planar, gravity in y-direction)");
         WRITE_SAMPLE(Sample::Sedov, "Sedov blast wave");
 #undef WRITE_SAMPLE
         default:
@@ -236,6 +240,10 @@ void Solver::read_parameterfile(const char * filename)
         pt::read_json("sample/hydrostatic/hydrostatic.json", input);
         m_sample = Sample::HydroStatic;
         m_sample_parameters["N"] = input.get<int>("N", 32);
+    } else if(name_str == "gradh_study") {
+        pt::read_json("sample/gradh_study/gradh_study.json", input);
+        m_sample = Sample::HydroStatic;  // Uses HydroStatic or resumeFromSnapshot
+        m_sample_parameters["N"] = input.get<int>("N", 64);
     } else if(name_str == "khi") {
         pt::read_json("sample/khi/khi.json", input);
         m_sample = Sample::KHI;
@@ -361,6 +369,49 @@ void Solver::read_parameterfile(const char * filename)
             // Resolution
             m_sample_parameters["n_radial"] = input.get<int>("bns_cocoon.n_radial", 200);
             m_sample_parameters["n_angular"] = input.get<int>("bns_cocoon.n_angular", 160);
+        } else if (sample_type == "isothermal_slab") {
+            m_sample = Sample::IsothermalSlab;
+            // 1D isothermal self-gravitating slab for diffusive instability study
+            m_sample_parameters["N"] = input.get<int>("N", 200);
+            m_sample_parameters["rho_center"] = input.get<real>("rho_center", real(1.0));
+            m_sample_parameters["sound_speed"] = input.get<real>("sound_speed", real(1.0));
+            m_sample_parameters["scale_height"] = input.get<real>("scale_height", real(0.5));
+        } else if (sample_type == "polytropic_slab") {
+            m_sample = Sample::PolytropicSlab;
+            // 1D polytropic self-gravitating slab using planar Lane-Emden solution
+            m_sample_parameters["N"] = input.get<int>("N", 200);
+            m_sample_parameters["rho_center"] = input.get<real>("rho_center", real(1.0));
+            m_sample_parameters["K"] = input.get<real>("K", real(1.0));  // Polytropic constant
+        } else if (sample_type == "polytropic_slab_2d") {
+            m_sample = Sample::PolytropicSlab2D;
+            // 2D planar Lane-Emden slab (gravity in y-direction)
+            m_sample_parameters["N"] = input.get<int>("N", 50);  // N² particles
+            m_sample_parameters["rho_center"] = input.get<real>("rho_center", real(1.0));
+            m_sample_parameters["K"] = input.get<real>("K", real(1.0));  // Polytropic constant
+            m_sample_parameters["L_x"] = input.get<real>("L_x", real(1.0));  // Domain width in x
+        } else if (sample_type == "lane_emden_cylinder") {
+            m_sample = Sample::LaneEmdenCylinder;
+            // 3D cylindrical Lane-Emden (radial gravity in xy-plane)
+            m_sample_parameters["N"] = input.get<int>("N", 30);  // N³ particles (nominal)
+            m_sample_parameters["R"] = input.get<real>("R", real(1.0));  // Cylinder radius
+            m_sample_parameters["L_z"] = input.get<real>("L_z", real(1.0));  // Cylinder length
+            m_sample_parameters["M_total"] = input.get<real>("M_total", real(1.0));  // Total mass
+        } else if (sample_type == "sinusoidal_perturbation") {
+            m_sample = Sample::SinusoidalPerturbation;
+            // Periodic box with sinusoidal density perturbation for diffusion study
+            m_sample_parameters["N"] = input.get<int>("N", 200);
+            m_sample_parameters["wavelength"] = input.get<real>("wavelength", real(1.0));
+            m_sample_parameters["amplitude"] = input.get<real>("amplitude", real(0.1));
+            m_sample_parameters["rho_mean"] = input.get<real>("rho_mean", real(1.0));
+            m_sample_parameters["pressure"] = input.get<real>("pressure", real(1.0));
+        } else if (sample_type == "jeans_instability") {
+            m_sample = Sample::JeansInstability;
+            // Periodic box with sinusoidal density perturbation for Jeans instability
+            m_sample_parameters["N"] = input.get<int>("N", 200);
+            m_sample_parameters["wavelength"] = input.get<real>("wavelength", real(1.0));
+            m_sample_parameters["amplitude"] = input.get<real>("amplitude", real(0.01));
+            m_sample_parameters["rho_0"] = input.get<real>("rho_0", real(1.0));
+            m_sample_parameters["c_s"] = input.get<real>("c_s", real(1.0));
         } else {
             // Try to infer sample type from SPH type and JSON content
             std::string sph_type_check = input.get<std::string>("SPHType", "");
@@ -586,14 +637,38 @@ void Solver::read_parameterfile(const char * filename)
     m_param->gravity.constant = input.get<real>("G", 1.0);
     if(m_param->gravity.is_valid) {
         m_param->gravity.theta = input.get<real>("theta", 0.5);
+        // Fixed vs h-dependent gravity softening
+        m_param->gravity.use_fixed_softening = input.get<bool>("useFixedGravitySoftening", false);
+        m_param->gravity.fixed_softening = input.get<real>("gravitySoftening", 0.1);
+        
+        // Gravity softening kernel type: "hernquist_katz" (default) or "wendland_c4"
+        std::string softening_type_str = input.get<std::string>("gravitySofteningType", "hernquist_katz");
+        if (softening_type_str == "wendland_c4" || softening_type_str == "wendland") {
+            m_param->gravity.softening_type = GravitySofteningType::WENDLAND_C4;
+        } else {
+            m_param->gravity.softening_type = GravitySofteningType::HERNQUIST_KATZ;
+        }
+        
+        // 1D kernel-convolved gravity (default: true for consistency with SPH pressure)
+        m_param->gravity.use_kernel_gravity_1d = input.get<bool>("useKernelGravity1D", true);
+        
+        // 2D kernel-convolved gravity (default: true for consistency with SPH pressure)
+        m_param->gravity.use_kernel_gravity_2d = input.get<bool>("useKernelGravity2D", true);
+        
+        // 2D planar slab gravity: 1D gravity in y-direction (default: false)
+        m_param->gravity.use_kernel_gravity_planar_2d = input.get<bool>("useKernelGravityPlanar2D", false);
+        
+        // 3D cylindrical gravity: 2D radial gravity in xy-plane (default: false)
+        m_param->gravity.use_kernel_gravity_cylinder_3d = input.get<bool>("useKernelGravityCylinder3D", false);
     }
 
-    // GSPH and GDISPH
+    // Grad-h correction: applies to ALL SPH types (SSPH, GSPH, GDISPH, DISPH)
+    // Enabled by default. Disabling causes core collapse in hydrostatic tests.
+    m_param->gsph.use_gradh = input.get<bool>("useGradH", true);
+
+    // GSPH and GDISPH specific settings
     if(m_param->type == SPHType::GSPH || m_param->type == SPHType::GDISPH) {
         m_param->gsph.is_2nd_order = input.get<bool>("use2ndOrderGSPH", true);
-        
-        // Grad-h correction: enabled by default. Disabling causes core collapse in hydrostatic tests.
-        m_param->gsph.use_gradh = input.get<bool>("useGradH", true);
         
         // Riemann solver selection: "hll", "iterative", or "kitajima"
         std::string riemann_solver_str = input.get<std::string>("riemannSolver", "hll");
@@ -1565,6 +1640,516 @@ void Solver::initialize()
         m_sim->set_time(0.0);
     }
 
+    // Initialize relaxation for PolytropicSlab if enabled
+    if(m_use_relaxation && m_sample == Sample::PolytropicSlab) {
+        std::cout << "\n=== Initializing Polytropic Slab Relaxation ===" << std::endl;
+        m_polytropic_slab_relax = std::make_shared<PolytropicSlabRelaxation>();
+        
+        // Get base parameters
+        const real rho_center = boost::any_cast<real>(m_sample_parameters["rho_center"]);
+        const real K = boost::any_cast<real>(m_sample_parameters["K"]);
+        const real G = m_param->gravity.constant;
+        const real gamma = m_param->physics.gamma;
+        
+        // Derive other parameters
+        // n = 1/(γ-1), polytropic index
+        const real n = 1.0 / (gamma - 1.0);
+        
+        // α² = K(n+1)ρ_c^(1-n) / (2πG) for planar geometry
+        const real alpha_sq = K * (n + 1.0) * std::pow(rho_center, 1.0 - n) / (2.0 * M_PI * G);
+        const real alpha = std::sqrt(alpha_sq);
+        
+        // Need to solve Lane-Emden to get ξ₁, but let relaxation class do that
+        // For now, estimate x_surface ≈ 2 (will be refined by the relaxation module)
+        // Actually, the PolytropicSlabRelaxation will compute this internally
+        
+        PolytropicSlabRelaxationParams relax_params;
+        relax_params.rho_center = rho_center;
+        relax_params.K = K;
+        relax_params.gamma = gamma;
+        relax_params.n = n;
+        relax_params.alpha_scaling = alpha;
+        relax_params.x_surface = 0.0;  // Will be computed by relaxation module
+        
+        m_polytropic_slab_relax->initialize(relax_params);
+        std::cout << "=== Relaxation Initialized ===" << std::endl;
+        
+        // Initialize sound speed and tree for relaxation calculations
+        {
+            auto& particles = m_sim->get_particles();
+            const int num_p = m_sim->get_particle_num();
+            const real gamma = m_param->physics.gamma;
+            const real c_sound_factor = gamma * (gamma - 1.0);
+            for(int i = 0; i < num_p; ++i) {
+                particles[i].sound = std::sqrt(c_sound_factor * particles[i].ene);
+            }
+            
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num_p);
+            tree->make(particles, num_p);
+#endif
+        }
+        
+        // Run relaxation phase
+        std::cout << "\n=== Starting Relaxation Phase (" << m_relaxation_steps << " steps) ===" << std::endl;
+        
+        int start_step = 0;
+        real accumulated_time = 0.0;
+        
+        if(resumed && snapshot_data.is_relaxation) {
+            start_step = snapshot_data.relaxation_step;
+            accumulated_time = snapshot_data.accumulated_time;
+            std::cout << "Resuming from step " << start_step << " (time=" << accumulated_time << ")" << std::endl;
+        }
+        
+        int target_step = start_step + m_relaxation_steps;
+        std::cout << "Will run from step " << start_step << " to " << target_step 
+                  << " (" << m_relaxation_steps << " steps)" << std::endl;
+        
+        // Prepare relaxation metadata
+        OutputMetadata relax_meta;
+        relax_meta.is_relaxation = true;
+        relax_meta.relaxation_total_steps = target_step;
+        relax_meta.rho_center = relax_params.rho_center;
+        relax_meta.K = relax_params.K;
+        
+        std::cout << "Progress: [" << std::string(50, ' ') << "] 0%" << std::flush;
+        
+        int output_counter = 0;
+        int last_percent = -1;
+        int last_sub_percent = -1;
+        
+        auto start_wall_time = std::chrono::steady_clock::now();
+        double avg_step_time = 0.0;
+        int timing_samples = 0;
+        
+        for(int step = start_step; step < target_step; ++step) {
+            auto step_start = std::chrono::steady_clock::now();
+            auto& particles = m_sim->get_particles();
+            const int num_p = m_sim->get_particle_num();
+            
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num_p);
+            tree->make(particles, num_p);
+#endif
+            
+            // Calculate SPH forces
+            m_pre->calculation(m_sim);
+            m_fforce->calculation(m_sim);
+            if(m_param->gravity.is_valid) {
+                m_gforce->calculation(m_sim);
+            }
+            
+            // Apply relaxation: subtract equilibrium forces
+            m_polytropic_slab_relax->apply_relaxation(m_sim, 0.0);
+            
+            // Calculate timestep
+            m_timestep->calculation(m_sim);
+            real dt_relax = m_sim->get_dt();
+            dt_relax *= m_relaxation_timestep_factor;
+            
+            // Integrate positions with net acceleration (zero velocity constraint)
+            auto * periodic = m_sim->get_periodic().get();
+            real max_acc = 0.0;
+            
+#pragma omp parallel for reduction(max:max_acc)
+            for(int i = 0; i < num_p; ++i) {
+                // Zero velocities (constraint)
+                particles[i].vel[0] = 0.0;
+#if DIM >= 2
+                particles[i].vel[1] = 0.0;
+#endif
+#if DIM == 3
+                particles[i].vel[2] = 0.0;
+#endif
+                
+                // Integrate position: Δx = ½at²
+                particles[i].pos[0] += 0.5 * particles[i].acc[0] * dt_relax * dt_relax;
+#if DIM >= 2
+                particles[i].pos[1] += 0.5 * particles[i].acc[1] * dt_relax * dt_relax;
+#endif
+#if DIM == 3
+                particles[i].pos[2] += 0.5 * particles[i].acc[2] * dt_relax * dt_relax;
+#endif
+                
+                periodic->apply(particles[i].pos);
+                
+                real acc_mag = std::abs(particles[i].acc[0]);
+#if DIM >= 2
+                acc_mag = std::max(acc_mag, std::abs(particles[i].acc[1]));
+#endif
+#if DIM == 3
+                acc_mag = std::max(acc_mag, std::abs(particles[i].acc[2]));
+#endif
+                max_acc = std::max(max_acc, acc_mag);
+            }
+            
+            accumulated_time += dt_relax;
+            
+            // Progress bar update
+            auto step_end = std::chrono::steady_clock::now();
+            double step_time = std::chrono::duration<double>(step_end - step_start).count();
+            timing_samples++;
+            avg_step_time = ((timing_samples - 1) * avg_step_time + step_time) / timing_samples;
+            
+            int percent = (step - start_step + 1) * 100 / m_relaxation_steps;
+            int sub_percent = ((step - start_step + 1) * 1000 / m_relaxation_steps) % 10;
+            
+            if(percent != last_percent || sub_percent != last_sub_percent) {
+                int bar_width = 50;
+                int filled = percent * bar_width / 100;
+                
+                int remaining_steps = target_step - step - 1;
+                double eta_seconds = remaining_steps * avg_step_time;
+                int eta_hours = static_cast<int>(eta_seconds / 3600);
+                int eta_mins = static_cast<int>((eta_seconds - eta_hours * 3600) / 60);
+                int eta_secs = static_cast<int>(eta_seconds - eta_hours * 3600 - eta_mins * 60);
+                
+                std::ostringstream eta_str;
+                if(eta_hours > 0) {
+                    eta_str << eta_hours << "h" << std::setw(2) << std::setfill('0') << eta_mins << "m";
+                } else if(eta_mins > 0) {
+                    eta_str << eta_mins << "m" << std::setw(2) << std::setfill('0') << eta_secs << "s";
+                } else {
+                    eta_str << eta_secs << "s";
+                }
+                
+                std::cout << "\33[2K\r[" << std::string(filled, '=') << std::string(bar_width - filled, ' ') 
+                          << "] " << std::setw(3) << std::setfill(' ') << percent << "% "
+                          << step << "/" << target_step
+                          << " ETA:" << eta_str.str()
+                          << " a=" << std::fixed << std::setprecision(0) << max_acc
+                          << std::flush;
+                last_percent = percent;
+                last_sub_percent = sub_percent;
+            }
+            
+            // Output snapshots
+            if(step % m_relaxation_output_freq == 0 || step == m_relaxation_steps - 1) {
+                std::cout << std::endl;
+                m_sim->set_time(accumulated_time);
+                
+                auto& p = m_sim->get_particles();
+                const int num = m_sim->get_particle_num();
+                const real gamma = m_param->physics.gamma;
+                const real c_sound_factor = gamma * (gamma - 1.0);
+                const real alpha = m_param->av.alpha;
+                
+#pragma omp parallel for
+                for(int i = 0; i < num; ++i) {
+                    p[i].alpha = alpha;
+                    p[i].balsara = 1.0;
+                    p[i].sound = std::sqrt(c_sound_factor * p[i].ene);
+                }
+                
+                relax_meta.relaxation_step = step;
+                relax_meta.accumulated_time = accumulated_time;
+                
+                m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++, &relax_meta);
+                output_counter++;
+            }
+        }
+        
+        std::cout << std::endl;
+        std::cout << "=== Relaxation Complete ===" << std::endl;
+        
+        // If relaxation-only mode, output and exit
+        if(m_relaxation_only) {
+            std::cout << "\n=== Relaxation-Only Mode: Outputting Results ===\n" << std::endl;
+            
+            m_sim->set_time(0.0);
+            
+            auto & p = m_sim->get_particles();
+            const int num = m_sim->get_particle_num();
+            const real gamma = m_param->physics.gamma;
+            const real c_sound = gamma * (gamma - 1.0);
+            const real alpha = m_param->av.alpha;
+            
+#pragma omp parallel for
+            for(int i = 0; i < num; ++i) {
+                p[i].alpha = alpha;
+                p[i].balsara = 1.0;
+                p[i].sound = std::sqrt(c_sound * p[i].ene);
+            }
+            
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num);
+            tree->make(p, num);
+#endif
+            
+            m_pre->calculation(m_sim);
+            m_fforce->calculation(m_sim);
+            if(m_param->gravity.is_valid) {
+                m_gforce->calculation(m_sim);
+            }
+            
+            relax_meta.relaxation_step = m_relaxation_steps;
+            relax_meta.accumulated_time = accumulated_time;
+            
+            m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++, &relax_meta);
+            
+            real kinetic, thermal, potential;
+            compute_total_energies(kinetic, thermal, potential);
+            m_output_manager->write_energy(0.0, kinetic, thermal, potential);
+            
+            std::cout << "=== Relaxed Configuration Saved ===" << std::endl;
+            std::cout << "Check output directory for results" << std::endl;
+            std::cout << "=== Exiting (No Simulation Run) ===\n" << std::endl;
+            
+            return;
+        }
+        
+        std::cout << "=== Starting Main Simulation ===\n" << std::endl;
+        m_sim->set_time(0.0);
+    }
+
+    // Initialize relaxation for PolytropicSlab2D if enabled
+    if(m_use_relaxation && m_sample == Sample::PolytropicSlab2D) {
+        std::cout << "\n=== Initializing 2D Polytropic Slab Relaxation ===" << std::endl;
+        m_polytropic_slab_2d_relax = std::make_shared<PolytropicSlab2DRelaxation>();
+        
+        // Get base parameters
+        const real rho_center = boost::any_cast<double>(m_sample_parameters["rho_center"]);
+        const real K = boost::any_cast<double>(m_sample_parameters["K"]);
+        const real L_x = boost::any_cast<double>(m_sample_parameters["L_x"]);
+        const real G = m_param->gravity.constant;
+        const real gamma = m_param->physics.gamma;
+        
+        // Derive other parameters
+        // n = 1/(γ-1), polytropic index
+        const real n = 1.0 / (gamma - 1.0);
+        
+        // α² = K(n+1)ρ_c^(1-n) / (2πG) for planar geometry
+        const real alpha_sq = K * (n + 1.0) * std::pow(rho_center, 1.0 - n) / (2.0 * M_PI * G);
+        const real alpha = std::sqrt(alpha_sq);
+        
+        PolytropicSlab2DRelaxationParams relax_params;
+        relax_params.rho_center = rho_center;
+        relax_params.K = K;
+        relax_params.gamma = gamma;
+        relax_params.n = n;
+        relax_params.alpha_scaling = alpha;
+        relax_params.y_surface = 0.0;  // Will be computed by relaxation module
+        relax_params.L_x = L_x;
+        
+        m_polytropic_slab_2d_relax->initialize(relax_params);
+        std::cout << "=== 2D Relaxation Initialized ===" << std::endl;
+        
+        // Initialize sound speed and tree for relaxation calculations
+        {
+            auto& particles = m_sim->get_particles();
+            const int num_p = m_sim->get_particle_num();
+            const real gamma = m_param->physics.gamma;
+            const real c_sound_factor = gamma * (gamma - 1.0);
+            for(int i = 0; i < num_p; ++i) {
+                particles[i].sound = std::sqrt(c_sound_factor * particles[i].ene);
+            }
+            
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num_p);
+            tree->make(particles, num_p);
+#endif
+        }
+        
+        // Run relaxation phase
+        std::cout << "\n=== Starting 2D Relaxation Phase (" << m_relaxation_steps << " steps) ===" << std::endl;
+        
+        int start_step = 0;
+        real accumulated_time = 0.0;
+        
+        // Metadata for relaxation snapshots
+        OutputMetadata relax_meta;
+        relax_meta.is_relaxation = true;
+        relax_meta.relaxation_total_steps = m_relaxation_steps;
+        relax_meta.accumulated_time = 0.0;
+        
+        // Progress tracking
+        int output_counter = 0;
+        int last_percent = -1;
+        int last_sub_percent = -1;
+        int target_step = start_step + m_relaxation_steps;
+        
+        // Timing for ETA
+        auto start_time = std::chrono::steady_clock::now();
+        double avg_step_time = 0.0;
+        int timing_samples = 0;
+        
+        for(int step = start_step; step < target_step; ++step) {
+            auto step_start = std::chrono::steady_clock::now();
+            
+            // Update particle properties
+            auto& particles = m_sim->get_particles();
+            const int num_p = m_sim->get_particle_num();
+            
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num_p);
+            tree->make(particles, num_p);
+#endif
+            
+            // Calculate SPH forces
+            m_pre->calculation(m_sim);
+            m_fforce->calculation(m_sim);
+            if(m_param->gravity.is_valid) {
+                m_gforce->calculation(m_sim);
+            }
+            
+            // Apply relaxation: velocity damping to let particles settle
+            // We don't subtract analytical forces - instead let SPH find its own equilibrium
+            m_polytropic_slab_2d_relax->apply_relaxation(m_sim, 0.0); 
+            
+            // Calculate timestep
+            m_timestep->calculation(m_sim);
+            real dt_relax = m_sim->get_dt();
+            dt_relax *= m_relaxation_timestep_factor;
+            
+            // Get polytropic constant K and gamma for isentropic EOS reset
+            const real K_poly = m_polytropic_slab_2d_relax->get_K();
+            const real gamma_poly = m_polytropic_slab_2d_relax->get_gamma();
+            
+            // Integrate positions with net acceleration (zero velocity constraint)
+            auto * periodic = m_sim->get_periodic().get();
+            real max_acc = 0.0;
+            
+#pragma omp parallel for reduction(max:max_acc)
+            for(int i = 0; i < num_p; ++i) {
+                // Zero velocities (constraint for quasi-static relaxation)
+                particles[i].vel[0] = 0.0;
+                particles[i].vel[1] = 0.0;
+                
+                // Integrate position: Δx = ½at² (no velocity term)
+                particles[i].pos[0] += 0.5 * particles[i].acc[0] * dt_relax * dt_relax;
+                particles[i].pos[1] += 0.5 * particles[i].acc[1] * dt_relax * dt_relax;
+                
+                periodic->apply(particles[i].pos);
+                
+                // Reset internal energy to isentropic value: P = Kρ^γ, u = P/((γ-1)ρ)
+                // This maintains the isentropic EOS during relaxation
+                const real rho = particles[i].dens;
+                if(rho > 0) {
+                    const real pres_isentropic = K_poly * std::pow(rho, gamma_poly);
+                    particles[i].pres = pres_isentropic;
+                    particles[i].ene = pres_isentropic / ((gamma_poly - 1.0) * rho);
+                    particles[i].sound = std::sqrt(gamma_poly * pres_isentropic / rho);
+                }
+                
+                real acc_mag = std::max(std::abs(particles[i].acc[0]), std::abs(particles[i].acc[1]));
+                max_acc = std::max(max_acc, acc_mag);
+            }
+            
+            accumulated_time += dt_relax;
+            
+            // Progress bar update
+            auto step_end = std::chrono::steady_clock::now();
+            double step_time = std::chrono::duration<double>(step_end - step_start).count();
+            timing_samples++;
+            avg_step_time = ((timing_samples - 1) * avg_step_time + step_time) / timing_samples;
+            
+            int percent = (step - start_step + 1) * 100 / m_relaxation_steps;
+            int sub_percent = ((step - start_step + 1) * 1000 / m_relaxation_steps) % 10;
+            
+            if(percent != last_percent || sub_percent != last_sub_percent) {
+                int bar_width = 50;
+                int filled = percent * bar_width / 100;
+                
+                int remaining_steps = target_step - step - 1;
+                double eta_seconds = remaining_steps * avg_step_time;
+                int eta_mins = static_cast<int>(eta_seconds / 60);
+                int eta_secs = static_cast<int>(eta_seconds - eta_mins * 60);
+                
+                std::cout << "\33[2K\r[" << std::string(filled, '=') << std::string(bar_width - filled, ' ') 
+                          << "] " << std::setw(3) << std::setfill(' ') << percent << "% "
+                          << step << "/" << target_step
+                          << " ETA:" << eta_mins << "m" << eta_secs << "s"
+                          << " a=" << std::fixed << std::setprecision(2) << max_acc
+                          << std::flush;
+                last_percent = percent;
+                last_sub_percent = sub_percent;
+            }
+            
+            // Output snapshots
+            if(step % m_relaxation_output_freq == 0 || step == target_step - 1) {
+                std::cout << std::endl;
+                m_sim->set_time(accumulated_time);
+                
+                auto& p = m_sim->get_particles();
+                const int num = m_sim->get_particle_num();
+                const real gamma = m_param->physics.gamma;
+                const real c_sound_factor = gamma * (gamma - 1.0);
+                const real alpha = m_param->av.alpha;
+                
+#pragma omp parallel for
+                for(int i = 0; i < num; ++i) {
+                    p[i].alpha = alpha;
+                    p[i].balsara = 1.0;
+                    p[i].sound = std::sqrt(c_sound_factor * p[i].ene);
+                }
+                
+                relax_meta.relaxation_step = step;
+                relax_meta.accumulated_time = accumulated_time;
+                
+                m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++, &relax_meta);
+                output_counter++;
+            }
+        }
+        
+        std::cout << std::endl;
+        std::cout << "=== 2D Relaxation Complete ===" << std::endl;
+        
+        // If relaxation-only mode, output and exit
+        if(m_relaxation_only) {
+            std::cout << "\n=== Relaxation-Only Mode: Outputting Results ===\n" << std::endl;
+            
+            m_sim->set_time(0.0);
+            
+            auto & p = m_sim->get_particles();
+            const int num = m_sim->get_particle_num();
+            const real gamma = m_param->physics.gamma;
+            const real c_sound = gamma * (gamma - 1.0);
+            const real alpha = m_param->av.alpha;
+            
+#pragma omp parallel for
+            for(int i = 0; i < num; ++i) {
+                p[i].alpha = alpha;
+                p[i].balsara = 1.0;
+                p[i].sound = std::sqrt(c_sound * p[i].ene);
+            }
+            
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num);
+            tree->make(p, num);
+#endif
+            
+            m_pre->calculation(m_sim);
+            m_fforce->calculation(m_sim);
+            if(m_param->gravity.is_valid) {
+                m_gforce->calculation(m_sim);
+            }
+            
+            relax_meta.relaxation_step = m_relaxation_steps;
+            relax_meta.accumulated_time = accumulated_time;
+            
+            m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++, &relax_meta);
+            
+            real kinetic, thermal, potential;
+            compute_total_energies(kinetic, thermal, potential);
+            m_output_manager->write_energy(0.0, kinetic, thermal, potential);
+            
+            std::cout << "=== 2D Relaxed Configuration Saved ===" << std::endl;
+            std::cout << "=== Exiting (No Simulation Run) ===\n" << std::endl;
+            
+            return;
+        }
+        
+        std::cout << "=== Starting Main Simulation ===\n" << std::endl;
+        m_sim->set_time(0.0);
+    }
+
     auto & p = m_sim->get_particles();
     const int num = m_sim->get_particle_num();
     const real gamma = m_param->physics.gamma;
@@ -2087,12 +2672,18 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::Evrard, evrard);
         MAKE_SAMPLE(Sample::EvrardColdCollapse, evrard_cold_collapse);
         MAKE_SAMPLE(Sample::LaneEmden, lane_emden);
+        MAKE_SAMPLE(Sample::LaneEmdenCylinder, lane_emden_cylinder);
+        MAKE_SAMPLE(Sample::PolytropicSlab2D, polytropic_slab_2d);
         MAKE_SAMPLE(Sample::Sedov, sedov);
         MAKE_SAMPLE(Sample::SRSod, sr_sod);
         MAKE_SAMPLE(Sample::SRTangentVelocity, sr_tangent_velocity);
         MAKE_SAMPLE(Sample::NSMerger2D, ns_merger_2d);
         MAKE_SAMPLE(Sample::BNSCocoon1D, bns_cocoon_1d);
         MAKE_SAMPLE(Sample::BNSCocoon2D, bns_cocoon_2d);
+        MAKE_SAMPLE(Sample::IsothermalSlab, isothermal_slab);
+        MAKE_SAMPLE(Sample::PolytropicSlab, polytropic_slab);
+        MAKE_SAMPLE(Sample::SinusoidalPerturbation, sinusoidal_perturbation);
+        MAKE_SAMPLE(Sample::JeansInstability, jeans_instability);
         case Sample::DoNotUse:
 
             // サンプルを使わない場合はここを実装

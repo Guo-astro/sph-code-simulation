@@ -14,6 +14,7 @@ class PreInteraction : public Module {
 protected:
     bool m_use_balsara_switch;
     bool m_use_time_dependent_av;
+    bool m_use_gradh;  // Enable grad-h correction (Ω factor)
     real m_alpha_max;
     real m_alpha_min;
     real m_epsilon; // tau = h / (epsilon * c)

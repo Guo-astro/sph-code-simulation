@@ -99,7 +99,7 @@ namespace sph
                     // ================================================================
                     // WELL-BALANCED GSPH RIEMANN SOLVER FOR SELF-GRAVITY
                     // ================================================================
-                    // In hydrostatic equilibrium: ∇P = ρg
+                    // In hydrostatic equilibrium (HSE): ∇P = ρg
                     // The pressure gradient balances gravity, but the Riemann solver
                     // interprets P_i ≠ P_j as a discontinuity → spurious v* ≠ 0.
                     //
@@ -111,6 +111,10 @@ namespace sph
                     //   r_ij = r_i - r_j, e_ij points from j toward i
                     //   Interface is at midpoint, distance r/2 from each particle
                     //   g = dot(grav_acc, e_ij): gravity component along pair axis
+                    //
+                    // The extrapolation uses local values (first-order accurate).
+                    // In perfect HSE this gives exact pressure matching. Any residual
+                    // mismatch reflects real deviations from HSE in the profile.
                     // ================================================================
                     
                     const real g_i = inner_product(p_i.grav_acc, e_ij);

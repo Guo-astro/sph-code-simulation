@@ -1,0 +1,45 @@
+{
+    "name": "sinusoidal_diffusion_long_nograd",
+    "sample": "sinusoidal_perturbation",
+    "N": 200,
+    "wavelength": 1.0,
+    "amplitude": 0.1,
+    "rho_mean": 1.0,
+    "pressure": 1.0,
+    
+    "SPHType": "gsph",
+    "gamma": 1.4,
+    "kernel": "cubic_spline",
+    
+    "useGradH": false,
+    
+    "neighborNumber": 50,
+    "iterativeSmoothingLength": true,
+    
+    "periodic": true,
+    "rangeMin": [0.0],
+    "rangeMax": [1.0],
+    
+    "avAlpha": 1.0,
+    "useBalsaraSwitch": true,
+    
+    "use2ndOrderGSPH": true,
+    "riemannSolver": "hll",
+    
+    "startTime": 0.0,
+    "endTime": 5.0,
+    "outputTime": 0.1,
+    "energyTime": 0.05,
+    
+    "cflSound": 0.3,
+    "cflForce": 0.125,
+    
+    "useGravity": false,
+    
+    "outputDirectory": "results/sinusoidal_long_nograd",
+    "output": {
+        "enableCSV": true,
+        "enableHDF5": false,
+        "enableEnergyFile": true
+    }
+}

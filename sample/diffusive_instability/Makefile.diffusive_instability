@@ -1,0 +1,205 @@
+# ==============================================================================
+# Makefile.diffusive_instability - Diffusive Instability Study
+# ==============================================================================
+#
+# This Makefile runs simulations to study the diffusive instability that arises
+# in GSPH without the grad-h correction term (Ω factor).
+#
+# PHYSICS BACKGROUND:
+#   Without the grad-h correction, GSPH forces have a systematic error:
+#       ε ≈ 0.4 (Wendland C4), ε ≈ 0.35 (Cubic Spline)
+#   This error creates diffusive density evolution:
+#       ∂ρ/∂t = D·∇²ρ  where D = ε·c_s·h
+#   For a mode with wavelength R, the growth rate is:
+#       Γ = ε·c_s·h/R²
+#
+# SINGLE RUN (with grad-h correction - stable):
+#   make -f Makefile.diffusive_instability slab_run_gradh
+#
+# SINGLE RUN (without grad-h - shows instability):
+#   make -f Makefile.diffusive_instability slab_run_no_gradh
+#
+# COMPARISON STUDY:
+#   make -f Makefile.diffusive_instability slab_compare_all
+#
+# RESOLUTION STUDY:
+#   make -f Makefile.diffusive_instability slab_resolution_study
+#
+# ==============================================================================
+
+.PHONY: help slab_run_gradh slab_run_no_gradh slab_compare_run slab_compare_viz \
+        slab_compare_all slab_resolution_study slab_clean slab_help
+
+# ==============================================================================
+# PATH DEFINITIONS
+# ==============================================================================
+TEST_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+PRESET_DIR := $(TEST_DIR)config/presets
+RESULTS_DIR := $(TEST_DIR)results
+SCRIPTS_DIR := $(TEST_DIR)scripts
+BUILD_DIR := $(realpath $(TEST_DIR)../../build)
+SPH_EXE := $(BUILD_DIR)/sph
+
+# Default number of particles
+N_PARTICLES ?= 200
+
+# ==============================================================================
+# HELP TARGET
+# ==============================================================================
+help: slab_help
+
+slab_help:
+	@echo "=============================================================="
+	@echo "          DIFFUSIVE INSTABILITY STUDY - HELP"
+	@echo "=============================================================="
+	@echo ""
+	@echo "This study tests the theoretical prediction that GSPH without"
+	@echo "grad-h correction exhibits diffusive instability with rate:"
+	@echo "    Γ = ε·c_s·h/R²  where ε ≈ 0.4"
+	@echo ""
+	@echo "SINGLE METHOD RUNS:"
+	@echo "  slab_run_gradh     - Run with grad-h correction (stable)"
+	@echo "  slab_run_no_gradh  - Run without grad-h (unstable)"
+	@echo ""
+	@echo "COMPARISON TARGETS:"
+	@echo "  slab_compare_run   - Run both grad-h and no-grad-h cases"
+	@echo "  slab_compare_viz   - Generate comparison plots"
+	@echo "  slab_compare_all   - Run all and generate plots"
+	@echo ""
+	@echo "RESOLUTION STUDY:"
+	@echo "  slab_resolution_study - Run at multiple resolutions"
+	@echo ""
+	@echo "UTILITY:"
+	@echo "  slab_clean         - Remove all results"
+	@echo "  slab_help          - Show this help"
+	@echo ""
+	@echo "EXAMPLE:"
+	@echo "  make -f Makefile.diffusive_instability slab_compare_all"
+	@echo "=============================================================="
+
+# ==============================================================================
+# CHECK BUILD
+# ==============================================================================
+$(SPH_EXE):
+	@echo "========================================" 
+	@echo "❌ Error: SPH executable not found at $(SPH_EXE)"
+	@echo "   Please build first: cd ../../build && make sph"
+	@echo "========================================"
+	@exit 1
+
+# ==============================================================================
+# INDIVIDUAL RUN TARGETS
+# ==============================================================================
+
+slab_run_gradh: $(SPH_EXE)
+	@echo "========================================"
+	@echo "🚀 Running isothermal slab WITH grad-h correction"
+	@echo "========================================"
+	@mkdir -p $(RESULTS_DIR)/slab_gradh
+	@cp $(PRESET_DIR)/slab_gsph_gradh.json $(TEST_DIR)config.json
+	@cd $(TEST_DIR) && $(SPH_EXE) config.json
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results in: $(RESULTS_DIR)/slab_gradh"
+
+slab_run_no_gradh: $(SPH_EXE)
+	@echo "========================================"
+	@echo "🚀 Running isothermal slab WITHOUT grad-h correction"
+	@echo "========================================"
+	@mkdir -p $(RESULTS_DIR)/slab_no_gradh
+	@cp $(PRESET_DIR)/slab_gsph_no_gradh.json $(TEST_DIR)config.json
+	@cd $(TEST_DIR) && $(SPH_EXE) config.json
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results in: $(RESULTS_DIR)/slab_no_gradh"
+
+# ==============================================================================
+# COMPARISON TARGETS
+# ==============================================================================
+
+slab_compare_run: $(SPH_EXE)
+	@echo "========================================"
+	@echo "🔬 DIFFUSIVE INSTABILITY COMPARISON STUDY"
+	@echo "========================================"
+	@echo ""
+	@echo "[1/2] Running with grad-h correction..."
+	@echo "========================================"
+	@mkdir -p $(RESULTS_DIR)/slab_gradh
+	@cp $(PRESET_DIR)/slab_gsph_gradh.json $(TEST_DIR)config.json
+	@cd $(TEST_DIR) && $(SPH_EXE) config.json
+	@echo "✓ Grad-h run complete!"
+	@echo ""
+	@echo "[2/2] Running without grad-h correction..."
+	@echo "========================================"
+	@mkdir -p $(RESULTS_DIR)/slab_no_gradh
+	@cp $(PRESET_DIR)/slab_gsph_no_gradh.json $(TEST_DIR)config.json
+	@cd $(TEST_DIR) && $(SPH_EXE) config.json
+	@echo "✓ No-grad-h run complete!"
+	@echo ""
+	@echo "========================================"
+	@echo "✓ All comparison simulations complete!"
+	@echo "========================================"
+
+slab_compare_viz:
+	@echo "========================================"
+	@echo "📊 Generating comparison plots..."
+	@echo "========================================"
+	@if [ ! -d "$(RESULTS_DIR)/slab_gradh" ] || [ ! -d "$(RESULTS_DIR)/slab_no_gradh" ]; then \
+		echo "❌ Error: Results not found. Run 'make slab_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(RESULTS_DIR)/comparison_plots
+	@chmod +x $(SCRIPTS_DIR)/analyze_growth_rate.py
+	@python3 $(SCRIPTS_DIR)/analyze_growth_rate.py \
+		$(RESULTS_DIR)/slab_gradh \
+		$(RESULTS_DIR)/slab_no_gradh \
+		--compare \
+		--labels "With grad-h" "Without grad-h" \
+		--output $(RESULTS_DIR)/comparison_plots/growth_rate_comparison.png
+	@echo "✓ Comparison plots generated!"
+	@echo "📁 Plots in: $(RESULTS_DIR)/comparison_plots/"
+
+slab_compare_all: slab_compare_run slab_compare_viz
+	@echo ""
+	@echo "========================================"
+	@echo "✓ Complete comparison study done!"
+	@echo "========================================"
+	@echo ""
+	@echo "Results summary:"
+	@echo "  - Simulations: $(RESULTS_DIR)/slab_gradh/, $(RESULTS_DIR)/slab_no_gradh/"
+	@echo "  - Plots: $(RESULTS_DIR)/comparison_plots/"
+
+# ==============================================================================
+# RESOLUTION STUDY
+# ==============================================================================
+
+slab_resolution_study: $(SPH_EXE)
+	@echo "========================================"
+	@echo "📐 RESOLUTION STUDY - Diffusive Instability"
+	@echo "========================================"
+	@echo ""
+	@for N in 100 200 400 800; do \
+		echo "======================================"; \
+		echo "[N=$$N] Running without grad-h..."; \
+		echo "======================================"; \
+		mkdir -p $(RESULTS_DIR)/resolution_N$${N}_no_gradh; \
+		sed "s/\"N\": [0-9]*/\"N\": $$N/" $(PRESET_DIR)/slab_gsph_no_gradh.json > $(TEST_DIR)config_temp.json; \
+		sed -i.bak "s|results/slab_no_gradh|results/resolution_N$${N}_no_gradh|" $(TEST_DIR)config_temp.json; \
+		cd $(TEST_DIR) && $(SPH_EXE) config_temp.json; \
+		echo "✓ N=$$N complete!"; \
+	done
+	@rm -f $(TEST_DIR)config_temp.json $(TEST_DIR)config_temp.json.bak
+	@echo ""
+	@echo "========================================"
+	@echo "✓ Resolution study complete!"
+	@echo "========================================"
+
+# ==============================================================================
+# CLEANUP
+# ==============================================================================
+
+slab_clean:
+	@echo "========================================"
+	@echo "🧹 Cleaning all results..."
+	@echo "========================================"
+	@rm -rf $(RESULTS_DIR)/*
+	@rm -f $(TEST_DIR)config.json $(TEST_DIR)config_temp.json*
+	@echo "✓ Clean complete!"

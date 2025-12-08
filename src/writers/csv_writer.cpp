@@ -438,20 +438,42 @@ bool CSVWriter::read_particles(const std::string& filepath, std::vector<SPHParti
             int idx = 0;
             p->id = std::stoi(fields[idx++]);
             
-            // Position
+            // Position (dimension-aware)
+#if DIM == 1
+            p->pos[0] = std::stod(fields[idx++]);
+#elif DIM == 2
+            p->pos[0] = std::stod(fields[idx++]);
+            p->pos[1] = std::stod(fields[idx++]);
+#else
             p->pos[0] = std::stod(fields[idx++]);
             p->pos[1] = std::stod(fields[idx++]);
             p->pos[2] = std::stod(fields[idx++]);
+#endif
             
-            // Velocity
+            // Velocity (dimension-aware)
+#if DIM == 1
+            p->vel[0] = std::stod(fields[idx++]);
+            p->vel_t = std::stod(fields[idx++]);  // Tangent velocity for 1D SR tests
+#elif DIM == 2
+            p->vel[0] = std::stod(fields[idx++]);
+            p->vel[1] = std::stod(fields[idx++]);
+#else
             p->vel[0] = std::stod(fields[idx++]);
             p->vel[1] = std::stod(fields[idx++]);
             p->vel[2] = std::stod(fields[idx++]);
+#endif
             
-            // Acceleration
+            // Acceleration (dimension-aware)
+#if DIM == 1
+            p->acc[0] = std::stod(fields[idx++]);
+#elif DIM == 2
+            p->acc[0] = std::stod(fields[idx++]);
+            p->acc[1] = std::stod(fields[idx++]);
+#else
             p->acc[0] = std::stod(fields[idx++]);
             p->acc[1] = std::stod(fields[idx++]);
             p->acc[2] = std::stod(fields[idx++]);
+#endif
             
             // Scalar fields
             p->mass = std::stod(fields[idx++]);

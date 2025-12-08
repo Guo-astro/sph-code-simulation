@@ -1,0 +1,32 @@
+{
+    "name": "3d_cylinder_relaxation_wendland",
+    "description": "Relaxation for 3D cylindrical Lane-Emden (γ=5/3, n=1.5) with Wendland kernel",
+    
+    "sample": "lane_emden_cylinder",
+    "N": 25,
+    "R": 1.0,
+    "L_z": 1.0,
+    "M_total": 1.0,
+    
+    "outputDirectory": "sample/gradh_study_3d_cylinder/results/relaxation",
+    "outputInterval": 0.1,
+    "endTime": 10.0,
+    
+    "kernel": "wendland",
+    "gamma": 1.6666666666666667,
+    "neighborNumber": 50,
+    
+    "useGravity": true,
+    "gravityConstant": 1.0,
+    "useKernelGravityCylinder3D": true,
+    
+    "SPHType": "gsph",
+    "use2ndOrderGSPH": true,
+    "riemannSolver": "hll",
+    "useGradH": true,
+    
+    "useRelaxation": true,
+    "relaxationSteps": 1000,
+    "relaxationOutputFreq": 100,
+    "relaxationOnly": true
+}

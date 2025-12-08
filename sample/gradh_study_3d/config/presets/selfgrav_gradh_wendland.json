@@ -1,0 +1,40 @@
+{
+    "name": "selfgrav_gradh_wendland",
+    "description": "Self-gravity with grad-h and TRUE kernel-convolved Wendland C4 softening (h-dependent)",
+    
+    "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/10k/GSPH/snapshot_0020.csv",
+    "resetTimeOnResume": true,
+    
+    "outputDirectory": "sample/gradh_study_3d/results/kernel_test/gradh_wendland",
+    "outputFormat": "csv",
+    "enableEnergyFile": true,
+    
+    "SPHType": "gsph",
+    "use2ndOrderGSPH": false,
+    "useGradH": true,
+    "riemannSolver": "iterative",
+    
+    "kernel": "wendland",
+    "neighborNumber": 50,
+    
+    "useGravity": true,
+    "G": 1.0,
+    "theta": 0.5,
+    "gravitySofteningType": "wendland_c4",
+    "useFixedGravitySoftening": false,
+    
+    "periodic": false,
+    
+    "cflSound": 0.3,
+    "cflForce": 0.125,
+    
+    "startTime": 0.0,
+    "endTime": 5.0,
+    "outputTime": 0.5,
+    
+    "gamma": 1.6666666666666667,
+    
+    "maxTreeLevel": 20,
+    "leafParticleNumber": 1,
+    "iterativeSmoothingLength": true
+}

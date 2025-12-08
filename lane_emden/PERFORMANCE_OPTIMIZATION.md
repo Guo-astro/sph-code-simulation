@@ -68,8 +68,8 @@ python3 lane_emden/scripts/generators/solve_lane_emden.py --n 1.5 --dim 3 --poin
 ```
 
 **Generated Tables**:
-- `data/lane_emden/n1_5_3d.dat`: 1,218 points (ξ ∈ [0, 3.65])
-- `data/lane_emden/n1_5_2d.dat`: 883 points (ξ ∈ [0, 2.65])
+- `data/lane_emden/n1.5_3d.dat`: Lane-Emden n=1.5, 3D (ξ ∈ [0, 3.65])
+- `data/lane_emden/n1.5_2d.dat`: Lane-Emden n=1.5, 2D
 
 **Advantages**:
 1. **No runtime computation** - pure lookup
@@ -201,8 +201,7 @@ lane_emden/2d/results/benchmark_n1_5/
 3. Created: `lane_emden/BENCHMARK_STRUCTURE.md`
 4. Created: `lane_emden/2d/config/presets/benchmark_*.json` (5 files)
 5. Created: `lane_emden/2d/Makefile.benchmark`
-6. Generated: `data/lane_emden/n1_5_2d.dat` (883 points)
-7. Generated: `data/lane_emden/n1_5_3d.dat` (1218 points)
+6. Data files: `data/lane_emden/n1.5_2d.dat`, `data/lane_emden/n1.5_3d.dat`
 
 ## Summary
 

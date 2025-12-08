@@ -6,6 +6,7 @@
 
 #include "vector_type.hpp"
 #include "particle.hpp"
+#include "parameters.hpp"
 
 namespace sph
 {
@@ -56,7 +57,8 @@ class BHTree
         void assign(SPHParticle * particle, BHNode * & nodes, int & remaind);
         real set_kernel();
         void neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor_list, int & n_neighbor, int max_neighbors, const bool is_ij, const Periodic * periodic);
-        void calc_force(SPHParticle & p_i, const real theta2, const real g_constant, const Periodic * periodic);
+        void calc_force(SPHParticle & p_i, const real theta2, const real g_constant, const Periodic * periodic,
+                       GravitySofteningType softening_type, bool use_fixed_softening, real fixed_softening);
     };
 
     int  m_max_level;
@@ -72,6 +74,9 @@ class BHTree
     real m_g_constant;
     real m_theta;
     real m_theta2;
+    GravitySofteningType m_softening_type;
+    bool m_use_fixed_softening;
+    real m_fixed_softening;
 public:
     void initialize(std::shared_ptr<SPHParameters> param);
     void resize(const int particle_num, const int tree_size = 5);

@@ -7,14 +7,20 @@ target_sources(sph
         gresho_chan_vortex.cpp
         hydrostatic.cpp
         ism_cooling_1d.cpp
+        isothermal_slab.cpp
+        jeans_instability.cpp
         khi.cpp
         lane_emden.cpp
+        lane_emden_cylinder.cpp
         ns_merger_2d.cpp
         pairing_instability.cpp
+        polytropic_slab.cpp
+        polytropic_slab_2d.cpp
         pressure_equilibrium.cpp
         sedov.cpp
         shock_tube.cpp
         shock_tube_2d.cpp
+        sinusoidal_perturbation.cpp
         sr_sod.cpp
         sr_tangent_velocity.cpp
         strong_shock.cpp

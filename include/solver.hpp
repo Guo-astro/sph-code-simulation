@@ -18,6 +18,8 @@ namespace sph
 struct SPHParameters;
 class Simulation;
 class LaneEmdenRelaxation;
+class PolytropicSlabRelaxation;
+class PolytropicSlab2DRelaxation;
 
 class Module;
 
@@ -40,12 +42,18 @@ enum struct Sample {
     Evrard,
     EvrardColdCollapse,
     LaneEmden,
+    LaneEmdenCylinder,   // 3D cylindrical Lane-Emden (radial gravity in xy-plane)
+    PolytropicSlab2D,    // 2D planar Lane-Emden slab (gravity in y-direction)
     Sedov,
     SRSod,
     SRTangentVelocity,
     NSMerger2D,
     BNSCocoon1D,
     BNSCocoon2D,
+    IsothermalSlab,
+    PolytropicSlab,
+    SinusoidalPerturbation,
+    JeansInstability,
     DoNotUse,
 };
 
@@ -74,6 +82,8 @@ class Solver {
     
     // relaxation
     std::shared_ptr<LaneEmdenRelaxation> m_lane_emden_relax;
+    std::shared_ptr<PolytropicSlabRelaxation> m_polytropic_slab_relax;
+    std::shared_ptr<PolytropicSlab2DRelaxation> m_polytropic_slab_2d_relax;
     bool m_use_relaxation;
     int m_relaxation_steps;
     int m_relaxation_output_freq;  // Output frequency during relaxation
@@ -113,12 +123,18 @@ class Solver {
     void make_evrard();
     void make_evrard_cold_collapse();
     void make_lane_emden();
+    void make_lane_emden_cylinder();    // 3D cylindrical Lane-Emden
+    void make_polytropic_slab_2d();     // 2D planar Lane-Emden slab
     void make_sedov();
     void make_sr_sod();
     void make_sr_tangent_velocity();
     void make_ns_merger_2d();
     void make_bns_cocoon_1d();
     void make_bns_cocoon_2d();
+    void make_isothermal_slab();
+    void make_polytropic_slab();
+    void make_sinusoidal_perturbation();
+    void make_jeans_instability();
 
 public:
     Solver(int argc, char * argv[]);

@@ -1,36 +1,27 @@
 {
-  "name": "hydro_10k_GSPH",
-  "description": "Hydrostatic equilibrium test - 10k particles, GSPH (pure Riemann, no AV)",
-  
-  "resumeFromSnapshot": "sample/imbh_cloud/results/relaxation/10k/GSPH/snapshot_0020.csv",
-  "resetTimeOnResume": true,
-  
-  "outputDirectory": "sample/imbh_cloud/results/hydrostatic/10k/GSPH",
-  "outputFormat": "csv",
-  "enableEnergyFile": true,
-  
-  "SPHType": "gsph",
-  "use2ndOrderGSPH": false,
-  "kernel": "wendland",
-  "neighborNumber": 50,
-  "riemannSolver": "hll",
-  
-  "useGravity": true,
-  "G": 1.0,
-  "theta": 0.5,
-  
-  "periodic": false,
-  
-  "cflSound": 0.3,
-  "cflForce": 0.125,
-  
-  "startTime": 0.0,
-  "endTime": 100.0,
-  "outputTime": 1.0,
-  
-  "gamma": 1.666666667,
-  
-  "maxTreeLevel": 20,
-  "leafParticleNumber": 1,
-  "iterativeSmoothingLength": true
+    "name": "2d_planar_gsph_gradh_wendland",
+    "description": "GSPH with grad-h correction - 2D planar Lane-Emden slab (γ=5/3)",
+    
+    "sampleType": "polytropic_slab_2d",
+    "N": 50,
+    "rho_center": 1.0,
+    "K": 1.0,
+    "L_x": 2.0,
+    
+    "outputDirectory": "sample/gradh_study_2d_planar/results/gsph_gradh",
+    "outputInterval": 0.5,
+    "endTime": 50.0,
+    
+    "kernel": "wendland",
+    "gamma": 1.6666666666666667,
+    "neighborNumber": 32,
+    
+    "useGravity": true,
+    "gravityConstant": 1.0,
+    "useKernelGravityPlanar2D": true,
+    
+    "SPHType": "gsph",
+    "use2ndOrderGSPH": true,
+    "riemannSolver": "hll",
+    "useGradH": true
 }

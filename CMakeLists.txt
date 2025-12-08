@@ -111,7 +111,40 @@ target_link_libraries(sph
 add_subdirectory(include)
 add_subdirectory(src)
 
-add_executable(srgsph_derivative_scaling_test test/test_srgsph_derivative_scaling.cpp)
-target_compile_features(srgsph_derivative_scaling_test PUBLIC cxx_std_14)
-target_compile_definitions(srgsph_derivative_scaling_test PRIVATE DIM=${SPH_DIM})
-target_include_directories(srgsph_derivative_scaling_test PUBLIC include)
+# =============================================================================
+# Google Test Setup
+# =============================================================================
+option(BUILD_TESTS "Build unit tests" ON)
+if(BUILD_TESTS)
+    message(STATUS "Building tests enabled")
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+    
+    enable_testing()
+    include(GoogleTest)
+    
+    # Kernel gravity tests (unit tests for 1D/2D/3D kernel gravity functions)
+    # We need to link the gravity_force source since the test uses static member functions
+    add_executable(test_kernel_gravity 
+        tests/test_kernel_gravity.cpp
+        src/gravity_force.cpp
+    )
+    target_compile_features(test_kernel_gravity PUBLIC cxx_std_14)
+    target_compile_definitions(test_kernel_gravity PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_kernel_gravity PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_kernel_gravity
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_kernel_gravity PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_kernel_gravity)
+endif()

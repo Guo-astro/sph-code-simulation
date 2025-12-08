@@ -11,17 +11,36 @@ import sys
 import os
 from pathlib import Path
 
-def load_lane_emden_solution(filepath='data/lane_emden/n1.5_3d.dat'):
-    """Load the exact Lane-Emden n=1.5 solution"""
-    try:
-        data = np.loadtxt(filepath, skiprows=4)
-        return {
-            'xi': data[:, 0],
-            'theta': data[:, 1],
-            'dtheta': data[:, 2]
-        }
-    except:
-        return None
+# Add shared module path for SSOT Lane-Emden solution
+_script_dir = Path(__file__).parent
+_shared_path = _script_dir.parent.parent.parent / "scripts" / "shared"
+if _shared_path.exists():
+    sys.path.insert(0, str(_shared_path))
+    from lane_emden import load_lane_emden_solution as _load_le
+    
+    def load_lane_emden_solution(filepath='data/lane_emden/n1.5_3d.dat'):
+        """Load the exact Lane-Emden n=1.5 solution using shared module (SSOT)"""
+        try:
+            solution = _load_le(n=1.5, dim=3)
+            return {
+                'xi': solution.xi,
+                'theta': solution.theta,
+                'dtheta': solution.dtheta
+            }
+        except Exception:
+            return None
+else:
+    def load_lane_emden_solution(filepath='data/lane_emden/n1.5_3d.dat'):
+        """Load the exact Lane-Emden n=1.5 solution (fallback)"""
+        try:
+            data = np.loadtxt(filepath, skiprows=4)
+            return {
+                'xi': data[:, 0],
+                'theta': data[:, 1],
+                'dtheta': data[:, 2]
+            }
+        except Exception:
+            return None
 
 def load_snapshot(filepath):
     """Load a single CSV snapshot"""
