@@ -173,11 +173,18 @@ Edit JSON files in `config/presets/`:
 
 - `docs/LANE_EMDEN_ARCHITECTURE.md` - Full architecture design
 - `docs/CHECKPOINT_SYSTEM.md` - Checkpoint/resume system for long relaxation runs
-- `docs/CHECKPOINT_QUICK_REF.md` - Quick reference for checkpoint usage
 - `docs/RELAXATION_ONLY_MODE.md` - Relaxation-only mode documentation
-- `docs/preset_guide.md` - Which preset to use when
-- `docs/polytrope_physics.md` - Physics background
-- `docs/configuration_schema.md` - JSON schema reference
+- `WORKFLOW.md` - Single Source of Truth workflow guide
+
+## Resume from Checkpoint
+
+```bash
+# Resume from specific checkpoint file
+make -f lane_emden/Makefile.lane_emden lane_emden_resume \
+  CHECKPOINT=lane_emden/results/polytrope_n1.5_3d/snapshot_0009.csv
+
+# See docs/CHECKPOINT_SYSTEM.md for full documentation
+```
 
 ## Examples
 

@@ -1,19 +1,63 @@
-*.exe
+# =====================================================
+# Build artifacts
+# =====================================================
+build/
 obj/
 x64/
-sph\.exe\.stackdump
-.vs/
-*.vcxproj.user
+*.exe
+*.exe.stackdump
 
-# Visual Studio project files (use CMake instead)
+# =====================================================
+# IDE and editor files
+# =====================================================
+.vs/
+.vscode/
 *.sln
 *.vcxproj
 *.vcxproj.filters
 *.vcxproj.user
+*~
+*.swp
+*.swo
 
-parameters\.json
+# =====================================================
+# Python artifacts
+# =====================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.venv/
+venv/
+ENV/
 
-# Auto-generated active config files (copied from config/presets/ by Makefiles)
+# =====================================================
+# macOS artifacts
+# =====================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# =====================================================
+# Temporary and backup files
+# =====================================================
+temp/
+*.bak
+*.orig
+*.tmp
+*.log
+
+# =====================================================
+# Simulation outputs (images, generated configs)
+# Note: sample/*/results/ directories are PRESERVED
+# =====================================================
+
+# Generated images in root (should be in images/ dir)
+/*.png
+/*.gif
+
+# Auto-generated active config files (copied from presets by Makefiles)
 sample/shock_tube/shock_tube.json
 sample/shock_tube_2d/shock_tube_2d.json
 sample/sedov/sedov.json
@@ -26,38 +70,23 @@ sample/vacuum/vacuum.json
 sample/strong_shock/strong_shock.json
 sample/pressure_equilibrium/pressure_equilibrium.json
 
-# Sample test results
-sample/shock_tube/results/
-sample/shock_tube_2d/results/
-sample/gresho_chan_vortex/results/
-sample/hydrostatic/results/
-sample/khi/results/
-sample/evrard/results/
-sample/pairing_instability/results/
-sample/sedov/results/
-sample/vacuum/results/
-sample/strong_shock/results/
-sample/pressure_equilibrium/results/
+# Legacy config (parameters.json in root)
+parameters.json
 
-build/
+# Lane-Emden generated config
+sample/lane_emden/lane_emden.json
 
-# Generated results
+# Checkpoint directories (regeneratable)
+checkpoints/
+
+# =====================================================
+# Results directories - TRACK THESE (simulation outputs)
+# Explicitly NOT ignoring: sample/*/results/
+# These are preserved as they contain valuable simulation data
+# =====================================================
+
+# Lane-Emden results
+lane_emden/results/
+
+# Top-level results dir
 results/
-sample/*/results/
-*.log
-*.png
-*.gif
-evrard_energy_analysis.png
-gravity_softening_test.png
-
-# Build artifacts
-build/
-obj/
-
-# Temporary and test files
-temp/
-*.bak
-*.orig
-*.tmp
-*~
-.DS_Store
