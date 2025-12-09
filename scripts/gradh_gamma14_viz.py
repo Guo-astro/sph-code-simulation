@@ -2,13 +2,23 @@
 """
 Visualization script for γ=1.4 grad-h comparison test suite.
 Generates comparison plots and animated GIF.
+
+Uses SSOT module from scripts.shared.lane_emden for Lane-Emden solutions.
 """
+
+import sys
+from pathlib import Path
+
+# Add project root to path for imports
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from pathlib import Path
 import glob
+
+from scripts.shared.lane_emden import solve_lane_emden_planar
 
 # Directory paths
 BASE_DIR = Path("results/gradh_gamma14")
@@ -22,9 +32,12 @@ CONFIGS = [
     ("gsph_nogradh", "GSPH (no grad-h)", "red"),
 ]
 
+
 def lane_emden_planar(n: float):
     """
     Solve 1D planar Lane-Emden equation: d²θ/dξ² = -θ^n
+    
+    Uses SSOT solve_lane_emden_planar from scripts.shared.lane_emden.
     
     Args:
         n: Polytropic index
@@ -33,45 +46,9 @@ def lane_emden_planar(n: float):
         xi: Dimensionless coordinate array
         theta: Dimensionless density (ρ/ρ_c)^(1/n) array
     """
-    xi_max = 5.0
-    dxi = 0.001
-    
-    xi_vals = [0.0]
-    theta_vals = [1.0]
-    
-    xi = 0.0
-    theta = 1.0
-    dtheta = 0.0
-    
-    while xi < xi_max and theta > 1e-10:
-        # RK4 integration
-        k1_t = dtheta
-        k1_dt = -theta**n if theta > 0 else 0
-        
-        t2 = theta + 0.5*dxi*k1_t
-        dt2 = dtheta + 0.5*dxi*k1_dt
-        k2_t = dt2
-        k2_dt = -(max(t2, 0)**n)
-        
-        t3 = theta + 0.5*dxi*k2_t
-        dt3 = dtheta + 0.5*dxi*k2_dt
-        k3_t = dt3
-        k3_dt = -(max(t3, 0)**n)
-        
-        t4 = theta + dxi*k3_t
-        dt4 = dtheta + dxi*k3_dt
-        k4_t = dt4
-        k4_dt = -(max(t4, 0)**n)
-        
-        theta += dxi * (k1_t + 2*k2_t + 2*k3_t + k4_t) / 6
-        dtheta += dxi * (k1_dt + 2*k2_dt + 2*k3_dt + k4_dt) / 6
-        xi += dxi
-        
-        if theta > 0:
-            xi_vals.append(xi)
-            theta_vals.append(theta)
-    
-    return np.array(xi_vals), np.array(theta_vals)
+    xi, theta = solve_lane_emden_planar(n, xi_max=5.0, n_points=5000)
+    theta = np.maximum(theta, 0)  # θ ≥ 0
+    return xi, theta
 
 
 def load_csv_data(filepath: str):

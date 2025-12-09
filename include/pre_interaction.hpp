@@ -21,6 +21,7 @@ protected:
     real m_gamma;
     int  m_neighbor_number;
     real m_kernel_ratio;
+    real m_c_smooth;  // C_smooth: smoothing length expansion factor for h-adaptation
     bool m_iteration;
     bool m_first;
     

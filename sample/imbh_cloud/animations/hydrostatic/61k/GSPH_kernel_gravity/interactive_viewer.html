@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydrostatic Equilibrium Test - Interactive Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4fc3f7;
+        }
+        .viewer {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .frame-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .frame-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .controls {
+            background: #0f3460;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .slider-container label {
+            min-width: 80px;
+            font-weight: 500;
+        }
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #1a1a2e;
+            border-radius: 4px;
+            outline: none;
+        }
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4fc3f7;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            background: #81d4fa;
+        }
+        .frame-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .frame-number {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+        .playback-controls {
+            display: flex;
+            gap: 10px;
+        }
+        .playback-controls button {
+            padding: 10px 20px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        .btn-play {
+            background: #4caf50;
+            color: white;
+        }
+        .btn-play:hover {
+            background: #66bb6a;
+        }
+        .btn-pause {
+            background: #ff9800;
+            color: white;
+        }
+        .btn-pause:hover {
+            background: #ffb74d;
+        }
+        .btn-step {
+            background: #2196f3;
+            color: white;
+        }
+        .btn-step:hover {
+            background: #64b5f6;
+        }
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .speed-control select {
+            padding: 8px 12px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #eee;
+            cursor: pointer;
+        }
+        .keyboard-hints {
+            margin-top: 15px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 6px;
+            font-size: 0.9em;
+            color: #888;
+        }
+        .keyboard-hints kbd {
+            background: #0f3460;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 Hydrostatic Equilibrium Test - Interactive Viewer</h1>
+        <div class="viewer">
+            <div class="frame-container">
+                <img id="frameImage" src="frames/frame_0000.png" alt="Frame">
+            </div>
+            <div class="controls">
+                <div class="slider-container">
+                    <label for="frameSlider">Frame:</label>
+                    <input type="range" id="frameSlider" min="0" max="7" value="0">
+                </div>
+                <div class="frame-info">
+                    <span class="frame-number">Frame: <span id="frameNum">1</span> / 8</span>
+                    <div class="playback-controls">
+                        <button class="btn-step" onclick="stepBackward()">⏮ Prev</button>
+                        <button class="btn-play" id="playBtn" onclick="togglePlay()">▶ Play</button>
+                        <button class="btn-step" onclick="stepForward()">Next ⏭</button>
+                    </div>
+                    <div class="speed-control">
+                        <label for="speedSelect">Speed:</label>
+                        <select id="speedSelect" onchange="updateSpeed()">
+                            <option value="500">0.5x</option>
+                            <option value="200" selected>1x</option>
+                            <option value="100">2x</option>
+                            <option value="50">4x</option>
+                            <option value="25">8x</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="keyboard-hints">
+                    Keyboard: <kbd>Space</kbd> Play/Pause | <kbd>←</kbd> Previous | <kbd>→</kbd> Next | <kbd>Home</kbd> First | <kbd>End</kbd> Last
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const totalFrames = 8;
+        let currentFrame = 0;
+        let isPlaying = false;
+        let playInterval = null;
+        let playSpeed = 200;
+
+        const frameImage = document.getElementById('frameImage');
+        const frameSlider = document.getElementById('frameSlider');
+        const frameNum = document.getElementById('frameNum');
+        const playBtn = document.getElementById('playBtn');
+
+        // Preload images for smoother playback
+        const images = [];
+        for (let i = 0; i < totalFrames; i++) {
+            const img = new Image();
+            img.src = `frames/frame_${String(i).padStart(4, '0')}.png`;
+            images.push(img);
+        }
+
+        function updateFrame(frame) {
+            currentFrame = Math.max(0, Math.min(totalFrames - 1, frame));
+            frameImage.src = `frames/frame_${String(currentFrame).padStart(4, '0')}.png`;
+            frameSlider.value = currentFrame;
+            frameNum.textContent = currentFrame + 1;
+        }
+
+        function stepForward() {
+            updateFrame(currentFrame + 1);
+        }
+
+        function stepBackward() {
+            updateFrame(currentFrame - 1);
+        }
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                playBtn.textContent = '⏸ Pause';
+                playBtn.className = 'btn-pause';
+                playInterval = setInterval(() => {
+                    if (currentFrame >= totalFrames - 1) {
+                        currentFrame = -1;  // Loop back
+                    }
+                    stepForward();
+                }, playSpeed);
+            } else {
+                playBtn.textContent = '▶ Play';
+                playBtn.className = 'btn-play';
+                clearInterval(playInterval);
+            }
+        }
+
+        function updateSpeed() {
+            playSpeed = parseInt(document.getElementById('speedSelect').value);
+            if (isPlaying) {
+                clearInterval(playInterval);
+                playInterval = setInterval(() => {
+                    if (currentFrame >= totalFrames - 1) {
+                        currentFrame = -1;
+                    }
+                    stepForward();
+                }, playSpeed);
+            }
+        }
+
+        frameSlider.addEventListener('input', (e) => {
+            updateFrame(parseInt(e.target.value));
+        });
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case ' ':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'ArrowRight':
+                    stepForward();
+                    break;
+                case 'ArrowLeft':
+                    stepBackward();
+                    break;
+                case 'Home':
+                    updateFrame(0);
+                    break;
+                case 'End':
+                    updateFrame(totalFrames - 1);
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>

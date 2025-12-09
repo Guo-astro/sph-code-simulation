@@ -9,7 +9,16 @@ Creates a 2x2 animated GIF showing all 4 SPH methods side by side:
 - SSPH - grad-h
 
 Shows xy-plane cross-section (z ≈ 0) to visualize cylindrical structure.
+
+Uses SSOT module from scripts.shared.lane_emden for Lane-Emden solutions.
 """
+
+import sys
+from pathlib import Path
+
+# Add project root to path for imports
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(PROJECT_ROOT))
 
 import pandas as pd
 import numpy as np
@@ -18,7 +27,8 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 from matplotlib.colors import Normalize
 import os
 import glob
-import sys
+
+from scripts.shared.lane_emden import solve_lane_emden_cylindrical as _solve_lane_emden_cylindrical
 
 # Configuration
 BASE_DIR = "sample/gradh_study_3d_cylinder/results"
@@ -39,53 +49,19 @@ G = 1.0
 GAMMA = 5.0/3.0
 
 
-def solve_lane_emden_cylindrical(n, dxi=1e-4, max_steps=100000):
-    """Solve cylindrical Lane-Emden equation."""
-    xi_arr = [1e-8]
-    theta_arr = [1.0]
-    
-    xi = 1e-8
-    theta = 1.0
-    phi = 0.0
-    
-    for _ in range(max_steps):
-        if theta <= 0:
-            break
-        
-        def f2(xi, theta, phi): 
-            if xi < 1e-10:
-                return -theta**n if theta > 0 else 0
-            return -(theta**n if theta > 0 else 0) - phi/xi
-        
-        k1_theta = dxi * phi
-        k1_phi = dxi * f2(xi, theta, phi)
-        
-        k2_theta = dxi * (phi + 0.5*k1_phi)
-        k2_phi = dxi * f2(xi + 0.5*dxi, theta + 0.5*k1_theta, phi + 0.5*k1_phi)
-        
-        k3_theta = dxi * (phi + 0.5*k2_phi)
-        k3_phi = dxi * f2(xi + 0.5*dxi, theta + 0.5*k2_theta, phi + 0.5*k2_phi)
-        
-        k4_theta = dxi * (phi + k3_phi)
-        k4_phi = dxi * f2(xi + dxi, theta + k3_theta, phi + k3_phi)
-        
-        xi += dxi
-        theta += (k1_theta + 2*k2_theta + 2*k3_theta + k4_theta) / 6.0
-        phi += (k1_phi + 2*k2_phi + 2*k3_phi + k4_phi) / 6.0
-        
-        xi_arr.append(xi)
-        theta_arr.append(max(0.0, theta))
-    
-    return np.array(xi_arr), np.array(theta_arr)
-
-
 def get_surface_radius():
-    """Get analytical surface radius."""
+    """Get analytical surface radius using SSOT."""
     n = 1.0 / (GAMMA - 1.0)
     alpha_sq = K * (n + 1.0) * RHO_CENTER**(1.0 - n) / (4.0 * G)
     alpha = np.sqrt(alpha_sq)
-    xi_le, _ = solve_lane_emden_cylindrical(n)
-    xi_surface = xi_le[-1]
+    
+    xi_le, theta_le = _solve_lane_emden_cylindrical(n, xi_max=10.0, n_points=10000)
+    theta_le = np.maximum(theta_le, 0)  # θ ≥ 0
+    
+    # Find surface (where theta = 0)
+    surface_idx = np.argmax(theta_le <= 0) if np.any(theta_le <= 0) else len(theta_le) - 1
+    xi_surface = xi_le[surface_idx]
+    
     return alpha * xi_surface
 
 

@@ -7,13 +7,24 @@ This script generates:
 2. Density profile comparison at different times (with analytical Lane-Emden solution)
 3. Force balance analysis
 4. Animated comparison of both methods with analytical reference
+
+Uses SSOT module from scripts.shared.lane_emden for Lane-Emden solutions.
 """
+
+import sys
+from pathlib import Path
+
+# Add project root to path for imports
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 import os
+
+from scripts.shared.lane_emden import solve_lane_emden_planar
 
 # Configuration
 KERNEL_DIR = "temp/kernel_gravity_test/results"
@@ -28,57 +39,25 @@ K = 1.0
 G = 1.0
 GAMMA = 1.4
 
-def solve_lane_emden(n, dxi=1e-4, max_steps=100000):
-    """Solve planar Lane-Emden equation: d²θ/dξ² = -θⁿ"""
-    xi_arr = [0.0]
-    theta_arr = [1.0]
-    dtheta_arr = [0.0]
-    
-    xi = 0.0
-    theta = 1.0
-    dtheta = 0.0
-    
-    for _ in range(max_steps):
-        if theta <= 0:
-            break
-            
-        # RK4
-        def f1(xi, theta, phi): return phi
-        def f2(xi, theta, phi): return -theta**n if theta > 0 else 0
-        
-        k1_theta = dxi * f1(xi, theta, dtheta)
-        k1_phi = dxi * f2(xi, theta, dtheta)
-        
-        k2_theta = dxi * f1(xi + 0.5*dxi, theta + 0.5*k1_theta, dtheta + 0.5*k1_phi)
-        k2_phi = dxi * f2(xi + 0.5*dxi, theta + 0.5*k1_theta, dtheta + 0.5*k1_phi)
-        
-        k3_theta = dxi * f1(xi + 0.5*dxi, theta + 0.5*k2_theta, dtheta + 0.5*k2_phi)
-        k3_phi = dxi * f2(xi + 0.5*dxi, theta + 0.5*k2_theta, dtheta + 0.5*k2_phi)
-        
-        k4_theta = dxi * f1(xi + dxi, theta + k3_theta, dtheta + k3_phi)
-        k4_phi = dxi * f2(xi + dxi, theta + k3_theta, dtheta + k3_phi)
-        
-        xi += dxi
-        theta += (k1_theta + 2*k2_theta + 2*k3_theta + k4_theta) / 6.0
-        dtheta += (k1_phi + 2*k2_phi + 2*k3_phi + k4_phi) / 6.0
-        
-        xi_arr.append(xi)
-        theta_arr.append(max(0.0, theta))
-        dtheta_arr.append(dtheta)
-    
-    return np.array(xi_arr), np.array(theta_arr)
 
 def get_analytical_profile(x_vals, rho_c, K, G, gamma):
-    """Get analytical Lane-Emden density profile."""
+    """Get analytical Lane-Emden density profile for planar slab.
+    
+    Uses SSOT solve_lane_emden_planar from scripts.shared.lane_emden.
+    """
     n = 1.0 / (gamma - 1.0)
     
     # Length scale: α² = K(n+1)ρ_c^(1-n) / (2πG)
     alpha_sq = K * (n + 1.0) * rho_c**(1.0 - n) / (2.0 * np.pi * G)
     alpha = np.sqrt(alpha_sq)
     
-    # Solve Lane-Emden
-    xi_le, theta_le = solve_lane_emden(n)
-    xi_surface = xi_le[-1]
+    # Solve Lane-Emden using SSOT
+    xi_le, theta_le = solve_lane_emden_planar(n, xi_max=10.0, n_points=10000)
+    
+    # Find surface (theta = 0)
+    surface_idx = np.argmax(theta_le <= 0) if np.any(theta_le <= 0) else len(theta_le) - 1
+    xi_surface = xi_le[surface_idx]
+    theta_le = np.clip(theta_le, 0, None)
     
     # Interpolate to get density at given x values
     rho_vals = np.zeros_like(x_vals)

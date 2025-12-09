@@ -149,6 +149,7 @@ Solver::Solver(int argc, char * argv[])
     WRITE_LOG << "Physics";
     WRITE_LOG << "* Neighbor number = " << m_param->physics.neighbor_number;
     WRITE_LOG << "* gamma           = " << m_param->physics.gamma;
+    WRITE_LOG << "* C_smooth        = " << m_param->physics.c_smooth;
 
     WRITE_LOG << "Kernel";
     if(m_param->kernel == KernelType::CUBIC_SPLINE) {
@@ -565,6 +566,7 @@ void Solver::read_parameterfile(const char * filename)
     // Physics - use defaults if resuming (will be overridden by checkpoint)
     m_param->physics.neighbor_number = input.get<int>("neighborNumber", 50);
     m_param->physics.gamma = input.get<real>("gamma", 1.6666666666666667);  // Default for resume
+    m_param->physics.c_smooth = input.get<real>("cSmooth", 1.0);  // Smoothing length expansion factor (default=1, typical=2)
 
     // Kernel
     const std::string kernel_default =

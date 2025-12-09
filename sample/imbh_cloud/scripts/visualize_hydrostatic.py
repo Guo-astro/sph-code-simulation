@@ -37,7 +37,16 @@ Incremental Mode:
     - Much faster for long-running simulations with many snapshots
     
     Use --rebuild to force a complete regeneration of the GIF.
+
+Uses SSOT module from scripts.shared.lane_emden for Lane-Emden solutions.
 """
+
+import sys
+from pathlib import Path
+
+# Add project root to path for imports
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -45,11 +54,11 @@ from matplotlib.gridspec import GridSpec
 import glob
 import io
 import os
-import sys
 import json
 import argparse
-from pathlib import Path
 from PIL import Image
+
+from scripts.shared.lane_emden import solve_lane_emden_spherical
 
 # Lane-Emden n=1.5 analytical parameters (code units: M=1, R=1)
 XI_1 = 3.6537540101  # First zero of Lane-Emden equation
@@ -140,60 +149,32 @@ def append_frames_to_gif(existing_gif_path, new_frames, output_path, fps=5):
 
 def lane_emden_theta(xi, tol=1e-10):
     """
-    Solve Lane-Emden equation for n=1.5 using 4th-order Runge-Kutta.
+    Get Lane-Emden theta at given xi values using SSOT solver.
     
-    d²θ/dξ² + (2/ξ) dθ/dξ + θ^n = 0
-    θ(0) = 1, θ'(0) = 0
+    Uses solve_lane_emden_spherical from scripts.shared.lane_emden.
     
-    Note: This function handles unsorted input arrays by sorting internally
-    and restoring the original order before returning.
+    Parameters
+    ----------
+    xi : array-like
+        Dimensionless radial coordinate ξ
+    tol : float
+        Unused, kept for API compatibility
+    
+    Returns
+    -------
+    theta : ndarray
+        Lane-Emden θ(ξ) values
     """
     n = POLYTROPIC_N
     
-    # Initial conditions with Taylor series near ξ=0
     xi_array = np.atleast_1d(xi)
-    theta = np.ones_like(xi_array, dtype=float)
     
-    # Sort the input and remember original order for restoration
-    sort_idx = np.argsort(xi_array)
-    xi_sorted = xi_array[sort_idx]
+    # Solve Lane-Emden using SSOT (returns xi, theta, xi_1)
+    xi_le, theta_le, _ = solve_lane_emden_spherical(n, xi_max=XI_1 + 0.5, dxi=1e-4)
+    theta_le = np.maximum(theta_le, 0)  # θ ≥ 0
     
-    # RK4 integration
-    dxi = 0.001
-    xi_current = dxi  # Start slightly offset from zero
-    theta_current = 1.0 - (dxi**2) / 6.0  # Taylor expansion
-    dtheta_current = -dxi / 3.0
-    
-    for sorted_i, xi_target in enumerate(xi_sorted):
-        # Handle xi values near or below zero
-        if xi_target <= dxi:
-            theta[sort_idx[sorted_i]] = 1.0 - xi_target**2 / 6.0
-            continue
-            
-        while xi_current < xi_target:
-            # RK4 step
-            k1_theta = dtheta_current
-            k1_dtheta = -theta_current**n - (2.0 / xi_current) * dtheta_current
-            
-            k2_theta = dtheta_current + 0.5 * dxi * k1_dtheta
-            k2_dtheta = -(theta_current + 0.5 * dxi * k1_theta)**n - (2.0 / (xi_current + 0.5 * dxi)) * k2_theta
-            
-            k3_theta = dtheta_current + 0.5 * dxi * k2_dtheta
-            k3_dtheta = -(theta_current + 0.5 * dxi * k2_theta)**n - (2.0 / (xi_current + 0.5 * dxi)) * k3_theta
-            
-            k4_theta = dtheta_current + dxi * k3_dtheta
-            k4_dtheta = -(theta_current + dxi * k3_theta)**n - (2.0 / (xi_current + dxi)) * k4_theta
-            
-            theta_current += (dxi / 6.0) * (k1_theta + 2*k2_theta + 2*k3_theta + k4_theta)
-            dtheta_current += (dxi / 6.0) * (k1_dtheta + 2*k2_dtheta + 2*k3_dtheta + k4_dtheta)
-            xi_current += dxi
-            
-            if theta_current < 0:
-                theta_current = 0
-                break
-        
-        # Store result at the correct original position
-        theta[sort_idx[sorted_i]] = max(theta_current, 0)
+    # Interpolate to requested xi values
+    theta = np.interp(xi_array, xi_le, theta_le, right=0)
     
     return theta
 

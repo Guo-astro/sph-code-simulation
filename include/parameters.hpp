@@ -78,6 +78,7 @@ struct SPHParameters {
     struct Physics {
         int neighbor_number;
         real gamma;
+        real c_smooth;  // Smoothing length expansion factor for h-adaptation (default=1.0, typical=2.0)
     } physics;
 
     KernelType kernel;

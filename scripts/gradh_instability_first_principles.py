@@ -7,17 +7,27 @@ and compares the prediction with simulation results.
 
 Key insight: The instability is a SECULAR NUMERICAL INSTABILITY, not Jeans instability.
 
+Uses SSOT module from scripts.shared.lane_emden for Lane-Emden solutions.
+
 Author: SPH Code Analysis
 Date: 2024
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to path for imports
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.integrate import odeint, solve_ivp
-from scipy.optimize import curve_fit
+from scipy.integrate import solve_ivp
 import pandas as pd
 import glob
 import os
+
+from scripts.shared.lane_emden import solve_lane_emden_planar
 
 # ============================================================================
 # PHYSICAL CONSTANTS AND SETUP
@@ -113,30 +123,18 @@ def lane_emden_solution(xi_max=3.0, n_points=1000):
     """
     Solve the Lane-Emden equation for polytropic index n=2.5.
     
-    d²θ/dξ² + (D-1)/ξ dθ/dξ + θ^n = 0
+    Uses SSOT solve_lane_emden_planar from scripts.shared.lane_emden.
     
-    with θ(0) = 1, θ'(0) = 0
-    
-    For 1D (slab geometry), it simplifies to:
+    For 1D (slab geometry):
     d²θ/dξ² + θ^n = 0
     """
-    n_poly = 2.5  # n = 1/(γ-1)
+    n_poly = 2.5  # n = 1/(γ-1) for γ=1.4
     
-    def lane_emden_ode(xi, y):
-        theta, dtheta = y
-        if theta <= 0:
-            return [dtheta, 0]
-        d2theta = -theta**n_poly  # 1D slab
-        return [dtheta, d2theta]
+    xi, theta = solve_lane_emden_planar(n_poly, xi_max=xi_max, n_points=n_points)
+    theta = np.maximum(theta, 0)  # θ ≥ 0
     
-    xi = np.linspace(1e-6, xi_max, n_points)
-    y0 = [1.0, 0.0]  # θ(0)=1, θ'(0)=0
-    
-    sol = solve_ivp(lane_emden_ode, [xi[0], xi[-1]], y0, t_eval=xi, 
-                    method='RK45', dense_output=True)
-    
-    theta = np.maximum(sol.y[0], 0)  # θ ≥ 0
-    dtheta = sol.y[1]
+    # Compute derivative numerically
+    dtheta = np.gradient(theta, xi)
     
     return xi, theta, dtheta
 

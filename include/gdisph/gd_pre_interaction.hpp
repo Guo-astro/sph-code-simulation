@@ -9,6 +9,7 @@ namespace gdisph
 
 class PreInteraction : public sph::PreInteraction {
     bool m_is_2nd_order;
+    bool m_use_gradh;  // Enable grad-h correction factor (default: true)
     
     real newton_raphson (
         const SPHParticle & p_i,

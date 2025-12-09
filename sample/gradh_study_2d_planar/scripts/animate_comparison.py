@@ -7,7 +7,16 @@ Creates a 2x2 animated GIF showing all 4 SPH methods side by side:
 - GSPH - grad-h  
 - SSPH + grad-h
 - SSPH - grad-h
+
+Uses SSOT module from scripts.shared.lane_emden for Lane-Emden solutions.
 """
+
+import sys
+from pathlib import Path
+
+# Add project root to path for imports
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(PROJECT_ROOT))
 
 import pandas as pd
 import numpy as np
@@ -16,7 +25,8 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 from matplotlib.colors import Normalize
 import os
 import glob
-import sys
+
+from scripts.shared.lane_emden import solve_lane_emden_planar as _solve_lane_emden_planar
 
 # Configuration
 BASE_DIR = "sample/gradh_study_2d_planar/results"
@@ -37,48 +47,19 @@ G = 1.0
 GAMMA = 5.0/3.0
 
 
-def solve_lane_emden_planar(n, dxi=1e-4, max_steps=100000):
-    """Solve planar Lane-Emden equation."""
-    xi_arr = [0.0]
-    theta_arr = [1.0]
-    
-    xi = 0.0
-    theta = 1.0
-    dtheta = 0.0
-    
-    for _ in range(max_steps):
-        if theta <= 0:
-            break
-        
-        k1_theta = dxi * dtheta
-        k1_phi = dxi * (-theta**n if theta > 0 else 0)
-        
-        k2_theta = dxi * (dtheta + 0.5*k1_phi)
-        k2_phi = dxi * (-(theta + 0.5*k1_theta)**n if theta + 0.5*k1_theta > 0 else 0)
-        
-        k3_theta = dxi * (dtheta + 0.5*k2_phi)
-        k3_phi = dxi * (-(theta + 0.5*k2_theta)**n if theta + 0.5*k2_theta > 0 else 0)
-        
-        k4_theta = dxi * (dtheta + k3_phi)
-        k4_phi = dxi * (-(theta + k3_theta)**n if theta + k3_theta > 0 else 0)
-        
-        xi += dxi
-        theta += (k1_theta + 2*k2_theta + 2*k3_theta + k4_theta) / 6.0
-        dtheta += (k1_phi + 2*k2_phi + 2*k3_phi + k4_phi) / 6.0
-        
-        xi_arr.append(xi)
-        theta_arr.append(max(0.0, theta))
-    
-    return np.array(xi_arr), np.array(theta_arr)
-
-
 def get_surface_position():
-    """Get analytical surface position."""
+    """Get analytical surface position using SSOT."""
     n = 1.0 / (GAMMA - 1.0)
     alpha_sq = K * (n + 1.0) * RHO_CENTER**(1.0 - n) / (2.0 * np.pi * G)
     alpha = np.sqrt(alpha_sq)
-    xi_le, _ = solve_lane_emden_planar(n)
-    xi_surface = xi_le[-1]
+    
+    xi_le, theta_le = _solve_lane_emden_planar(n, xi_max=10.0, n_points=10000)
+    theta_le = np.maximum(theta_le, 0)  # θ ≥ 0
+    
+    # Find surface (where theta = 0)
+    surface_idx = np.argmax(theta_le <= 0) if np.any(theta_le <= 0) else len(theta_le) - 1
+    xi_surface = xi_le[surface_idx]
+    
     return alpha * xi_surface
 
 

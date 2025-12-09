@@ -1,0 +1,44 @@
+{
+    "name": "1d_gsph_nogradh_csmooth2",
+    "description": "GSPH WITHOUT grad-h correction, C_smooth=2 (Professor's approach)",
+    
+    "resumeFromSnapshot": "sample/gradh_study_1d/results/relaxation/snapshot_0005.csv",
+    "resetTimeOnResume": true,
+    
+    "outputDirectory": "sample/gradh_study_1d/results/csmooth_test/gsph_nogradh_cs2",
+    "outputFormat": "csv",
+    "enableEnergyFile": true,
+    
+    "SPHType": "gsph",
+    "use2ndOrderGSPH": true,
+    "useGradH": false,
+    "riemannSolver": "hll",
+    
+    "kernel": "cubic_spline",
+    "neighborNumber": 50,
+    "cSmooth": 2.0,
+    
+    "useGravity": true,
+    "G": 1.0,
+    "theta": 0.5,
+    "useKernelGravity1D": true,
+    
+    "periodic": false,
+    "rangeMin": [-2.0],
+    "rangeMax": [2.0],
+    "boundaryType": "outflow",
+    
+    "avAlpha": 1.0,
+    "useBalsaraSwitch": true,
+    
+    "cflSound": 0.3,
+    "cflForce": 0.125,
+    
+    "startTime": 0.0,
+    "endTime": 100.0,
+    "outputTime": 5.0,
+    
+    "gamma": 1.6666666666666667,
+    
+    "iterativeSmoothingLength": true
+}

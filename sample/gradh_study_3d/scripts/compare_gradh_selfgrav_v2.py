@@ -16,15 +16,10 @@ import os
 import base64
 import sys
 
-# Add shared module path
-script_dir = Path(__file__).parent
-shared_path = script_dir.parent.parent.parent / "scripts" / "shared"
-if shared_path.exists():
-    sys.path.insert(0, str(shared_path))
-    from lane_emden import load_lane_emden_solution, get_density_profile
-    HAS_SHARED_LANE_EMDEN = True
-else:
-    HAS_SHARED_LANE_EMDEN = False
+# SSOT: Use shared Lane-Emden module
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(PROJECT_ROOT))
+from scripts.shared.lane_emden import load_lane_emden_solution, get_density_profile
 
 
 # ============================================================================
@@ -127,41 +122,12 @@ def compute_radial_profile(df, n_bins=50):
 def lane_emden_profile(rho_c, R_cloud, n_points=500):
     """Get Lane-Emden density profile for n=3/2 polytrope (gamma=5/3).
     
-    Uses the shared lane_emden module (SSOT) when available, otherwise
-    falls back to ODE integration.
+    Uses the shared lane_emden module (SSOT).
     
     For n=1.5, ξ₁ ≈ 3.6538 (first zero of θ).
     """
-    if HAS_SHARED_LANE_EMDEN:
-        # Use SSOT: load pre-computed solution
-        solution = load_lane_emden_solution(n=1.5, dim=3)
-        return get_density_profile(solution, rho_c, R_cloud, n_points=n_points)
-    else:
-        # Fallback: integrate ODE (less accurate)
-        from scipy.integrate import odeint
-        
-        def derivatives(y, xi):
-            theta, dtheta = y
-            if xi < 1e-10:
-                return [dtheta, -1.0/3.0]
-            if theta <= 0:
-                return [0, 0]
-            return [dtheta, -2.0/xi * dtheta - theta**1.5]
-        
-        xi = np.linspace(1e-6, 5.0, n_points)
-        sol = odeint(derivatives, [1.0, 0.0], xi)
-        theta = np.maximum(sol[:, 0], 0)
-        
-        # Find surface
-        idx = np.where(theta <= 1e-3)[0]
-        xi_1 = xi[idx[0]] if len(idx) > 0 else 3.6538
-        
-        alpha = R_cloud / xi_1
-        r = xi * alpha
-        rho = rho_c * theta**1.5
-        
-        mask = theta > 1e-4
-        return r[mask], rho[mask]
+    solution = load_lane_emden_solution(n=1.5, dim=3)
+    return get_density_profile(solution, rho_c, R_cloud, n_points=n_points)
 
 
 def get_snapshots(results_dir):

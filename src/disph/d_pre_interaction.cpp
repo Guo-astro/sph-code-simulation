@@ -186,7 +186,10 @@ real PreInteraction::newton_raphson(
                                   4.0 * M_PI / 3.0;
     const real b = m_neighbor_number / A;
 
-    // f = n h^d - b
+    // C_smooth approach: use expanded kernel W(r, C_smooth * h) for h-adaptation
+    const real cs = m_c_smooth;
+
+    // f = n h^d - b  (number density based)
     // f' = dn/dh h^d + d n h^{d-1}
 
     constexpr real epsilon = 1e-4;
@@ -194,6 +197,7 @@ real PreInteraction::newton_raphson(
     const auto & r_i = p_i.pos;
     for(int i = 0; i < max_iter; ++i) {
         const real h_b = h_i;
+        const real h_expanded = cs * h_i;
 
         real dens = 0.0;
         real ddens = 0.0;
@@ -203,12 +207,12 @@ real PreInteraction::newton_raphson(
             const vec_t r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = std::abs(r_ij);
 
-            if(r >= h_i) {
+            if(r >= h_expanded) {
                 break;
             }
 
-            dens += kernel->w(r, h_i);
-            ddens += kernel->dhw(r, h_i);
+            dens += kernel->w(r, h_expanded);
+            ddens += cs * kernel->dhw(r, h_expanded);
         }
 
         const real f = dens * powh(h_i) - b;

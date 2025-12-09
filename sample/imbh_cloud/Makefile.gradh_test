@@ -1,0 +1,362 @@
+# ============================================================================
+# GRAD-H TEST MAKEFILE - IMBH Cloud 3D (10k particles)
+# ============================================================================
+#
+# PURPOSE:
+#   Test the importance of grad-h correction (Ω factor) in 3D self-gravitating
+#   IMBH cloud with kernel gravity. Compare 3 GSPH variants:
+#     1. GSPH + grad-h       (expected: STABLE)
+#     2. GSPH - grad-h       (expected: may show instability)
+#     3. GSPH - grad-h + C=2 (expected: tests if smoother h helps)
+#
+# USAGE:
+#   # Show help
+#   make -f sample/imbh_cloud/Makefile.gradh_test gradh_help
+#
+#   # Quick diagnostic run (endTime=20)
+#   make -f sample/imbh_cloud/Makefile.gradh_test gradh_diagnostic_all
+#
+#   # Full comparison run (endTime=50)
+#   make -f sample/imbh_cloud/Makefile.gradh_test gradh_compare_all
+#
+#   # Individual runs
+#   make -f sample/imbh_cloud/Makefile.gradh_test gradh_run_gsph_gradh
+#   make -f sample/imbh_cloud/Makefile.gradh_test gradh_run_gsph_nogradh
+#   make -f sample/imbh_cloud/Makefile.gradh_test gradh_run_gsph_csmooth
+#
+#   # Visualization only
+#   make -f sample/imbh_cloud/Makefile.gradh_test gradh_viz
+#   make -f sample/imbh_cloud/Makefile.gradh_test gradh_animate
+#
+#   # Clean
+#   make -f sample/imbh_cloud/Makefile.gradh_test gradh_clean
+#
+# CONFIG FILES:
+#   Diagnostic (short): sample/imbh_cloud/config/presets/gradh_test/*_diagnostic.json
+#   Full runs:          sample/imbh_cloud/config/presets/gradh_test/*.json
+#
+# OUTPUT:
+#   Results:    sample/imbh_cloud/results/gradh_test/<method>/
+#   Plots:      sample/imbh_cloud/results/gradh_test/comparison/
+#   Animations: sample/imbh_cloud/results/gradh_test/animations/
+#
+# ============================================================================
+
+# Paths
+IMBH_DIR := sample/imbh_cloud
+CONFIG_DIR := $(IMBH_DIR)/config/presets/gradh_test
+RESULTS_DIR := $(IMBH_DIR)/results/gradh_test
+SCRIPTS_DIR := $(IMBH_DIR)/scripts
+ANIM_DIR := $(RESULTS_DIR)/animations
+PLOTS_DIR := $(RESULTS_DIR)/comparison
+
+# IC file
+IC_FILE := $(IMBH_DIR)/results/ic_relax_10k/snapshot_0032.csv
+
+# ============================================================================
+# PHONY TARGETS
+# ============================================================================
+
+.PHONY: gradh_help gradh_check_dim gradh_check_ic gradh_list_configs \
+        gradh_run_gsph_gradh gradh_run_gsph_nogradh gradh_run_gsph_csmooth \
+        gradh_compare_run gradh_compare_all \
+        gradh_diagnostic_run gradh_diagnostic_all \
+        gradh_viz gradh_animate \
+        gradh_clean gradh_summary
+
+# ============================================================================
+# HELP
+# ============================================================================
+
+gradh_help:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  GRAD-H TEST - IMBH Cloud 3D (10k particles)"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Test the importance of grad-h correction (Ω factor) in 3D"
+	@echo "  self-gravitating IMBH cloud with kernel gravity."
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_diagnostic_all   # Quick test (3 methods, endTime=20)      │"
+	@echo "│  make gradh_compare_all      # Full run (3 methods, endTime=50)        │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  DIAGNOSTIC RUNS (Short, endTime=20)                                   │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_diagnostic_run   # Run all 3 diagnostic configs            │"
+	@echo "│  make gradh_diagnostic_all   # Run + viz + animate                     │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  FULL COMPARISON (endTime=50)                                          │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_compare_run      # Run all 3 methods                       │"
+	@echo "│  make gradh_compare_all      # Run + viz + animate                     │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  INDIVIDUAL METHOD RUNS                                                │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_run_gsph_gradh   # GSPH + grad-h (expected stable)         │"
+	@echo "│  make gradh_run_gsph_nogradh # GSPH - grad-h (may collapse)            │"
+	@echo "│  make gradh_run_gsph_csmooth # GSPH + C_smooth=2 (test smoother h)     │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  VISUALIZATION                                                         │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_viz              # Generate comparison plots               │"
+	@echo "│  make gradh_animate          # Generate comparison animations          │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  UTILITIES                                                             │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_list_configs     # List available config files             │"
+	@echo "│  make gradh_summary          # Show results summary                    │"
+	@echo "│  make gradh_clean            # Clean all results                       │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Methods Tested:"
+	@echo "    • GSPH + grad-h       : Godunov SPH with grad-h correction"
+	@echo "    • GSPH - grad-h       : Godunov SPH without grad-h (may be unstable)"
+	@echo "    • GSPH + C_smooth=2   : Godunov SPH with smoother h variation"
+	@echo ""
+	@echo "  Config files: $(CONFIG_DIR)/"
+	@echo "  Results:      $(RESULTS_DIR)/"
+	@echo ""
+
+# ============================================================================
+# VALIDATION
+# ============================================================================
+
+gradh_check_dim:
+	@if ! grep -q "SPH_DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
+		echo "❌ ERROR: This test requires DIM=3 (3D)"; \
+		echo ""; \
+		echo "   Current build is not configured for 3D."; \
+		echo "   To rebuild for 3D:"; \
+		echo "   cd build && cmake -DSPH_DIM=3 .. && make -j"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "✓ DIM=3 confirmed"
+
+gradh_check_ic:
+	@if [ ! -f "$(IC_FILE)" ]; then \
+		echo "❌ ERROR: Initial condition file not found:"; \
+		echo "   $(IC_FILE)"; \
+		echo ""; \
+		echo "   Run relaxation first:"; \
+		echo "   make -f sample/imbh_cloud/Makefile.relaxation relax_10k"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "✓ IC file found: $(IC_FILE)"
+
+gradh_list_configs:
+	@echo "Available grad-h test configurations:"
+	@echo ""
+	@echo "Diagnostic configs (short runs, endTime=20):"
+	@ls -1 $(CONFIG_DIR)/*_diagnostic.json 2>/dev/null | sed 's/.*\//  📄 /' | sed 's/.json//' || echo "  (none)"
+	@echo ""
+	@echo "Full run configs (endTime=50):"
+	@ls -1 $(CONFIG_DIR)/*.json 2>/dev/null | grep -v diagnostic | sed 's/.*\//  📄 /' | sed 's/.json//' || echo "  (none)"
+	@echo ""
+
+# ============================================================================
+# INDIVIDUAL METHOD RUNS (Full, endTime=50)
+# ============================================================================
+
+gradh_run_gsph_gradh: gradh_check_dim gradh_check_ic build/sph
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running: GSPH + grad-h (expected STABLE)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/gsph_gradh
+	./build/sph $(CONFIG_DIR)/gsph_gradh.json 2>&1 | tee $(RESULTS_DIR)/gsph_gradh/run.log
+	@echo ""
+	@echo "✓ GSPH + grad-h complete"
+	@echo "📁 Results: $(RESULTS_DIR)/gsph_gradh/"
+
+gradh_run_gsph_nogradh: gradh_check_dim gradh_check_ic build/sph
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running: GSPH - grad-h (may show instability)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/gsph_nogradh
+	timeout 1800 ./build/sph $(CONFIG_DIR)/gsph_nogradh.json 2>&1 | tee $(RESULTS_DIR)/gsph_nogradh/run.log || \
+		echo "⚠️  Run timed out or failed (expected for no-gradh)"
+	@echo ""
+	@echo "✓ GSPH - grad-h complete"
+	@echo "📁 Results: $(RESULTS_DIR)/gsph_nogradh/"
+
+gradh_run_gsph_csmooth: gradh_check_dim gradh_check_ic build/sph
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running: GSPH + C_smooth=2 (test smoother h)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/gsph_csmooth2
+	./build/sph $(CONFIG_DIR)/gsph_nogradh_csmooth2.json 2>&1 | tee $(RESULTS_DIR)/gsph_csmooth2/run.log
+	@echo ""
+	@echo "✓ GSPH + C_smooth=2 complete"
+	@echo "📁 Results: $(RESULTS_DIR)/gsph_csmooth2/"
+
+# ============================================================================
+# FULL COMPARISON (endTime=50)
+# ============================================================================
+
+gradh_compare_run: gradh_check_dim gradh_check_ic build/sph
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  GRAD-H COMPARISON: Running 3 GSPH Variants (Full Run, endTime=50)"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "[1/3] GSPH + grad-h..."
+	@echo "════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/gsph_gradh
+	@./build/sph $(CONFIG_DIR)/gsph_gradh.json 2>&1 | tee $(RESULTS_DIR)/gsph_gradh/run.log
+	@echo "✓ [1/3] Complete"
+	@echo ""
+	@echo "[2/3] GSPH - grad-h (may collapse, 30min timeout)..."
+	@echo "════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/gsph_nogradh
+	@timeout 1800 ./build/sph $(CONFIG_DIR)/gsph_nogradh.json 2>&1 | tee $(RESULTS_DIR)/gsph_nogradh/run.log || \
+		echo "⚠️  Run timed out or failed (expected for no-gradh)"
+	@echo "✓ [2/3] Complete"
+	@echo ""
+	@echo "[3/3] GSPH + C_smooth=2..."
+	@echo "════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/gsph_csmooth2
+	@./build/sph $(CONFIG_DIR)/gsph_nogradh_csmooth2.json 2>&1 | tee $(RESULTS_DIR)/gsph_csmooth2/run.log
+	@echo "✓ [3/3] Complete"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ All grad-h comparison runs complete!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Results saved to: $(RESULTS_DIR)/"
+	@echo ""
+
+gradh_compare_all: gradh_compare_run gradh_viz gradh_animate
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ FULL GRAD-H COMPARISON COMPLETE!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Results:    $(RESULTS_DIR)/"
+	@echo "  Plots:      $(PLOTS_DIR)/"
+	@echo "  Animations: $(ANIM_DIR)/"
+	@echo ""
+
+# ============================================================================
+# DIAGNOSTIC RUNS (Short, endTime=20)
+# ============================================================================
+
+gradh_diagnostic_run: gradh_check_dim gradh_check_ic build/sph
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  GRAD-H DIAGNOSTIC: Running 3 GSPH Variants (Short Run, endTime=20)"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "[1/3] GSPH + grad-h (diagnostic)..."
+	@echo "════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/gsph_gradh
+	@./build/sph $(CONFIG_DIR)/gsph_gradh_diagnostic.json 2>&1 | tee $(RESULTS_DIR)/gsph_gradh/run.log
+	@echo "✓ [1/3] Complete"
+	@echo ""
+	@echo "[2/3] GSPH - grad-h (diagnostic, 10min timeout)..."
+	@echo "════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/gsph_nogradh
+	@timeout 600 ./build/sph $(CONFIG_DIR)/gsph_nogradh_diagnostic.json 2>&1 | tee $(RESULTS_DIR)/gsph_nogradh/run.log || \
+		echo "⚠️  Run timed out or failed (expected for no-gradh)"
+	@echo "✓ [2/3] Complete"
+	@echo ""
+	@echo "[3/3] GSPH + C_smooth=2 (diagnostic)..."
+	@echo "════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/gsph_csmooth2
+	@./build/sph $(CONFIG_DIR)/gsph_nogradh_cs2_diagnostic.json 2>&1 | tee $(RESULTS_DIR)/gsph_csmooth2/run.log
+	@echo "✓ [3/3] Complete"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ All diagnostic runs complete!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+
+gradh_diagnostic_all: gradh_diagnostic_run gradh_viz gradh_animate
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ DIAGNOSTIC GRAD-H COMPARISON COMPLETE!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Results:    $(RESULTS_DIR)/"
+	@echo "  Plots:      $(PLOTS_DIR)/"
+	@echo "  Animations: $(ANIM_DIR)/"
+	@echo ""
+
+# ============================================================================
+# VISUALIZATION
+# ============================================================================
+
+gradh_viz:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Grad-h Comparison Plots"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(PLOTS_DIR)
+	@python3 $(SCRIPTS_DIR)/gradh_viz.py $(RESULTS_DIR) $(PLOTS_DIR)
+	@echo ""
+	@echo "  ✓ Comparison plots generated: $(PLOTS_DIR)/"
+
+gradh_animate:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Grad-h Comparison Animation"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(ANIM_DIR)
+	@python3 $(SCRIPTS_DIR)/gradh_animate.py $(RESULTS_DIR) $(ANIM_DIR)
+	@echo ""
+	@echo "  ✓ Animation generated: $(ANIM_DIR)/"
+
+
+# ============================================================================
+# UTILITIES
+# ============================================================================
+
+gradh_summary:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Grad-h Test Results Summary"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "Results directory: $(RESULTS_DIR)/"
+	@echo ""
+	@for method in gsph_gradh gsph_nogradh gsph_csmooth2; do \
+		echo "  $$method:"; \
+		if [ -d "$(RESULTS_DIR)/$$method" ]; then \
+			n_snaps=$$(ls $(RESULTS_DIR)/$$method/snapshot_*.csv 2>/dev/null | wc -l); \
+			echo "    📁 $$n_snaps snapshots"; \
+			if [ -f "$(RESULTS_DIR)/$$method/energy.dat" ]; then \
+				echo "    📊 energy.dat exists"; \
+			fi; \
+			if [ -f "$(RESULTS_DIR)/$$method/run.log" ]; then \
+				echo "    📝 run.log exists"; \
+			fi; \
+		else \
+			echo "    ⚠️  No results"; \
+		fi; \
+		echo ""; \
+	done
+	@echo "Plots: $(PLOTS_DIR)/"
+	@ls -1 $(PLOTS_DIR)/*.png 2>/dev/null | sed 's/.*\//  📊 /' || echo "  (none)"
+	@echo ""
+	@echo "Animations: $(ANIM_DIR)/"
+	@ls -1 $(ANIM_DIR)/*.gif 2>/dev/null | sed 's/.*\//  🎬 /' || echo "  (none)"
+	@echo ""
+
+gradh_clean:
+	@echo "Cleaning grad-h test results..."
+	@rm -rf $(RESULTS_DIR)
+	@echo "✓ Results cleaned"

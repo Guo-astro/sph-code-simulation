@@ -17,6 +17,8 @@ Physics:
 - Hernquist-Katz gravitational softening: epsilon = h/2
 - Grad-h term: Omega = [1 + (h/D*rho) * sum_j m_j dW/dh]^(-1)
 
+Uses SSOT module from scripts.shared.lane_emden for Lane-Emden solutions.
+
 Usage:
     python gen_html_viewer.py [--case1 DIR] [--case2 DIR] [--output FILE]
 
@@ -26,13 +28,21 @@ Default paths:
     output: figures_v2/interactive_viewer.html
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to path for imports
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(PROJECT_ROOT))
+
 import numpy as np
 import pandas as pd
 import json
 import os
 import glob
 import argparse
-from scipy.integrate import odeint
+
+from scripts.shared.lane_emden import solve_lane_emden_spherical
 
 
 def load_snapshot(filepath):
@@ -48,30 +58,15 @@ def load_energy_file(filepath):
 
 def lane_emden_solution(n, xi_max=8.0, num_points=2000):
     """
-    Solve the Lane-Emden equation for polytropic index n.
-    
-    d/dxi (xi^2 * dtheta/dxi) = -xi^2 * theta^n
-    
-    Boundary conditions: theta(0) = 1, dtheta/dxi(0) = 0
+    Get the Lane-Emden solution using SSOT solver.
     
     Returns:
         xi: dimensionless radial coordinate
         theta: dimensionless density parameter (rho/rho_c = theta^n)
         xi_1: first zero of theta (surface radius)
     """
-    def derivatives(y, xi):
-        theta, dtheta = y
-        if xi < 1e-10:
-            # L'Hopital at origin: d^2theta/dxi^2 = -1/3 at xi=0 for any n
-            return [dtheta, -1.0/3.0]
-        if theta <= 0:
-            return [0, 0]  # Beyond surface
-        return [dtheta, -2.0/xi * dtheta - theta**n]
-    
-    xi = np.linspace(1e-8, xi_max, num_points)
-    # Use less strict tolerances to avoid ODEint warnings
-    sol = odeint(derivatives, [1.0, 0.0], xi, rtol=1e-6, atol=1e-9)
-    theta = np.maximum(sol[:, 0], 0)
+    xi, theta = solve_lane_emden_spherical(n, xi_max=xi_max, n_points=num_points)
+    theta = np.maximum(theta, 0)
     
     # Find surface (first zero of theta)
     idx = np.where(theta < 1e-8)[0]

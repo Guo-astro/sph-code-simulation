@@ -14,9 +14,18 @@ The analysis proceeds from first principles:
 4. Instability growth rate analysis
 5. Comparison with simulation data
 
+Uses SSOT module from scripts.shared.lane_emden for Lane-Emden solutions.
+
 Author: First-Principles Derivation
 Date: 2024
 """
+
+import sys
+from pathlib import Path
+
+# Add project root to path for imports
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -24,6 +33,8 @@ from scipy.integrate import odeint
 import os
 import json
 import glob
+
+from scripts.shared.lane_emden import solve_lane_emden_planar
 
 # Constants
 G = 1.0  # Gravitational constant in code units
@@ -341,13 +352,19 @@ def lane_emden_1d(xi_max=5.0, n_points=1000):
     """
     Solve the 1D Lane-Emden equation for a polytropic slab.
     
+    Uses SSOT solve_lane_emden_planar from scripts.shared.lane_emden.
+    
     For n=1 (γ=2): d²θ/dξ² = -θ
     Solution: θ = cos(ξ), valid for ξ ∈ [0, π/2]
     
     Returns physical units with central ρ=1, surface at x=L.
     """
-    xi = np.linspace(0, np.pi/2 * 0.99, n_points)  # Avoid exact surface
-    theta = np.cos(xi)
+    # For n=1 (γ=2), the analytic solution is cos(ξ)
+    # The SSOT handles this numerically for generality
+    n_poly = 1.0  # n = 1/(γ-1) for γ=2
+    
+    xi, theta = solve_lane_emden_planar(n_poly, xi_max=np.pi/2 * 0.99, n_points=n_points)
+    theta = np.maximum(theta, 0)  # θ ≥ 0
     
     # Physical units
     rho_c = 1.0  # Central density

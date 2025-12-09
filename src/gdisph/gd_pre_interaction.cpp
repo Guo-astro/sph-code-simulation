@@ -22,6 +22,7 @@ void PreInteraction::initialize(std::shared_ptr<SPHParameters> param)
 {
     sph::PreInteraction::initialize(param);
     m_is_2nd_order = param->gsph.is_2nd_order;
+    m_use_gradh = param->gsph.use_gradh;
 }
 
 // GDISPH: Combines DISPH pressure-energy formulation with GSPH gradient calculation
@@ -114,8 +115,14 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
         p_i.dens = dens_i;
         p_i.pres = (m_gamma - 1.0) * pres_i;
+        // Grad-h correction for DISPH pressure-energy formulation
         // f_ij = 1 - p_i.gradh / (p_j.mass * p_j.ene)
-        p_i.gradh = p_i.sml / (DIM * n_i) * dh_pres_i / (1.0 + p_i.sml / (DIM * n_i) * dh_n_i);
+        // When disabled (use_gradh=false), set to 0 which makes f_ij = 1 (no correction)
+        if(m_use_gradh) {
+            p_i.gradh = p_i.sml / (DIM * n_i) * dh_pres_i / (1.0 + p_i.sml / (DIM * n_i) * dh_n_i);
+        } else {
+            p_i.gradh = 0.0;  // No grad-h correction (f_ij = 1)
+        }
         p_i.neighbor = n_neighbor;
 
         const real h_per_v_sig_i = p_i.sml / v_sig_max;
@@ -233,7 +240,10 @@ real PreInteraction::newton_raphson(
                                   4.0 * M_PI / 3.0;
     const real b = m_neighbor_number / A;
 
-    // f = n h^d - b
+    // C_smooth approach: use expanded kernel W(r, C_smooth * h) for h-adaptation
+    const real cs = m_c_smooth;
+
+    // f = n h^d - b  (number density based)
     // f' = dn/dh h^d + d n h^{d-1}
 
     constexpr real epsilon = 1e-4;
@@ -241,6 +251,7 @@ real PreInteraction::newton_raphson(
     const auto & r_i = p_i.pos;
     for(int i = 0; i < max_iter; ++i) {
         const real h_b = h_i;
+        const real h_expanded = cs * h_i;
 
         real dens = 0.0;
         real ddens = 0.0;
@@ -250,12 +261,12 @@ real PreInteraction::newton_raphson(
             const vec_t r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = std::abs(r_ij);
 
-            if(r >= h_i) {
+            if(r >= h_expanded) {
                 break;
             }
 
-            dens += kernel->w(r, h_i);
-            ddens += kernel->dhw(r, h_i);
+            dens += kernel->w(r, h_expanded);
+            ddens += cs * kernel->dhw(r, h_expanded);
         }
 
         const real f = dens * powh(h_i) - b;

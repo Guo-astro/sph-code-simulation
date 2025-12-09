@@ -30,6 +30,7 @@ void PreInteraction::initialize(std::shared_ptr<SPHParameters> param)
     m_use_gradh = param->gsph.use_gradh;  // Read grad-h flag (also used for SSPH)
     m_gamma = param->physics.gamma;
     m_neighbor_number = param->physics.neighbor_number;
+    m_c_smooth = param->physics.c_smooth;  // C_smooth: smoothing length expansion factor
     m_iteration = param->iterative_sml;
     if(m_iteration) {
         m_kernel_ratio = 1.2;
@@ -347,7 +348,13 @@ real PreInteraction::newton_raphson(
                                   4.0 * M_PI / 3.0;
     const real b = p_i.mass * m_neighbor_number / A;
 
-    // f = rho h^d - b
+    // C_smooth approach: use expanded kernel W(r, C_smooth * h) for h-adaptation
+    // This makes h vary more smoothly in space, reducing ∇h terms
+    // When C_smooth = 1 (default), behavior is unchanged
+    // When C_smooth = 2 (typical), h adapts more gradually
+    const real cs = m_c_smooth;
+
+    // f = rho h^d - b  where rho is computed with W(r, C_smooth * h)
     // f' = drho/dh h^d + d rho h^{d-1}
 
     constexpr real epsilon = 1e-4;
@@ -355,6 +362,7 @@ real PreInteraction::newton_raphson(
     const auto & r_i = p_i.pos;
     for(int i = 0; i < max_iter; ++i) {
         const real h_b = h_i;
+        const real h_expanded = cs * h_i;  // Expanded smoothing length
 
         real dens = 0.0;
         real ddens = 0.0;
@@ -364,12 +372,14 @@ real PreInteraction::newton_raphson(
             const vec_t r_ij = periodic->calc_r_ij(r_i, p_j.pos);
             const real r = std::abs(r_ij);
 
-            if(r >= h_i) {
+            // Use expanded kernel for h-adaptation (C_smooth effect)
+            if(r >= h_expanded) {
                 break;
             }
 
-            dens += p_j.mass * kernel->w(r, h_i);
-            ddens += p_j.mass * kernel->dhw(r, h_i);
+            dens += p_j.mass * kernel->w(r, h_expanded);
+            // Chain rule: d/dh W(r, C_smooth*h) = C_smooth * dhW(r, C_smooth*h)
+            ddens += p_j.mass * cs * kernel->dhw(r, h_expanded);
         }
 
         const real f = dens * powh(h_i) - b;

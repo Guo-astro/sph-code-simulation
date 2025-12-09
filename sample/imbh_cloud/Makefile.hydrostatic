@@ -23,6 +23,9 @@
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_10k_viz
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_200k_viz
 #
+#   # Kernel-convolved gravity variant (Wendland C4 softening)
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_viz SIZE=61k METHOD=gsph GRAVITY_TYPE=kernel
+#
 #   # Stability report (energy, density, velocity analysis)
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_stability_report SIZE=10k METHOD=gdisph
 #
@@ -35,8 +38,9 @@
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_help
 #
 # PARAMETERS:
-#   SIZE     - Particle count: 10k (testing), 200k (production)
-#   METHOD   - SPH method: gdisph (recommended), gsph (pure Riemann)
+#   SIZE         - Particle count: 10k (testing), 61k (medium), 200k (production)
+#   METHOD       - SPH method: gdisph (recommended), gsph (pure Riemann)
+#   GRAVITY_TYPE - Gravity softening: default (Plummer), kernel (Wendland C4 convolved)
 #
 # CONFIG FILES (SSOT):
 #   sample/imbh_cloud/config/presets/hydrostatic/scenarios/
@@ -69,15 +73,23 @@ RELAX_RESULTS := $(IMBH_DIR)/results/relaxation
 SIZE ?= 10k
 METHOD ?= gdisph
 FPS ?= 10
+GRAVITY_TYPE ?= default
 
 # Method in uppercase for folder naming
 METHOD_UPPER := $(shell echo $(METHOD) | tr '[:lower:]' '[:upper:]')
 
+# Gravity suffix for folder naming (empty for default, _kernel_gravity for kernel-convolved)
+ifeq ($(GRAVITY_TYPE),kernel)
+    GRAVITY_SUFFIX := _kernel_gravity
+else
+    GRAVITY_SUFFIX :=
+endif
+
 # Derived paths
 SCENARIO_DIR := $(CONFIG_DIR)/scenarios/$(SIZE)
 SCENARIO_CONFIG := $(SCENARIO_DIR)/$(METHOD).json
-ONESHOT_RESULTS := $(RESULTS_DIR)/$(SIZE)/$(METHOD_UPPER)
-ONESHOT_ANIM_DIR := $(ANIM_DIR)/$(SIZE)/$(METHOD_UPPER)
+ONESHOT_RESULTS := $(RESULTS_DIR)/$(SIZE)/$(METHOD_UPPER)$(GRAVITY_SUFFIX)
+ONESHOT_ANIM_DIR := $(ANIM_DIR)/$(SIZE)/$(METHOD_UPPER)$(GRAVITY_SUFFIX)
 
 # ============================================================================
 # PHONY TARGETS
@@ -88,7 +100,9 @@ ONESHOT_ANIM_DIR := $(ANIM_DIR)/$(SIZE)/$(METHOD_UPPER)
         hydro_oneshot_clean hydro_oneshot_clean_size \
         hydro_10k hydro_10k_viz hydro_10k_gdisph hydro_10k_gsph \
         hydro_200k hydro_200k_viz hydro_200k_gdisph hydro_200k_gsph \
-        hydro_clean_all hydro_list_configs hydro_stability_report
+        hydro_clean_all hydro_list_configs hydro_stability_report \
+        gradh_compare gradh_compare_run gradh_compare_viz gradh_compare_animate \
+        gradh_compare_clean gradh_compare_all gradh_help
 
 # ============================================================================
 # HELP
@@ -143,6 +157,16 @@ hydro_help:
 	@echo "├─────────────────────────────────────────────────────────────────────────┤"
 	@echo "│  PASS:   Density RMS < 5%, |v| < 1% c_s, Energy drift < 1%             │"
 	@echo "│  FAIL:   Sphere collapses, explodes, or develops instabilities         │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  GRAVITY SOFTENING OPTIONS                                             │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  GRAVITY_TYPE=default  Standard Plummer softening (ε=const)            │"
+	@echo "│  GRAVITY_TYPE=kernel   Wendland C4 kernel-convolved gravity            │"
+	@echo "│                        - Output: <SIZE>/<METHOD>_kernel_gravity/       │"
+	@echo "│                                                                         │"
+	@echo "│  Example: make hydro_oneshot_viz SIZE=61k METHOD=gsph GRAVITY_TYPE=kernel│"
 	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
@@ -262,15 +286,20 @@ hydro_oneshot_run:
 hydro_oneshot_viz:
 	@echo ""
 	@echo "════════════════════════════════════════════════════════════════"
-	@echo "  Visualizing: $(SIZE) / $(METHOD_UPPER)"
+	@echo "  Visualizing: $(SIZE) / $(METHOD_UPPER)$(GRAVITY_SUFFIX)"
 	@echo "════════════════════════════════════════════════════════════════"
-	@# Read outputDirectory from config JSON (Single Source of Truth)
-	@CONFIG_OUTPUT_DIR=$$(python3 -c "import json; print(json.load(open('$(SCENARIO_CONFIG)'))['outputDirectory'])" 2>/dev/null); \
-	if [ -z "$$CONFIG_OUTPUT_DIR" ]; then \
+	@# When GRAVITY_TYPE=kernel, use the derived path directly instead of config
+	@if [ "$(GRAVITY_TYPE)" = "kernel" ]; then \
 		CONFIG_OUTPUT_DIR="$(ONESHOT_RESULTS)"; \
-		echo "  Using default results path: $$CONFIG_OUTPUT_DIR"; \
+		echo "  Results path (kernel gravity): $$CONFIG_OUTPUT_DIR"; \
 	else \
-		echo "  Results path from config: $$CONFIG_OUTPUT_DIR"; \
+		CONFIG_OUTPUT_DIR=$$(python3 -c "import json; print(json.load(open('$(SCENARIO_CONFIG)'))['outputDirectory'])" 2>/dev/null); \
+		if [ -z "$$CONFIG_OUTPUT_DIR" ]; then \
+			CONFIG_OUTPUT_DIR="$(ONESHOT_RESULTS)"; \
+			echo "  Using default results path: $$CONFIG_OUTPUT_DIR"; \
+		else \
+			echo "  Results path from config: $$CONFIG_OUTPUT_DIR"; \
+		fi; \
 	fi; \
 	if [ ! -d "$$CONFIG_OUTPUT_DIR" ]; then \
 		echo "❌ No results found: $$CONFIG_OUTPUT_DIR"; \
@@ -430,4 +459,326 @@ print(f'  Max |v|/c_s:  {v_ratio.max():.4f}%'); \
 status = '✅ PASS' if v_ratio.max() < 1.0 else '⚠️  MARGINAL' if v_ratio.max() < 5.0 else '❌ FAIL'; \
 print(f'  Status:       {status} (threshold: 1%)'); \
 "
+
+# ============================================================================
+# GRAD-H COMPARISON STUDY
+# ============================================================================
+#
+# PURPOSE:
+#   Compare GSPH methods with/without grad-h correction and with C_smooth=2
+#   to study the importance of grad-h in self-gravitating systems.
+#
+# VARIANTS:
+#   1. GSPH + grad-h (default)           - Full grad-h correction
+#   2. GSPH - grad-h                     - No grad-h correction (may collapse)
+#   3. GSPH - grad-h + C_smooth=2        - Smoother h variation, no grad-h
+#
+# USAGE:
+#   make -f sample/imbh_cloud/Makefile.hydrostatic gradh_compare SIZE=10k
+#   make -f sample/imbh_cloud/Makefile.hydrostatic gradh_compare_all SIZE=10k
+#   make -f sample/imbh_cloud/Makefile.hydrostatic gradh_help
+#
+# ============================================================================
+
+# Grad-h comparison paths
+GRADH_CONFIG_DIR := $(CONFIG_DIR)/gradh_compare/$(SIZE)
+GRADH_RESULTS_BASE := $(RESULTS_DIR)/gradh_compare/$(SIZE)
+GRADH_ANIM_DIR := $(ANIM_DIR)/gradh_compare/$(SIZE)
+
+# Grad-h comparison help
+gradh_help:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  GRAD-H COMPARISON STUDY - Test grad-h vs no-grad-h vs C_smooth=2"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Compare three GSPH variants on self-gravitating hydrostatic sphere:"
+	@echo ""
+	@echo "  1. GSPH + grad-h         - Full grad-h correction (baseline)"
+	@echo "  2. GSPH - grad-h         - No grad-h (may collapse/small dt)"
+	@echo "  3. GSPH - grad-h + C=2   - Smoother h via C_smooth=2, no grad-h"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_compare SIZE=10k          # Run all 3 variants             │"
+	@echo "│  make gradh_compare_viz SIZE=10k      # Generate comparison plots      │"
+	@echo "│  make gradh_compare_animate SIZE=10k  # Generate comparison animation  │"
+	@echo "│  make gradh_compare_all SIZE=10k      # Run + Viz + Animate           │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  INDIVIDUAL RUNS                                                       │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_run_gsph_gradh SIZE=10k       # GSPH + grad-h              │"
+	@echo "│  make gradh_run_gsph_nogradh SIZE=10k     # GSPH - grad-h              │"
+	@echo "│  make gradh_run_gsph_csmooth SIZE=10k     # GSPH - grad-h + C_smooth=2 │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Config files: $(GRADH_CONFIG_DIR)/"
+	@echo "  Results:      $(GRADH_RESULTS_BASE)/"
+	@echo "  Animations:   $(GRADH_ANIM_DIR)/"
+	@echo ""
+
+# Check configs exist
+gradh_check_configs:
+	@if [ ! -d "$(GRADH_CONFIG_DIR)" ]; then \
+		echo "❌ ERROR: Config directory not found: $(GRADH_CONFIG_DIR)"; \
+		echo "   Creating default configs..."; \
+		mkdir -p $(GRADH_CONFIG_DIR); \
+	fi
+
+# Run all 3 grad-h comparison variants
+gradh_compare: hydro_check_dim gradh_check_configs
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  GRAD-H COMPARISON: Running 3 GSPH Variants ($(SIZE) particles)"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  [1/3] GSPH + grad-h..."
+	@mkdir -p $(GRADH_RESULTS_BASE)/gsph_gradh
+	@if [ -f "$(GRADH_CONFIG_DIR)/gsph_gradh.json" ]; then \
+		./build/sph $(GRADH_CONFIG_DIR)/gsph_gradh.json 2>&1 | tee $(GRADH_RESULTS_BASE)/gsph_gradh/run.log; \
+	else \
+		echo "⚠️  Config not found, skipping gsph_gradh"; \
+	fi
+	@echo "  ✓ [1/3] Complete"
+	@echo ""
+	@echo "  [2/3] GSPH - grad-h (WARNING: May have small dt)..."
+	@mkdir -p $(GRADH_RESULTS_BASE)/gsph_nogradh
+	@if [ -f "$(GRADH_CONFIG_DIR)/gsph_nogradh.json" ]; then \
+		timeout 1800 ./build/sph $(GRADH_CONFIG_DIR)/gsph_nogradh.json 2>&1 | tee $(GRADH_RESULTS_BASE)/gsph_nogradh/run.log || \
+			echo "⚠️  Run timed out or failed (expected for no-gradh)"; \
+	else \
+		echo "⚠️  Config not found, skipping gsph_nogradh"; \
+	fi
+	@echo "  ✓ [2/3] Complete"
+	@echo ""
+	@echo "  [3/3] GSPH - grad-h + C_smooth=2..."
+	@mkdir -p $(GRADH_RESULTS_BASE)/gsph_csmooth2
+	@if [ -f "$(GRADH_CONFIG_DIR)/gsph_csmooth2.json" ]; then \
+		./build/sph $(GRADH_CONFIG_DIR)/gsph_csmooth2.json 2>&1 | tee $(GRADH_RESULTS_BASE)/gsph_csmooth2/run.log; \
+	else \
+		echo "⚠️  Config not found, skipping gsph_csmooth2"; \
+	fi
+	@echo "  ✓ [3/3] Complete"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ All grad-h comparison runs complete!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+
+# Individual run targets
+gradh_run_gsph_gradh: hydro_check_dim
+	@echo "Running GSPH + grad-h..."
+	@mkdir -p $(GRADH_RESULTS_BASE)/gsph_gradh
+	./build/sph $(GRADH_CONFIG_DIR)/gsph_gradh.json 2>&1 | tee $(GRADH_RESULTS_BASE)/gsph_gradh/run.log
+	@echo "✓ Complete"
+
+gradh_run_gsph_nogradh: hydro_check_dim
+	@echo "Running GSPH - grad-h (may collapse)..."
+	@mkdir -p $(GRADH_RESULTS_BASE)/gsph_nogradh
+	timeout 1800 ./build/sph $(GRADH_CONFIG_DIR)/gsph_nogradh.json 2>&1 | tee $(GRADH_RESULTS_BASE)/gsph_nogradh/run.log || \
+		echo "⚠️  Run timed out or failed"
+	@echo "✓ Complete"
+
+gradh_run_gsph_csmooth: hydro_check_dim
+	@echo "Running GSPH - grad-h + C_smooth=2..."
+	@mkdir -p $(GRADH_RESULTS_BASE)/gsph_csmooth2
+	./build/sph $(GRADH_CONFIG_DIR)/gsph_csmooth2.json 2>&1 | tee $(GRADH_RESULTS_BASE)/gsph_csmooth2/run.log
+	@echo "✓ Complete"
+
+# Generate comparison visualization
+gradh_compare_viz:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Generating Grad-h Comparison Plots ($(SIZE))"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@mkdir -p $(GRADH_ANIM_DIR)
+	@if [ -f "$(SCRIPTS_DIR)/compare_gradh_methods.py" ]; then \
+		python3 $(SCRIPTS_DIR)/compare_gradh_methods.py \
+			$(GRADH_RESULTS_BASE) $(GRADH_ANIM_DIR); \
+	else \
+		echo "Creating comparison plot inline..."; \
+		python3 << 'EOF'
+	import os
+	import glob
+	import numpy as np
+	import pandas as pd
+	import matplotlib.pyplot as plt
+	
+	results_base = "$(GRADH_RESULTS_BASE)"
+	output_dir = "$(GRADH_ANIM_DIR)"
+	os.makedirs(output_dir, exist_ok=True)
+	
+	methods = {
+	    'gsph_gradh': {'label': 'GSPH + grad-h', 'color': '#0066CC'},
+	    'gsph_nogradh': {'label': 'GSPH - grad-h', 'color': '#CC0000'},
+	    'gsph_csmooth2': {'label': 'GSPH + C_smooth=2', 'color': '#009933'},
+	}
+	
+	# Read energy data
+	fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+	
+	for method, props in methods.items():
+	    energy_file = os.path.join(results_base, method, 'energy.dat')
+	    if os.path.exists(energy_file):
+	        data = np.loadtxt(energy_file, skiprows=1)
+	        if data.ndim >= 2 and len(data) > 0:
+	            t = data[:, 0]
+	            E_total = data[:, 4] if data.shape[1] > 4 else data[:, 1] + data[:, 2] + data[:, 3]
+	            E_kin = data[:, 1]
+	            E_pot = data[:, 3]
+	            
+	            # Total energy
+	            axes[0, 0].plot(t, E_total, color=props['color'], label=props['label'], linewidth=2)
+	            # Kinetic energy
+	            axes[0, 1].plot(t, E_kin, color=props['color'], label=props['label'], linewidth=2)
+	            # Energy drift
+	            E0 = E_total[0]
+	            drift = (E_total - E0) / np.abs(E0) * 100
+	            axes[1, 0].plot(t, drift, color=props['color'], label=props['label'], linewidth=2)
+	            # Potential energy
+	            axes[1, 1].plot(t, E_pot, color=props['color'], label=props['label'], linewidth=2)
+	
+	axes[0, 0].set_xlabel('Time')
+	axes[0, 0].set_ylabel('Total Energy')
+	axes[0, 0].set_title('Total Energy Evolution')
+	axes[0, 0].legend()
+	axes[0, 0].grid(True, alpha=0.3)
+	
+	axes[0, 1].set_xlabel('Time')
+	axes[0, 1].set_ylabel('Kinetic Energy')
+	axes[0, 1].set_title('Kinetic Energy (Stability Indicator)')
+	axes[0, 1].legend()
+	axes[0, 1].grid(True, alpha=0.3)
+	
+	axes[1, 0].set_xlabel('Time')
+	axes[1, 0].set_ylabel('Energy Drift (%)')
+	axes[1, 0].set_title('Energy Conservation Error')
+	axes[1, 0].legend()
+	axes[1, 0].grid(True, alpha=0.3)
+	
+	axes[1, 1].set_xlabel('Time')
+	axes[1, 1].set_ylabel('Potential Energy')
+	axes[1, 1].set_title('Gravitational Potential Energy')
+	axes[1, 1].legend()
+	axes[1, 1].grid(True, alpha=0.3)
+	
+	plt.suptitle('Grad-h Comparison: 3 GSPH Variants\n($(SIZE) particles, kernel gravity)', fontsize=14)
+	plt.tight_layout(rect=[0, 0, 1, 0.96])
+	plt.savefig(os.path.join(output_dir, 'gradh_energy_comparison.png'), dpi=150)
+	plt.close()
+	print(f"Saved: {output_dir}/gradh_energy_comparison.png")
+	EOF
+	fi
+	@echo ""
+	@echo "  ✓ Comparison plots generated: $(GRADH_ANIM_DIR)/"
+
+# Generate comparison animation
+gradh_compare_animate:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Generating Grad-h Comparison Animation ($(SIZE))"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@mkdir -p $(GRADH_ANIM_DIR)
+	@python3 << 'EOF'
+	import os
+	import glob
+	import numpy as np
+	import pandas as pd
+	import matplotlib.pyplot as plt
+	from matplotlib.animation import FuncAnimation, PillowWriter
+	
+	results_base = "$(GRADH_RESULTS_BASE)"
+	output_dir = "$(GRADH_ANIM_DIR)"
+	os.makedirs(output_dir, exist_ok=True)
+	
+	methods = {
+	    'gsph_gradh': {'label': 'GSPH + grad-h', 'color': '#0066CC'},
+	    'gsph_nogradh': {'label': 'GSPH - grad-h', 'color': '#CC0000'},
+	    'gsph_csmooth2': {'label': 'GSPH + C_smooth=2', 'color': '#009933'},
+	}
+	
+	# Count snapshots
+	snap_counts = {}
+	for method in methods:
+	    pattern = os.path.join(results_base, method, 'snapshot_*.csv')
+	    snap_counts[method] = len(glob.glob(pattern))
+	    print(f"{method}: {snap_counts[method]} snapshots")
+	
+	max_snaps = max(snap_counts.values()) if snap_counts else 0
+	
+	if max_snaps == 0:
+	    print("No snapshots found, skipping animation")
+	    exit(0)
+	
+	# Load snapshots
+	def load_snapshot(method, idx):
+	    path = os.path.join(results_base, method, f'snapshot_{idx:04d}.csv')
+	    if os.path.exists(path):
+	        return pd.read_csv(path, comment='#')
+	    return None
+	
+	# Create animation
+	fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+	
+	lines = {}
+	for i, (method, props) in enumerate(methods.items()):
+	    ax = axes[i]
+	    snap = load_snapshot(method, 0)
+	    if snap is not None:
+	        # 3D: project to density profile vs radius
+	        r = np.sqrt(snap['pos_x']**2 + snap['pos_y']**2 + snap['pos_z']**2)
+	        sort_idx = np.argsort(r)
+	        line, = ax.plot(r.iloc[sort_idx], snap['dens'].iloc[sort_idx], 
+	                       color=props['color'], linewidth=0.5, alpha=0.6)
+	        lines[method] = (line, ax)
+	    
+	    ax.set_xlabel('Radius r')
+	    ax.set_ylabel('Density ρ')
+	    ax.set_title(props['label'])
+	    ax.grid(True, alpha=0.3)
+	    ax.set_xlim([0, 2])
+	    ax.set_ylim([0, 1.2])
+	
+	time_text = fig.suptitle('t = 0.0', fontsize=14)
+	
+	def update(frame):
+	    for method, (line, ax) in lines.items():
+	        snap = load_snapshot(method, frame)
+	        if snap is not None:
+	            r = np.sqrt(snap['pos_x']**2 + snap['pos_y']**2 + snap['pos_z']**2)
+	            sort_idx = np.argsort(r)
+	            line.set_data(r.iloc[sort_idx], snap['dens'].iloc[sort_idx])
+	    time_text.set_text(f'Grad-h Comparison: t = {frame}')
+	    return [l[0] for l in lines.values()] + [time_text]
+	
+	anim = FuncAnimation(fig, update, frames=min(max_snaps, 100), interval=100, blit=False)
+	
+	plt.tight_layout(rect=[0, 0, 1, 0.95])
+	anim_path = os.path.join(output_dir, 'gradh_comparison.gif')
+	anim.save(anim_path, writer=PillowWriter(fps=10))
+	plt.close()
+	print(f"Saved: {anim_path}")
+	EOF
+	@echo ""
+	@echo "  ✓ Animation generated: $(GRADH_ANIM_DIR)/gradh_comparison.gif"
+
+# Run all grad-h comparison steps
+gradh_compare_all: gradh_compare gradh_compare_viz gradh_compare_animate
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ GRAD-H COMPARISON COMPLETE!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Results:    $(GRADH_RESULTS_BASE)/"
+	@echo "  Plots:      $(GRADH_ANIM_DIR)/gradh_energy_comparison.png"
+	@echo "  Animation:  $(GRADH_ANIM_DIR)/gradh_comparison.gif"
+	@echo ""
+
+# Clean grad-h comparison results
+gradh_compare_clean:
+	@echo "Cleaning grad-h comparison results for $(SIZE)..."
+	rm -rf $(GRADH_RESULTS_BASE)
+	rm -rf $(GRADH_ANIM_DIR)
+	@echo "✓ Cleaned"
 	@echo ""
