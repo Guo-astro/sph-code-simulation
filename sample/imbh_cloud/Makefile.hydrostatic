@@ -24,6 +24,7 @@
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_200k_viz
 #
 #   # Kernel-convolved gravity variant (Wendland C4 softening)
+#   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=61k METHOD=gsph GRAVITY_TYPE=kernel
 #   make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot_viz SIZE=61k METHOD=gsph GRAVITY_TYPE=kernel
 #
 #   # Stability report (energy, density, velocity analysis)
@@ -79,15 +80,18 @@ GRAVITY_TYPE ?= default
 METHOD_UPPER := $(shell echo $(METHOD) | tr '[:lower:]' '[:upper:]')
 
 # Gravity suffix for folder naming (empty for default, _kernel_gravity for kernel-convolved)
+# Config suffix for selecting the right config file
 ifeq ($(GRAVITY_TYPE),kernel)
     GRAVITY_SUFFIX := _kernel_gravity
+    CONFIG_SUFFIX := _kernel
 else
     GRAVITY_SUFFIX :=
+    CONFIG_SUFFIX :=
 endif
 
 # Derived paths
 SCENARIO_DIR := $(CONFIG_DIR)/scenarios/$(SIZE)
-SCENARIO_CONFIG := $(SCENARIO_DIR)/$(METHOD).json
+SCENARIO_CONFIG := $(SCENARIO_DIR)/$(METHOD)$(CONFIG_SUFFIX).json
 ONESHOT_RESULTS := $(RESULTS_DIR)/$(SIZE)/$(METHOD_UPPER)$(GRAVITY_SUFFIX)
 ONESHOT_ANIM_DIR := $(ANIM_DIR)/$(SIZE)/$(METHOD_UPPER)$(GRAVITY_SUFFIX)
 
@@ -249,11 +253,12 @@ hydro_oneshot_validate:
 hydro_oneshot_run:
 	@echo ""
 	@echo "════════════════════════════════════════════════════════════════"
-	@echo "  Running Hydrostatic Test: $(SIZE) / $(METHOD_UPPER)"
+	@echo "  Running Hydrostatic Test: $(SIZE) / $(METHOD_UPPER)$(GRAVITY_SUFFIX)"
 	@echo "════════════════════════════════════════════════════════════════"
-	@echo "  Size:     $(SIZE)"
-	@echo "  Method:   $(METHOD_UPPER)"
-	@echo "  Config:   $(SCENARIO_CONFIG)"
+	@echo "  Size:       $(SIZE)"
+	@echo "  Method:     $(METHOD_UPPER)"
+	@echo "  Gravity:    $(GRAVITY_TYPE)"
+	@echo "  Config:     $(SCENARIO_CONFIG)"
 	@echo ""
 	@echo "  Stability Criteria:"
 	@echo "    • Density profile stable (RMS < 5%)"

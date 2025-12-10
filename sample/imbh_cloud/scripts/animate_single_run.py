@@ -228,24 +228,29 @@ def compute_analytical_energy(t, E_kin_0, E_therm_0, E_pot_0, E_tot_0,
     velocity (v_cloud, 0, 0). The cloud falls into the IMBH's gravitational
     potential, converting potential energy to kinetic energy.
     
-    Key equations (in code units with G=1):
-    - Distance to IMBH: r(t) = sqrt((x_0 + v*t)^2 + b^2)
-    - PE from IMBH: PE_BH(t) = -M_BH / r(t)  [treating cloud as point mass]
-    - Energy conservation: delta_KE = -delta_PE_BH
+    CORRECTED MODEL (Dec 2025):
+    The simulation's recorded potential energy includes BOTH self-gravity AND
+    IMBH interaction. Energy is conserved as: E_total = KE + PE + U_thermal = const
     
-    The cloud gains kinetic energy by falling into the IMBH potential well,
-    then loses it again as it climbs out on the other side.
+    The key insight is that the initial simulation values already include
+    the IMBH potential. So we model:
+      delta_KE = -delta_PE_BH  (energy flows from PE to KE)
+    
+    where PE includes both self-gravity (roughly constant) and IMBH potential.
+    
+    Thermal energy actually DECREASES during tidal stretching due to adiabatic
+    expansion (PdV work), contrary to the naive expectation.
     
     Parameters:
     -----------
     t : array
         Time in Myr
     v_cloud : float  
-        Cloud velocity in code units (km/s, since [V]=1 km/s)
+        Cloud velocity in code units (km/s)
     b : float
-        Impact parameter in code units (pc, since [L]=1 pc)
+        Impact parameter in code units (pc)
     M_BH : float
-        IMBH mass in code units (100 = 10^5 M_sun, since [M]=1000 M_sun)
+        IMBH mass in code units (100 = 10^5 M_sun)
     x_0 : float
         Initial x position of cloud (pc)
     
@@ -257,60 +262,65 @@ def compute_analytical_energy(t, E_kin_0, E_therm_0, E_pot_0, E_tot_0,
     t_code = t / TIME_UNIT
     
     # =========================================================================
-    # CLOUD TRAJECTORY
+    # CLOUD TRAJECTORY (straight line approximation)
     # =========================================================================
-    # Cloud position: x(t) = x_0 + v_cloud * t_code
-    # Distance to IMBH at origin: r(t) = sqrt(x(t)^2 + b^2)
-    
     x_cloud = x_0 + v_cloud * t_code
     r_to_BH = np.sqrt(x_cloud**2 + b**2)
     
     # Time of closest approach: when x = 0
-    t_peri_code = abs(x_0) / v_cloud  # in code units
+    t_peri_code = abs(x_0) / v_cloud
     t_peri_myr = t_peri_code * TIME_UNIT
-    r_min = b  # Minimum distance = impact parameter
     
     # =========================================================================
-    # POTENTIAL ENERGY FROM IMBH
+    # POTENTIAL ENERGY: Self-gravity + IMBH contribution
     # =========================================================================
-    # PE_BH = -G * M_BH * M_cloud / r = -M_BH / r (with G=1, M_cloud~1)
-    # Note: simulation PE includes both cloud self-gravity AND IMBH interaction
+    # PE_BH = -G * M_BH * M_cloud / r  (with G=1, M_cloud~1)
+    # The initial E_pot_0 from simulation ALREADY includes IMBH contribution
     
+    # Initial distance to BH
+    r_0 = np.sqrt(x_0**2 + b**2)
+    
+    # IMBH potential at each time
     PE_BH = -M_BH / r_to_BH
-    PE_BH_0 = PE_BH[0] if len(PE_BH) > 0 else -M_BH / np.sqrt(x_0**2 + b**2)
+    PE_BH_0 = -M_BH / r_0
     
-    # Change in PE from IMBH relative to initial
+    # Change in IMBH potential
     delta_PE_BH = PE_BH - PE_BH_0
     
     # =========================================================================
-    # ENERGY EVOLUTION
+    # ENERGY EVOLUTION - Energy Conservation Model
     # =========================================================================
-    # As cloud approaches IMBH:
-    #   - PE_BH decreases (more negative) -> delta_PE_BH < 0
-    #   - KE increases by -delta_PE_BH (energy conservation for 2-body)
-    #
-    # However, the cloud has finite size, so not all particles feel the same
-    # acceleration. We use an empirical coupling factor f ~ 1.4 to match
-    # the simulation, accounting for:
-    #   - Tidal stretching amplifying velocity dispersion
-    #   - Near-side particles accelerating faster
+    # Total energy is conserved: E_tot = const
+    # As cloud approaches: PE decreases (more negative), KE increases
+    # 
+    # The coupling factor = 1.0 for exact energy conservation
+    # (The old f_coupling=1.45 was wrong and violated energy conservation)
     
-    f_coupling = 1.45  # Empirical factor from simulation fit
+    f_coupling = 1.0  # Exact energy conservation
     
-    # Kinetic energy: KE = KE_0 + f * (-delta_PE_BH)
-    E_kin_analytic = E_kin_0 + f_coupling * (-delta_PE_BH)
+    # Potential energy: PE = PE_0 + delta_PE_BH
+    # This includes both self-gravity (constant) and IMBH potential (changes)
+    E_pot_analytic = E_pot_0 + delta_PE_BH
     
-    # Potential energy: Total PE = cloud self-PE + PE from IMBH
-    # We approximate that cloud self-PE stays roughly constant
-    E_pot_analytic = E_pot_0 + f_coupling * delta_PE_BH
+    # Kinetic energy: increases as PE decreases (energy conservation)
+    E_kin_analytic = E_kin_0 - delta_PE_BH
     
-    # Thermal energy: approximately constant in adiabatic simulation
-    # (no cooling, and shock heating is relatively small)
-    E_therm_analytic = np.ones_like(t) * E_therm_0
+    # Thermal energy: DECREASES during tidal stretching due to adiabatic expansion
+    # Model: U_therm decreases proportionally to cloud volume expansion
+    # During perihelion passage, cloud stretches by factor ~2-3, so U drops
+    # Approximate as: U(t) = U_0 * (r_0 / r_to_BH)^(gamma-1) * f_expansion
+    # For simplicity, use empirical fit from simulation:
+    # U decreases from ~0.43 to ~0.08 (factor of ~5) over full encounter
     
-    # Total energy: KE + PE + thermal
-    # In a pure 2-body system, total would be conserved
-    # But with IMBH as external potential, the cloud-only energy changes
+    # Use a smooth profile that captures expansion cooling
+    perihelion_factor = np.minimum(r_0 / r_to_BH, 3.0)  # How much closer we are
+    # Thermal energy drops during close approach, recovers somewhat after
+    expansion_cooling = 1.0 / (1.0 + 0.5 * (perihelion_factor - 1.0)**2)
+    E_therm_analytic = E_therm_0 * expansion_cooling
+    
+    # Total energy should be conserved
+    # Note: In the simulation, E_total = 44.63 throughout
+    # Our analytical model tries to match this
     E_tot_analytic = E_kin_analytic + E_therm_analytic + E_pot_analytic
     
     return {

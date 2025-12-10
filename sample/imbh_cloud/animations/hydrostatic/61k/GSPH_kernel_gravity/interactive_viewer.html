@@ -163,10 +163,10 @@
             <div class="controls">
                 <div class="slider-container">
                     <label for="frameSlider">Frame:</label>
-                    <input type="range" id="frameSlider" min="0" max="7" value="0">
+                    <input type="range" id="frameSlider" min="0" max="21" value="0">
                 </div>
                 <div class="frame-info">
-                    <span class="frame-number">Frame: <span id="frameNum">1</span> / 8</span>
+                    <span class="frame-number">Frame: <span id="frameNum">1</span> / 22</span>
                     <div class="playback-controls">
                         <button class="btn-step" onclick="stepBackward()">⏮ Prev</button>
                         <button class="btn-play" id="playBtn" onclick="togglePlay()">▶ Play</button>
@@ -191,7 +191,7 @@
     </div>
 
     <script>
-        const totalFrames = 8;
+        const totalFrames = 22;
         let currentFrame = 0;
         let isPlaying = false;
         let playInterval = null;

@@ -927,19 +927,33 @@ void Solver::read_parameterfile(const char * filename)
         // Read cloud initial conditions (for shifting particles after snapshot load)
         m_has_cloud_initial_conditions = false;
         try {
-            // Try to read cloud_initial_position to check if it exists
-            input.get<real>("imbh_parameters.cloud_initial_position.0");
-            m_has_cloud_initial_conditions = true;
+            // Try to read cloud_initial_position array by iterating (boost ptree uses empty keys for arrays)
+            auto& cloud_pos_node = input.get_child("imbh_parameters.cloud_initial_position");
             
             std::cout << "\n=== Cloud Initial Conditions ===" << std::endl;
             
             // Read cloud initial position (in pc, convert to code units)
-            real cloud_pos_pc[DIM];
-            cloud_pos_pc[0] = input.get<real>("imbh_parameters.cloud_initial_position.0", 0.0);
-            cloud_pos_pc[1] = input.get<real>("imbh_parameters.cloud_initial_position.1", 0.0);
-#if DIM == 3
-            cloud_pos_pc[2] = input.get<real>("imbh_parameters.cloud_initial_position.2", 0.0);
-#endif
+            real cloud_pos_pc[DIM] = {0.0};
+            int idx = 0;
+            for(auto& item : cloud_pos_node) {
+                if(idx < DIM) {
+                    cloud_pos_pc[idx] = item.second.get_value<real>();
+                }
+                idx++;
+            }
+            
+            // Read cloud initial velocity array
+            auto& cloud_vel_node = input.get_child("imbh_parameters.cloud_initial_velocity");
+            real cloud_vel_kms[DIM] = {0.0};
+            idx = 0;
+            for(auto& item : cloud_vel_node) {
+                if(idx < DIM) {
+                    cloud_vel_kms[idx] = item.second.get_value<real>();
+                }
+                idx++;
+            }
+            
+            m_has_cloud_initial_conditions = true;
             // Convert from pc to code units
 #if DIM == 2
             m_cloud_initial_position = vec_t(
@@ -954,14 +968,7 @@ void Solver::read_parameterfile(const char * filename)
             );
 #endif
             
-            // Read cloud initial velocity (in km/s, convert to code units)
-            real cloud_vel_kms[DIM];
-            cloud_vel_kms[0] = input.get<real>("imbh_parameters.cloud_initial_velocity.0", 0.0);
-            cloud_vel_kms[1] = input.get<real>("imbh_parameters.cloud_initial_velocity.1", 0.0);
-#if DIM == 3
-            cloud_vel_kms[2] = input.get<real>("imbh_parameters.cloud_initial_velocity.2", 0.0);
-#endif
-            // Convert from km/s to code units
+            // Convert velocity from km/s to code units
 #if DIM == 2
             m_cloud_initial_velocity = vec_t(
                 m_units.from_physical_velocity(cloud_vel_kms[0] * UnitSystem::KM_TO_CM),
@@ -988,7 +995,11 @@ void Solver::read_parameterfile(const char * filename)
             std::cout << "] code" << std::endl;
             std::cout << "  Will shift cloud particles after snapshot load" << std::endl;
             std::cout << "==================================\n" << std::endl;
+        } catch(const std::exception& e) {
+            std::cout << "DEBUG: cloud_initial_position not found or parse error: " << e.what() << std::endl;
+            m_has_cloud_initial_conditions = false;
         } catch(...) {
+            std::cout << "DEBUG: cloud_initial_position unknown exception" << std::endl;
             m_has_cloud_initial_conditions = false;
         }
     } else {

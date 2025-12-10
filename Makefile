@@ -5,7 +5,7 @@
 #
 # Simulation targets: Preset-based workflows for different samples
 
-.PHONY: all help
+.PHONY: all help viz viz_export viz_server
 
 # Default target
 all:
@@ -33,6 +33,11 @@ all:
 	@echo "  make gradh_2d_help            # 2D Planar Lane-Emden grad-h study"
 	@echo "  make gradh_3d_help            # 3D Cylinder Lane-Emden grad-h study"
 	@echo ""
+	@echo "Visualization:"
+	@echo "  make viz SIM=<path>           # Export data and start viz server"
+	@echo "  make viz_export SIM=<path>    # Export simulation data only"
+	@echo "  make viz_server               # Start visualization server only"
+	@echo ""
 	@echo "Quick IMBH shortcuts:"
 	@echo "  make imbh_relax_2k            # Testing: 2k particle relaxation"
 	@echo "  make imbh_relax_200k          # Production: 200k particle relaxation"
@@ -40,6 +45,55 @@ all:
 	@false
 
 help: all
+
+#==============================================================================
+# SPH Visualization Tool
+#==============================================================================
+# Usage:
+#   make viz SIM=sample/sedov/results/gsph_wendland
+#   make viz SIM=sample/imbh_cloud/results/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph
+#   make viz_export SIM=lane_emden/results/n3_gsph
+#   make viz_server
+#
+# Options:
+#   SIM         Path to simulation results directory (required for viz/viz_export)
+#   STRIDE      Export every Nth frame (default: 1)
+#   MAX_FRAMES  Maximum frames to export (default: all)
+#==============================================================================
+
+VIZ_DIR := tools/sph-viz
+VIZ_EXPORT := python $(VIZ_DIR)/scripts/export_viz_data.py
+STRIDE ?= 1
+MAX_FRAMES ?=
+
+# Export simulation data for visualization
+viz_export:
+ifndef SIM
+	@echo "❌ Error: SIM path required"
+	@echo "Usage: make viz_export SIM=<simulation_path>"
+	@echo "Example: make viz_export SIM=sample/sedov/results/gsph_wendland"
+	@exit 1
+endif
+	@echo "========================================"
+	@echo "📊 Exporting visualization data"
+	@echo "========================================"
+	@echo "Simulation: $(SIM)"
+	$(VIZ_EXPORT) $(SIM) --stride $(STRIDE) $(if $(MAX_FRAMES),--max-frames $(MAX_FRAMES),)
+	@echo "✓ Export complete!"
+
+# Start visualization server
+viz_server:
+	@echo "========================================"
+	@echo "🚀 Starting SPH Visualization Server"
+	@echo "========================================"
+	@echo ""
+	@echo "Opening: http://localhost:3000/viz"
+	@echo "Press Ctrl+C to stop the server"
+	@echo ""
+	@cd $(VIZ_DIR) && npm run dev
+
+# One-shot: export data and start server
+viz: viz_export viz_server
 
 # Lane-Emden preset-based system
 -include lane_emden/Makefile.lane_emden

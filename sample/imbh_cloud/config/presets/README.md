@@ -11,13 +11,13 @@ config/presets/
 │   ├── scenarios/
 │   │   ├── 10k/                 # ~10,648 particles (N=22)
 │   │   │   ├── gsph.json
-│   │   │   └── gsph.json
+│   │   │   └── gdisph.json
 │   │   ├── 61k/                 # ~64,000 particles (N=40) - 5% accuracy target
 │   │   │   ├── gsph.json
-│   │   │   └── gsph.json
+│   │   │   └── gdisph.json
 │   │   └── 200k/                # ~200,000 particles (N=100) - production
 │   │       ├── gsph.json
-│   │       └── gsph.json
+│   │       └── gdisph.json
 │   └── README.md
 ├── hydrostatic/                 # Step 2: Test hydrostatic equilibrium
 │   ├── scenarios/
@@ -28,11 +28,26 @@ config/presets/
 │   └── README.md
 └── simulation/                  # Step 3: IMBH encounter simulations
     └── scenarios/
-        ├── b1p5pc_optimal/      # Impact parameter 1.5 pc
-        ├── b3pc_cool/           # Impact parameter 3 pc with cooling
-        ├── b3pc_nocool/         # Impact parameter 3 pc adiabatic
-        └── b6pc_nocool/         # Impact parameter 6 pc adiabatic
+        ├── Mc1e3_Mbh1e5_b1p5_v10/   # Impact parameter 1.5 pc
+        ├── Mc1e3_Mbh1e5_b3_v10/     # Impact parameter 3.0 pc
+        ├── Mc1e3_Mbh1e5_b6_v10/     # Impact parameter 6.0 pc
+        └── SIMULATION_MATRIX.md     # Complete physics documentation
 ```
+
+## Naming Convention
+
+Scenario folders follow: `Mc{cloud_mass}_Mbh{bh_mass}_b{impact_param}_v{velocity}/`
+
+- `Mc1e3` = Cloud mass 10³ M☉
+- `Mbh1e5` = BH mass 10⁵ M☉
+- `b1p5` = Impact parameter 1.5 pc (p = decimal point)
+- `v10` = Approach velocity 10 km/s
+
+Config files follow: `{thermal}_{resolution}_{method}.json`
+
+- `adiabatic` or `radiative` (thermal physics)
+- `61k` (particle count)
+- `gsph` or `gdisph` (SPH method)
 
 ## Complete Workflow
 
@@ -42,7 +57,7 @@ The simulation workflow consists of three stages:
 
 1. **Relaxation**: Generate relaxed initial conditions from Lane-Emden polytrope
 2. **Hydrostatic Test**: Verify equilibrium stability with self-gravity
-3. **IMBH Simulation**: Run tidal disruption encounter (optional)
+3. **IMBH Simulation**: Run tidal disruption encounter
 
 ### Step 1: Relaxation (Generate Initial Conditions)
 
@@ -91,20 +106,19 @@ make -f sample/imbh_cloud/Makefile.hydrostatic hydro_oneshot SIZE=200k METHOD=gs
 - Velocity |v| < 1% sound speed
 - Energy drift < 1%
 
-### Step 3: IMBH Encounter Simulation (Optional)
+### Step 3: IMBH Encounter Simulation
 
 Run tidal disruption simulation with intermediate-mass black hole.
 
 ```bash
-# Standard b=3pc adiabatic
-make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b3pc_nocool METHOD=gsph
+# Copy preset to active config
+cp sample/imbh_cloud/config/presets/simulation/scenarios/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph.json config.json
 
-# Close encounter b=1.5pc
-make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b1p5pc_optimal METHOD=gsph
-
-# With cooling
-make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_oneshot SCENARIO=b3pc_cool METHOD=gsph
+# Run simulation
+./build/sph
 ```
+
+See `simulation/scenarios/SIMULATION_MATRIX.md` for complete physics parameters.
 
 ## Size Options
 
@@ -122,8 +136,8 @@ SPH error scales as: ε ~ N^(-2/3)
 
 | Method | Description | Best For |
 |--------|-------------|----------|
-| `gsph` | Godunov DISPH (Riemann + density-independent) | General use, recommended |
-| `gsph` | Godunov SPH (pure Riemann solver) | Comparison, no AV parameters |
+| `gsph` | Godunov SPH (pure Riemann solver) | Strong shocks, blast waves |
+| `gdisph` | Godunov DISPH (Riemann + density-independent) | Contact discontinuities, tidal streams |
 
 ## Quick Reference Commands
 
@@ -131,7 +145,6 @@ SPH error scales as: ε ~ N^(-2/3)
 # Show help for each stage
 make -f sample/imbh_cloud/Makefile.relaxation relax_help
 make -f sample/imbh_cloud/Makefile.hydrostatic hydro_help
-make -f sample/imbh_cloud/Makefile.imbh_cloud imbh_help
 
 # Visualization only (after simulation)
 make -f sample/imbh_cloud/Makefile.relaxation relax_oneshot_viz SIZE=10k METHOD=gsph
@@ -167,6 +180,16 @@ make -f sample/imbh_cloud/Makefile.hydrostatic hydro_list_configs
 | `useGravity` | Enable self-gravity | `true` |
 | `G` | Gravitational constant | 1.0 |
 | `endTime` | Simulation end time | 100.0 |
+
+### IMBH Encounter Config Keys
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `resumeFromSnapshot` | Path to hydrostatic IC | `"sample/imbh_cloud/results/hydrostatic/61k/GSPH_kernel_gravity/snapshot_0000.csv"` |
+| `gravitySofteningType` | Kernel-convolved gravity | `"wendland_c4"` |
+| `theta` | Barnes-Hut opening angle | 0.5 |
+| `externalForces.pointMass` | IMBH parameters | mass, position, velocity |
+| `thermal.cooling` | Radiative cooling | `"koyama_inutsuka"` or `"none"` |
 
 ## Lane-Emden Physics Reference
 
