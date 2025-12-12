@@ -28,7 +28,13 @@ export interface IMBHPhysicsConfig {
   cloudRadius: number                       // Cloud radius (pc)
   tidalRadius: number                       // Tidal radius (pc)
   impactParameter: number                   // Impact parameter (pc)
+  pericentre: number                        // Pericentre distance (pc)
+  eccentricity: number                      // Orbital eccentricity (>1 for hyperbolic)
   timeUnit: number                          // Time unit conversion (Myr)
+  // Viewing geometry (Oka et al. 2017)
+  inclination?: number                      // Orbital plane inclination (degrees)
+  positionAngle?: number                    // Position angle on sky (degrees)
+  lsrVelocity?: number                      // V_LSR in km/s (negative = approaching)
 }
 
 /** Metadata for a simulation */

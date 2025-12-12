@@ -163,6 +163,19 @@ public:
     real to_physical_density(real code_val) const;
     real to_physical_pressure(real code_val) const;
 
+    // Conversion methods: code units → display units (matches get_X_unit_name())
+    /**
+     * @brief Convert code time to display units
+     * 
+     * Unlike to_physical_time() which returns CGS seconds, this returns
+     * the time in the units that match get_time_unit_name().
+     * For example, if time_label is "Myr", returns time in Myr.
+     * 
+     * @param code_val Time in code units
+     * @return Time in display units (matches get_time_unit_name())
+     */
+    real to_display_time(real code_val) const;
+
     // Conversion methods: physical units (CGS) → code units
     real from_physical_length(real phys_val) const;
     real from_physical_mass(real phys_val) const;

@@ -15,6 +15,7 @@ Usage:
     python animate_3d_view.py <results_dir> [-o output.gif] [--mode density]
     python animate_3d_view.py <results_dir> --mode velocity --rotate
     python animate_3d_view.py <results_dir> --mode temperature --static-view
+    python animate_3d_view.py <results_dir> --config path/to/config.json
 """
 
 import numpy as np
@@ -225,7 +226,8 @@ def compute_center_of_mass(pos_x, pos_y, pos_z, mass):
 
 def create_3d_animation(results_dir, output_file, mode='density', fps=15,
                         rotate=False, elevation=25, show_trajectory=True,
-                        bh_position=(0, 0, 0), bh_mass=100, downsample=1):
+                        bh_position=(0, 0, 0), bh_mass=100, downsample=1,
+                        config_file=None):
     """
     Create 3D animation of IMBH-cloud encounter.
     
@@ -251,8 +253,22 @@ def create_3d_animation(results_dir, output_file, mode='density', fps=15,
         Black hole mass in code units (for tidal radius)
     downsample : int
         Downsample particles by this factor (for speed)
+    config_file : str
+        Path to config JSON file with correct orbital parameters
     """
-    
+
+    # Load config file if provided
+    config_data = None
+    if config_file:
+        try:
+            with open(config_file, 'r') as f:
+                config_data = json.load(f)
+            print(f"✓ Loaded config: {config_file}")
+            print(f"  Using analytic orbital parameters from config")
+        except Exception as e:
+            print(f"Warning: Could not load config file: {e}")
+            print(f"  Will calculate orbital parameters from snapshot data")
+
     snapshot_files = sorted(glob.glob(f"{results_dir}/snapshot_*.csv"))
     if not snapshot_files:
         print(f"Error: No snapshots found in {results_dir}")
@@ -282,12 +298,12 @@ def create_3d_animation(results_dir, output_file, mode='density', fps=15,
     ylim = (min(all_y) - pad, max(all_y) + pad)
     zlim = (min(all_z) - pad, max(all_z) + pad)
     
-    # Make symmetric around origin for better view
-    max_range = max(abs(xlim[0]), abs(xlim[1]), abs(ylim[0]), abs(ylim[1]), 
+    # Make all axes have the same range (equal aspect ratio)
+    max_range = max(abs(xlim[0]), abs(xlim[1]), abs(ylim[0]), abs(ylim[1]),
                     abs(zlim[0]), abs(zlim[1]))
     xlim = (-max_range, max_range)
     ylim = (-max_range, max_range)
-    zlim = (-max_range * 0.3, max_range * 0.3)  # Z is typically smaller
+    zlim = (-max_range, max_range)  # Same range for all axes
     
     # Pre-compute GLOBAL color ranges from all snapshots for fixed colorbar
     print("Computing global color ranges from all snapshots...")
@@ -327,11 +343,52 @@ def create_3d_animation(results_dir, output_file, mode='density', fps=15,
     print(f"  Density range: [{global_dens_min:.2e}, {global_dens_max:.2e}] code")
     print(f"  Temperature range: [{global_temp_min:.1f}, {global_temp_max:.1f}] K")
     print(f"  Velocity range: [0, {global_vel_max:.2f}] km/s")
-    
-    # Compute tidal radius for reference
-    # r_tidal = (M_cloud / M_BH)^(1/3) * r_peri
-    # With M_cloud ~ 1 (1000 Msun), M_BH = 100 (1e5 Msun)
-    r_tidal = (1.0 / bh_mass) ** (1/3) * 3.0  # ~3.6 pc for b=3pc
+
+    # Compute cloud mass and initial conditions
+    M_cloud = np.sum(first['mass'])  # in code units (1 code = 1000 Msun)
+
+    # Compute initial center of mass
+    com_x_init, com_y_init, com_z_init = compute_center_of_mass(
+        first['pos_x'], first['pos_y'], first['pos_z'], first['mass'])
+    r_init = np.sqrt((com_x_init - bh_position[0])**2 +
+                     (com_y_init - bh_position[1])**2 +
+                     (com_z_init - bh_position[2])**2)
+
+    # Compute initial velocity (CoM velocity)
+    v_com_x_init = np.sum(first['mass'] * first['vel_x']) / M_cloud
+    v_com_y_init = np.sum(first['mass'] * first['vel_y']) / M_cloud
+    v_com_z_init = np.sum(first['mass'] * first['vel_z']) / M_cloud
+    v_init_mag = np.sqrt(v_com_x_init**2 + v_com_y_init**2 + v_com_z_init**2)
+
+    # Tidal radius: r_tidal = (M_cloud / (3*M_BH))^(1/3) * R_cloud
+    # This is the radius at which tidal forces overcome self-gravity
+    R_cloud = 1.13  # pc (from initial conditions)
+    r_tidal_factor = (M_cloud / (3 * bh_mass)) ** (1/3)
+    r_tidal = r_tidal_factor * R_cloud
+
+    # Hill radius: r_Hill = r_distance * (M_cloud / (3*M_BH))^(1/3)
+    # This is distance-dependent
+    r_hill_init = r_init * r_tidal_factor
+
+    # Impact parameter: perpendicular distance from BH to initial velocity vector
+    # b = |r × v| / |v|
+    r_vec_init = np.array([com_x_init - bh_position[0],
+                           com_y_init - bh_position[1],
+                           com_z_init - bh_position[2]])
+    v_vec_init = np.array([v_com_x_init, v_com_y_init, v_com_z_init])
+    cross_product = np.cross(r_vec_init, v_vec_init)
+    impact_parameter = np.linalg.norm(cross_product) / (v_init_mag + 1e-10)
+
+    # Print initial conditions
+    print(f"")
+    print(f"Initial conditions:")
+    print(f"  Cloud mass: {M_cloud:.2f} code ({M_cloud*1000:.0f} M☉)")
+    print(f"  Cloud position: ({com_x_init:.2f}, {com_y_init:.2f}, {com_z_init:.2f}) pc")
+    print(f"  Initial velocity: {v_init_mag:.2f} km/s")
+    print(f"  Initial separation: {r_init:.2f} pc")
+    print(f"  Impact parameter: {impact_parameter:.2f} pc")
+    print(f"  Tidal radius: {r_tidal:.2f} pc")
+    print(f"  Initial Hill radius: {r_hill_init:.2f} pc")
     
     # Setup figure
     fig = plt.figure(figsize=(14, 12), facecolor=DARK_BG)
@@ -410,9 +467,149 @@ def create_3d_animation(results_dir, output_file, mode='density', fps=15,
     tidal_x = bh_x + r_tidal * np.cos(theta_circle)
     tidal_y = bh_y + r_tidal * np.sin(theta_circle)
     tidal_z = np.zeros_like(theta_circle) + bh_z
-    ax.plot(tidal_x, tidal_y, tidal_z, '--', color=ACCENT_COLOR, alpha=0.5, 
-            linewidth=1.5, label=f'Tidal radius ({r_tidal:.1f} pc)')
-    
+    ax.plot(tidal_x, tidal_y, tidal_z, '--', color=ACCENT_COLOR, alpha=0.6,
+            linewidth=2.0, label=f'r_tidal = {r_tidal:.2f} pc')
+
+    # Draw Hill radius circle at current cloud position (will be updated)
+    # Use initial position for the static display
+    hill_circle_x = com_x_init + r_hill_init * np.cos(theta_circle)
+    hill_circle_y = com_y_init + r_hill_init * np.sin(theta_circle)
+    hill_circle_z = com_z_init * np.ones_like(theta_circle)
+    hill_circle, = ax.plot(hill_circle_x, hill_circle_y, hill_circle_z, '--',
+                           color='#ff9900', alpha=0.6, linewidth=2.0,
+                           label=f'r_Hill (initial)')
+
+    # Draw initial velocity vector (arrow from initial cloud position)
+    velocity_scale = 3.0  # Scale factor for visualization
+    v_arrow_end_x = com_x_init + v_com_x_init * velocity_scale
+    v_arrow_end_y = com_y_init + v_com_y_init * velocity_scale
+    v_arrow_end_z = com_z_init + v_com_z_init * velocity_scale
+    ax.plot([com_x_init, v_arrow_end_x],
+            [com_y_init, v_arrow_end_y],
+            [com_z_init, v_arrow_end_z],
+            '->', color='#00ff00', linewidth=3.0, alpha=0.8,
+            markersize=15, markerfacecolor='#00ff00', markeredgecolor='white',
+            label=f'v_init = {v_init_mag:.1f} km/s')
+
+    # Draw asymptotic trajectory line (unperturbed path)
+    # Extend the velocity vector far in both directions
+    trajectory_extend = max_range * 1.5
+    v_unit = v_vec_init / v_init_mag
+    asymptote_start = np.array([com_x_init, com_y_init, com_z_init]) - v_unit * trajectory_extend
+    asymptote_end = np.array([com_x_init, com_y_init, com_z_init]) + v_unit * trajectory_extend
+    ax.plot([asymptote_start[0], asymptote_end[0]],
+            [asymptote_start[1], asymptote_end[1]],
+            [asymptote_start[2], asymptote_end[2]],
+            ':', color='#888888', linewidth=1.5, alpha=0.5,
+            label='Asymptotic path')
+
+    # Draw impact parameter line (perpendicular from BH to velocity vector)
+    # Find the closest point on the velocity line to the BH
+    t_closest = np.dot(r_vec_init, v_vec_init) / (v_init_mag**2 + 1e-10)
+    closest_point = np.array([com_x_init, com_y_init, com_z_init]) - v_unit * t_closest * v_init_mag
+    ax.plot([bh_position[0], closest_point[0]],
+            [bh_position[1], closest_point[1]],
+            [bh_position[2], closest_point[2]],
+            '--', color='#ff00ff', linewidth=2.5, alpha=0.7,
+            label=f'b = {impact_parameter:.2f} pc')
+
+    # Mark the closest approach point
+    ax.scatter([closest_point[0]], [closest_point[1]], [closest_point[2]],
+               s=150, c='#ff00ff', marker='x', linewidths=3, alpha=0.9)
+
+    # Calculate and draw analytic hyperbolic trajectory
+    # Orbital parameters - use config if available, otherwise calculate from snapshot
+    GM = 449.8  # G*M_BH in pc*(km/s)^2 for M_BH = 1e5 Msun
+
+    if config_data and 'physics_summary' in config_data:
+        # Use analytic values from config file
+        physics = config_data['physics_summary']
+        e_orbit = physics.get('eccentricity', 1.2)
+        r_peri_calc = physics.get('pericenter_pc', 1.0)
+        impact_parameter_analytic = physics.get('impact_parameter_pc', impact_parameter)
+        v_init_analytic = physics.get('approach_velocity_kms', v_init_mag)
+
+        # Calculate semi-major axis from e and r_peri
+        # For hyperbola: r_peri = a(e-1)
+        if e_orbit > 1:
+            a_orbit = r_peri_calc / (e_orbit - 1)
+        else:
+            a_orbit = r_peri_calc / (1 - e_orbit)
+        a_orbit = -abs(a_orbit)  # Negative for hyperbola
+
+        print(f"  Using config orbital parameters:")
+        print(f"    e = {e_orbit:.4f}, r_peri = {r_peri_calc:.2f} pc")
+        print(f"    impact parameter = {impact_parameter_analytic:.2f} pc")
+        print(f"    approach velocity = {v_init_analytic:.2f} km/s")
+    else:
+        # Calculate from snapshot data (may have numerical errors)
+        specific_energy = 0.5 * v_init_mag**2 - GM / r_init
+        specific_angular_momentum = impact_parameter * v_init_mag
+
+        # Semi-major axis (negative for hyperbola)
+        a_orbit = -GM / (2 * specific_energy) if abs(specific_energy) > 1e-6 else -1e6
+
+        # Eccentricity
+        if abs(a_orbit) > 1e-10:
+            e_orbit = np.sqrt(1 + 2 * specific_energy * specific_angular_momentum**2 / GM**2)
+        else:
+            e_orbit = 1.0
+
+        # Pericenter distance
+        if e_orbit > 1:  # Hyperbolic orbit
+            r_peri_calc = abs(a_orbit) * (e_orbit - 1)
+        else:
+            r_peri_calc = abs(a_orbit) * (1 - e_orbit)
+
+        print(f"  Calculated orbital parameters from snapshot:")
+        print(f"    e = {e_orbit:.4f}, r_peri = {r_peri_calc:.2f} pc")
+
+    # Generate analytic trajectory
+    # For hyperbola, true anomaly ranges from -theta_inf to +theta_inf
+    # where theta_inf = arccos(-1/e)
+    if e_orbit > 1:
+        theta_inf = np.arccos(-1.0 / e_orbit)
+        theta_range = np.linspace(-theta_inf * 0.95, theta_inf * 0.95, 200)
+
+        # Semi-latus rectum
+        p_orbit = abs(a_orbit) * (e_orbit**2 - 1)
+
+        # Radius as function of true anomaly
+        r_theta = p_orbit / (1 + e_orbit * np.cos(theta_range))
+
+        # Position in orbital plane (pericenter along +x initially)
+        x_orbit_frame = r_theta * np.cos(theta_range)
+        y_orbit_frame = r_theta * np.sin(theta_range)
+
+        # Calculate true anomaly at initial position
+        # r = p / (1 + e*cos(theta)) => cos(theta) = (p/r - 1) / e
+        cos_theta0 = (p_orbit / r_init - 1) / e_orbit
+        cos_theta0 = np.clip(cos_theta0, -1.0, 1.0)  # numerical safety
+        theta0 = np.arccos(cos_theta0)
+
+        # Check if approaching (v_r < 0) or departing (v_r > 0)
+        v_radial = np.dot(r_vec_init, v_vec_init) / r_init
+        if v_radial > 0:  # departing from pericenter
+            theta0 = -theta0  # true anomaly is negative after pericenter
+
+        # Argument of pericenter (rotation from orbit frame to physical frame)
+        # In orbit frame, position at theta0 is at angle theta0 from +x
+        # In physical frame, position is at angle angle_init from +x
+        # So: omega = angle_init - theta0
+        angle_init = np.arctan2(com_y_init - bh_position[1], com_x_init - bh_position[0])
+        omega = angle_init - theta0  # argument of pericenter
+
+        # Rotate orbit coordinates by omega
+        cos_w, sin_w = np.cos(omega), np.sin(omega)
+        x_analytic = bh_position[0] + x_orbit_frame * cos_w - y_orbit_frame * sin_w
+        y_analytic = bh_position[1] + x_orbit_frame * sin_w + y_orbit_frame * cos_w
+        z_analytic = np.zeros_like(x_analytic) + bh_position[2]
+
+        # Draw analytic trajectory
+        ax.plot(x_analytic, y_analytic, z_analytic,
+                '--', color='#ffff00', linewidth=2.0, alpha=0.5,
+                label=f'Analytic orbit (e={e_orbit:.2f})')
+
     # Pre-compute full COM orbit trajectory for all snapshots
     print("Pre-computing COM orbit trajectory...")
     full_trajectory_x = []
@@ -443,8 +640,10 @@ def create_3d_animation(results_dir, output_file, mode='density', fps=15,
                                 alpha=0.9, linewidth=2.5)
     
     # Text annotations
-    ax.set_title(f'IMBH-Cloud Encounter - {title_mode} (3D View)', 
-                 fontsize=16, fontweight='bold', color=TEXT_COLOR, pad=20)
+    cloud_mass_msun = M_cloud * 1000  # Convert to solar masses
+    title_str = f'IMBH-Cloud Encounter - {title_mode} (3D View)\n'
+    title_str += f'M_cloud = {cloud_mass_msun:.0f} M☉  |  M_BH = {bh_mass*1000:.0e} M☉  |  b = {impact_parameter:.2f} pc'
+    ax.set_title(title_str, fontsize=15, fontweight='bold', color=TEXT_COLOR, pad=20)
     
     time_text = ax.text2D(0.02, 0.98, '', transform=ax.transAxes, fontsize=14,
                           fontweight='bold', va='top', color=TEXT_COLOR,
@@ -453,9 +652,36 @@ def create_3d_animation(results_dir, output_file, mode='density', fps=15,
     info_text = ax.text2D(0.02, 0.02, '', transform=ax.transAxes, fontsize=10,
                           va='bottom', color=TEXT_COLOR, family='monospace',
                           path_effects=[path_effects.withStroke(linewidth=2, foreground=DARK_BG)])
-    
+
+    # Add formulas text (lower right)
+    formula_str = 'Orbital Parameters:\n'
+    formula_str += f'  e = {e_orbit:.3f} (eccentricity)\n'
+    formula_str += f'  r_peri = {r_peri_calc:.2f} pc (analytic)\n'
+    formula_str += f'  a = {a_orbit:.2f} pc (semi-major)\n\n'
+    formula_str += 'Tidal Radius:\n'
+    formula_str += f'  r_tidal = (M_cloud/(3M_BH))^(1/3) × R_cloud\n'
+    formula_str += f'  = {r_tidal:.2f} pc\n\n'
+    formula_str += 'Hill Radius:\n'
+    formula_str += f'  r_Hill = r × (M_cloud/(3M_BH))^(1/3)\n'
+    formula_str += f'  = r × {r_tidal_factor:.3f}\n\n'
+    formula_str += 'Impact Parameter:\n'
+    formula_str += f'  b = |r × v| / |v| = {impact_parameter:.2f} pc\n\n'
+    formula_str += 'Initial:\n'
+    formula_str += f'  v_init = {v_init_mag:.2f} km/s\n'
+    formula_str += f'  r_init = {r_init:.2f} pc\n'
+    formula_str += f'  M_cloud = {M_cloud*1000:.0f} M☉\n'
+    formula_str += f'  M_BH = {bh_mass*1000:.0e} M☉'
+
+    formula_text = ax.text2D(0.98, 0.02, formula_str, transform=ax.transAxes,
+                             fontsize=8, va='bottom', ha='right',
+                             color=TEXT_COLOR, family='monospace',
+                             bbox=dict(boxstyle='round,pad=0.5', facecolor=DARK_PANEL,
+                                     edgecolor=GRID_COLOR, alpha=0.9),
+                             path_effects=[path_effects.withStroke(linewidth=1,
+                                                                   foreground=DARK_BG)])
+
     # Legend
-    ax.legend(loc='upper right', fontsize=10, facecolor=DARK_PANEL, 
+    ax.legend(loc='upper right', fontsize=10, facecolor=DARK_PANEL,
               edgecolor=GRID_COLOR, labelcolor=TEXT_COLOR)
     
     # Add BH label
@@ -475,7 +701,7 @@ def create_3d_animation(results_dir, output_file, mode='density', fps=15,
     def update(frame_idx):
         snapshot = load_snapshot(snapshot_files[frame_idx])
         if snapshot is None:
-            return scatter, trajectory_line, trajectory_marker
+            return scatter, trajectory_line, trajectory_marker, hill_circle
         
         # Downsample if needed
         n_particles = len(snapshot['pos_x'])
@@ -522,7 +748,16 @@ def create_3d_animation(results_dir, output_file, mode='density', fps=15,
         
         # Compute distance to BH
         r_to_bh = np.sqrt((com_x - bh_x)**2 + (com_y - bh_y)**2 + (com_z - bh_z)**2)
-        
+
+        # Update Hill radius circle (centered on cloud COM, radius depends on distance)
+        r_hill_current = r_to_bh * r_tidal_factor
+        hill_x = com_x + r_hill_current * np.cos(theta_circle)
+        hill_y = com_y + r_hill_current * np.sin(theta_circle)
+        hill_z = com_z * np.ones_like(theta_circle)
+        hill_circle.set_data(hill_x, hill_y)
+        hill_circle.set_3d_properties(hill_z)
+        hill_circle.set_label(f'r_Hill = {r_hill_current:.2f} pc')
+
         # Update time text
         time_code = frame_idx * 0.02  # Assuming outputTime=0.02
         time_myr = time_code * TIME_UNIT
@@ -531,6 +766,7 @@ def create_3d_animation(results_dir, output_file, mode='density', fps=15,
         # Update info text
         info_str = f'Cloud CoM: ({com_x:.1f}, {com_y:.1f}, {com_z:.1f}) pc\n'
         info_str += f'Distance to BH: {r_to_bh:.2f} pc\n'
+        info_str += f'Hill radius: {r_hill_current:.2f} pc\n'
         info_str += f'Particles: {n_particles:,}'
         info_text.set_text(info_str)
         
@@ -540,9 +776,9 @@ def create_3d_animation(results_dir, output_file, mode='density', fps=15,
             ax.view_init(elev=elevation, azim=azim)
         
         if (frame_idx + 1) % 5 == 0 or frame_idx == 0:
-            print(f"  Frame {frame_idx + 1}/{len(snapshot_files)}: t={time_myr:.3f} Myr, r_BH={r_to_bh:.2f} pc")
-        
-        return scatter, trajectory_line, trajectory_marker
+            print(f"  Frame {frame_idx + 1}/{len(snapshot_files)}: t={time_myr:.3f} Myr, r_BH={r_to_bh:.2f} pc, r_Hill={r_hill_current:.2f} pc")
+
+        return scatter, trajectory_line, trajectory_marker, hill_circle
     
     # Create animation
     anim = FuncAnimation(fig, update, frames=len(snapshot_files), 
@@ -570,7 +806,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python animate_3d_view.py results/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph
+  python animate_3d_view.py results/CAT3/C_1M/rp10 --config config/presets/categories/CAT3/C_1M/rp10.json
   python animate_3d_view.py results/ -o animations/3d_density.gif --mode density
   python animate_3d_view.py results/ --mode temperature --no-rotate --elev 45
   python animate_3d_view.py results/ --mode velocity --downsample 2 --fps 20
@@ -602,7 +838,9 @@ Examples:
                         help='Black hole Y position (default: 0)')
     parser.add_argument('--bh-z', type=float, default=0.0,
                         help='Black hole Z position (default: 0)')
-    
+    parser.add_argument('--config', type=str, default=None,
+                        help='Path to config JSON file for correct orbital parameters')
+
     args = parser.parse_args()
     
     # Determine output file
@@ -632,6 +870,7 @@ Examples:
         bh_position=(args.bh_x, args.bh_y, args.bh_z),
         bh_mass=args.bh_mass,
         downsample=args.downsample,
+        config_file=args.config,
     )
     
     if success:

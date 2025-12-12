@@ -278,7 +278,7 @@ OutputMetadata OutputManager::build_metadata(std::shared_ptr<Simulation> sim,
     // Simulation state
     metadata.step = step;
     metadata.time_code = sim->get_time();
-    metadata.time_physical = m_units.to_physical_time(sim->get_time());
+    metadata.time_physical = m_units.to_display_time(sim->get_time());
     metadata.particle_count = sim->get_particle_num();
     
     // Physics parameters from SPHParameters

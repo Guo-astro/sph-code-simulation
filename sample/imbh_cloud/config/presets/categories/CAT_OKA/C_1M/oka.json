@@ -13,16 +13,16 @@
     "cloud_mass_Msun": 1000,
     "cloud_radius_pc": 1.13,
     "bh_mass_Msun": 100000,
-    "impact_parameter_pc": 5.17,
-    "approach_velocity_kms": 9.35,
+    "impact_parameter_pc": 5.23,
+    "approach_velocity_kms": 9.25,
     "tidal_radius_pc": 5.24,
     "b_over_r_tidal": 0.32,
     "regime": "oka_grazing_encounter",
     "thermal_physics": "radiative_inoue_inutsuka",
     "self_gravity": "enhanced_accuracy",
     "particles": 1000000,
-    "pericentre_pc": 1.69,
-    "eccentricity": 1.241
+    "pericentre_pc": 2.158,
+    "eccentricity": 1.4106
   },
   "units": {
     "type": "IMBH_ENCOUNTER",
@@ -65,12 +65,12 @@
         0.0
       ],
       "velocity_boost": [
-        -9.35,
-        4.48,
+        -10.18,
+        5.05,
         0.0
       ]
     },
-    "comment": "Cloud starts at (20.0, -5.17, 0) pc with velocity (-9.35, 4.48, 0) km/s [Oka-style hyperbolic orbit, pericentre=1.69 pc]"
+    "comment": "Cloud starts at (20.0, -5.17, 0) pc with velocity (-10.18, 5.05, 0) km/s [hyperbolic orbit, b=5.17 pc, v_inf=9.35 km/s, r_peri=2.22 pc]"
   },
   "imbh_parameters": {
     "enabled": true,
@@ -92,8 +92,8 @@
       0.0
     ],
     "cloud_initial_velocity": [
-      -9.35,
-      4.48,
+      -10.18,
+      5.05,
       0.0
     ]
   },

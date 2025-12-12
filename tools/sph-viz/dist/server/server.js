@@ -1,19 +1,143 @@
+import { ReadableStream as ReadableStream$1 } from "node:stream/web";
+import { Readable, PassThrough } from "node:stream";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { jsx } from "react/jsx-runtime";
-import { defineHandlerCallback, renderRouterToStream } from "@tanstack/react-router/ssr/server";
-import { RouterProvider } from "@tanstack/react-router";
-function StartServer(props) {
-  return /* @__PURE__ */ jsx(RouterProvider, { router: props.router });
+import { jsxs, jsx, Fragment } from "react/jsx-runtime";
+import ReactDOMServer from "react-dom/server";
+import * as React from "react";
+import React__default, { useRef } from "react";
+const __storeToDerived = /* @__PURE__ */ new WeakMap();
+const __derivedToStore = /* @__PURE__ */ new WeakMap();
+const __depsThatHaveWrittenThisTick = {
+  current: []
+};
+let __isFlushing = false;
+let __batchDepth = 0;
+const __pendingUpdates = /* @__PURE__ */ new Set();
+const __initialBatchValues = /* @__PURE__ */ new Map();
+function __flush_internals(relatedVals) {
+  for (const derived of relatedVals) {
+    if (__depsThatHaveWrittenThisTick.current.includes(derived)) {
+      continue;
+    }
+    __depsThatHaveWrittenThisTick.current.push(derived);
+    derived.recompute();
+    const stores = __derivedToStore.get(derived);
+    if (stores) {
+      for (const store of stores) {
+        const relatedLinkedDerivedVals = __storeToDerived.get(store);
+        if (!(relatedLinkedDerivedVals == null ? void 0 : relatedLinkedDerivedVals.length)) continue;
+        __flush_internals(relatedLinkedDerivedVals);
+      }
+    }
+  }
 }
-const defaultStreamHandler = defineHandlerCallback(
-  ({ request, router, responseHeaders }) => renderRouterToStream({
-    request,
-    router,
-    responseHeaders,
-    children: /* @__PURE__ */ jsx(StartServer, { router })
-  })
-);
+function __notifyListeners(store) {
+  const value = {
+    prevVal: store.prevState,
+    currentVal: store.state
+  };
+  for (const listener of store.listeners) {
+    listener(value);
+  }
+}
+function __notifyDerivedListeners(derived) {
+  const value = {
+    prevVal: derived.prevState,
+    currentVal: derived.state
+  };
+  for (const listener of derived.listeners) {
+    listener(value);
+  }
+}
+function __flush(store) {
+  if (__batchDepth > 0 && !__initialBatchValues.has(store)) {
+    __initialBatchValues.set(store, store.prevState);
+  }
+  __pendingUpdates.add(store);
+  if (__batchDepth > 0) return;
+  if (__isFlushing) return;
+  try {
+    __isFlushing = true;
+    while (__pendingUpdates.size > 0) {
+      const stores = Array.from(__pendingUpdates);
+      __pendingUpdates.clear();
+      for (const store2 of stores) {
+        const prevState = __initialBatchValues.get(store2) ?? store2.prevState;
+        store2.prevState = prevState;
+        __notifyListeners(store2);
+      }
+      for (const store2 of stores) {
+        const derivedVals = __storeToDerived.get(store2);
+        if (!derivedVals) continue;
+        __depsThatHaveWrittenThisTick.current.push(store2);
+        __flush_internals(derivedVals);
+      }
+      for (const store2 of stores) {
+        const derivedVals = __storeToDerived.get(store2);
+        if (!derivedVals) continue;
+        for (const derived of derivedVals) {
+          __notifyDerivedListeners(derived);
+        }
+      }
+    }
+  } finally {
+    __isFlushing = false;
+    __depsThatHaveWrittenThisTick.current = [];
+    __initialBatchValues.clear();
+  }
+}
+function batch(fn2) {
+  __batchDepth++;
+  try {
+    fn2();
+  } finally {
+    __batchDepth--;
+    if (__batchDepth === 0) {
+      const pendingUpdateToFlush = __pendingUpdates.values().next().value;
+      if (pendingUpdateToFlush) {
+        __flush(pendingUpdateToFlush);
+      }
+    }
+  }
+}
+function isUpdaterFunction(updater) {
+  return typeof updater === "function";
+}
+class Store {
+  constructor(initialState, options) {
+    this.listeners = /* @__PURE__ */ new Set();
+    this.subscribe = (listener) => {
+      var _a, _b;
+      this.listeners.add(listener);
+      const unsub = (_b = (_a = this.options) == null ? void 0 : _a.onSubscribe) == null ? void 0 : _b.call(_a, listener, this);
+      return () => {
+        this.listeners.delete(listener);
+        unsub == null ? void 0 : unsub();
+      };
+    };
+    this.prevState = initialState;
+    this.state = initialState;
+    this.options = options;
+  }
+  setState(updater) {
+    var _a, _b, _c;
+    this.prevState = this.state;
+    if ((_a = this.options) == null ? void 0 : _a.updateFn) {
+      this.state = this.options.updateFn(this.prevState)(updater);
+    } else {
+      if (isUpdaterFunction(updater)) {
+        this.state = updater(this.prevState);
+      } else {
+        this.state = updater;
+      }
+    }
+    (_c = (_b = this.options) == null ? void 0 : _b.onUpdate) == null ? void 0 : _c.call(_b);
+    __flush(this);
+  }
+}
 const stateIndexKey = "__TSR_index";
+const popStateEvent = "popstate";
+const beforeUnloadEvent = "beforeunload";
 function createHistory(opts) {
   let location = opts.getLocation();
   const subscribers = /* @__PURE__ */ new Set();
@@ -155,6 +279,192 @@ function assignKeyAndIndex(index, state) {
     [stateIndexKey]: index
   };
 }
+function createBrowserHistory(opts) {
+  const win = typeof document !== "undefined" ? window : void 0;
+  const originalPushState = win.history.pushState;
+  const originalReplaceState = win.history.replaceState;
+  let blockers = [];
+  const _getBlockers = () => blockers;
+  const _setBlockers = (newBlockers) => blockers = newBlockers;
+  const createHref = ((path) => path);
+  const parseLocation = (() => parseHref(
+    `${win.location.pathname}${win.location.search}${win.location.hash}`,
+    win.history.state
+  ));
+  if (!win.history.state?.__TSR_key && !win.history.state?.key) {
+    const addedKey = createRandomKey();
+    win.history.replaceState(
+      {
+        [stateIndexKey]: 0,
+        key: addedKey,
+        // TODO: Remove in v2 - use __TSR_key instead
+        __TSR_key: addedKey
+      },
+      ""
+    );
+  }
+  let currentLocation = parseLocation();
+  let rollbackLocation;
+  let nextPopIsGo = false;
+  let ignoreNextPop = false;
+  let skipBlockerNextPop = false;
+  let ignoreNextBeforeUnload = false;
+  const getLocation = () => currentLocation;
+  let next;
+  let scheduled;
+  const flush = () => {
+    if (!next) {
+      return;
+    }
+    history._ignoreSubscribers = true;
+    (next.isPush ? win.history.pushState : win.history.replaceState)(
+      next.state,
+      "",
+      next.href
+    );
+    history._ignoreSubscribers = false;
+    next = void 0;
+    scheduled = void 0;
+    rollbackLocation = void 0;
+  };
+  const queueHistoryAction = (type, destHref, state) => {
+    const href = createHref(destHref);
+    if (!scheduled) {
+      rollbackLocation = currentLocation;
+    }
+    currentLocation = parseHref(destHref, state);
+    next = {
+      href,
+      state,
+      isPush: next?.isPush || type === "push"
+    };
+    if (!scheduled) {
+      scheduled = Promise.resolve().then(() => flush());
+    }
+  };
+  const onPushPop = (type) => {
+    currentLocation = parseLocation();
+    history.notify({ type });
+  };
+  const onPushPopEvent = async () => {
+    if (ignoreNextPop) {
+      ignoreNextPop = false;
+      return;
+    }
+    const nextLocation = parseLocation();
+    const delta = nextLocation.state[stateIndexKey] - currentLocation.state[stateIndexKey];
+    const isForward = delta === 1;
+    const isBack = delta === -1;
+    const isGo = !isForward && !isBack || nextPopIsGo;
+    nextPopIsGo = false;
+    const action = isGo ? "GO" : isBack ? "BACK" : "FORWARD";
+    const notify = isGo ? {
+      type: "GO",
+      index: delta
+    } : {
+      type: isBack ? "BACK" : "FORWARD"
+    };
+    if (skipBlockerNextPop) {
+      skipBlockerNextPop = false;
+    } else {
+      const blockers2 = _getBlockers();
+      if (typeof document !== "undefined" && blockers2.length) {
+        for (const blocker of blockers2) {
+          const isBlocked = await blocker.blockerFn({
+            currentLocation,
+            nextLocation,
+            action
+          });
+          if (isBlocked) {
+            ignoreNextPop = true;
+            win.history.go(1);
+            history.notify(notify);
+            return;
+          }
+        }
+      }
+    }
+    currentLocation = parseLocation();
+    history.notify(notify);
+  };
+  const onBeforeUnload = (e) => {
+    if (ignoreNextBeforeUnload) {
+      ignoreNextBeforeUnload = false;
+      return;
+    }
+    let shouldBlock = false;
+    const blockers2 = _getBlockers();
+    if (typeof document !== "undefined" && blockers2.length) {
+      for (const blocker of blockers2) {
+        const shouldHaveBeforeUnload = blocker.enableBeforeUnload ?? true;
+        if (shouldHaveBeforeUnload === true) {
+          shouldBlock = true;
+          break;
+        }
+        if (typeof shouldHaveBeforeUnload === "function" && shouldHaveBeforeUnload() === true) {
+          shouldBlock = true;
+          break;
+        }
+      }
+    }
+    if (shouldBlock) {
+      e.preventDefault();
+      return e.returnValue = "";
+    }
+    return;
+  };
+  const history = createHistory({
+    getLocation,
+    getLength: () => win.history.length,
+    pushState: (href, state) => queueHistoryAction("push", href, state),
+    replaceState: (href, state) => queueHistoryAction("replace", href, state),
+    back: (ignoreBlocker) => {
+      if (ignoreBlocker) skipBlockerNextPop = true;
+      ignoreNextBeforeUnload = true;
+      return win.history.back();
+    },
+    forward: (ignoreBlocker) => {
+      if (ignoreBlocker) skipBlockerNextPop = true;
+      ignoreNextBeforeUnload = true;
+      win.history.forward();
+    },
+    go: (n) => {
+      nextPopIsGo = true;
+      win.history.go(n);
+    },
+    createHref: (href) => createHref(href),
+    flush,
+    destroy: () => {
+      win.history.pushState = originalPushState;
+      win.history.replaceState = originalReplaceState;
+      win.removeEventListener(beforeUnloadEvent, onBeforeUnload, {
+        capture: true
+      });
+      win.removeEventListener(popStateEvent, onPushPopEvent);
+    },
+    onBlocked: () => {
+      if (rollbackLocation && currentLocation !== rollbackLocation) {
+        currentLocation = rollbackLocation;
+      }
+    },
+    getBlockers: _getBlockers,
+    setBlockers: _setBlockers,
+    notifyOnIndexChange: false
+  });
+  win.addEventListener(beforeUnloadEvent, onBeforeUnload, { capture: true });
+  win.addEventListener(popStateEvent, onPushPopEvent);
+  win.history.pushState = function(...args) {
+    const res = originalPushState.apply(win.history, args);
+    if (!history._ignoreSubscribers) onPushPop("PUSH");
+    return res;
+  };
+  win.history.replaceState = function(...args) {
+    const res = originalReplaceState.apply(win.history, args);
+    if (!history._ignoreSubscribers) onPushPop("REPLACE");
+    return res;
+  };
+  return history;
+}
 function createMemoryHistory(opts = {
   initialEntries: ["/"]
 }) {
@@ -210,110 +520,132 @@ function parseHref(href, state) {
 function createRandomKey() {
   return (Math.random() + 1).toString(36).substring(7);
 }
-function splitSetCookieString$1(cookiesString) {
-  if (Array.isArray(cookiesString)) {
-    return cookiesString.flatMap((c2) => splitSetCookieString$1(c2));
+function last(arr) {
+  return arr[arr.length - 1];
+}
+function isFunction(d) {
+  return typeof d === "function";
+}
+function functionalUpdate(updater, previous) {
+  if (isFunction(updater)) {
+    return updater(previous);
   }
-  if (typeof cookiesString !== "string") {
-    return [];
+  return updater;
+}
+const hasOwn = Object.prototype.hasOwnProperty;
+function replaceEqualDeep(prev, _next) {
+  if (prev === _next) {
+    return prev;
   }
-  const cookiesStrings = [];
-  let pos = 0;
-  let start;
-  let ch;
-  let lastComma;
-  let nextStart;
-  let cookiesSeparatorFound;
-  const skipWhitespace = () => {
-    while (pos < cookiesString.length && /\s/.test(cookiesString.charAt(pos))) {
-      pos += 1;
+  const next = _next;
+  const array = isPlainArray(prev) && isPlainArray(next);
+  if (!array && !(isPlainObject(prev) && isPlainObject(next))) return next;
+  const prevItems = array ? prev : getEnumerableOwnKeys(prev);
+  if (!prevItems) return next;
+  const nextItems = array ? next : getEnumerableOwnKeys(next);
+  if (!nextItems) return next;
+  const prevSize = prevItems.length;
+  const nextSize = nextItems.length;
+  const copy = array ? new Array(nextSize) : {};
+  let equalItems = 0;
+  for (let i = 0; i < nextSize; i++) {
+    const key = array ? i : nextItems[i];
+    const p2 = prev[key];
+    const n = next[key];
+    if (p2 === n) {
+      copy[key] = p2;
+      if (array ? i < prevSize : hasOwn.call(prev, key)) equalItems++;
+      continue;
     }
-    return pos < cookiesString.length;
-  };
-  const notSpecialChar = () => {
-    ch = cookiesString.charAt(pos);
-    return ch !== "=" && ch !== ";" && ch !== ",";
-  };
-  while (pos < cookiesString.length) {
-    start = pos;
-    cookiesSeparatorFound = false;
-    while (skipWhitespace()) {
-      ch = cookiesString.charAt(pos);
-      if (ch === ",") {
-        lastComma = pos;
-        pos += 1;
-        skipWhitespace();
-        nextStart = pos;
-        while (pos < cookiesString.length && notSpecialChar()) {
-          pos += 1;
+    if (p2 === null || n === null || typeof p2 !== "object" || typeof n !== "object") {
+      copy[key] = n;
+      continue;
+    }
+    const v2 = replaceEqualDeep(p2, n);
+    copy[key] = v2;
+    if (v2 === p2) equalItems++;
+  }
+  return prevSize === nextSize && equalItems === prevSize ? prev : copy;
+}
+function getEnumerableOwnKeys(o2) {
+  const keys = [];
+  const names = Object.getOwnPropertyNames(o2);
+  for (const name of names) {
+    if (!Object.prototype.propertyIsEnumerable.call(o2, name)) return false;
+    keys.push(name);
+  }
+  const symbols = Object.getOwnPropertySymbols(o2);
+  for (const symbol of symbols) {
+    if (!Object.prototype.propertyIsEnumerable.call(o2, symbol)) return false;
+    keys.push(symbol);
+  }
+  return keys;
+}
+function isPlainObject(o2) {
+  if (!hasObjectPrototype(o2)) {
+    return false;
+  }
+  const ctor = o2.constructor;
+  if (typeof ctor === "undefined") {
+    return true;
+  }
+  const prot = ctor.prototype;
+  if (!hasObjectPrototype(prot)) {
+    return false;
+  }
+  if (!prot.hasOwnProperty("isPrototypeOf")) {
+    return false;
+  }
+  return true;
+}
+function hasObjectPrototype(o2) {
+  return Object.prototype.toString.call(o2) === "[object Object]";
+}
+function isPlainArray(value) {
+  return Array.isArray(value) && value.length === Object.keys(value).length;
+}
+function deepEqual(a, b2, opts) {
+  if (a === b2) {
+    return true;
+  }
+  if (typeof a !== typeof b2) {
+    return false;
+  }
+  if (Array.isArray(a) && Array.isArray(b2)) {
+    if (a.length !== b2.length) return false;
+    for (let i = 0, l = a.length; i < l; i++) {
+      if (!deepEqual(a[i], b2[i], opts)) return false;
+    }
+    return true;
+  }
+  if (isPlainObject(a) && isPlainObject(b2)) {
+    const ignoreUndefined = opts?.ignoreUndefined ?? true;
+    if (opts?.partial) {
+      for (const k2 in b2) {
+        if (!ignoreUndefined || b2[k2] !== void 0) {
+          if (!deepEqual(a[k2], b2[k2], opts)) return false;
         }
-        if (pos < cookiesString.length && cookiesString.charAt(pos) === "=") {
-          cookiesSeparatorFound = true;
-          pos = nextStart;
-          cookiesStrings.push(cookiesString.slice(start, lastComma));
-          start = pos;
-        } else {
-          pos = lastComma + 1;
-        }
-      } else {
-        pos += 1;
+      }
+      return true;
+    }
+    let aCount = 0;
+    if (!ignoreUndefined) {
+      aCount = Object.keys(a).length;
+    } else {
+      for (const k2 in a) {
+        if (a[k2] !== void 0) aCount++;
       }
     }
-    if (!cookiesSeparatorFound || pos >= cookiesString.length) {
-      cookiesStrings.push(cookiesString.slice(start));
-    }
-  }
-  return cookiesStrings;
-}
-function toHeadersInstance(init) {
-  if (init instanceof Headers) {
-    return new Headers(init);
-  } else if (Array.isArray(init)) {
-    return new Headers(init);
-  } else if (typeof init === "object") {
-    return new Headers(init);
-  } else {
-    return new Headers();
-  }
-}
-function mergeHeaders(...headers) {
-  return headers.reduce((acc, header) => {
-    const headersInstance = toHeadersInstance(header);
-    for (const [key, value] of headersInstance.entries()) {
-      if (key === "set-cookie") {
-        const splitCookies = splitSetCookieString$1(value);
-        splitCookies.forEach((cookie) => acc.append("set-cookie", cookie));
-      } else {
-        acc.set(key, value);
+    let bCount = 0;
+    for (const k2 in b2) {
+      if (!ignoreUndefined || b2[k2] !== void 0) {
+        bCount++;
+        if (bCount > aCount || !deepEqual(a[k2], b2[k2], opts)) return false;
       }
     }
-    return acc;
-  }, new Headers());
-}
-function json(payload, init) {
-  return new Response(JSON.stringify(payload), {
-    ...init,
-    headers: mergeHeaders(
-      { "content-type": "application/json" },
-      init?.headers
-    )
-  });
-}
-var isProduction = process.env.NODE_ENV === "production";
-var prefix = "Invariant failed";
-function invariant(condition, message) {
-  if (condition) {
-    return;
+    return aCount === bCount;
   }
-  if (isProduction) {
-    throw new Error(prefix);
-  }
-  var provided = typeof message === "function" ? message() : message;
-  var value = provided ? "".concat(prefix, ": ").concat(provided) : prefix;
-  throw new Error(value);
-}
-function isNotFound(obj) {
-  return !!obj?.isNotFound;
+  return false;
 }
 function createControlledPromise(onResolve) {
   let resolveLoadPromise;
@@ -327,6 +659,7 @@ function createControlledPromise(onResolve) {
     controlledPromise.status = "resolved";
     controlledPromise.value = value;
     resolveLoadPromise(value);
+    onResolve?.(value);
   };
   controlledPromise.reject = (e) => {
     controlledPromise.status = "rejected";
@@ -334,12 +667,1992 @@ function createControlledPromise(onResolve) {
   };
   return controlledPromise;
 }
+function isModuleNotFoundError(error) {
+  if (typeof error?.message !== "string") return false;
+  return error.message.startsWith("Failed to fetch dynamically imported module") || error.message.startsWith("error loading dynamically imported module") || error.message.startsWith("Importing a module script failed");
+}
+function isPromise(value) {
+  return Boolean(
+    value && typeof value === "object" && typeof value.then === "function"
+  );
+}
+function findLast(array, predicate) {
+  for (let i = array.length - 1; i >= 0; i--) {
+    const item = array[i];
+    if (predicate(item)) return item;
+  }
+  return void 0;
+}
+function decodeSegment(segment) {
+  try {
+    return decodeURI(segment);
+  } catch {
+    return segment.replaceAll(/%[0-9A-F]{2}/gi, (match) => {
+      try {
+        return decodeURI(match);
+      } catch {
+        return match;
+      }
+    });
+  }
+}
+function decodePath(path, decodeIgnore) {
+  if (!path) return path;
+  const re2 = /%25|%5C/gi;
+  let cursor = 0;
+  let result = "";
+  let match;
+  while (null !== (match = re2.exec(path))) {
+    result += decodeSegment(path.slice(cursor, match.index)) + match[0];
+    cursor = re2.lastIndex;
+  }
+  return result + decodeSegment(cursor ? path.slice(cursor) : path);
+}
+var isProduction$1 = process.env.NODE_ENV === "production";
+var prefix = "Invariant failed";
+function invariant(condition, message) {
+  if (condition) {
+    return;
+  }
+  if (isProduction$1) {
+    throw new Error(prefix);
+  }
+  var provided = typeof message === "function" ? message() : message;
+  var value = provided ? "".concat(prefix, ": ").concat(provided) : prefix;
+  throw new Error(value);
+}
+function createLRUCache(max) {
+  const cache = /* @__PURE__ */ new Map();
+  let oldest;
+  let newest;
+  const touch = (entry) => {
+    if (!entry.next) return;
+    if (!entry.prev) {
+      entry.next.prev = void 0;
+      oldest = entry.next;
+      entry.next = void 0;
+      if (newest) {
+        entry.prev = newest;
+        newest.next = entry;
+      }
+    } else {
+      entry.prev.next = entry.next;
+      entry.next.prev = entry.prev;
+      entry.next = void 0;
+      if (newest) {
+        newest.next = entry;
+        entry.prev = newest;
+      }
+    }
+    newest = entry;
+  };
+  return {
+    get(key) {
+      const entry = cache.get(key);
+      if (!entry) return void 0;
+      touch(entry);
+      return entry.value;
+    },
+    set(key, value) {
+      if (cache.size >= max && oldest) {
+        const toDelete = oldest;
+        cache.delete(toDelete.key);
+        if (toDelete.next) {
+          oldest = toDelete.next;
+          toDelete.next.prev = void 0;
+        }
+        if (toDelete === newest) {
+          newest = void 0;
+        }
+      }
+      const existing = cache.get(key);
+      if (existing) {
+        existing.value = value;
+        touch(existing);
+      } else {
+        const entry = { key, value, prev: newest };
+        if (newest) newest.next = entry;
+        newest = entry;
+        if (!oldest) oldest = entry;
+        cache.set(key, entry);
+      }
+    },
+    clear() {
+      cache.clear();
+      oldest = void 0;
+      newest = void 0;
+    }
+  };
+}
+const SEGMENT_TYPE_PATHNAME = 0;
+const SEGMENT_TYPE_PARAM = 1;
+const SEGMENT_TYPE_WILDCARD = 2;
+const SEGMENT_TYPE_OPTIONAL_PARAM = 3;
+const PARAM_W_CURLY_BRACES_RE = /^([^{]*)\{\$([a-zA-Z_$][a-zA-Z0-9_$]*)\}([^}]*)$/;
+const OPTIONAL_PARAM_W_CURLY_BRACES_RE = /^([^{]*)\{-\$([a-zA-Z_$][a-zA-Z0-9_$]*)\}([^}]*)$/;
+const WILDCARD_W_CURLY_BRACES_RE = /^([^{]*)\{\$\}([^}]*)$/;
+function parseSegment(path, start, output = new Uint16Array(6)) {
+  const next = path.indexOf("/", start);
+  const end = next === -1 ? path.length : next;
+  const part = path.substring(start, end);
+  if (!part || !part.includes("$")) {
+    output[0] = SEGMENT_TYPE_PATHNAME;
+    output[1] = start;
+    output[2] = start;
+    output[3] = end;
+    output[4] = end;
+    output[5] = end;
+    return output;
+  }
+  if (part === "$") {
+    const total = path.length;
+    output[0] = SEGMENT_TYPE_WILDCARD;
+    output[1] = start;
+    output[2] = start;
+    output[3] = total;
+    output[4] = total;
+    output[5] = total;
+    return output;
+  }
+  if (part.charCodeAt(0) === 36) {
+    output[0] = SEGMENT_TYPE_PARAM;
+    output[1] = start;
+    output[2] = start + 1;
+    output[3] = end;
+    output[4] = end;
+    output[5] = end;
+    return output;
+  }
+  const wildcardBracesMatch = part.match(WILDCARD_W_CURLY_BRACES_RE);
+  if (wildcardBracesMatch) {
+    const prefix2 = wildcardBracesMatch[1];
+    const pLength = prefix2.length;
+    output[0] = SEGMENT_TYPE_WILDCARD;
+    output[1] = start + pLength;
+    output[2] = start + pLength + 1;
+    output[3] = start + pLength + 2;
+    output[4] = start + pLength + 3;
+    output[5] = path.length;
+    return output;
+  }
+  const optionalParamBracesMatch = part.match(OPTIONAL_PARAM_W_CURLY_BRACES_RE);
+  if (optionalParamBracesMatch) {
+    const prefix2 = optionalParamBracesMatch[1];
+    const paramName = optionalParamBracesMatch[2];
+    const suffix = optionalParamBracesMatch[3];
+    const pLength = prefix2.length;
+    output[0] = SEGMENT_TYPE_OPTIONAL_PARAM;
+    output[1] = start + pLength;
+    output[2] = start + pLength + 3;
+    output[3] = start + pLength + 3 + paramName.length;
+    output[4] = end - suffix.length;
+    output[5] = end;
+    return output;
+  }
+  const paramBracesMatch = part.match(PARAM_W_CURLY_BRACES_RE);
+  if (paramBracesMatch) {
+    const prefix2 = paramBracesMatch[1];
+    const paramName = paramBracesMatch[2];
+    const suffix = paramBracesMatch[3];
+    const pLength = prefix2.length;
+    output[0] = SEGMENT_TYPE_PARAM;
+    output[1] = start + pLength;
+    output[2] = start + pLength + 2;
+    output[3] = start + pLength + 2 + paramName.length;
+    output[4] = end - suffix.length;
+    output[5] = end;
+    return output;
+  }
+  output[0] = SEGMENT_TYPE_PATHNAME;
+  output[1] = start;
+  output[2] = start;
+  output[3] = end;
+  output[4] = end;
+  output[5] = end;
+  return output;
+}
+function parseSegments(defaultCaseSensitive, data, route, start, node, depth, onRoute) {
+  onRoute?.(route);
+  let cursor = start;
+  {
+    const path = route.fullPath ?? route.from;
+    const length = path.length;
+    const caseSensitive = route.options?.caseSensitive ?? defaultCaseSensitive;
+    while (cursor < length) {
+      const segment = parseSegment(path, cursor, data);
+      let nextNode;
+      const start2 = cursor;
+      const end = segment[5];
+      cursor = end + 1;
+      depth++;
+      const kind = segment[0];
+      switch (kind) {
+        case SEGMENT_TYPE_PATHNAME: {
+          const value = path.substring(segment[2], segment[3]);
+          if (caseSensitive) {
+            const existingNode = node.static?.get(value);
+            if (existingNode) {
+              nextNode = existingNode;
+            } else {
+              node.static ??= /* @__PURE__ */ new Map();
+              const next = createStaticNode(
+                route.fullPath ?? route.from
+              );
+              next.parent = node;
+              next.depth = depth;
+              nextNode = next;
+              node.static.set(value, next);
+            }
+          } else {
+            const name = value.toLowerCase();
+            const existingNode = node.staticInsensitive?.get(name);
+            if (existingNode) {
+              nextNode = existingNode;
+            } else {
+              node.staticInsensitive ??= /* @__PURE__ */ new Map();
+              const next = createStaticNode(
+                route.fullPath ?? route.from
+              );
+              next.parent = node;
+              next.depth = depth;
+              nextNode = next;
+              node.staticInsensitive.set(name, next);
+            }
+          }
+          break;
+        }
+        case SEGMENT_TYPE_PARAM: {
+          const prefix_raw = path.substring(start2, segment[1]);
+          const suffix_raw = path.substring(segment[4], end);
+          const actuallyCaseSensitive = caseSensitive && !!(prefix_raw || suffix_raw);
+          const prefix2 = !prefix_raw ? void 0 : actuallyCaseSensitive ? prefix_raw : prefix_raw.toLowerCase();
+          const suffix = !suffix_raw ? void 0 : actuallyCaseSensitive ? suffix_raw : suffix_raw.toLowerCase();
+          const existingNode = node.dynamic?.find(
+            (s) => s.caseSensitive === actuallyCaseSensitive && s.prefix === prefix2 && s.suffix === suffix
+          );
+          if (existingNode) {
+            nextNode = existingNode;
+          } else {
+            const next = createDynamicNode(
+              SEGMENT_TYPE_PARAM,
+              route.fullPath ?? route.from,
+              actuallyCaseSensitive,
+              prefix2,
+              suffix
+            );
+            nextNode = next;
+            next.depth = depth;
+            next.parent = node;
+            node.dynamic ??= [];
+            node.dynamic.push(next);
+          }
+          break;
+        }
+        case SEGMENT_TYPE_OPTIONAL_PARAM: {
+          const prefix_raw = path.substring(start2, segment[1]);
+          const suffix_raw = path.substring(segment[4], end);
+          const actuallyCaseSensitive = caseSensitive && !!(prefix_raw || suffix_raw);
+          const prefix2 = !prefix_raw ? void 0 : actuallyCaseSensitive ? prefix_raw : prefix_raw.toLowerCase();
+          const suffix = !suffix_raw ? void 0 : actuallyCaseSensitive ? suffix_raw : suffix_raw.toLowerCase();
+          const existingNode = node.optional?.find(
+            (s) => s.caseSensitive === actuallyCaseSensitive && s.prefix === prefix2 && s.suffix === suffix
+          );
+          if (existingNode) {
+            nextNode = existingNode;
+          } else {
+            const next = createDynamicNode(
+              SEGMENT_TYPE_OPTIONAL_PARAM,
+              route.fullPath ?? route.from,
+              actuallyCaseSensitive,
+              prefix2,
+              suffix
+            );
+            nextNode = next;
+            next.parent = node;
+            next.depth = depth;
+            node.optional ??= [];
+            node.optional.push(next);
+          }
+          break;
+        }
+        case SEGMENT_TYPE_WILDCARD: {
+          const prefix_raw = path.substring(start2, segment[1]);
+          const suffix_raw = path.substring(segment[4], end);
+          const actuallyCaseSensitive = caseSensitive && !!(prefix_raw || suffix_raw);
+          const prefix2 = !prefix_raw ? void 0 : actuallyCaseSensitive ? prefix_raw : prefix_raw.toLowerCase();
+          const suffix = !suffix_raw ? void 0 : actuallyCaseSensitive ? suffix_raw : suffix_raw.toLowerCase();
+          const next = createDynamicNode(
+            SEGMENT_TYPE_WILDCARD,
+            route.fullPath ?? route.from,
+            actuallyCaseSensitive,
+            prefix2,
+            suffix
+          );
+          nextNode = next;
+          next.parent = node;
+          next.depth = depth;
+          node.wildcard ??= [];
+          node.wildcard.push(next);
+        }
+      }
+      node = nextNode;
+    }
+    if ((route.path || !route.children) && !route.isRoot) {
+      const isIndex = path.endsWith("/");
+      if (!isIndex) node.notFound = route;
+      if (!node.route || !node.isIndex && isIndex) {
+        node.route = route;
+        node.fullPath = route.fullPath ?? route.from;
+      }
+      node.isIndex ||= isIndex;
+    }
+  }
+  if (route.children)
+    for (const child of route.children) {
+      parseSegments(
+        defaultCaseSensitive,
+        data,
+        child,
+        cursor,
+        node,
+        depth,
+        onRoute
+      );
+    }
+}
+function sortDynamic(a, b2) {
+  if (a.prefix && b2.prefix && a.prefix !== b2.prefix) {
+    if (a.prefix.startsWith(b2.prefix)) return -1;
+    if (b2.prefix.startsWith(a.prefix)) return 1;
+  }
+  if (a.suffix && b2.suffix && a.suffix !== b2.suffix) {
+    if (a.suffix.endsWith(b2.suffix)) return -1;
+    if (b2.suffix.endsWith(a.suffix)) return 1;
+  }
+  if (a.prefix && !b2.prefix) return -1;
+  if (!a.prefix && b2.prefix) return 1;
+  if (a.suffix && !b2.suffix) return -1;
+  if (!a.suffix && b2.suffix) return 1;
+  if (a.caseSensitive && !b2.caseSensitive) return -1;
+  if (!a.caseSensitive && b2.caseSensitive) return 1;
+  return 0;
+}
+function sortTreeNodes(node) {
+  if (node.static) {
+    for (const child of node.static.values()) {
+      sortTreeNodes(child);
+    }
+  }
+  if (node.staticInsensitive) {
+    for (const child of node.staticInsensitive.values()) {
+      sortTreeNodes(child);
+    }
+  }
+  if (node.dynamic?.length) {
+    node.dynamic.sort(sortDynamic);
+    for (const child of node.dynamic) {
+      sortTreeNodes(child);
+    }
+  }
+  if (node.optional?.length) {
+    node.optional.sort(sortDynamic);
+    for (const child of node.optional) {
+      sortTreeNodes(child);
+    }
+  }
+  if (node.wildcard?.length) {
+    node.wildcard.sort(sortDynamic);
+    for (const child of node.wildcard) {
+      sortTreeNodes(child);
+    }
+  }
+}
+function createStaticNode(fullPath) {
+  return {
+    kind: SEGMENT_TYPE_PATHNAME,
+    depth: 0,
+    static: null,
+    staticInsensitive: null,
+    dynamic: null,
+    optional: null,
+    wildcard: null,
+    route: null,
+    fullPath,
+    parent: null,
+    isIndex: false,
+    notFound: null
+  };
+}
+function createDynamicNode(kind, fullPath, caseSensitive, prefix2, suffix) {
+  return {
+    kind,
+    depth: 0,
+    static: null,
+    staticInsensitive: null,
+    dynamic: null,
+    optional: null,
+    wildcard: null,
+    route: null,
+    fullPath,
+    parent: null,
+    isIndex: false,
+    notFound: null,
+    caseSensitive,
+    prefix: prefix2,
+    suffix
+  };
+}
+function processRouteMasks(routeList, processedTree) {
+  const segmentTree = createStaticNode("/");
+  const data = new Uint16Array(6);
+  for (const route of routeList) {
+    parseSegments(false, data, route, 1, segmentTree, 0);
+  }
+  sortTreeNodes(segmentTree);
+  processedTree.masksTree = segmentTree;
+  processedTree.flatCache = createLRUCache(1e3);
+}
+function findFlatMatch(path, processedTree) {
+  path ||= "/";
+  const cached = processedTree.flatCache.get(path);
+  if (cached) return cached;
+  const result = findMatch(path, processedTree.masksTree);
+  processedTree.flatCache.set(path, result);
+  return result;
+}
+function findSingleMatch(from, caseSensitive, fuzzy, path, processedTree) {
+  from ||= "/";
+  path ||= "/";
+  const key = caseSensitive ? `case\0${from}` : from;
+  let tree = processedTree.singleCache.get(key);
+  if (!tree) {
+    tree = createStaticNode("/");
+    const data = new Uint16Array(6);
+    parseSegments(caseSensitive, data, { from }, 1, tree, 0);
+    processedTree.singleCache.set(key, tree);
+  }
+  return findMatch(path, tree, fuzzy);
+}
+function findRouteMatch(path, processedTree, fuzzy = false) {
+  const key = fuzzy ? path : `nofuzz\0${path}`;
+  const cached = processedTree.matchCache.get(key);
+  if (cached !== void 0) return cached;
+  path ||= "/";
+  const result = findMatch(
+    path,
+    processedTree.segmentTree,
+    fuzzy
+  );
+  if (result) result.branch = buildRouteBranch(result.route);
+  processedTree.matchCache.set(key, result);
+  return result;
+}
+function trimPathRight$1(path) {
+  return path === "/" ? path : path.replace(/\/{1,}$/, "");
+}
+function processRouteTree(routeTree, caseSensitive = false, initRoute) {
+  const segmentTree = createStaticNode(routeTree.fullPath);
+  const data = new Uint16Array(6);
+  const routesById = {};
+  const routesByPath = {};
+  let index = 0;
+  parseSegments(caseSensitive, data, routeTree, 1, segmentTree, 0, (route) => {
+    initRoute?.(route, index);
+    invariant(
+      !(route.id in routesById),
+      `Duplicate routes found with id: ${String(route.id)}`
+    );
+    routesById[route.id] = route;
+    if (index !== 0 && route.path) {
+      const trimmedFullPath = trimPathRight$1(route.fullPath);
+      if (!routesByPath[trimmedFullPath] || route.fullPath.endsWith("/")) {
+        routesByPath[trimmedFullPath] = route;
+      }
+    }
+    index++;
+  });
+  sortTreeNodes(segmentTree);
+  const processedTree = {
+    segmentTree,
+    singleCache: createLRUCache(1e3),
+    matchCache: createLRUCache(1e3),
+    flatCache: null,
+    masksTree: null
+  };
+  return {
+    processedTree,
+    routesById,
+    routesByPath
+  };
+}
+function findMatch(path, segmentTree, fuzzy = false) {
+  const parts = path.split("/");
+  const leaf = getNodeMatch(path, parts, segmentTree, fuzzy);
+  if (!leaf) return null;
+  const params = extractParams(path, parts, leaf);
+  const isFuzzyMatch = "**" in leaf;
+  if (isFuzzyMatch) params["**"] = leaf["**"];
+  const route = isFuzzyMatch ? leaf.node.notFound ?? leaf.node.route : leaf.node.route;
+  return {
+    route,
+    params
+  };
+}
+function extractParams(path, parts, leaf) {
+  const list = buildBranch(leaf.node);
+  let nodeParts = null;
+  const params = {};
+  for (let partIndex = 0, nodeIndex = 0, pathIndex = 0; nodeIndex < list.length; partIndex++, nodeIndex++, pathIndex++) {
+    const node = list[nodeIndex];
+    const part = parts[partIndex];
+    const currentPathIndex = pathIndex;
+    if (part) pathIndex += part.length;
+    if (node.kind === SEGMENT_TYPE_PARAM) {
+      nodeParts ??= leaf.node.fullPath.split("/");
+      const nodePart = nodeParts[nodeIndex];
+      const preLength = node.prefix?.length ?? 0;
+      const isCurlyBraced = nodePart.charCodeAt(preLength) === 123;
+      if (isCurlyBraced) {
+        const sufLength = node.suffix?.length ?? 0;
+        const name = nodePart.substring(
+          preLength + 2,
+          nodePart.length - sufLength - 1
+        );
+        const value = part.substring(preLength, part.length - sufLength);
+        params[name] = decodeURIComponent(value);
+      } else {
+        const name = nodePart.substring(1);
+        params[name] = decodeURIComponent(part);
+      }
+    } else if (node.kind === SEGMENT_TYPE_OPTIONAL_PARAM) {
+      if (leaf.skipped & 1 << nodeIndex) {
+        partIndex--;
+        continue;
+      }
+      nodeParts ??= leaf.node.fullPath.split("/");
+      const nodePart = nodeParts[nodeIndex];
+      const preLength = node.prefix?.length ?? 0;
+      const sufLength = node.suffix?.length ?? 0;
+      const name = nodePart.substring(
+        preLength + 3,
+        nodePart.length - sufLength - 1
+      );
+      const value = node.suffix || node.prefix ? part.substring(preLength, part.length - sufLength) : part;
+      if (value) params[name] = decodeURIComponent(value);
+    } else if (node.kind === SEGMENT_TYPE_WILDCARD) {
+      const n = node;
+      const value = path.substring(
+        currentPathIndex + (n.prefix?.length ?? 0),
+        path.length - (n.suffix?.length ?? 0)
+      );
+      const splat = decodeURIComponent(value);
+      params["*"] = splat;
+      params._splat = splat;
+      break;
+    }
+  }
+  return params;
+}
+function buildRouteBranch(route) {
+  const list = [route];
+  while (route.parentRoute) {
+    route = route.parentRoute;
+    list.push(route);
+  }
+  list.reverse();
+  return list;
+}
+function buildBranch(node) {
+  const list = Array(node.depth + 1);
+  do {
+    list[node.depth] = node;
+    node = node.parent;
+  } while (node);
+  return list;
+}
+function getNodeMatch(path, parts, segmentTree, fuzzy) {
+  const trailingSlash = !last(parts);
+  const pathIsIndex = trailingSlash && path !== "/";
+  const partsLength = parts.length - (trailingSlash ? 1 : 0);
+  const stack = [
+    {
+      node: segmentTree,
+      index: 1,
+      skipped: 0,
+      depth: 1,
+      statics: 1,
+      dynamics: 0,
+      optionals: 0
+    }
+  ];
+  let wildcardMatch = null;
+  let bestFuzzy = null;
+  let bestMatch = null;
+  while (stack.length) {
+    const frame = stack.pop();
+    let { node, index, skipped, depth, statics, dynamics, optionals } = frame;
+    if (fuzzy && node.notFound && isFrameMoreSpecific(bestFuzzy, frame)) {
+      bestFuzzy = frame;
+    }
+    const isBeyondPath = index === partsLength;
+    if (isBeyondPath) {
+      if (node.route && (!pathIsIndex || node.isIndex)) {
+        if (isFrameMoreSpecific(bestMatch, frame)) {
+          bestMatch = frame;
+        }
+        if (statics === partsLength && node.isIndex) return bestMatch;
+      }
+      if (!node.optional && !node.wildcard) continue;
+    }
+    const part = isBeyondPath ? void 0 : parts[index];
+    let lowerPart;
+    if (node.wildcard && isFrameMoreSpecific(wildcardMatch, frame)) {
+      for (const segment of node.wildcard) {
+        const { prefix: prefix2, suffix } = segment;
+        if (prefix2) {
+          if (isBeyondPath) continue;
+          const casePart = segment.caseSensitive ? part : lowerPart ??= part.toLowerCase();
+          if (!casePart.startsWith(prefix2)) continue;
+        }
+        if (suffix) {
+          if (isBeyondPath) continue;
+          const end = parts.slice(index).join("/").slice(-suffix.length);
+          const casePart = segment.caseSensitive ? end : end.toLowerCase();
+          if (casePart !== suffix) continue;
+        }
+        wildcardMatch = {
+          node: segment,
+          index,
+          skipped,
+          depth,
+          statics,
+          dynamics,
+          optionals
+        };
+        break;
+      }
+    }
+    if (node.optional) {
+      const nextSkipped = skipped | 1 << depth;
+      const nextDepth = depth + 1;
+      for (let i = node.optional.length - 1; i >= 0; i--) {
+        const segment = node.optional[i];
+        stack.push({
+          node: segment,
+          index,
+          skipped: nextSkipped,
+          depth: nextDepth,
+          statics,
+          dynamics,
+          optionals
+        });
+      }
+      if (!isBeyondPath) {
+        for (let i = node.optional.length - 1; i >= 0; i--) {
+          const segment = node.optional[i];
+          const { prefix: prefix2, suffix } = segment;
+          if (prefix2 || suffix) {
+            const casePart = segment.caseSensitive ? part : lowerPart ??= part.toLowerCase();
+            if (prefix2 && !casePart.startsWith(prefix2)) continue;
+            if (suffix && !casePart.endsWith(suffix)) continue;
+          }
+          stack.push({
+            node: segment,
+            index: index + 1,
+            skipped,
+            depth: nextDepth,
+            statics,
+            dynamics,
+            optionals: optionals + 1
+          });
+        }
+      }
+    }
+    if (!isBeyondPath && node.dynamic && part) {
+      for (let i = node.dynamic.length - 1; i >= 0; i--) {
+        const segment = node.dynamic[i];
+        const { prefix: prefix2, suffix } = segment;
+        if (prefix2 || suffix) {
+          const casePart = segment.caseSensitive ? part : lowerPart ??= part.toLowerCase();
+          if (prefix2 && !casePart.startsWith(prefix2)) continue;
+          if (suffix && !casePart.endsWith(suffix)) continue;
+        }
+        stack.push({
+          node: segment,
+          index: index + 1,
+          skipped,
+          depth: depth + 1,
+          statics,
+          dynamics: dynamics + 1,
+          optionals
+        });
+      }
+    }
+    if (!isBeyondPath && node.staticInsensitive) {
+      const match = node.staticInsensitive.get(
+        lowerPart ??= part.toLowerCase()
+      );
+      if (match) {
+        stack.push({
+          node: match,
+          index: index + 1,
+          skipped,
+          depth: depth + 1,
+          statics: statics + 1,
+          dynamics,
+          optionals
+        });
+      }
+    }
+    if (!isBeyondPath && node.static) {
+      const match = node.static.get(part);
+      if (match) {
+        stack.push({
+          node: match,
+          index: index + 1,
+          skipped,
+          depth: depth + 1,
+          statics: statics + 1,
+          dynamics,
+          optionals
+        });
+      }
+    }
+  }
+  if (bestMatch && wildcardMatch) {
+    return isFrameMoreSpecific(wildcardMatch, bestMatch) ? bestMatch : wildcardMatch;
+  }
+  if (bestMatch) return bestMatch;
+  if (wildcardMatch) return wildcardMatch;
+  if (fuzzy && bestFuzzy) {
+    let sliceIndex = bestFuzzy.index;
+    for (let i = 0; i < bestFuzzy.index; i++) {
+      sliceIndex += parts[i].length;
+    }
+    const splat = sliceIndex === path.length ? "/" : path.slice(sliceIndex);
+    return {
+      node: bestFuzzy.node,
+      skipped: bestFuzzy.skipped,
+      "**": decodeURIComponent(splat)
+    };
+  }
+  return null;
+}
+function isFrameMoreSpecific(prev, next) {
+  if (!prev) return true;
+  return next.statics > prev.statics || next.statics === prev.statics && (next.dynamics > prev.dynamics || next.dynamics === prev.dynamics && (next.optionals > prev.optionals || next.optionals === prev.optionals && (next.node.isIndex > prev.node.isIndex || next.node.isIndex === prev.node.isIndex && next.depth > prev.depth)));
+}
+function joinPaths(paths) {
+  return cleanPath(
+    paths.filter((val) => {
+      return val !== void 0;
+    }).join("/")
+  );
+}
+function cleanPath(path) {
+  return path.replace(/\/{2,}/g, "/");
+}
+function trimPathLeft(path) {
+  return path === "/" ? path : path.replace(/^\/{1,}/, "");
+}
+function trimPathRight(path) {
+  const len = path.length;
+  return len > 1 && path[len - 1] === "/" ? path.replace(/\/{1,}$/, "") : path;
+}
+function trimPath(path) {
+  return trimPathRight(trimPathLeft(path));
+}
+function removeTrailingSlash(value, basepath) {
+  if (value?.endsWith("/") && value !== "/" && value !== `${basepath}/`) {
+    return value.slice(0, -1);
+  }
+  return value;
+}
+function exactPathTest(pathName1, pathName2, basepath) {
+  return removeTrailingSlash(pathName1, basepath) === removeTrailingSlash(pathName2, basepath);
+}
+function resolvePath({
+  base,
+  to: to2,
+  trailingSlash = "never",
+  cache
+}) {
+  const isAbsolute = to2.startsWith("/");
+  const isBase = !isAbsolute && to2 === ".";
+  let key;
+  if (cache) {
+    key = isAbsolute ? to2 : isBase ? base : base + "\0" + to2;
+    const cached = cache.get(key);
+    if (cached) return cached;
+  }
+  let baseSegments;
+  if (isBase) {
+    baseSegments = base.split("/");
+  } else if (isAbsolute) {
+    baseSegments = to2.split("/");
+  } else {
+    baseSegments = base.split("/");
+    while (baseSegments.length > 1 && last(baseSegments) === "") {
+      baseSegments.pop();
+    }
+    const toSegments = to2.split("/");
+    for (let index = 0, length = toSegments.length; index < length; index++) {
+      const value = toSegments[index];
+      if (value === "") {
+        if (!index) {
+          baseSegments = [value];
+        } else if (index === length - 1) {
+          baseSegments.push(value);
+        } else ;
+      } else if (value === "..") {
+        baseSegments.pop();
+      } else if (value === ".") ;
+      else {
+        baseSegments.push(value);
+      }
+    }
+  }
+  if (baseSegments.length > 1) {
+    if (last(baseSegments) === "") {
+      if (trailingSlash === "never") {
+        baseSegments.pop();
+      }
+    } else if (trailingSlash === "always") {
+      baseSegments.push("");
+    }
+  }
+  let segment;
+  let joined = "";
+  for (let i = 0; i < baseSegments.length; i++) {
+    if (i > 0) joined += "/";
+    const part = baseSegments[i];
+    if (!part) continue;
+    segment = parseSegment(part, 0, segment);
+    const kind = segment[0];
+    if (kind === SEGMENT_TYPE_PATHNAME) {
+      joined += part;
+      continue;
+    }
+    const end = segment[5];
+    const prefix2 = part.substring(0, segment[1]);
+    const suffix = part.substring(segment[4], end);
+    const value = part.substring(segment[2], segment[3]);
+    if (kind === SEGMENT_TYPE_PARAM) {
+      joined += prefix2 || suffix ? `${prefix2}{$${value}}${suffix}` : `$${value}`;
+    } else if (kind === SEGMENT_TYPE_WILDCARD) {
+      joined += prefix2 || suffix ? `${prefix2}{$}${suffix}` : "$";
+    } else {
+      joined += `${prefix2}{-$${value}}${suffix}`;
+    }
+  }
+  joined = cleanPath(joined);
+  const result = joined || "/";
+  if (key && cache) cache.set(key, result);
+  return result;
+}
+function encodeParam(key, params, decodeCharMap) {
+  const value = params[key];
+  if (typeof value !== "string") return value;
+  if (key === "_splat") {
+    return encodeURI(value);
+  } else {
+    return encodePathParam(value, decodeCharMap);
+  }
+}
+function interpolatePath({
+  path,
+  params,
+  decodeCharMap
+}) {
+  let isMissingParams = false;
+  const usedParams = {};
+  if (!path || path === "/")
+    return { interpolatedPath: "/", usedParams, isMissingParams };
+  if (!path.includes("$"))
+    return { interpolatedPath: path, usedParams, isMissingParams };
+  const length = path.length;
+  let cursor = 0;
+  let segment;
+  let joined = "";
+  while (cursor < length) {
+    const start = cursor;
+    segment = parseSegment(path, start, segment);
+    const end = segment[5];
+    cursor = end + 1;
+    if (start === end) continue;
+    const kind = segment[0];
+    if (kind === SEGMENT_TYPE_PATHNAME) {
+      joined += "/" + path.substring(start, end);
+      continue;
+    }
+    if (kind === SEGMENT_TYPE_WILDCARD) {
+      const splat = params._splat;
+      usedParams._splat = splat;
+      usedParams["*"] = splat;
+      const prefix2 = path.substring(start, segment[1]);
+      const suffix = path.substring(segment[4], end);
+      if (!splat) {
+        isMissingParams = true;
+        if (prefix2 || suffix) {
+          joined += "/" + prefix2 + suffix;
+        }
+        continue;
+      }
+      const value = encodeParam("_splat", params, decodeCharMap);
+      joined += "/" + prefix2 + value + suffix;
+      continue;
+    }
+    if (kind === SEGMENT_TYPE_PARAM) {
+      const key = path.substring(segment[2], segment[3]);
+      if (!isMissingParams && !(key in params)) {
+        isMissingParams = true;
+      }
+      usedParams[key] = params[key];
+      const prefix2 = path.substring(start, segment[1]);
+      const suffix = path.substring(segment[4], end);
+      const value = encodeParam(key, params, decodeCharMap) ?? "undefined";
+      joined += "/" + prefix2 + value + suffix;
+      continue;
+    }
+    if (kind === SEGMENT_TYPE_OPTIONAL_PARAM) {
+      const key = path.substring(segment[2], segment[3]);
+      const valueRaw = params[key];
+      if (valueRaw == null) continue;
+      usedParams[key] = valueRaw;
+      const prefix2 = path.substring(start, segment[1]);
+      const suffix = path.substring(segment[4], end);
+      const value = encodeParam(key, params, decodeCharMap) ?? "";
+      joined += "/" + prefix2 + value + suffix;
+      continue;
+    }
+  }
+  if (path.endsWith("/")) joined += "/";
+  const interpolatedPath = joined || "/";
+  return { usedParams, interpolatedPath, isMissingParams };
+}
+function encodePathParam(value, decodeCharMap) {
+  let encoded = encodeURIComponent(value);
+  if (decodeCharMap) {
+    for (const [encodedChar, char] of decodeCharMap) {
+      encoded = encoded.replaceAll(encodedChar, char);
+    }
+  }
+  return encoded;
+}
+function isNotFound(obj) {
+  return !!obj?.isNotFound;
+}
+function getSafeSessionStorage() {
+  try {
+    if (typeof window !== "undefined" && typeof window.sessionStorage === "object") {
+      return window.sessionStorage;
+    }
+  } catch {
+  }
+  return void 0;
+}
+const storageKey = "tsr-scroll-restoration-v1_3";
+const throttle = (fn2, wait) => {
+  let timeout;
+  return (...args) => {
+    if (!timeout) {
+      timeout = setTimeout(() => {
+        fn2(...args);
+        timeout = null;
+      }, wait);
+    }
+  };
+};
+function createScrollRestorationCache() {
+  const safeSessionStorage = getSafeSessionStorage();
+  if (!safeSessionStorage) {
+    return null;
+  }
+  const persistedState = safeSessionStorage.getItem(storageKey);
+  let state = persistedState ? JSON.parse(persistedState) : {};
+  return {
+    state,
+    // This setter is simply to make sure that we set the sessionStorage right
+    // after the state is updated. It doesn't necessarily need to be a functional
+    // update.
+    set: (updater) => (state = functionalUpdate(updater, state) || state, safeSessionStorage.setItem(storageKey, JSON.stringify(state)))
+  };
+}
+const scrollRestorationCache = createScrollRestorationCache();
+const defaultGetScrollRestorationKey = (location) => {
+  return location.state.__TSR_key || location.href;
+};
+function getCssSelector(el) {
+  const path = [];
+  let parent;
+  while (parent = el.parentNode) {
+    path.push(
+      `${el.tagName}:nth-child(${Array.prototype.indexOf.call(parent.children, el) + 1})`
+    );
+    el = parent;
+  }
+  return `${path.reverse().join(" > ")}`.toLowerCase();
+}
+let ignoreScroll = false;
+function restoreScroll({
+  storageKey: storageKey2,
+  key,
+  behavior,
+  shouldScrollRestoration,
+  scrollToTopSelectors,
+  location
+}) {
+  let byKey;
+  try {
+    byKey = JSON.parse(sessionStorage.getItem(storageKey2) || "{}");
+  } catch (error) {
+    console.error(error);
+    return;
+  }
+  const resolvedKey = key || window.history.state?.__TSR_key;
+  const elementEntries = byKey[resolvedKey];
+  ignoreScroll = true;
+  scroll: {
+    if (shouldScrollRestoration && elementEntries && Object.keys(elementEntries).length > 0) {
+      for (const elementSelector in elementEntries) {
+        const entry = elementEntries[elementSelector];
+        if (elementSelector === "window") {
+          window.scrollTo({
+            top: entry.scrollY,
+            left: entry.scrollX,
+            behavior
+          });
+        } else if (elementSelector) {
+          const element = document.querySelector(elementSelector);
+          if (element) {
+            element.scrollLeft = entry.scrollX;
+            element.scrollTop = entry.scrollY;
+          }
+        }
+      }
+      break scroll;
+    }
+    const hash = (location ?? window.location).hash.split("#", 2)[1];
+    if (hash) {
+      const hashScrollIntoViewOptions = window.history.state?.__hashScrollIntoViewOptions ?? true;
+      if (hashScrollIntoViewOptions) {
+        const el = document.getElementById(hash);
+        if (el) {
+          el.scrollIntoView(hashScrollIntoViewOptions);
+        }
+      }
+      break scroll;
+    }
+    const scrollOptions = { top: 0, left: 0, behavior };
+    window.scrollTo(scrollOptions);
+    if (scrollToTopSelectors) {
+      for (const selector of scrollToTopSelectors) {
+        if (selector === "window") continue;
+        const element = typeof selector === "function" ? selector() : document.querySelector(selector);
+        if (element) element.scrollTo(scrollOptions);
+      }
+    }
+  }
+  ignoreScroll = false;
+}
+function setupScrollRestoration(router, force) {
+  if (!scrollRestorationCache && !router.isServer) {
+    return;
+  }
+  const shouldScrollRestoration = router.options.scrollRestoration ?? false;
+  if (shouldScrollRestoration) {
+    router.isScrollRestoring = true;
+  }
+  if (router.isServer || router.isScrollRestorationSetup || !scrollRestorationCache) {
+    return;
+  }
+  router.isScrollRestorationSetup = true;
+  ignoreScroll = false;
+  const getKey = router.options.getScrollRestorationKey || defaultGetScrollRestorationKey;
+  window.history.scrollRestoration = "manual";
+  const onScroll = (event) => {
+    if (ignoreScroll || !router.isScrollRestoring) {
+      return;
+    }
+    let elementSelector = "";
+    if (event.target === document || event.target === window) {
+      elementSelector = "window";
+    } else {
+      const attrId = event.target.getAttribute(
+        "data-scroll-restoration-id"
+      );
+      if (attrId) {
+        elementSelector = `[data-scroll-restoration-id="${attrId}"]`;
+      } else {
+        elementSelector = getCssSelector(event.target);
+      }
+    }
+    const restoreKey = getKey(router.state.location);
+    scrollRestorationCache.set((state) => {
+      const keyEntry = state[restoreKey] ||= {};
+      const elementEntry = keyEntry[elementSelector] ||= {};
+      if (elementSelector === "window") {
+        elementEntry.scrollX = window.scrollX || 0;
+        elementEntry.scrollY = window.scrollY || 0;
+      } else if (elementSelector) {
+        const element = document.querySelector(elementSelector);
+        if (element) {
+          elementEntry.scrollX = element.scrollLeft || 0;
+          elementEntry.scrollY = element.scrollTop || 0;
+        }
+      }
+      return state;
+    });
+  };
+  if (typeof document !== "undefined") {
+    document.addEventListener("scroll", throttle(onScroll, 100), true);
+  }
+  router.subscribe("onRendered", (event) => {
+    const cacheKey = getKey(event.toLocation);
+    if (!router.resetNextScroll) {
+      router.resetNextScroll = true;
+      return;
+    }
+    if (typeof router.options.scrollRestoration === "function") {
+      const shouldRestore = router.options.scrollRestoration({
+        location: router.latestLocation
+      });
+      if (!shouldRestore) {
+        return;
+      }
+    }
+    restoreScroll({
+      storageKey,
+      key: cacheKey,
+      behavior: router.options.scrollRestorationBehavior,
+      shouldScrollRestoration: router.isScrollRestoring,
+      scrollToTopSelectors: router.options.scrollToTopSelectors,
+      location: router.history.location
+    });
+    if (router.isScrollRestoring) {
+      scrollRestorationCache.set((state) => {
+        state[cacheKey] ||= {};
+        return state;
+      });
+    }
+  });
+}
+function handleHashScroll(router) {
+  if (typeof document !== "undefined" && document.querySelector) {
+    const hashScrollIntoViewOptions = router.state.location.state.__hashScrollIntoViewOptions ?? true;
+    if (hashScrollIntoViewOptions && router.state.location.hash !== "") {
+      const el = document.getElementById(router.state.location.hash);
+      if (el) {
+        el.scrollIntoView(hashScrollIntoViewOptions);
+      }
+    }
+  }
+}
+function encode(obj, stringify = String) {
+  const result = new URLSearchParams();
+  for (const key in obj) {
+    const val = obj[key];
+    if (val !== void 0) {
+      result.set(key, stringify(val));
+    }
+  }
+  return result.toString();
+}
+function toValue(str) {
+  if (!str) return "";
+  if (str === "false") return false;
+  if (str === "true") return true;
+  return +str * 0 === 0 && +str + "" === str ? +str : str;
+}
+function decode(str) {
+  const searchParams = new URLSearchParams(str);
+  const result = {};
+  for (const [key, value] of searchParams.entries()) {
+    const previousValue = result[key];
+    if (previousValue == null) {
+      result[key] = toValue(value);
+    } else if (Array.isArray(previousValue)) {
+      previousValue.push(toValue(value));
+    } else {
+      result[key] = [previousValue, toValue(value)];
+    }
+  }
+  return result;
+}
+const defaultParseSearch = parseSearchWith(JSON.parse);
+const defaultStringifySearch = stringifySearchWith(
+  JSON.stringify,
+  JSON.parse
+);
+function parseSearchWith(parser) {
+  return (searchStr) => {
+    if (searchStr[0] === "?") {
+      searchStr = searchStr.substring(1);
+    }
+    const query = decode(searchStr);
+    for (const key in query) {
+      const value = query[key];
+      if (typeof value === "string") {
+        try {
+          query[key] = parser(value);
+        } catch (_err) {
+        }
+      }
+    }
+    return query;
+  };
+}
+function stringifySearchWith(stringify, parser) {
+  const hasParser = typeof parser === "function";
+  function stringifyValue(val) {
+    if (typeof val === "object" && val !== null) {
+      try {
+        return stringify(val);
+      } catch (_err) {
+      }
+    } else if (hasParser && typeof val === "string") {
+      try {
+        parser(val);
+        return stringify(val);
+      } catch (_err) {
+      }
+    }
+    return val;
+  }
+  return (search) => {
+    const searchStr = encode(search, stringifyValue);
+    return searchStr ? `?${searchStr}` : "";
+  };
+}
 const rootRouteId = "__root__";
+function redirect(opts) {
+  opts.statusCode = opts.statusCode || opts.code || 307;
+  if (!opts.reloadDocument && typeof opts.href === "string") {
+    try {
+      new URL(opts.href);
+      opts.reloadDocument = true;
+    } catch {
+    }
+  }
+  const headers = new Headers(opts.headers);
+  if (opts.href && headers.get("Location") === null) {
+    headers.set("Location", opts.href);
+  }
+  const response = new Response(null, {
+    status: opts.statusCode,
+    headers
+  });
+  response.options = opts;
+  if (opts.throw) {
+    throw response;
+  }
+  return response;
+}
 function isRedirect(obj) {
   return obj instanceof Response && !!obj.options;
 }
 function isResolvedRedirect(obj) {
   return isRedirect(obj) && !!obj.options.href;
+}
+const triggerOnReady = (inner) => {
+  if (!inner.rendered) {
+    inner.rendered = true;
+    return inner.onReady?.();
+  }
+};
+const resolvePreload = (inner, matchId) => {
+  return !!(inner.preload && !inner.router.state.matches.some((d) => d.id === matchId));
+};
+const _handleNotFound = (inner, err) => {
+  const routeCursor = inner.router.routesById[err.routeId ?? ""] ?? inner.router.routeTree;
+  if (!routeCursor.options.notFoundComponent && inner.router.options?.defaultNotFoundComponent) {
+    routeCursor.options.notFoundComponent = inner.router.options.defaultNotFoundComponent;
+  }
+  invariant(
+    routeCursor.options.notFoundComponent,
+    "No notFoundComponent found. Please set a notFoundComponent on your route or provide a defaultNotFoundComponent to the router."
+  );
+  const matchForRoute = inner.matches.find((m2) => m2.routeId === routeCursor.id);
+  invariant(matchForRoute, "Could not find match for route: " + routeCursor.id);
+  inner.updateMatch(matchForRoute.id, (prev) => ({
+    ...prev,
+    status: "notFound",
+    error: err,
+    isFetching: false
+  }));
+  if (err.routerCode === "BEFORE_LOAD" && routeCursor.parentRoute) {
+    err.routeId = routeCursor.parentRoute.id;
+    _handleNotFound(inner, err);
+  }
+};
+const handleRedirectAndNotFound = (inner, match, err) => {
+  if (!isRedirect(err) && !isNotFound(err)) return;
+  if (isRedirect(err) && err.redirectHandled && !err.options.reloadDocument) {
+    throw err;
+  }
+  if (match) {
+    match._nonReactive.beforeLoadPromise?.resolve();
+    match._nonReactive.loaderPromise?.resolve();
+    match._nonReactive.beforeLoadPromise = void 0;
+    match._nonReactive.loaderPromise = void 0;
+    const status = isRedirect(err) ? "redirected" : "notFound";
+    match._nonReactive.error = err;
+    inner.updateMatch(match.id, (prev) => ({
+      ...prev,
+      status,
+      isFetching: false,
+      error: err
+    }));
+    if (isNotFound(err) && !err.routeId) {
+      err.routeId = match.routeId;
+    }
+    match._nonReactive.loadPromise?.resolve();
+  }
+  if (isRedirect(err)) {
+    inner.rendered = true;
+    err.options._fromLocation = inner.location;
+    err.redirectHandled = true;
+    err = inner.router.resolveRedirect(err);
+    throw err;
+  } else {
+    _handleNotFound(inner, err);
+    throw err;
+  }
+};
+const shouldSkipLoader = (inner, matchId) => {
+  const match = inner.router.getMatch(matchId);
+  if (!inner.router.isServer && match._nonReactive.dehydrated) {
+    return true;
+  }
+  if (inner.router.isServer && match.ssr === false) {
+    return true;
+  }
+  return false;
+};
+const handleSerialError = (inner, index, err, routerCode) => {
+  const { id: matchId, routeId } = inner.matches[index];
+  const route = inner.router.looseRoutesById[routeId];
+  if (err instanceof Promise) {
+    throw err;
+  }
+  err.routerCode = routerCode;
+  inner.firstBadMatchIndex ??= index;
+  handleRedirectAndNotFound(inner, inner.router.getMatch(matchId), err);
+  try {
+    route.options.onError?.(err);
+  } catch (errorHandlerErr) {
+    err = errorHandlerErr;
+    handleRedirectAndNotFound(inner, inner.router.getMatch(matchId), err);
+  }
+  inner.updateMatch(matchId, (prev) => {
+    prev._nonReactive.beforeLoadPromise?.resolve();
+    prev._nonReactive.beforeLoadPromise = void 0;
+    prev._nonReactive.loadPromise?.resolve();
+    return {
+      ...prev,
+      error: err,
+      status: "error",
+      isFetching: false,
+      updatedAt: Date.now(),
+      abortController: new AbortController()
+    };
+  });
+};
+const isBeforeLoadSsr = (inner, matchId, index, route) => {
+  const existingMatch = inner.router.getMatch(matchId);
+  const parentMatchId = inner.matches[index - 1]?.id;
+  const parentMatch = parentMatchId ? inner.router.getMatch(parentMatchId) : void 0;
+  if (inner.router.isShell()) {
+    existingMatch.ssr = route.id === rootRouteId;
+    return;
+  }
+  if (parentMatch?.ssr === false) {
+    existingMatch.ssr = false;
+    return;
+  }
+  const parentOverride = (tempSsr2) => {
+    if (tempSsr2 === true && parentMatch?.ssr === "data-only") {
+      return "data-only";
+    }
+    return tempSsr2;
+  };
+  const defaultSsr = inner.router.options.defaultSsr ?? true;
+  if (route.options.ssr === void 0) {
+    existingMatch.ssr = parentOverride(defaultSsr);
+    return;
+  }
+  if (typeof route.options.ssr !== "function") {
+    existingMatch.ssr = parentOverride(route.options.ssr);
+    return;
+  }
+  const { search, params } = existingMatch;
+  const ssrFnContext = {
+    search: makeMaybe(search, existingMatch.searchError),
+    params: makeMaybe(params, existingMatch.paramsError),
+    location: inner.location,
+    matches: inner.matches.map((match) => ({
+      index: match.index,
+      pathname: match.pathname,
+      fullPath: match.fullPath,
+      staticData: match.staticData,
+      id: match.id,
+      routeId: match.routeId,
+      search: makeMaybe(match.search, match.searchError),
+      params: makeMaybe(match.params, match.paramsError),
+      ssr: match.ssr
+    }))
+  };
+  const tempSsr = route.options.ssr(ssrFnContext);
+  if (isPromise(tempSsr)) {
+    return tempSsr.then((ssr) => {
+      existingMatch.ssr = parentOverride(ssr ?? defaultSsr);
+    });
+  }
+  existingMatch.ssr = parentOverride(tempSsr ?? defaultSsr);
+  return;
+};
+const setupPendingTimeout = (inner, matchId, route, match) => {
+  if (match._nonReactive.pendingTimeout !== void 0) return;
+  const pendingMs = route.options.pendingMs ?? inner.router.options.defaultPendingMs;
+  const shouldPending = !!(inner.onReady && !inner.router.isServer && !resolvePreload(inner, matchId) && (route.options.loader || route.options.beforeLoad || routeNeedsPreload(route)) && typeof pendingMs === "number" && pendingMs !== Infinity && (route.options.pendingComponent ?? inner.router.options?.defaultPendingComponent));
+  if (shouldPending) {
+    const pendingTimeout = setTimeout(() => {
+      triggerOnReady(inner);
+    }, pendingMs);
+    match._nonReactive.pendingTimeout = pendingTimeout;
+  }
+};
+const preBeforeLoadSetup = (inner, matchId, route) => {
+  const existingMatch = inner.router.getMatch(matchId);
+  if (!existingMatch._nonReactive.beforeLoadPromise && !existingMatch._nonReactive.loaderPromise)
+    return;
+  setupPendingTimeout(inner, matchId, route, existingMatch);
+  const then = () => {
+    const match = inner.router.getMatch(matchId);
+    if (match.preload && (match.status === "redirected" || match.status === "notFound")) {
+      handleRedirectAndNotFound(inner, match, match.error);
+    }
+  };
+  return existingMatch._nonReactive.beforeLoadPromise ? existingMatch._nonReactive.beforeLoadPromise.then(then) : then();
+};
+const executeBeforeLoad = (inner, matchId, index, route) => {
+  const match = inner.router.getMatch(matchId);
+  const prevLoadPromise = match._nonReactive.loadPromise;
+  match._nonReactive.loadPromise = createControlledPromise(() => {
+    prevLoadPromise?.resolve();
+  });
+  const { paramsError, searchError } = match;
+  if (paramsError) {
+    handleSerialError(inner, index, paramsError, "PARSE_PARAMS");
+  }
+  if (searchError) {
+    handleSerialError(inner, index, searchError, "VALIDATE_SEARCH");
+  }
+  setupPendingTimeout(inner, matchId, route, match);
+  const abortController = new AbortController();
+  const parentMatchId = inner.matches[index - 1]?.id;
+  const parentMatch = parentMatchId ? inner.router.getMatch(parentMatchId) : void 0;
+  const parentMatchContext = parentMatch?.context ?? inner.router.options.context ?? void 0;
+  let isPending = false;
+  const pending = () => {
+    if (isPending) return;
+    isPending = true;
+    inner.updateMatch(matchId, (prev) => ({
+      ...prev,
+      isFetching: "beforeLoad",
+      fetchCount: prev.fetchCount + 1,
+      abortController
+      // Note: We intentionally don't update context here.
+      // Context should only be updated after beforeLoad resolves to avoid
+      // components seeing incomplete context during async beforeLoad execution.
+    }));
+  };
+  const resolve = () => {
+    match._nonReactive.beforeLoadPromise?.resolve();
+    match._nonReactive.beforeLoadPromise = void 0;
+    inner.updateMatch(matchId, (prev) => ({
+      ...prev,
+      isFetching: false
+    }));
+  };
+  if (!route.options.beforeLoad) {
+    batch(() => {
+      pending();
+      resolve();
+    });
+    return;
+  }
+  match._nonReactive.beforeLoadPromise = createControlledPromise();
+  const { search, params, cause } = match;
+  const preload = resolvePreload(inner, matchId);
+  const beforeLoadFnContext = {
+    search,
+    abortController,
+    params,
+    preload,
+    // Include parent's __beforeLoadContext so child routes can access it during their beforeLoad
+    context: {
+      ...parentMatchContext,
+      ...parentMatch?.__beforeLoadContext,
+      ...match.__routeContext
+    },
+    location: inner.location,
+    navigate: (opts) => inner.router.navigate({
+      ...opts,
+      _fromLocation: inner.location
+    }),
+    buildLocation: inner.router.buildLocation,
+    cause: preload ? "preload" : cause,
+    matches: inner.matches,
+    ...inner.router.options.additionalContext
+  };
+  const updateContext = (beforeLoadContext2) => {
+    if (beforeLoadContext2 === void 0) {
+      batch(() => {
+        pending();
+        resolve();
+      });
+      return;
+    }
+    if (isRedirect(beforeLoadContext2) || isNotFound(beforeLoadContext2)) {
+      pending();
+      handleSerialError(inner, index, beforeLoadContext2, "BEFORE_LOAD");
+    }
+    batch(() => {
+      pending();
+      inner.updateMatch(matchId, (prev) => ({
+        ...prev,
+        __beforeLoadContext: beforeLoadContext2
+      }));
+      resolve();
+    });
+  };
+  let beforeLoadContext;
+  try {
+    beforeLoadContext = route.options.beforeLoad(beforeLoadFnContext);
+    if (isPromise(beforeLoadContext)) {
+      pending();
+      return beforeLoadContext.catch((err) => {
+        handleSerialError(inner, index, err, "BEFORE_LOAD");
+      }).then(updateContext);
+    }
+  } catch (err) {
+    pending();
+    handleSerialError(inner, index, err, "BEFORE_LOAD");
+  }
+  updateContext(beforeLoadContext);
+  return;
+};
+const handleBeforeLoad = (inner, index) => {
+  const { id: matchId, routeId } = inner.matches[index];
+  const route = inner.router.looseRoutesById[routeId];
+  const serverSsr = () => {
+    if (inner.router.isServer) {
+      const maybePromise = isBeforeLoadSsr(inner, matchId, index, route);
+      if (isPromise(maybePromise)) return maybePromise.then(queueExecution);
+    }
+    return queueExecution();
+  };
+  const execute = () => executeBeforeLoad(inner, matchId, index, route);
+  const queueExecution = () => {
+    if (shouldSkipLoader(inner, matchId)) return;
+    const result = preBeforeLoadSetup(inner, matchId, route);
+    return isPromise(result) ? result.then(execute) : execute();
+  };
+  return serverSsr();
+};
+const executeHead = (inner, matchId, route) => {
+  const match = inner.router.getMatch(matchId);
+  if (!match) {
+    return;
+  }
+  if (!route.options.head && !route.options.scripts && !route.options.headers) {
+    return;
+  }
+  const assetContext = {
+    matches: inner.matches,
+    match,
+    params: match.params,
+    loaderData: match.loaderData
+  };
+  return Promise.all([
+    route.options.head?.(assetContext),
+    route.options.scripts?.(assetContext),
+    route.options.headers?.(assetContext)
+  ]).then(([headFnContent, scripts, headers]) => {
+    const meta = headFnContent?.meta;
+    const links = headFnContent?.links;
+    const headScripts = headFnContent?.scripts;
+    const styles = headFnContent?.styles;
+    return {
+      meta,
+      links,
+      headScripts,
+      headers,
+      scripts,
+      styles
+    };
+  });
+};
+const getLoaderContext = (inner, matchId, index, route) => {
+  const parentMatchPromise = inner.matchPromises[index - 1];
+  const { params, loaderDeps, abortController, cause } = inner.router.getMatch(matchId);
+  let context = inner.router.options.context ?? {};
+  for (let i = 0; i <= index; i++) {
+    const innerMatch = inner.matches[i];
+    if (!innerMatch) continue;
+    const m2 = inner.router.getMatch(innerMatch.id);
+    if (!m2) continue;
+    context = {
+      ...context,
+      ...m2.__routeContext ?? {},
+      ...m2.__beforeLoadContext ?? {}
+    };
+  }
+  const preload = resolvePreload(inner, matchId);
+  return {
+    params,
+    deps: loaderDeps,
+    preload: !!preload,
+    parentMatchPromise,
+    abortController,
+    context,
+    location: inner.location,
+    navigate: (opts) => inner.router.navigate({
+      ...opts,
+      _fromLocation: inner.location
+    }),
+    cause: preload ? "preload" : cause,
+    route,
+    ...inner.router.options.additionalContext
+  };
+};
+const runLoader = async (inner, matchId, index, route) => {
+  try {
+    const match = inner.router.getMatch(matchId);
+    try {
+      if (!inner.router.isServer || match.ssr === true) {
+        loadRouteChunk(route);
+      }
+      const loaderResult = route.options.loader?.(
+        getLoaderContext(inner, matchId, index, route)
+      );
+      const loaderResultIsPromise = route.options.loader && isPromise(loaderResult);
+      const willLoadSomething = !!(loaderResultIsPromise || route._lazyPromise || route._componentsPromise || route.options.head || route.options.scripts || route.options.headers || match._nonReactive.minPendingPromise);
+      if (willLoadSomething) {
+        inner.updateMatch(matchId, (prev) => ({
+          ...prev,
+          isFetching: "loader"
+        }));
+      }
+      if (route.options.loader) {
+        const loaderData = loaderResultIsPromise ? await loaderResult : loaderResult;
+        handleRedirectAndNotFound(
+          inner,
+          inner.router.getMatch(matchId),
+          loaderData
+        );
+        if (loaderData !== void 0) {
+          inner.updateMatch(matchId, (prev) => ({
+            ...prev,
+            loaderData
+          }));
+        }
+      }
+      if (route._lazyPromise) await route._lazyPromise;
+      const headResult = executeHead(inner, matchId, route);
+      const head = headResult ? await headResult : void 0;
+      const pendingPromise = match._nonReactive.minPendingPromise;
+      if (pendingPromise) await pendingPromise;
+      if (route._componentsPromise) await route._componentsPromise;
+      inner.updateMatch(matchId, (prev) => ({
+        ...prev,
+        error: void 0,
+        status: "success",
+        isFetching: false,
+        updatedAt: Date.now(),
+        ...head
+      }));
+    } catch (e) {
+      let error = e;
+      const pendingPromise = match._nonReactive.minPendingPromise;
+      if (pendingPromise) await pendingPromise;
+      if (isNotFound(e)) {
+        await route.options.notFoundComponent?.preload?.();
+      }
+      handleRedirectAndNotFound(inner, inner.router.getMatch(matchId), e);
+      try {
+        route.options.onError?.(e);
+      } catch (onErrorError) {
+        error = onErrorError;
+        handleRedirectAndNotFound(
+          inner,
+          inner.router.getMatch(matchId),
+          onErrorError
+        );
+      }
+      const headResult = executeHead(inner, matchId, route);
+      const head = headResult ? await headResult : void 0;
+      inner.updateMatch(matchId, (prev) => ({
+        ...prev,
+        error,
+        status: "error",
+        isFetching: false,
+        ...head
+      }));
+    }
+  } catch (err) {
+    const match = inner.router.getMatch(matchId);
+    if (match) {
+      const headResult = executeHead(inner, matchId, route);
+      if (headResult) {
+        const head = await headResult;
+        inner.updateMatch(matchId, (prev) => ({
+          ...prev,
+          ...head
+        }));
+      }
+      match._nonReactive.loaderPromise = void 0;
+    }
+    handleRedirectAndNotFound(inner, match, err);
+  }
+};
+const loadRouteMatch = async (inner, index) => {
+  const { id: matchId, routeId } = inner.matches[index];
+  let loaderShouldRunAsync = false;
+  let loaderIsRunningAsync = false;
+  const route = inner.router.looseRoutesById[routeId];
+  const commitContext = () => {
+    const context = { ...inner.router.options.context };
+    for (let i = 0; i <= index; i++) {
+      const innerMatch = inner.matches[i];
+      if (!innerMatch) continue;
+      const m2 = inner.router.getMatch(innerMatch.id);
+      if (!m2) continue;
+      Object.assign(context, m2.__routeContext, m2.__beforeLoadContext);
+    }
+    inner.updateMatch(matchId, (prev) => ({
+      ...prev,
+      context
+    }));
+  };
+  if (shouldSkipLoader(inner, matchId)) {
+    if (inner.router.isServer) {
+      const headResult = executeHead(inner, matchId, route);
+      if (headResult) {
+        const head = await headResult;
+        inner.updateMatch(matchId, (prev) => ({
+          ...prev,
+          ...head
+        }));
+      }
+      return inner.router.getMatch(matchId);
+    }
+  } else {
+    const prevMatch = inner.router.getMatch(matchId);
+    if (prevMatch._nonReactive.loaderPromise) {
+      if (prevMatch.status === "success" && !inner.sync && !prevMatch.preload) {
+        return prevMatch;
+      }
+      await prevMatch._nonReactive.loaderPromise;
+      const match2 = inner.router.getMatch(matchId);
+      const error = match2._nonReactive.error || match2.error;
+      if (error) {
+        handleRedirectAndNotFound(inner, match2, error);
+      }
+    } else {
+      const age = Date.now() - prevMatch.updatedAt;
+      const preload = resolvePreload(inner, matchId);
+      const staleAge = preload ? route.options.preloadStaleTime ?? inner.router.options.defaultPreloadStaleTime ?? 3e4 : route.options.staleTime ?? inner.router.options.defaultStaleTime ?? 0;
+      const shouldReloadOption = route.options.shouldReload;
+      const shouldReload = typeof shouldReloadOption === "function" ? shouldReloadOption(getLoaderContext(inner, matchId, index, route)) : shouldReloadOption;
+      const nextPreload = !!preload && !inner.router.state.matches.some((d) => d.id === matchId);
+      const match2 = inner.router.getMatch(matchId);
+      match2._nonReactive.loaderPromise = createControlledPromise();
+      if (nextPreload !== match2.preload) {
+        inner.updateMatch(matchId, (prev) => ({
+          ...prev,
+          preload: nextPreload
+        }));
+      }
+      const { status, invalid } = match2;
+      loaderShouldRunAsync = status === "success" && (invalid || (shouldReload ?? age > staleAge));
+      if (preload && route.options.preload === false) ;
+      else if (loaderShouldRunAsync && !inner.sync) {
+        loaderIsRunningAsync = true;
+        (async () => {
+          try {
+            await runLoader(inner, matchId, index, route);
+            commitContext();
+            const match3 = inner.router.getMatch(matchId);
+            match3._nonReactive.loaderPromise?.resolve();
+            match3._nonReactive.loadPromise?.resolve();
+            match3._nonReactive.loaderPromise = void 0;
+          } catch (err) {
+            if (isRedirect(err)) {
+              await inner.router.navigate(err.options);
+            }
+          }
+        })();
+      } else if (status !== "success" || loaderShouldRunAsync && inner.sync) {
+        await runLoader(inner, matchId, index, route);
+      } else {
+        const headResult = executeHead(inner, matchId, route);
+        if (headResult) {
+          const head = await headResult;
+          inner.updateMatch(matchId, (prev) => ({
+            ...prev,
+            ...head
+          }));
+        }
+      }
+    }
+  }
+  const match = inner.router.getMatch(matchId);
+  if (!loaderIsRunningAsync) {
+    match._nonReactive.loaderPromise?.resolve();
+    match._nonReactive.loadPromise?.resolve();
+  }
+  clearTimeout(match._nonReactive.pendingTimeout);
+  match._nonReactive.pendingTimeout = void 0;
+  if (!loaderIsRunningAsync) match._nonReactive.loaderPromise = void 0;
+  match._nonReactive.dehydrated = void 0;
+  if (!loaderIsRunningAsync) {
+    commitContext();
+  }
+  const nextIsFetching = loaderIsRunningAsync ? match.isFetching : false;
+  if (nextIsFetching !== match.isFetching || match.invalid !== false) {
+    inner.updateMatch(matchId, (prev) => ({
+      ...prev,
+      isFetching: nextIsFetching,
+      invalid: false
+    }));
+    return inner.router.getMatch(matchId);
+  } else {
+    return match;
+  }
+};
+async function loadMatches(arg) {
+  const inner = Object.assign(arg, {
+    matchPromises: []
+  });
+  if (!inner.router.isServer && inner.router.state.matches.some((d) => d._forcePending)) {
+    triggerOnReady(inner);
+  }
+  try {
+    for (let i = 0; i < inner.matches.length; i++) {
+      const beforeLoad = handleBeforeLoad(inner, i);
+      if (isPromise(beforeLoad)) await beforeLoad;
+    }
+    const max = inner.firstBadMatchIndex ?? inner.matches.length;
+    for (let i = 0; i < max; i++) {
+      inner.matchPromises.push(loadRouteMatch(inner, i));
+    }
+    await Promise.all(inner.matchPromises);
+    const readyPromise = triggerOnReady(inner);
+    if (isPromise(readyPromise)) await readyPromise;
+  } catch (err) {
+    if (isNotFound(err) && !inner.preload) {
+      const readyPromise = triggerOnReady(inner);
+      if (isPromise(readyPromise)) await readyPromise;
+      throw err;
+    }
+    if (isRedirect(err)) {
+      throw err;
+    }
+  }
+  return inner.matches;
+}
+async function loadRouteChunk(route) {
+  if (!route._lazyLoaded && route._lazyPromise === void 0) {
+    if (route.lazyFn) {
+      route._lazyPromise = route.lazyFn().then((lazyRoute) => {
+        const { id: _id, ...options } = lazyRoute.options;
+        Object.assign(route.options, options);
+        route._lazyLoaded = true;
+        route._lazyPromise = void 0;
+      });
+    } else {
+      route._lazyLoaded = true;
+    }
+  }
+  if (!route._componentsLoaded && route._componentsPromise === void 0) {
+    const loadComponents = () => {
+      const preloads = [];
+      for (const type of componentTypes) {
+        const preload = route.options[type]?.preload;
+        if (preload) preloads.push(preload());
+      }
+      if (preloads.length)
+        return Promise.all(preloads).then(() => {
+          route._componentsLoaded = true;
+          route._componentsPromise = void 0;
+        });
+      route._componentsLoaded = true;
+      route._componentsPromise = void 0;
+      return;
+    };
+    route._componentsPromise = route._lazyPromise ? route._lazyPromise.then(loadComponents) : loadComponents();
+  }
+  return route._componentsPromise;
+}
+function makeMaybe(value, error) {
+  if (error) {
+    return { status: "error", error };
+  }
+  return { status: "success", value };
+}
+function routeNeedsPreload(route) {
+  for (const componentType of componentTypes) {
+    if (route.options[componentType]?.preload) {
+      return true;
+    }
+  }
+  return false;
+}
+const componentTypes = [
+  "component",
+  "errorComponent",
+  "pendingComponent",
+  "notFoundComponent"
+];
+function composeRewrites(rewrites) {
+  return {
+    input: ({ url }) => {
+      for (const rewrite of rewrites) {
+        url = executeRewriteInput(rewrite, url);
+      }
+      return url;
+    },
+    output: ({ url }) => {
+      for (let i = rewrites.length - 1; i >= 0; i--) {
+        url = executeRewriteOutput(rewrites[i], url);
+      }
+      return url;
+    }
+  };
+}
+function rewriteBasepath(opts) {
+  const trimmedBasepath = trimPath(opts.basepath);
+  const normalizedBasepath = `/${trimmedBasepath}`;
+  const normalizedBasepathWithSlash = `${normalizedBasepath}/`;
+  const checkBasepath = opts.caseSensitive ? normalizedBasepath : normalizedBasepath.toLowerCase();
+  const checkBasepathWithSlash = opts.caseSensitive ? normalizedBasepathWithSlash : normalizedBasepathWithSlash.toLowerCase();
+  return {
+    input: ({ url }) => {
+      const pathname = opts.caseSensitive ? url.pathname : url.pathname.toLowerCase();
+      if (pathname === checkBasepath) {
+        url.pathname = "/";
+      } else if (pathname.startsWith(checkBasepathWithSlash)) {
+        url.pathname = url.pathname.slice(normalizedBasepath.length);
+      }
+      return url;
+    },
+    output: ({ url }) => {
+      url.pathname = joinPaths(["/", trimmedBasepath, url.pathname]);
+      return url;
+    }
+  };
 }
 function executeRewriteInput(rewrite, url) {
   const res = rewrite?.input?.({ url });
@@ -351,6 +2664,1315 @@ function executeRewriteInput(rewrite, url) {
     }
   }
   return url;
+}
+function executeRewriteOutput(rewrite, url) {
+  const res = rewrite?.output?.({ url });
+  if (res) {
+    if (typeof res === "string") {
+      return new URL(res);
+    } else if (res instanceof URL) {
+      return res;
+    }
+  }
+  return url;
+}
+function getLocationChangeInfo(routerState) {
+  const fromLocation = routerState.resolvedLocation;
+  const toLocation = routerState.location;
+  const pathChanged = fromLocation?.pathname !== toLocation.pathname;
+  const hrefChanged = fromLocation?.href !== toLocation.href;
+  const hashChanged = fromLocation?.hash !== toLocation.hash;
+  return { fromLocation, toLocation, pathChanged, hrefChanged, hashChanged };
+}
+class RouterCore {
+  /**
+   * @deprecated Use the `createRouter` function instead
+   */
+  constructor(options) {
+    this.tempLocationKey = `${Math.round(
+      Math.random() * 1e7
+    )}`;
+    this.resetNextScroll = true;
+    this.shouldViewTransition = void 0;
+    this.isViewTransitionTypesSupported = void 0;
+    this.subscribers = /* @__PURE__ */ new Set();
+    this.isScrollRestoring = false;
+    this.isScrollRestorationSetup = false;
+    this.startTransition = (fn2) => fn2();
+    this.update = (newOptions) => {
+      if (newOptions.notFoundRoute) {
+        console.warn(
+          "The notFoundRoute API is deprecated and will be removed in the next major version. See https://tanstack.com/router/v1/docs/framework/react/guide/not-found-errors#migrating-from-notfoundroute for more info."
+        );
+      }
+      const prevOptions = this.options;
+      const prevBasepath = this.basepath ?? prevOptions?.basepath ?? "/";
+      const basepathWasUnset = this.basepath === void 0;
+      const prevRewriteOption = prevOptions?.rewrite;
+      this.options = {
+        ...prevOptions,
+        ...newOptions
+      };
+      this.isServer = this.options.isServer ?? typeof document === "undefined";
+      this.pathParamsDecodeCharMap = this.options.pathParamsAllowedCharacters ? new Map(
+        this.options.pathParamsAllowedCharacters.map((char) => [
+          encodeURIComponent(char),
+          char
+        ])
+      ) : void 0;
+      if (!this.history || this.options.history && this.options.history !== this.history) {
+        if (!this.options.history) {
+          if (!this.isServer) {
+            this.history = createBrowserHistory();
+          }
+        } else {
+          this.history = this.options.history;
+        }
+      }
+      this.origin = this.options.origin;
+      if (!this.origin) {
+        if (!this.isServer && window?.origin && window.origin !== "null") {
+          this.origin = window.origin;
+        } else {
+          this.origin = "http://localhost";
+        }
+      }
+      if (this.history) {
+        this.updateLatestLocation();
+      }
+      if (this.options.routeTree !== this.routeTree) {
+        this.routeTree = this.options.routeTree;
+        this.buildRouteTree();
+      }
+      if (!this.__store && this.latestLocation) {
+        this.__store = new Store(getInitialRouterState(this.latestLocation), {
+          onUpdate: () => {
+            this.__store.state = {
+              ...this.state,
+              cachedMatches: this.state.cachedMatches.filter(
+                (d) => !["redirected"].includes(d.status)
+              )
+            };
+          }
+        });
+        setupScrollRestoration(this);
+      }
+      let needsLocationUpdate = false;
+      const nextBasepath = this.options.basepath ?? "/";
+      const nextRewriteOption = this.options.rewrite;
+      const basepathChanged = basepathWasUnset || prevBasepath !== nextBasepath;
+      const rewriteChanged = prevRewriteOption !== nextRewriteOption;
+      if (basepathChanged || rewriteChanged) {
+        this.basepath = nextBasepath;
+        const rewrites = [];
+        if (trimPath(nextBasepath) !== "") {
+          rewrites.push(
+            rewriteBasepath({
+              basepath: nextBasepath
+            })
+          );
+        }
+        if (nextRewriteOption) {
+          rewrites.push(nextRewriteOption);
+        }
+        this.rewrite = rewrites.length === 0 ? void 0 : rewrites.length === 1 ? rewrites[0] : composeRewrites(rewrites);
+        if (this.history) {
+          this.updateLatestLocation();
+        }
+        needsLocationUpdate = true;
+      }
+      if (needsLocationUpdate && this.__store) {
+        this.__store.state = {
+          ...this.state,
+          location: this.latestLocation
+        };
+      }
+      if (typeof window !== "undefined" && "CSS" in window && typeof window.CSS?.supports === "function") {
+        this.isViewTransitionTypesSupported = window.CSS.supports(
+          "selector(:active-view-transition-type(a)"
+        );
+      }
+    };
+    this.updateLatestLocation = () => {
+      this.latestLocation = this.parseLocation(
+        this.history.location,
+        this.latestLocation
+      );
+    };
+    this.buildRouteTree = () => {
+      const { routesById, routesByPath, processedTree } = processRouteTree(
+        this.routeTree,
+        this.options.caseSensitive,
+        (route, i) => {
+          route.init({
+            originalIndex: i
+          });
+        }
+      );
+      if (this.options.routeMasks) {
+        processRouteMasks(this.options.routeMasks, processedTree);
+      }
+      this.routesById = routesById;
+      this.routesByPath = routesByPath;
+      this.processedTree = processedTree;
+      const notFoundRoute = this.options.notFoundRoute;
+      if (notFoundRoute) {
+        notFoundRoute.init({
+          originalIndex: 99999999999
+        });
+        this.routesById[notFoundRoute.id] = notFoundRoute;
+      }
+    };
+    this.subscribe = (eventType, fn2) => {
+      const listener = {
+        eventType,
+        fn: fn2
+      };
+      this.subscribers.add(listener);
+      return () => {
+        this.subscribers.delete(listener);
+      };
+    };
+    this.emit = (routerEvent) => {
+      this.subscribers.forEach((listener) => {
+        if (listener.eventType === routerEvent.type) {
+          listener.fn(routerEvent);
+        }
+      });
+    };
+    this.parseLocation = (locationToParse, previousLocation) => {
+      const parse = ({
+        href,
+        state
+      }) => {
+        const fullUrl = new URL(href, this.origin);
+        const url = executeRewriteInput(this.rewrite, fullUrl);
+        const parsedSearch = this.options.parseSearch(url.search);
+        const searchStr = this.options.stringifySearch(parsedSearch);
+        url.search = searchStr;
+        const fullPath = url.href.replace(url.origin, "");
+        const { pathname, hash } = url;
+        return {
+          href: fullPath,
+          publicHref: href,
+          url: url.href,
+          pathname: decodePath(pathname),
+          searchStr,
+          search: replaceEqualDeep(previousLocation?.search, parsedSearch),
+          hash: hash.split("#").reverse()[0] ?? "",
+          state: replaceEqualDeep(previousLocation?.state, state)
+        };
+      };
+      const location = parse(locationToParse);
+      const { __tempLocation, __tempKey } = location.state;
+      if (__tempLocation && (!__tempKey || __tempKey === this.tempLocationKey)) {
+        const parsedTempLocation = parse(__tempLocation);
+        parsedTempLocation.state.key = location.state.key;
+        parsedTempLocation.state.__TSR_key = location.state.__TSR_key;
+        delete parsedTempLocation.state.__tempLocation;
+        return {
+          ...parsedTempLocation,
+          maskedLocation: location
+        };
+      }
+      return location;
+    };
+    this.resolvePathCache = createLRUCache(1e3);
+    this.resolvePathWithBase = (from, path) => {
+      const resolvedPath = resolvePath({
+        base: from,
+        to: cleanPath(path),
+        trailingSlash: this.options.trailingSlash,
+        cache: this.resolvePathCache
+      });
+      return resolvedPath;
+    };
+    this.matchRoutes = (pathnameOrNext, locationSearchOrOpts, opts) => {
+      if (typeof pathnameOrNext === "string") {
+        return this.matchRoutesInternal(
+          {
+            pathname: pathnameOrNext,
+            search: locationSearchOrOpts
+          },
+          opts
+        );
+      }
+      return this.matchRoutesInternal(pathnameOrNext, locationSearchOrOpts);
+    };
+    this.getMatchedRoutes = (pathname) => {
+      return getMatchedRoutes({
+        pathname,
+        routesById: this.routesById,
+        processedTree: this.processedTree
+      });
+    };
+    this.cancelMatch = (id) => {
+      const match = this.getMatch(id);
+      if (!match) return;
+      match.abortController.abort();
+      clearTimeout(match._nonReactive.pendingTimeout);
+      match._nonReactive.pendingTimeout = void 0;
+    };
+    this.cancelMatches = () => {
+      const currentPendingMatches = this.state.matches.filter(
+        (match) => match.status === "pending"
+      );
+      const currentLoadingMatches = this.state.matches.filter(
+        (match) => match.isFetching === "loader"
+      );
+      const matchesToCancelArray = /* @__PURE__ */ new Set([
+        ...this.state.pendingMatches ?? [],
+        ...currentPendingMatches,
+        ...currentLoadingMatches
+      ]);
+      matchesToCancelArray.forEach((match) => {
+        this.cancelMatch(match.id);
+      });
+    };
+    this.buildLocation = (opts) => {
+      const build = (dest = {}) => {
+        const currentLocation = dest._fromLocation || this.pendingBuiltLocation || this.latestLocation;
+        const allCurrentLocationMatches = this.matchRoutes(currentLocation, {
+          _buildLocation: true
+        });
+        const lastMatch = last(allCurrentLocationMatches);
+        if (dest.from && process.env.NODE_ENV !== "production" && dest._isNavigate) {
+          const allFromMatches = this.getMatchedRoutes(dest.from).matchedRoutes;
+          const matchedFrom = findLast(allCurrentLocationMatches, (d) => {
+            return comparePaths(d.fullPath, dest.from);
+          });
+          const matchedCurrent = findLast(allFromMatches, (d) => {
+            return comparePaths(d.fullPath, lastMatch.fullPath);
+          });
+          if (!matchedFrom && !matchedCurrent) {
+            console.warn(`Could not find match for from: ${dest.from}`);
+          }
+        }
+        const defaultedFromPath = dest.unsafeRelative === "path" ? currentLocation.pathname : dest.from ?? lastMatch.fullPath;
+        const fromPath = this.resolvePathWithBase(defaultedFromPath, ".");
+        const fromSearch = lastMatch.search;
+        const fromParams = { ...lastMatch.params };
+        const nextTo = dest.to ? this.resolvePathWithBase(fromPath, `${dest.to}`) : this.resolvePathWithBase(fromPath, ".");
+        const nextParams = dest.params === false || dest.params === null ? {} : (dest.params ?? true) === true ? fromParams : Object.assign(
+          fromParams,
+          functionalUpdate(dest.params, fromParams)
+        );
+        const interpolatedNextTo = interpolatePath({
+          path: nextTo,
+          params: nextParams
+        }).interpolatedPath;
+        const destRoutes = this.matchRoutes(interpolatedNextTo, void 0, {
+          _buildLocation: true
+        }).map((d) => this.looseRoutesById[d.routeId]);
+        if (Object.keys(nextParams).length > 0) {
+          for (const route of destRoutes) {
+            const fn2 = route.options.params?.stringify ?? route.options.stringifyParams;
+            if (fn2) {
+              Object.assign(nextParams, fn2(nextParams));
+            }
+          }
+        }
+        const nextPathname = opts.leaveParams ? (
+          // Use the original template path for interpolation
+          // This preserves the original parameter syntax including optional parameters
+          nextTo
+        ) : decodePath(
+          interpolatePath({
+            path: nextTo,
+            params: nextParams,
+            decodeCharMap: this.pathParamsDecodeCharMap
+          }).interpolatedPath
+        );
+        let nextSearch = fromSearch;
+        if (opts._includeValidateSearch && this.options.search?.strict) {
+          const validatedSearch = {};
+          destRoutes.forEach((route) => {
+            if (route.options.validateSearch) {
+              try {
+                Object.assign(
+                  validatedSearch,
+                  validateSearch(route.options.validateSearch, {
+                    ...validatedSearch,
+                    ...nextSearch
+                  })
+                );
+              } catch {
+              }
+            }
+          });
+          nextSearch = validatedSearch;
+        }
+        nextSearch = applySearchMiddleware({
+          search: nextSearch,
+          dest,
+          destRoutes,
+          _includeValidateSearch: opts._includeValidateSearch
+        });
+        nextSearch = replaceEqualDeep(fromSearch, nextSearch);
+        const searchStr = this.options.stringifySearch(nextSearch);
+        const hash = dest.hash === true ? currentLocation.hash : dest.hash ? functionalUpdate(dest.hash, currentLocation.hash) : void 0;
+        const hashStr = hash ? `#${hash}` : "";
+        let nextState = dest.state === true ? currentLocation.state : dest.state ? functionalUpdate(dest.state, currentLocation.state) : {};
+        nextState = replaceEqualDeep(currentLocation.state, nextState);
+        const fullPath = `${nextPathname}${searchStr}${hashStr}`;
+        const url = new URL(fullPath, this.origin);
+        const rewrittenUrl = executeRewriteOutput(this.rewrite, url);
+        return {
+          publicHref: rewrittenUrl.pathname + rewrittenUrl.search + rewrittenUrl.hash,
+          href: fullPath,
+          url: rewrittenUrl.href,
+          pathname: nextPathname,
+          search: nextSearch,
+          searchStr,
+          state: nextState,
+          hash: hash ?? "",
+          unmaskOnReload: dest.unmaskOnReload
+        };
+      };
+      const buildWithMatches = (dest = {}, maskedDest) => {
+        const next = build(dest);
+        let maskedNext = maskedDest ? build(maskedDest) : void 0;
+        if (!maskedNext) {
+          const params = {};
+          if (this.options.routeMasks) {
+            const match = findFlatMatch(
+              next.pathname,
+              this.processedTree
+            );
+            if (match) {
+              Object.assign(params, match.params);
+              const {
+                from: _from,
+                params: maskParams,
+                ...maskProps
+              } = match.route;
+              const nextParams = maskParams === false || maskParams === null ? {} : (maskParams ?? true) === true ? params : Object.assign(params, functionalUpdate(maskParams, params));
+              maskedDest = {
+                from: opts.from,
+                ...maskProps,
+                params: nextParams
+              };
+              maskedNext = build(maskedDest);
+            }
+          }
+        }
+        if (maskedNext) {
+          next.maskedLocation = maskedNext;
+        }
+        return next;
+      };
+      if (opts.mask) {
+        return buildWithMatches(opts, {
+          from: opts.from,
+          ...opts.mask
+        });
+      }
+      return buildWithMatches(opts);
+    };
+    this.commitLocation = ({
+      viewTransition,
+      ignoreBlocker,
+      ...next
+    }) => {
+      const isSameState = () => {
+        const ignoredProps = [
+          "key",
+          // TODO: Remove in v2 - use __TSR_key instead
+          "__TSR_key",
+          "__TSR_index",
+          "__hashScrollIntoViewOptions"
+        ];
+        ignoredProps.forEach((prop) => {
+          next.state[prop] = this.latestLocation.state[prop];
+        });
+        const isEqual = deepEqual(next.state, this.latestLocation.state);
+        ignoredProps.forEach((prop) => {
+          delete next.state[prop];
+        });
+        return isEqual;
+      };
+      const isSameUrl = trimPathRight(this.latestLocation.href) === trimPathRight(next.href);
+      const previousCommitPromise = this.commitLocationPromise;
+      this.commitLocationPromise = createControlledPromise(() => {
+        previousCommitPromise?.resolve();
+      });
+      if (isSameUrl && isSameState()) {
+        this.load();
+      } else {
+        let { maskedLocation, hashScrollIntoView, ...nextHistory } = next;
+        if (maskedLocation) {
+          nextHistory = {
+            ...maskedLocation,
+            state: {
+              ...maskedLocation.state,
+              __tempKey: void 0,
+              __tempLocation: {
+                ...nextHistory,
+                search: nextHistory.searchStr,
+                state: {
+                  ...nextHistory.state,
+                  __tempKey: void 0,
+                  __tempLocation: void 0,
+                  __TSR_key: void 0,
+                  key: void 0
+                  // TODO: Remove in v2 - use __TSR_key instead
+                }
+              }
+            }
+          };
+          if (nextHistory.unmaskOnReload ?? this.options.unmaskOnReload ?? false) {
+            nextHistory.state.__tempKey = this.tempLocationKey;
+          }
+        }
+        nextHistory.state.__hashScrollIntoViewOptions = hashScrollIntoView ?? this.options.defaultHashScrollIntoView ?? true;
+        this.shouldViewTransition = viewTransition;
+        this.history[next.replace ? "replace" : "push"](
+          nextHistory.publicHref,
+          nextHistory.state,
+          { ignoreBlocker }
+        );
+      }
+      this.resetNextScroll = next.resetScroll ?? true;
+      if (!this.history.subscribers.size) {
+        this.load();
+      }
+      return this.commitLocationPromise;
+    };
+    this.buildAndCommitLocation = ({
+      replace,
+      resetScroll,
+      hashScrollIntoView,
+      viewTransition,
+      ignoreBlocker,
+      href,
+      ...rest
+    } = {}) => {
+      if (href) {
+        const currentIndex = this.history.location.state.__TSR_index;
+        const parsed = parseHref(href, {
+          __TSR_index: replace ? currentIndex : currentIndex + 1
+        });
+        rest.to = parsed.pathname;
+        rest.search = this.options.parseSearch(parsed.search);
+        rest.hash = parsed.hash.slice(1);
+      }
+      const location = this.buildLocation({
+        ...rest,
+        _includeValidateSearch: true
+      });
+      this.pendingBuiltLocation = location;
+      const commitPromise = this.commitLocation({
+        ...location,
+        viewTransition,
+        replace,
+        resetScroll,
+        hashScrollIntoView,
+        ignoreBlocker
+      });
+      Promise.resolve().then(() => {
+        if (this.pendingBuiltLocation === location) {
+          this.pendingBuiltLocation = void 0;
+        }
+      });
+      return commitPromise;
+    };
+    this.navigate = async ({ to: to2, reloadDocument, href, ...rest }) => {
+      if (!reloadDocument && href) {
+        try {
+          new URL(`${href}`);
+          reloadDocument = true;
+        } catch {
+        }
+      }
+      if (reloadDocument) {
+        if (!href) {
+          const location = this.buildLocation({ to: to2, ...rest });
+          href = location.url;
+        }
+        if (!rest.ignoreBlocker) {
+          const historyWithBlockers = this.history;
+          const blockers = historyWithBlockers.getBlockers?.() ?? [];
+          for (const blocker of blockers) {
+            if (blocker?.blockerFn) {
+              const shouldBlock = await blocker.blockerFn({
+                currentLocation: this.latestLocation,
+                nextLocation: this.latestLocation,
+                // External URLs don't have a next location in our router
+                action: "PUSH"
+              });
+              if (shouldBlock) {
+                return Promise.resolve();
+              }
+            }
+          }
+        }
+        if (rest.replace) {
+          window.location.replace(href);
+        } else {
+          window.location.href = href;
+        }
+        return Promise.resolve();
+      }
+      return this.buildAndCommitLocation({
+        ...rest,
+        href,
+        to: to2,
+        _isNavigate: true
+      });
+    };
+    this.beforeLoad = () => {
+      this.cancelMatches();
+      this.updateLatestLocation();
+      if (this.isServer) {
+        const nextLocation = this.buildLocation({
+          to: this.latestLocation.pathname,
+          search: true,
+          params: true,
+          hash: true,
+          state: true,
+          _includeValidateSearch: true
+        });
+        const normalizeUrl = (url) => {
+          try {
+            return encodeURI(decodeURI(url));
+          } catch {
+            return url;
+          }
+        };
+        if (trimPath(normalizeUrl(this.latestLocation.href)) !== trimPath(normalizeUrl(nextLocation.href))) {
+          let href = nextLocation.url;
+          if (this.origin && href.startsWith(this.origin)) {
+            href = href.replace(this.origin, "") || "/";
+          }
+          throw redirect({ href });
+        }
+      }
+      const pendingMatches = this.matchRoutes(this.latestLocation);
+      this.__store.setState((s) => ({
+        ...s,
+        status: "pending",
+        statusCode: 200,
+        isLoading: true,
+        location: this.latestLocation,
+        pendingMatches,
+        // If a cached moved to pendingMatches, remove it from cachedMatches
+        cachedMatches: s.cachedMatches.filter(
+          (d) => !pendingMatches.some((e) => e.id === d.id)
+        )
+      }));
+    };
+    this.load = async (opts) => {
+      let redirect2;
+      let notFound;
+      let loadPromise;
+      loadPromise = new Promise((resolve) => {
+        this.startTransition(async () => {
+          try {
+            this.beforeLoad();
+            const next = this.latestLocation;
+            const prevLocation = this.state.resolvedLocation;
+            if (!this.state.redirect) {
+              this.emit({
+                type: "onBeforeNavigate",
+                ...getLocationChangeInfo({
+                  resolvedLocation: prevLocation,
+                  location: next
+                })
+              });
+            }
+            this.emit({
+              type: "onBeforeLoad",
+              ...getLocationChangeInfo({
+                resolvedLocation: prevLocation,
+                location: next
+              })
+            });
+            await loadMatches({
+              router: this,
+              sync: opts?.sync,
+              matches: this.state.pendingMatches,
+              location: next,
+              updateMatch: this.updateMatch,
+              // eslint-disable-next-line @typescript-eslint/require-await
+              onReady: async () => {
+                this.startTransition(() => {
+                  this.startViewTransition(async () => {
+                    let exitingMatches = [];
+                    let enteringMatches = [];
+                    let stayingMatches = [];
+                    batch(() => {
+                      this.__store.setState((s) => {
+                        const previousMatches = s.matches;
+                        const newMatches = s.pendingMatches || s.matches;
+                        exitingMatches = previousMatches.filter(
+                          (match) => !newMatches.some((d) => d.id === match.id)
+                        );
+                        enteringMatches = newMatches.filter(
+                          (match) => !previousMatches.some((d) => d.id === match.id)
+                        );
+                        stayingMatches = newMatches.filter(
+                          (match) => previousMatches.some((d) => d.id === match.id)
+                        );
+                        return {
+                          ...s,
+                          isLoading: false,
+                          loadedAt: Date.now(),
+                          matches: newMatches,
+                          pendingMatches: void 0,
+                          /**
+                           * When committing new matches, cache any exiting matches that are still usable.
+                           * Routes that resolved with `status: 'error'` or `status: 'notFound'` are
+                           * deliberately excluded from `cachedMatches` so that subsequent invalidations
+                           * or reloads re-run their loaders instead of reusing the failed/not-found data.
+                           */
+                          cachedMatches: [
+                            ...s.cachedMatches,
+                            ...exitingMatches.filter(
+                              (d) => d.status !== "error" && d.status !== "notFound"
+                            )
+                          ]
+                        };
+                      });
+                      this.clearExpiredCache();
+                    });
+                    [
+                      [exitingMatches, "onLeave"],
+                      [enteringMatches, "onEnter"],
+                      [stayingMatches, "onStay"]
+                    ].forEach(([matches, hook]) => {
+                      matches.forEach((match) => {
+                        this.looseRoutesById[match.routeId].options[hook]?.(
+                          match
+                        );
+                      });
+                    });
+                  });
+                });
+              }
+            });
+          } catch (err) {
+            if (isRedirect(err)) {
+              redirect2 = err;
+              if (!this.isServer) {
+                this.navigate({
+                  ...redirect2.options,
+                  replace: true,
+                  ignoreBlocker: true
+                });
+              }
+            } else if (isNotFound(err)) {
+              notFound = err;
+            }
+            this.__store.setState((s) => ({
+              ...s,
+              statusCode: redirect2 ? redirect2.status : notFound ? 404 : s.matches.some((d) => d.status === "error") ? 500 : 200,
+              redirect: redirect2
+            }));
+          }
+          if (this.latestLoadPromise === loadPromise) {
+            this.commitLocationPromise?.resolve();
+            this.latestLoadPromise = void 0;
+            this.commitLocationPromise = void 0;
+          }
+          resolve();
+        });
+      });
+      this.latestLoadPromise = loadPromise;
+      await loadPromise;
+      while (this.latestLoadPromise && loadPromise !== this.latestLoadPromise) {
+        await this.latestLoadPromise;
+      }
+      let newStatusCode = void 0;
+      if (this.hasNotFoundMatch()) {
+        newStatusCode = 404;
+      } else if (this.__store.state.matches.some((d) => d.status === "error")) {
+        newStatusCode = 500;
+      }
+      if (newStatusCode !== void 0) {
+        this.__store.setState((s) => ({
+          ...s,
+          statusCode: newStatusCode
+        }));
+      }
+    };
+    this.startViewTransition = (fn2) => {
+      const shouldViewTransition = this.shouldViewTransition ?? this.options.defaultViewTransition;
+      delete this.shouldViewTransition;
+      if (shouldViewTransition && typeof document !== "undefined" && "startViewTransition" in document && typeof document.startViewTransition === "function") {
+        let startViewTransitionParams;
+        if (typeof shouldViewTransition === "object" && this.isViewTransitionTypesSupported) {
+          const next = this.latestLocation;
+          const prevLocation = this.state.resolvedLocation;
+          const resolvedViewTransitionTypes = typeof shouldViewTransition.types === "function" ? shouldViewTransition.types(
+            getLocationChangeInfo({
+              resolvedLocation: prevLocation,
+              location: next
+            })
+          ) : shouldViewTransition.types;
+          if (resolvedViewTransitionTypes === false) {
+            fn2();
+            return;
+          }
+          startViewTransitionParams = {
+            update: fn2,
+            types: resolvedViewTransitionTypes
+          };
+        } else {
+          startViewTransitionParams = fn2;
+        }
+        document.startViewTransition(startViewTransitionParams);
+      } else {
+        fn2();
+      }
+    };
+    this.updateMatch = (id, updater) => {
+      this.startTransition(() => {
+        const matchesKey = this.state.pendingMatches?.some((d) => d.id === id) ? "pendingMatches" : this.state.matches.some((d) => d.id === id) ? "matches" : this.state.cachedMatches.some((d) => d.id === id) ? "cachedMatches" : "";
+        if (matchesKey) {
+          this.__store.setState((s) => ({
+            ...s,
+            [matchesKey]: s[matchesKey]?.map(
+              (d) => d.id === id ? updater(d) : d
+            )
+          }));
+        }
+      });
+    };
+    this.getMatch = (matchId) => {
+      const findFn = (d) => d.id === matchId;
+      return this.state.cachedMatches.find(findFn) ?? this.state.pendingMatches?.find(findFn) ?? this.state.matches.find(findFn);
+    };
+    this.invalidate = (opts) => {
+      const invalidate = (d) => {
+        if (opts?.filter?.(d) ?? true) {
+          return {
+            ...d,
+            invalid: true,
+            ...opts?.forcePending || d.status === "error" || d.status === "notFound" ? { status: "pending", error: void 0 } : void 0
+          };
+        }
+        return d;
+      };
+      this.__store.setState((s) => ({
+        ...s,
+        matches: s.matches.map(invalidate),
+        cachedMatches: s.cachedMatches.map(invalidate),
+        pendingMatches: s.pendingMatches?.map(invalidate)
+      }));
+      this.shouldViewTransition = false;
+      return this.load({ sync: opts?.sync });
+    };
+    this.resolveRedirect = (redirect2) => {
+      if (!redirect2.options.href) {
+        const location = this.buildLocation(redirect2.options);
+        let href = location.url;
+        if (this.origin && href.startsWith(this.origin)) {
+          href = href.replace(this.origin, "") || "/";
+        }
+        redirect2.options.href = location.href;
+        redirect2.headers.set("Location", href);
+      }
+      if (!redirect2.headers.get("Location")) {
+        redirect2.headers.set("Location", redirect2.options.href);
+      }
+      return redirect2;
+    };
+    this.clearCache = (opts) => {
+      const filter = opts?.filter;
+      if (filter !== void 0) {
+        this.__store.setState((s) => {
+          return {
+            ...s,
+            cachedMatches: s.cachedMatches.filter(
+              (m2) => !filter(m2)
+            )
+          };
+        });
+      } else {
+        this.__store.setState((s) => {
+          return {
+            ...s,
+            cachedMatches: []
+          };
+        });
+      }
+    };
+    this.clearExpiredCache = () => {
+      const filter = (d) => {
+        const route = this.looseRoutesById[d.routeId];
+        if (!route.options.loader) {
+          return true;
+        }
+        const gcTime = (d.preload ? route.options.preloadGcTime ?? this.options.defaultPreloadGcTime : route.options.gcTime ?? this.options.defaultGcTime) ?? 5 * 60 * 1e3;
+        const isError = d.status === "error";
+        if (isError) return true;
+        const gcEligible = Date.now() - d.updatedAt >= gcTime;
+        return gcEligible;
+      };
+      this.clearCache({ filter });
+    };
+    this.loadRouteChunk = loadRouteChunk;
+    this.preloadRoute = async (opts) => {
+      const next = this.buildLocation(opts);
+      let matches = this.matchRoutes(next, {
+        throwOnError: true,
+        preload: true,
+        dest: opts
+      });
+      const activeMatchIds = new Set(
+        [...this.state.matches, ...this.state.pendingMatches ?? []].map(
+          (d) => d.id
+        )
+      );
+      const loadedMatchIds = /* @__PURE__ */ new Set([
+        ...activeMatchIds,
+        ...this.state.cachedMatches.map((d) => d.id)
+      ]);
+      batch(() => {
+        matches.forEach((match) => {
+          if (!loadedMatchIds.has(match.id)) {
+            this.__store.setState((s) => ({
+              ...s,
+              cachedMatches: [...s.cachedMatches, match]
+            }));
+          }
+        });
+      });
+      try {
+        matches = await loadMatches({
+          router: this,
+          matches,
+          location: next,
+          preload: true,
+          updateMatch: (id, updater) => {
+            if (activeMatchIds.has(id)) {
+              matches = matches.map((d) => d.id === id ? updater(d) : d);
+            } else {
+              this.updateMatch(id, updater);
+            }
+          }
+        });
+        return matches;
+      } catch (err) {
+        if (isRedirect(err)) {
+          if (err.options.reloadDocument) {
+            return void 0;
+          }
+          return await this.preloadRoute({
+            ...err.options,
+            _fromLocation: next
+          });
+        }
+        if (!isNotFound(err)) {
+          console.error(err);
+        }
+        return void 0;
+      }
+    };
+    this.matchRoute = (location, opts) => {
+      const matchLocation = {
+        ...location,
+        to: location.to ? this.resolvePathWithBase(
+          location.from || "",
+          location.to
+        ) : void 0,
+        params: location.params || {},
+        leaveParams: true
+      };
+      const next = this.buildLocation(matchLocation);
+      if (opts?.pending && this.state.status !== "pending") {
+        return false;
+      }
+      const pending = opts?.pending === void 0 ? !this.state.isLoading : opts.pending;
+      const baseLocation = pending ? this.latestLocation : this.state.resolvedLocation || this.state.location;
+      const match = findSingleMatch(
+        next.pathname,
+        opts?.caseSensitive ?? false,
+        opts?.fuzzy ?? false,
+        baseLocation.pathname,
+        this.processedTree
+      );
+      if (!match) {
+        return false;
+      }
+      if (location.params) {
+        if (!deepEqual(match.params, location.params, { partial: true })) {
+          return false;
+        }
+      }
+      if (opts?.includeSearch ?? true) {
+        return deepEqual(baseLocation.search, next.search, { partial: true }) ? match.params : false;
+      }
+      return match.params;
+    };
+    this.hasNotFoundMatch = () => {
+      return this.__store.state.matches.some(
+        (d) => d.status === "notFound" || d.globalNotFound
+      );
+    };
+    this.update({
+      defaultPreloadDelay: 50,
+      defaultPendingMs: 1e3,
+      defaultPendingMinMs: 500,
+      context: void 0,
+      ...options,
+      caseSensitive: options.caseSensitive ?? false,
+      notFoundMode: options.notFoundMode ?? "fuzzy",
+      stringifySearch: options.stringifySearch ?? defaultStringifySearch,
+      parseSearch: options.parseSearch ?? defaultParseSearch
+    });
+    if (typeof document !== "undefined") {
+      self.__TSR_ROUTER__ = this;
+    }
+  }
+  isShell() {
+    return !!this.options.isShell;
+  }
+  isPrerendering() {
+    return !!this.options.isPrerendering;
+  }
+  get state() {
+    return this.__store.state;
+  }
+  get looseRoutesById() {
+    return this.routesById;
+  }
+  matchRoutesInternal(next, opts) {
+    const matchedRoutesResult = this.getMatchedRoutes(next.pathname);
+    const { foundRoute, routeParams } = matchedRoutesResult;
+    let { matchedRoutes } = matchedRoutesResult;
+    let isGlobalNotFound = false;
+    if (
+      // If we found a route, and it's not an index route and we have left over path
+      foundRoute ? foundRoute.path !== "/" && routeParams["**"] : (
+        // Or if we didn't find a route and we have left over path
+        trimPathRight(next.pathname)
+      )
+    ) {
+      if (this.options.notFoundRoute) {
+        matchedRoutes = [...matchedRoutes, this.options.notFoundRoute];
+      } else {
+        isGlobalNotFound = true;
+      }
+    }
+    const globalNotFoundRouteId = (() => {
+      if (!isGlobalNotFound) {
+        return void 0;
+      }
+      if (this.options.notFoundMode !== "root") {
+        for (let i = matchedRoutes.length - 1; i >= 0; i--) {
+          const route = matchedRoutes[i];
+          if (route.children) {
+            return route.id;
+          }
+        }
+      }
+      return rootRouteId;
+    })();
+    const matches = [];
+    const getParentContext = (parentMatch) => {
+      const parentMatchId = parentMatch?.id;
+      const parentContext = !parentMatchId ? this.options.context ?? void 0 : parentMatch.context ?? this.options.context ?? void 0;
+      return parentContext;
+    };
+    matchedRoutes.forEach((route, index) => {
+      const parentMatch = matches[index - 1];
+      const [preMatchSearch, strictMatchSearch, searchError] = (() => {
+        const parentSearch = parentMatch?.search ?? next.search;
+        const parentStrictSearch = parentMatch?._strictSearch ?? void 0;
+        try {
+          const strictSearch = validateSearch(route.options.validateSearch, { ...parentSearch }) ?? void 0;
+          return [
+            {
+              ...parentSearch,
+              ...strictSearch
+            },
+            { ...parentStrictSearch, ...strictSearch },
+            void 0
+          ];
+        } catch (err) {
+          let searchParamError = err;
+          if (!(err instanceof SearchParamError)) {
+            searchParamError = new SearchParamError(err.message, {
+              cause: err
+            });
+          }
+          if (opts?.throwOnError) {
+            throw searchParamError;
+          }
+          return [parentSearch, {}, searchParamError];
+        }
+      })();
+      const loaderDeps = route.options.loaderDeps?.({
+        search: preMatchSearch
+      }) ?? "";
+      const loaderDepsHash = loaderDeps ? JSON.stringify(loaderDeps) : "";
+      const { interpolatedPath, usedParams } = interpolatePath({
+        path: route.fullPath,
+        params: routeParams,
+        decodeCharMap: this.pathParamsDecodeCharMap
+      });
+      const matchId = (
+        // route.id for disambiguation
+        route.id + // interpolatedPath for param changes
+        interpolatedPath + // explicit deps
+        loaderDepsHash
+      );
+      const existingMatch = this.getMatch(matchId);
+      const previousMatch = this.state.matches.find(
+        (d) => d.routeId === route.id
+      );
+      const strictParams = existingMatch?._strictParams ?? usedParams;
+      let paramsError = void 0;
+      if (!existingMatch) {
+        const strictParseParams = route.options.params?.parse ?? route.options.parseParams;
+        if (strictParseParams) {
+          try {
+            Object.assign(
+              strictParams,
+              strictParseParams(strictParams)
+            );
+          } catch (err) {
+            if (isNotFound(err) || isRedirect(err)) {
+              paramsError = err;
+            } else {
+              paramsError = new PathParamError(err.message, {
+                cause: err
+              });
+            }
+            if (opts?.throwOnError) {
+              throw paramsError;
+            }
+          }
+        }
+      }
+      Object.assign(routeParams, strictParams);
+      const cause = previousMatch ? "stay" : "enter";
+      let match;
+      if (existingMatch) {
+        match = {
+          ...existingMatch,
+          cause,
+          params: previousMatch ? replaceEqualDeep(previousMatch.params, routeParams) : routeParams,
+          _strictParams: strictParams,
+          search: previousMatch ? replaceEqualDeep(previousMatch.search, preMatchSearch) : replaceEqualDeep(existingMatch.search, preMatchSearch),
+          _strictSearch: strictMatchSearch
+        };
+      } else {
+        const status = route.options.loader || route.options.beforeLoad || route.lazyFn || routeNeedsPreload(route) ? "pending" : "success";
+        match = {
+          id: matchId,
+          ssr: this.isServer ? void 0 : route.options.ssr,
+          index,
+          routeId: route.id,
+          params: previousMatch ? replaceEqualDeep(previousMatch.params, routeParams) : routeParams,
+          _strictParams: strictParams,
+          pathname: interpolatedPath,
+          updatedAt: Date.now(),
+          search: previousMatch ? replaceEqualDeep(previousMatch.search, preMatchSearch) : preMatchSearch,
+          _strictSearch: strictMatchSearch,
+          searchError: void 0,
+          status,
+          isFetching: false,
+          error: void 0,
+          paramsError,
+          __routeContext: void 0,
+          _nonReactive: {
+            loadPromise: createControlledPromise()
+          },
+          __beforeLoadContext: void 0,
+          context: {},
+          abortController: new AbortController(),
+          fetchCount: 0,
+          cause,
+          loaderDeps: previousMatch ? replaceEqualDeep(previousMatch.loaderDeps, loaderDeps) : loaderDeps,
+          invalid: false,
+          preload: false,
+          links: void 0,
+          scripts: void 0,
+          headScripts: void 0,
+          meta: void 0,
+          staticData: route.options.staticData || {},
+          fullPath: route.fullPath
+        };
+      }
+      if (!opts?.preload) {
+        match.globalNotFound = globalNotFoundRouteId === route.id;
+      }
+      match.searchError = searchError;
+      const parentContext = getParentContext(parentMatch);
+      match.context = {
+        ...parentContext,
+        ...match.__routeContext,
+        ...match.__beforeLoadContext
+      };
+      matches.push(match);
+    });
+    matches.forEach((match, index) => {
+      const route = this.looseRoutesById[match.routeId];
+      const existingMatch = this.getMatch(match.id);
+      if (!existingMatch && opts?._buildLocation !== true) {
+        const parentMatch = matches[index - 1];
+        const parentContext = getParentContext(parentMatch);
+        if (route.options.context) {
+          const contextFnContext = {
+            deps: match.loaderDeps,
+            params: match.params,
+            context: parentContext ?? {},
+            location: next,
+            navigate: (opts2) => this.navigate({ ...opts2, _fromLocation: next }),
+            buildLocation: this.buildLocation,
+            cause: match.cause,
+            abortController: match.abortController,
+            preload: !!match.preload,
+            matches
+          };
+          match.__routeContext = route.options.context(contextFnContext) ?? void 0;
+        }
+        match.context = {
+          ...parentContext,
+          ...match.__routeContext,
+          ...match.__beforeLoadContext
+        };
+      }
+    });
+    return matches;
+  }
+}
+class SearchParamError extends Error {
+}
+class PathParamError extends Error {
+}
+const normalize = (str) => str.endsWith("/") && str.length > 1 ? str.slice(0, -1) : str;
+function comparePaths(a, b2) {
+  return normalize(a) === normalize(b2);
+}
+function getInitialRouterState(location) {
+  return {
+    loadedAt: 0,
+    isLoading: false,
+    isTransitioning: false,
+    status: "idle",
+    resolvedLocation: void 0,
+    location,
+    matches: [],
+    pendingMatches: [],
+    cachedMatches: [],
+    statusCode: 200
+  };
+}
+function validateSearch(validateSearch2, input) {
+  if (validateSearch2 == null) return {};
+  if ("~standard" in validateSearch2) {
+    const result = validateSearch2["~standard"].validate(input);
+    if (result instanceof Promise)
+      throw new SearchParamError("Async validation not supported");
+    if (result.issues)
+      throw new SearchParamError(JSON.stringify(result.issues, void 0, 2), {
+        cause: result
+      });
+    return result.value;
+  }
+  if ("parse" in validateSearch2) {
+    return validateSearch2.parse(input);
+  }
+  if (typeof validateSearch2 === "function") {
+    return validateSearch2(input);
+  }
+  return {};
+}
+function getMatchedRoutes({
+  pathname,
+  routesById,
+  processedTree
+}) {
+  const routeParams = {};
+  const trimmedPath = trimPathRight(pathname);
+  let foundRoute = void 0;
+  const match = findRouteMatch(trimmedPath, processedTree, true);
+  if (match) {
+    foundRoute = match.route;
+    Object.assign(routeParams, match.params);
+  }
+  const matchedRoutes = match?.branch || [routesById[rootRouteId]];
+  return { matchedRoutes, routeParams, foundRoute };
+}
+function applySearchMiddleware({
+  search,
+  dest,
+  destRoutes,
+  _includeValidateSearch
+}) {
+  const allMiddlewares = destRoutes.reduce(
+    (acc, route) => {
+      const middlewares = [];
+      if ("search" in route.options) {
+        if (route.options.search?.middlewares) {
+          middlewares.push(...route.options.search.middlewares);
+        }
+      } else if (route.options.preSearchFilters || route.options.postSearchFilters) {
+        const legacyMiddleware = ({
+          search: search2,
+          next
+        }) => {
+          let nextSearch = search2;
+          if ("preSearchFilters" in route.options && route.options.preSearchFilters) {
+            nextSearch = route.options.preSearchFilters.reduce(
+              (prev, next2) => next2(prev),
+              search2
+            );
+          }
+          const result = next(nextSearch);
+          if ("postSearchFilters" in route.options && route.options.postSearchFilters) {
+            return route.options.postSearchFilters.reduce(
+              (prev, next2) => next2(prev),
+              result
+            );
+          }
+          return result;
+        };
+        middlewares.push(legacyMiddleware);
+      }
+      if (_includeValidateSearch && route.options.validateSearch) {
+        const validate = ({ search: search2, next }) => {
+          const result = next(search2);
+          try {
+            const validatedSearch = {
+              ...result,
+              ...validateSearch(route.options.validateSearch, result) ?? void 0
+            };
+            return validatedSearch;
+          } catch {
+            return result;
+          }
+        };
+        middlewares.push(validate);
+      }
+      return acc.concat(middlewares);
+    },
+    []
+  ) ?? [];
+  const final = ({ search: search2 }) => {
+    if (!dest.search) {
+      return {};
+    }
+    if (dest.search === true) {
+      return search2;
+    }
+    return functionalUpdate(dest.search, search2);
+  };
+  allMiddlewares.push(final);
+  const applyNext = (index, currentSearch) => {
+    if (index >= allMiddlewares.length) {
+      return currentSearch;
+    }
+    const middleware = allMiddlewares[index];
+    const next = (newSearch) => {
+      return applyNext(index + 1, newSearch);
+    };
+    return middleware({ search: currentSearch, next });
+  };
+  return applyNext(0, search);
 }
 var K = ((s) => (s[s.AggregateError = 1] = "AggregateError", s[s.ArrowFunction = 2] = "ArrowFunction", s[s.ErrorPrototypeStack = 4] = "ErrorPrototypeStack", s[s.ObjectAssign = 8] = "ObjectAssign", s[s.BigIntTypedArray = 16] = "BigIntTypedArray", s))(K || {});
 var b = Symbol.asyncIterator, lr = Symbol.hasInstance, P$1 = Symbol.isConcatSpreadable, A = Symbol.iterator, ur = Symbol.match, cr = Symbol.matchAll, fr = Symbol.replace, Sr = Symbol.search, pr = Symbol.species, dr = Symbol.split, mr = Symbol.toPrimitive, x = Symbol.toStringTag, gr = Symbol.unscopables;
@@ -2127,257 +5749,1305 @@ const defaultSerovalPlugins = [
   // ReadableStreamNode is not exported by seroval
   u
 ];
-const TSS_FORMDATA_CONTEXT = "__TSS_CONTEXT";
-const TSS_SERVER_FUNCTION = Symbol.for("TSS_SERVER_FUNCTION");
-const TSS_SERVER_FUNCTION_FACTORY = Symbol.for(
-  "TSS_SERVER_FUNCTION_FACTORY"
-);
-const X_TSS_SERIALIZED = "x-tss-serialized";
-const X_TSS_RAW_RESPONSE = "x-tss-raw";
-const startStorage = new AsyncLocalStorage();
-async function runWithStartContext(context, fn2) {
-  return startStorage.run(context, fn2);
-}
-function getStartContext(opts) {
-  const context = startStorage.getStore();
-  if (!context && opts?.throwIfNotFound !== false) {
-    throw new Error(
-      `No Start context found in AsyncLocalStorage. Make sure you are using the function within the server runtime.`
-    );
-  }
-  return context;
-}
-const getStartOptions = () => getStartContext().startOptions;
-const getStartContextServerOnly = getStartContext;
-const createServerFn = (options, __opts) => {
-  const resolvedOptions = __opts || options || {};
-  if (typeof resolvedOptions.method === "undefined") {
-    resolvedOptions.method = "GET";
-  }
-  const res = {
-    options: resolvedOptions,
-    middleware: (middleware) => {
-      const newMiddleware = [...resolvedOptions.middleware || []];
-      middleware.map((m2) => {
-        if (TSS_SERVER_FUNCTION_FACTORY in m2) {
-          if (m2.options.middleware) {
-            newMiddleware.push(...m2.options.middleware);
-          }
-        } else {
-          newMiddleware.push(m2);
-        }
-      });
-      const newOptions = {
-        ...resolvedOptions,
-        middleware: newMiddleware
-      };
-      const res2 = createServerFn(void 0, newOptions);
-      res2[TSS_SERVER_FUNCTION_FACTORY] = true;
-      return res2;
-    },
-    inputValidator: (inputValidator) => {
-      const newOptions = { ...resolvedOptions, inputValidator };
-      return createServerFn(void 0, newOptions);
-    },
-    handler: (...args) => {
-      const [extractedFn, serverFn] = args;
-      const newOptions = { ...resolvedOptions, extractedFn, serverFn };
-      const resolvedMiddleware = [
-        ...newOptions.middleware || [],
-        serverFnBaseToMiddleware(newOptions)
-      ];
-      return Object.assign(
-        async (opts) => {
-          return executeMiddleware$1(resolvedMiddleware, "client", {
-            ...extractedFn,
-            ...newOptions,
-            data: opts?.data,
-            headers: opts?.headers,
-            signal: opts?.signal,
-            context: {}
-          }).then((d) => {
-            if (d.error) throw d.error;
-            return d.result;
+function CatchBoundary(props) {
+  const errorComponent = props.errorComponent ?? ErrorComponent;
+  return /* @__PURE__ */ jsx(
+    CatchBoundaryImpl,
+    {
+      getResetKey: props.getResetKey,
+      onCatch: props.onCatch,
+      children: ({ error, reset }) => {
+        if (error) {
+          return React.createElement(errorComponent, {
+            error,
+            reset
           });
-        },
-        {
-          // This copies over the URL, function ID
-          ...extractedFn,
-          // The extracted function on the server-side calls
-          // this function
-          __executeServer: async (opts, signal) => {
-            const startContext = getStartContextServerOnly();
-            const serverContextAfterGlobalMiddlewares = startContext.contextAfterGlobalMiddlewares;
-            const ctx = {
-              ...extractedFn,
-              ...opts,
-              context: {
-                ...serverContextAfterGlobalMiddlewares,
-                ...opts.context
-              },
-              signal,
-              request: startContext.request
-            };
-            return executeMiddleware$1(resolvedMiddleware, "server", ctx).then(
-              (d) => ({
-                // Only send the result and sendContext back to the client
-                result: d.result,
-                error: d.error,
-                context: d.sendContext
-              })
-            );
-          }
         }
-      );
-    }
-  };
-  const fun = (options2) => {
-    const newOptions = {
-      ...resolvedOptions,
-      ...options2
-    };
-    return createServerFn(void 0, newOptions);
-  };
-  return Object.assign(fun, res);
-};
-async function executeMiddleware$1(middlewares, env, opts) {
-  const globalMiddlewares = getStartOptions()?.functionMiddleware || [];
-  const flattenedMiddlewares = flattenMiddlewares([
-    ...globalMiddlewares,
-    ...middlewares
-  ]);
-  const next = async (ctx) => {
-    const nextMiddleware = flattenedMiddlewares.shift();
-    if (!nextMiddleware) {
-      return ctx;
-    }
-    if ("inputValidator" in nextMiddleware.options && nextMiddleware.options.inputValidator && env === "server") {
-      ctx.data = await execValidator(
-        nextMiddleware.options.inputValidator,
-        ctx.data
-      );
-    }
-    let middlewareFn = void 0;
-    if (env === "client") {
-      if ("client" in nextMiddleware.options) {
-        middlewareFn = nextMiddleware.options.client;
+        return props.children;
       }
-    } else if ("server" in nextMiddleware.options) {
-      middlewareFn = nextMiddleware.options.server;
     }
-    if (middlewareFn) {
-      return applyMiddleware(middlewareFn, ctx, async (newCtx) => {
-        return next(newCtx).catch((error) => {
-          if (isRedirect(error) || isNotFound(error)) {
-            return {
-              ...newCtx,
-              error
-            };
-          }
-          throw error;
-        });
-      });
-    }
-    return next(ctx);
-  };
-  return next({
-    ...opts,
-    headers: opts.headers || {},
-    sendContext: opts.sendContext || {},
-    context: opts.context || {}
-  });
+  );
 }
-function flattenMiddlewares(middlewares) {
-  const seen = /* @__PURE__ */ new Set();
-  const flattened = [];
-  const recurse = (middleware) => {
-    middleware.forEach((m2) => {
-      if (m2.options.middleware) {
-        recurse(m2.options.middleware);
-      }
-      if (!seen.has(m2)) {
-        seen.add(m2);
-        flattened.push(m2);
+class CatchBoundaryImpl extends React.Component {
+  constructor() {
+    super(...arguments);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromProps(props) {
+    return { resetKey: props.getResetKey() };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  reset() {
+    this.setState({ error: null });
+  }
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState.error && prevState.resetKey !== this.state.resetKey) {
+      this.reset();
+    }
+  }
+  componentDidCatch(error, errorInfo) {
+    if (this.props.onCatch) {
+      this.props.onCatch(error, errorInfo);
+    }
+  }
+  render() {
+    return this.props.children({
+      error: this.state.resetKey !== this.props.getResetKey() ? null : this.state.error,
+      reset: () => {
+        this.reset();
       }
     });
+  }
+}
+function ErrorComponent({ error }) {
+  const [show, setShow] = React.useState(process.env.NODE_ENV !== "production");
+  return /* @__PURE__ */ jsxs("div", { style: { padding: ".5rem", maxWidth: "100%" }, children: [
+    /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: ".5rem" }, children: [
+      /* @__PURE__ */ jsx("strong", { style: { fontSize: "1rem" }, children: "Something went wrong!" }),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          style: {
+            appearance: "none",
+            fontSize: ".6em",
+            border: "1px solid currentColor",
+            padding: ".1rem .2rem",
+            fontWeight: "bold",
+            borderRadius: ".25rem"
+          },
+          onClick: () => setShow((d) => !d),
+          children: show ? "Hide Error" : "Show Error"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsx("div", { style: { height: ".25rem" } }),
+    show ? /* @__PURE__ */ jsx("div", { children: /* @__PURE__ */ jsx(
+      "pre",
+      {
+        style: {
+          fontSize: ".7em",
+          border: "1px solid red",
+          borderRadius: ".25rem",
+          padding: ".3rem",
+          color: "red",
+          overflow: "auto"
+        },
+        children: error.message ? /* @__PURE__ */ jsx("code", { children: error.message }) : null
+      }
+    ) }) : null
+  ] });
+}
+function ClientOnly({ children, fallback = null }) {
+  return useHydrated() ? /* @__PURE__ */ jsx(React__default.Fragment, { children }) : /* @__PURE__ */ jsx(React__default.Fragment, { children: fallback });
+}
+function useHydrated() {
+  return React__default.useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false
+  );
+}
+function subscribe() {
+  return () => {
   };
-  recurse(middlewares);
-  return flattened;
 }
-const applyMiddleware = async (middlewareFn, ctx, nextFn) => {
-  return middlewareFn({
-    ...ctx,
-    next: (async (userCtx = {}) => {
-      return nextFn({
-        ...ctx,
-        ...userCtx,
-        context: {
-          ...ctx.context,
-          ...userCtx.context
-        },
-        sendContext: {
-          ...ctx.sendContext,
-          ...userCtx.sendContext ?? {}
-        },
-        headers: mergeHeaders(ctx.headers, userCtx.headers),
-        result: userCtx.result !== void 0 ? userCtx.result : userCtx instanceof Response ? userCtx : ctx.result,
-        error: userCtx.error ?? ctx.error
-      });
-    })
-  });
-};
-function execValidator(validator, input) {
-  if (validator == null) return {};
-  if ("~standard" in validator) {
-    const result = validator["~standard"].validate(input);
-    if (result instanceof Promise)
-      throw new Error("Async validation not supported");
-    if (result.issues)
-      throw new Error(JSON.stringify(result.issues, void 0, 2));
-    return result.value;
+var isProduction = process.env.NODE_ENV === "production";
+function warning(condition, message) {
+  if (!isProduction) {
+    if (condition) {
+      return;
+    }
+    var text = "Warning: " + message;
+    if (typeof console !== "undefined") {
+      console.warn(text);
+    }
+    try {
+      throw Error(text);
+    } catch (x2) {
+    }
   }
-  if ("parse" in validator) {
-    return validator.parse(input);
-  }
-  if (typeof validator === "function") {
-    return validator(input);
-  }
-  throw new Error("Invalid validator type!");
 }
-function serverFnBaseToMiddleware(options) {
-  return {
-    _types: void 0,
-    options: {
-      inputValidator: options.inputValidator,
-      client: async ({ next, sendContext, ...ctx }) => {
-        const payload = {
-          ...ctx,
-          // switch the sendContext over to context
-          context: sendContext
-        };
-        const res = await options.extractedFn?.(payload);
-        return next(res);
+var withSelector = { exports: {} };
+var withSelector_production = {};
+var shim = { exports: {} };
+var useSyncExternalStoreShim_production = {};
+var hasRequiredUseSyncExternalStoreShim_production;
+function requireUseSyncExternalStoreShim_production() {
+  if (hasRequiredUseSyncExternalStoreShim_production) return useSyncExternalStoreShim_production;
+  hasRequiredUseSyncExternalStoreShim_production = 1;
+  var React2 = React__default;
+  function is(x2, y2) {
+    return x2 === y2 && (0 !== x2 || 1 / x2 === 1 / y2) || x2 !== x2 && y2 !== y2;
+  }
+  var objectIs = "function" === typeof Object.is ? Object.is : is, useState = React2.useState, useEffect = React2.useEffect, useLayoutEffect2 = React2.useLayoutEffect, useDebugValue = React2.useDebugValue;
+  function useSyncExternalStore$2(subscribe2, getSnapshot) {
+    var value = getSnapshot(), _useState = useState({ inst: { value, getSnapshot } }), inst = _useState[0].inst, forceUpdate = _useState[1];
+    useLayoutEffect2(
+      function() {
+        inst.value = value;
+        inst.getSnapshot = getSnapshot;
+        checkIfSnapshotChanged(inst) && forceUpdate({ inst });
       },
-      server: async ({ next, ...ctx }) => {
-        const result = await options.serverFn?.(ctx);
-        return next({
-          ...ctx,
-          result
+      [subscribe2, value, getSnapshot]
+    );
+    useEffect(
+      function() {
+        checkIfSnapshotChanged(inst) && forceUpdate({ inst });
+        return subscribe2(function() {
+          checkIfSnapshotChanged(inst) && forceUpdate({ inst });
         });
+      },
+      [subscribe2]
+    );
+    useDebugValue(value);
+    return value;
+  }
+  function checkIfSnapshotChanged(inst) {
+    var latestGetSnapshot = inst.getSnapshot;
+    inst = inst.value;
+    try {
+      var nextValue = latestGetSnapshot();
+      return !objectIs(inst, nextValue);
+    } catch (error) {
+      return true;
+    }
+  }
+  function useSyncExternalStore$1(subscribe2, getSnapshot) {
+    return getSnapshot();
+  }
+  var shim2 = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
+  useSyncExternalStoreShim_production.useSyncExternalStore = void 0 !== React2.useSyncExternalStore ? React2.useSyncExternalStore : shim2;
+  return useSyncExternalStoreShim_production;
+}
+var useSyncExternalStoreShim_development = {};
+var hasRequiredUseSyncExternalStoreShim_development;
+function requireUseSyncExternalStoreShim_development() {
+  if (hasRequiredUseSyncExternalStoreShim_development) return useSyncExternalStoreShim_development;
+  hasRequiredUseSyncExternalStoreShim_development = 1;
+  "production" !== process.env.NODE_ENV && (function() {
+    function is(x2, y2) {
+      return x2 === y2 && (0 !== x2 || 1 / x2 === 1 / y2) || x2 !== x2 && y2 !== y2;
+    }
+    function useSyncExternalStore$2(subscribe2, getSnapshot) {
+      didWarnOld18Alpha || void 0 === React2.startTransition || (didWarnOld18Alpha = true, console.error(
+        "You are using an outdated, pre-release alpha of React 18 that does not support useSyncExternalStore. The use-sync-external-store shim will not work correctly. Upgrade to a newer pre-release."
+      ));
+      var value = getSnapshot();
+      if (!didWarnUncachedGetSnapshot) {
+        var cachedValue = getSnapshot();
+        objectIs(value, cachedValue) || (console.error(
+          "The result of getSnapshot should be cached to avoid an infinite loop"
+        ), didWarnUncachedGetSnapshot = true);
+      }
+      cachedValue = useState({
+        inst: { value, getSnapshot }
+      });
+      var inst = cachedValue[0].inst, forceUpdate = cachedValue[1];
+      useLayoutEffect2(
+        function() {
+          inst.value = value;
+          inst.getSnapshot = getSnapshot;
+          checkIfSnapshotChanged(inst) && forceUpdate({ inst });
+        },
+        [subscribe2, value, getSnapshot]
+      );
+      useEffect(
+        function() {
+          checkIfSnapshotChanged(inst) && forceUpdate({ inst });
+          return subscribe2(function() {
+            checkIfSnapshotChanged(inst) && forceUpdate({ inst });
+          });
+        },
+        [subscribe2]
+      );
+      useDebugValue(value);
+      return value;
+    }
+    function checkIfSnapshotChanged(inst) {
+      var latestGetSnapshot = inst.getSnapshot;
+      inst = inst.value;
+      try {
+        var nextValue = latestGetSnapshot();
+        return !objectIs(inst, nextValue);
+      } catch (error) {
+        return true;
       }
     }
-  };
+    function useSyncExternalStore$1(subscribe2, getSnapshot) {
+      return getSnapshot();
+    }
+    "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
+    var React2 = React__default, objectIs = "function" === typeof Object.is ? Object.is : is, useState = React2.useState, useEffect = React2.useEffect, useLayoutEffect2 = React2.useLayoutEffect, useDebugValue = React2.useDebugValue, didWarnOld18Alpha = false, didWarnUncachedGetSnapshot = false, shim2 = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
+    useSyncExternalStoreShim_development.useSyncExternalStore = void 0 !== React2.useSyncExternalStore ? React2.useSyncExternalStore : shim2;
+    "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
+  })();
+  return useSyncExternalStoreShim_development;
 }
-function getDefaultSerovalPlugins() {
-  const start = getStartOptions();
-  const adapters = start?.serializationAdapters;
-  return [
-    ...adapters?.map(makeSerovalPlugin) ?? [],
-    ...defaultSerovalPlugins
-  ];
+var hasRequiredShim;
+function requireShim() {
+  if (hasRequiredShim) return shim.exports;
+  hasRequiredShim = 1;
+  if (process.env.NODE_ENV === "production") {
+    shim.exports = requireUseSyncExternalStoreShim_production();
+  } else {
+    shim.exports = requireUseSyncExternalStoreShim_development();
+  }
+  return shim.exports;
+}
+var hasRequiredWithSelector_production;
+function requireWithSelector_production() {
+  if (hasRequiredWithSelector_production) return withSelector_production;
+  hasRequiredWithSelector_production = 1;
+  var React2 = React__default, shim2 = requireShim();
+  function is(x2, y2) {
+    return x2 === y2 && (0 !== x2 || 1 / x2 === 1 / y2) || x2 !== x2 && y2 !== y2;
+  }
+  var objectIs = "function" === typeof Object.is ? Object.is : is, useSyncExternalStore = shim2.useSyncExternalStore, useRef2 = React2.useRef, useEffect = React2.useEffect, useMemo = React2.useMemo, useDebugValue = React2.useDebugValue;
+  withSelector_production.useSyncExternalStoreWithSelector = function(subscribe2, getSnapshot, getServerSnapshot, selector, isEqual) {
+    var instRef = useRef2(null);
+    if (null === instRef.current) {
+      var inst = { hasValue: false, value: null };
+      instRef.current = inst;
+    } else inst = instRef.current;
+    instRef = useMemo(
+      function() {
+        function memoizedSelector(nextSnapshot) {
+          if (!hasMemo) {
+            hasMemo = true;
+            memoizedSnapshot = nextSnapshot;
+            nextSnapshot = selector(nextSnapshot);
+            if (void 0 !== isEqual && inst.hasValue) {
+              var currentSelection = inst.value;
+              if (isEqual(currentSelection, nextSnapshot))
+                return memoizedSelection = currentSelection;
+            }
+            return memoizedSelection = nextSnapshot;
+          }
+          currentSelection = memoizedSelection;
+          if (objectIs(memoizedSnapshot, nextSnapshot)) return currentSelection;
+          var nextSelection = selector(nextSnapshot);
+          if (void 0 !== isEqual && isEqual(currentSelection, nextSelection))
+            return memoizedSnapshot = nextSnapshot, currentSelection;
+          memoizedSnapshot = nextSnapshot;
+          return memoizedSelection = nextSelection;
+        }
+        var hasMemo = false, memoizedSnapshot, memoizedSelection, maybeGetServerSnapshot = void 0 === getServerSnapshot ? null : getServerSnapshot;
+        return [
+          function() {
+            return memoizedSelector(getSnapshot());
+          },
+          null === maybeGetServerSnapshot ? void 0 : function() {
+            return memoizedSelector(maybeGetServerSnapshot());
+          }
+        ];
+      },
+      [getSnapshot, getServerSnapshot, selector, isEqual]
+    );
+    var value = useSyncExternalStore(subscribe2, instRef[0], instRef[1]);
+    useEffect(
+      function() {
+        inst.hasValue = true;
+        inst.value = value;
+      },
+      [value]
+    );
+    useDebugValue(value);
+    return value;
+  };
+  return withSelector_production;
+}
+var withSelector_development = {};
+var hasRequiredWithSelector_development;
+function requireWithSelector_development() {
+  if (hasRequiredWithSelector_development) return withSelector_development;
+  hasRequiredWithSelector_development = 1;
+  "production" !== process.env.NODE_ENV && (function() {
+    function is(x2, y2) {
+      return x2 === y2 && (0 !== x2 || 1 / x2 === 1 / y2) || x2 !== x2 && y2 !== y2;
+    }
+    "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
+    var React2 = React__default, shim2 = requireShim(), objectIs = "function" === typeof Object.is ? Object.is : is, useSyncExternalStore = shim2.useSyncExternalStore, useRef2 = React2.useRef, useEffect = React2.useEffect, useMemo = React2.useMemo, useDebugValue = React2.useDebugValue;
+    withSelector_development.useSyncExternalStoreWithSelector = function(subscribe2, getSnapshot, getServerSnapshot, selector, isEqual) {
+      var instRef = useRef2(null);
+      if (null === instRef.current) {
+        var inst = { hasValue: false, value: null };
+        instRef.current = inst;
+      } else inst = instRef.current;
+      instRef = useMemo(
+        function() {
+          function memoizedSelector(nextSnapshot) {
+            if (!hasMemo) {
+              hasMemo = true;
+              memoizedSnapshot = nextSnapshot;
+              nextSnapshot = selector(nextSnapshot);
+              if (void 0 !== isEqual && inst.hasValue) {
+                var currentSelection = inst.value;
+                if (isEqual(currentSelection, nextSnapshot))
+                  return memoizedSelection = currentSelection;
+              }
+              return memoizedSelection = nextSnapshot;
+            }
+            currentSelection = memoizedSelection;
+            if (objectIs(memoizedSnapshot, nextSnapshot))
+              return currentSelection;
+            var nextSelection = selector(nextSnapshot);
+            if (void 0 !== isEqual && isEqual(currentSelection, nextSelection))
+              return memoizedSnapshot = nextSnapshot, currentSelection;
+            memoizedSnapshot = nextSnapshot;
+            return memoizedSelection = nextSelection;
+          }
+          var hasMemo = false, memoizedSnapshot, memoizedSelection, maybeGetServerSnapshot = void 0 === getServerSnapshot ? null : getServerSnapshot;
+          return [
+            function() {
+              return memoizedSelector(getSnapshot());
+            },
+            null === maybeGetServerSnapshot ? void 0 : function() {
+              return memoizedSelector(maybeGetServerSnapshot());
+            }
+          ];
+        },
+        [getSnapshot, getServerSnapshot, selector, isEqual]
+      );
+      var value = useSyncExternalStore(subscribe2, instRef[0], instRef[1]);
+      useEffect(
+        function() {
+          inst.hasValue = true;
+          inst.value = value;
+        },
+        [value]
+      );
+      useDebugValue(value);
+      return value;
+    };
+    "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
+  })();
+  return withSelector_development;
+}
+var hasRequiredWithSelector;
+function requireWithSelector() {
+  if (hasRequiredWithSelector) return withSelector.exports;
+  hasRequiredWithSelector = 1;
+  if (process.env.NODE_ENV === "production") {
+    withSelector.exports = requireWithSelector_production();
+  } else {
+    withSelector.exports = requireWithSelector_development();
+  }
+  return withSelector.exports;
+}
+var withSelectorExports = requireWithSelector();
+function useStore(store, selector = (d) => d, options = {}) {
+  const equal = options.equal ?? shallow;
+  const slice = withSelectorExports.useSyncExternalStoreWithSelector(
+    store.subscribe,
+    () => store.state,
+    () => store.state,
+    selector,
+    equal
+  );
+  return slice;
+}
+function shallow(objA, objB) {
+  if (Object.is(objA, objB)) {
+    return true;
+  }
+  if (typeof objA !== "object" || objA === null || typeof objB !== "object" || objB === null) {
+    return false;
+  }
+  if (objA instanceof Map && objB instanceof Map) {
+    if (objA.size !== objB.size) return false;
+    for (const [k2, v2] of objA) {
+      if (!objB.has(k2) || !Object.is(v2, objB.get(k2))) return false;
+    }
+    return true;
+  }
+  if (objA instanceof Set && objB instanceof Set) {
+    if (objA.size !== objB.size) return false;
+    for (const v2 of objA) {
+      if (!objB.has(v2)) return false;
+    }
+    return true;
+  }
+  if (objA instanceof Date && objB instanceof Date) {
+    if (objA.getTime() !== objB.getTime()) return false;
+    return true;
+  }
+  const keysA = getOwnKeys(objA);
+  if (keysA.length !== getOwnKeys(objB).length) {
+    return false;
+  }
+  for (let i = 0; i < keysA.length; i++) {
+    if (!Object.prototype.hasOwnProperty.call(objB, keysA[i]) || !Object.is(objA[keysA[i]], objB[keysA[i]])) {
+      return false;
+    }
+  }
+  return true;
+}
+function getOwnKeys(obj) {
+  return Object.keys(obj).concat(
+    Object.getOwnPropertySymbols(obj)
+  );
+}
+const routerContext = React.createContext(null);
+function getRouterContext() {
+  if (typeof document === "undefined") {
+    return routerContext;
+  }
+  if (window.__TSR_ROUTER_CONTEXT__) {
+    return window.__TSR_ROUTER_CONTEXT__;
+  }
+  window.__TSR_ROUTER_CONTEXT__ = routerContext;
+  return routerContext;
+}
+function useRouter(opts) {
+  const value = React.useContext(getRouterContext());
+  warning(
+    !((opts?.warn ?? true) && !value),
+    "useRouter must be used inside a <RouterProvider> component!"
+  );
+  return value;
+}
+function useRouterState(opts) {
+  const contextRouter = useRouter({
+    warn: opts?.router === void 0
+  });
+  const router = opts?.router || contextRouter;
+  const previousResult = useRef(void 0);
+  return useStore(router.__store, (state) => {
+    if (opts?.select) {
+      if (opts.structuralSharing ?? router.options.defaultStructuralSharing) {
+        const newSlice = replaceEqualDeep(
+          previousResult.current,
+          opts.select(state)
+        );
+        previousResult.current = newSlice;
+        return newSlice;
+      }
+      return opts.select(state);
+    }
+    return state;
+  });
+}
+const matchContext = React.createContext(void 0);
+const dummyMatchContext = React.createContext(
+  void 0
+);
+const useLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
+function usePrevious(value) {
+  const ref = React.useRef({
+    value,
+    prev: null
+  });
+  const current = ref.current.value;
+  if (value !== current) {
+    ref.current = {
+      value,
+      prev: current
+    };
+  }
+  return ref.current.prev;
+}
+function useIntersectionObserver(ref, callback, intersectionObserverOptions = {}, options = {}) {
+  React.useEffect(() => {
+    if (!ref.current || options.disabled || typeof IntersectionObserver !== "function") {
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      callback(entry);
+    }, intersectionObserverOptions);
+    observer.observe(ref.current);
+    return () => {
+      observer.disconnect();
+    };
+  }, [callback, intersectionObserverOptions, options.disabled, ref]);
+}
+function useForwardedRef(ref) {
+  const innerRef = React.useRef(null);
+  React.useImperativeHandle(ref, () => innerRef.current, []);
+  return innerRef;
+}
+function Transitioner() {
+  const router = useRouter();
+  const mountLoadForRouter = React.useRef({ router, mounted: false });
+  const [isTransitioning, setIsTransitioning] = React.useState(false);
+  const { hasPendingMatches, isLoading } = useRouterState({
+    select: (s) => ({
+      isLoading: s.isLoading,
+      hasPendingMatches: s.matches.some((d) => d.status === "pending")
+    }),
+    structuralSharing: true
+  });
+  const previousIsLoading = usePrevious(isLoading);
+  const isAnyPending = isLoading || isTransitioning || hasPendingMatches;
+  const previousIsAnyPending = usePrevious(isAnyPending);
+  const isPagePending = isLoading || hasPendingMatches;
+  const previousIsPagePending = usePrevious(isPagePending);
+  router.startTransition = (fn2) => {
+    setIsTransitioning(true);
+    React.startTransition(() => {
+      fn2();
+      setIsTransitioning(false);
+    });
+  };
+  React.useEffect(() => {
+    const unsub = router.history.subscribe(router.load);
+    const nextLocation = router.buildLocation({
+      to: router.latestLocation.pathname,
+      search: true,
+      params: true,
+      hash: true,
+      state: true,
+      _includeValidateSearch: true
+    });
+    if (trimPathRight(router.latestLocation.href) !== trimPathRight(nextLocation.href)) {
+      router.commitLocation({ ...nextLocation, replace: true });
+    }
+    return () => {
+      unsub();
+    };
+  }, [router, router.history]);
+  useLayoutEffect(() => {
+    if (
+      // if we are hydrating from SSR, loading is triggered in ssr-client
+      typeof window !== "undefined" && router.ssr || mountLoadForRouter.current.router === router && mountLoadForRouter.current.mounted
+    ) {
+      return;
+    }
+    mountLoadForRouter.current = { router, mounted: true };
+    const tryLoad = async () => {
+      try {
+        await router.load();
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    tryLoad();
+  }, [router]);
+  useLayoutEffect(() => {
+    if (previousIsLoading && !isLoading) {
+      router.emit({
+        type: "onLoad",
+        // When the new URL has committed, when the new matches have been loaded into state.matches
+        ...getLocationChangeInfo(router.state)
+      });
+    }
+  }, [previousIsLoading, router, isLoading]);
+  useLayoutEffect(() => {
+    if (previousIsPagePending && !isPagePending) {
+      router.emit({
+        type: "onBeforeRouteMount",
+        ...getLocationChangeInfo(router.state)
+      });
+    }
+  }, [isPagePending, previousIsPagePending, router]);
+  useLayoutEffect(() => {
+    if (previousIsAnyPending && !isAnyPending) {
+      const changeInfo = getLocationChangeInfo(router.state);
+      router.emit({
+        type: "onResolved",
+        ...changeInfo
+      });
+      router.__store.setState((s) => ({
+        ...s,
+        status: "idle",
+        resolvedLocation: s.location
+      }));
+      if (changeInfo.hrefChanged) {
+        handleHashScroll(router);
+      }
+    }
+  }, [isAnyPending, previousIsAnyPending, router]);
+  return null;
+}
+function CatchNotFound(props) {
+  const resetKey = useRouterState({
+    select: (s) => `not-found-${s.location.pathname}-${s.status}`
+  });
+  return /* @__PURE__ */ jsx(
+    CatchBoundary,
+    {
+      getResetKey: () => resetKey,
+      onCatch: (error, errorInfo) => {
+        if (isNotFound(error)) {
+          props.onCatch?.(error, errorInfo);
+        } else {
+          throw error;
+        }
+      },
+      errorComponent: ({ error }) => {
+        if (isNotFound(error)) {
+          return props.fallback?.(error);
+        } else {
+          throw error;
+        }
+      },
+      children: props.children
+    }
+  );
+}
+function DefaultGlobalNotFound() {
+  return /* @__PURE__ */ jsx("p", { children: "Not Found" });
+}
+function SafeFragment(props) {
+  return /* @__PURE__ */ jsx(Fragment, { children: props.children });
+}
+function renderRouteNotFound(router, route, data) {
+  if (!route.options.notFoundComponent) {
+    if (router.options.defaultNotFoundComponent) {
+      return /* @__PURE__ */ jsx(router.options.defaultNotFoundComponent, { ...data });
+    }
+    if (process.env.NODE_ENV === "development") {
+      warning(
+        route.options.notFoundComponent,
+        `A notFoundError was encountered on the route with ID "${route.id}", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)`
+      );
+    }
+    return /* @__PURE__ */ jsx(DefaultGlobalNotFound, {});
+  }
+  return /* @__PURE__ */ jsx(route.options.notFoundComponent, { ...data });
+}
+function ScriptOnce({ children }) {
+  const router = useRouter();
+  if (!router.isServer) {
+    return null;
+  }
+  return /* @__PURE__ */ jsx(
+    "script",
+    {
+      nonce: router.options.ssr?.nonce,
+      className: "$tsr",
+      dangerouslySetInnerHTML: {
+        __html: children + ';typeof $_TSR !== "undefined" && $_TSR.c()'
+      }
+    }
+  );
+}
+function ScrollRestoration() {
+  const router = useRouter();
+  if (!router.isScrollRestoring || !router.isServer) {
+    return null;
+  }
+  if (typeof router.options.scrollRestoration === "function") {
+    const shouldRestore = router.options.scrollRestoration({
+      location: router.latestLocation
+    });
+    if (!shouldRestore) {
+      return null;
+    }
+  }
+  const getKey = router.options.getScrollRestorationKey || defaultGetScrollRestorationKey;
+  const userKey = getKey(router.latestLocation);
+  const resolvedKey = userKey !== defaultGetScrollRestorationKey(router.latestLocation) ? userKey : void 0;
+  const restoreScrollOptions = {
+    storageKey,
+    shouldScrollRestoration: true
+  };
+  if (resolvedKey) {
+    restoreScrollOptions.key = resolvedKey;
+  }
+  return /* @__PURE__ */ jsx(
+    ScriptOnce,
+    {
+      children: `(${restoreScroll.toString()})(${JSON.stringify(restoreScrollOptions)})`
+    }
+  );
+}
+const Match = React.memo(function MatchImpl({
+  matchId
+}) {
+  const router = useRouter();
+  const matchState = useRouterState({
+    select: (s) => {
+      const match = s.matches.find((d) => d.id === matchId);
+      invariant(
+        match,
+        `Could not find match for matchId "${matchId}". Please file an issue!`
+      );
+      return {
+        routeId: match.routeId,
+        ssr: match.ssr,
+        _displayPending: match._displayPending
+      };
+    },
+    structuralSharing: true
+  });
+  const route = router.routesById[matchState.routeId];
+  const PendingComponent = route.options.pendingComponent ?? router.options.defaultPendingComponent;
+  const pendingElement = PendingComponent ? /* @__PURE__ */ jsx(PendingComponent, {}) : null;
+  const routeErrorComponent = route.options.errorComponent ?? router.options.defaultErrorComponent;
+  const routeOnCatch = route.options.onCatch ?? router.options.defaultOnCatch;
+  const routeNotFoundComponent = route.isRoot ? (
+    // If it's the root route, use the globalNotFound option, with fallback to the notFoundRoute's component
+    route.options.notFoundComponent ?? router.options.notFoundRoute?.options.component
+  ) : route.options.notFoundComponent;
+  const resolvedNoSsr = matchState.ssr === false || matchState.ssr === "data-only";
+  const ResolvedSuspenseBoundary = (
+    // If we're on the root route, allow forcefully wrapping in suspense
+    (!route.isRoot || route.options.wrapInSuspense || resolvedNoSsr) && (route.options.wrapInSuspense ?? PendingComponent ?? (route.options.errorComponent?.preload || resolvedNoSsr)) ? React.Suspense : SafeFragment
+  );
+  const ResolvedCatchBoundary = routeErrorComponent ? CatchBoundary : SafeFragment;
+  const ResolvedNotFoundBoundary = routeNotFoundComponent ? CatchNotFound : SafeFragment;
+  const resetKey = useRouterState({
+    select: (s) => s.loadedAt
+  });
+  const parentRouteId = useRouterState({
+    select: (s) => {
+      const index = s.matches.findIndex((d) => d.id === matchId);
+      return s.matches[index - 1]?.routeId;
+    }
+  });
+  const ShellComponent = route.isRoot ? route.options.shellComponent ?? SafeFragment : SafeFragment;
+  return /* @__PURE__ */ jsxs(ShellComponent, { children: [
+    /* @__PURE__ */ jsx(matchContext.Provider, { value: matchId, children: /* @__PURE__ */ jsx(ResolvedSuspenseBoundary, { fallback: pendingElement, children: /* @__PURE__ */ jsx(
+      ResolvedCatchBoundary,
+      {
+        getResetKey: () => resetKey,
+        errorComponent: routeErrorComponent || ErrorComponent,
+        onCatch: (error, errorInfo) => {
+          if (isNotFound(error)) throw error;
+          warning(false, `Error in route match: ${matchId}`);
+          routeOnCatch?.(error, errorInfo);
+        },
+        children: /* @__PURE__ */ jsx(
+          ResolvedNotFoundBoundary,
+          {
+            fallback: (error) => {
+              if (!routeNotFoundComponent || error.routeId && error.routeId !== matchState.routeId || !error.routeId && !route.isRoot)
+                throw error;
+              return React.createElement(routeNotFoundComponent, error);
+            },
+            children: resolvedNoSsr || matchState._displayPending ? /* @__PURE__ */ jsx(ClientOnly, { fallback: pendingElement, children: /* @__PURE__ */ jsx(MatchInner, { matchId }) }) : /* @__PURE__ */ jsx(MatchInner, { matchId })
+          }
+        )
+      }
+    ) }) }),
+    parentRouteId === rootRouteId && router.options.scrollRestoration ? /* @__PURE__ */ jsxs(Fragment, { children: [
+      /* @__PURE__ */ jsx(OnRendered, {}),
+      /* @__PURE__ */ jsx(ScrollRestoration, {})
+    ] }) : null
+  ] });
+});
+function OnRendered() {
+  const router = useRouter();
+  const prevLocationRef = React.useRef(
+    void 0
+  );
+  return /* @__PURE__ */ jsx(
+    "script",
+    {
+      suppressHydrationWarning: true,
+      ref: (el) => {
+        if (el && (prevLocationRef.current === void 0 || prevLocationRef.current.href !== router.latestLocation.href)) {
+          router.emit({
+            type: "onRendered",
+            ...getLocationChangeInfo(router.state)
+          });
+          prevLocationRef.current = router.latestLocation;
+        }
+      }
+    },
+    router.latestLocation.state.__TSR_key
+  );
+}
+const MatchInner = React.memo(function MatchInnerImpl({
+  matchId
+}) {
+  const router = useRouter();
+  const { match, key, routeId } = useRouterState({
+    select: (s) => {
+      const match2 = s.matches.find((d) => d.id === matchId);
+      const routeId2 = match2.routeId;
+      const remountFn = router.routesById[routeId2].options.remountDeps ?? router.options.defaultRemountDeps;
+      const remountDeps = remountFn?.({
+        routeId: routeId2,
+        loaderDeps: match2.loaderDeps,
+        params: match2._strictParams,
+        search: match2._strictSearch
+      });
+      const key2 = remountDeps ? JSON.stringify(remountDeps) : void 0;
+      return {
+        key: key2,
+        routeId: routeId2,
+        match: {
+          id: match2.id,
+          status: match2.status,
+          error: match2.error,
+          _forcePending: match2._forcePending,
+          _displayPending: match2._displayPending
+        }
+      };
+    },
+    structuralSharing: true
+  });
+  const route = router.routesById[routeId];
+  const out = React.useMemo(() => {
+    const Comp = route.options.component ?? router.options.defaultComponent;
+    if (Comp) {
+      return /* @__PURE__ */ jsx(Comp, {}, key);
+    }
+    return /* @__PURE__ */ jsx(Outlet, {});
+  }, [key, route.options.component, router.options.defaultComponent]);
+  if (match._displayPending) {
+    throw router.getMatch(match.id)?._nonReactive.displayPendingPromise;
+  }
+  if (match._forcePending) {
+    throw router.getMatch(match.id)?._nonReactive.minPendingPromise;
+  }
+  if (match.status === "pending") {
+    const pendingMinMs = route.options.pendingMinMs ?? router.options.defaultPendingMinMs;
+    if (pendingMinMs) {
+      const routerMatch = router.getMatch(match.id);
+      if (routerMatch && !routerMatch._nonReactive.minPendingPromise) {
+        if (!router.isServer) {
+          const minPendingPromise = createControlledPromise();
+          routerMatch._nonReactive.minPendingPromise = minPendingPromise;
+          setTimeout(() => {
+            minPendingPromise.resolve();
+            routerMatch._nonReactive.minPendingPromise = void 0;
+          }, pendingMinMs);
+        }
+      }
+    }
+    throw router.getMatch(match.id)?._nonReactive.loadPromise;
+  }
+  if (match.status === "notFound") {
+    invariant(isNotFound(match.error), "Expected a notFound error");
+    return renderRouteNotFound(router, route, match.error);
+  }
+  if (match.status === "redirected") {
+    invariant(isRedirect(match.error), "Expected a redirect error");
+    throw router.getMatch(match.id)?._nonReactive.loadPromise;
+  }
+  if (match.status === "error") {
+    if (router.isServer) {
+      const RouteErrorComponent = (route.options.errorComponent ?? router.options.defaultErrorComponent) || ErrorComponent;
+      return /* @__PURE__ */ jsx(
+        RouteErrorComponent,
+        {
+          error: match.error,
+          reset: void 0,
+          info: {
+            componentStack: ""
+          }
+        }
+      );
+    }
+    throw match.error;
+  }
+  return out;
+});
+const Outlet = React.memo(function OutletImpl() {
+  const router = useRouter();
+  const matchId = React.useContext(matchContext);
+  const routeId = useRouterState({
+    select: (s) => s.matches.find((d) => d.id === matchId)?.routeId
+  });
+  const route = router.routesById[routeId];
+  const parentGlobalNotFound = useRouterState({
+    select: (s) => {
+      const matches = s.matches;
+      const parentMatch = matches.find((d) => d.id === matchId);
+      invariant(
+        parentMatch,
+        `Could not find parent match for matchId "${matchId}"`
+      );
+      return parentMatch.globalNotFound;
+    }
+  });
+  const childMatchId = useRouterState({
+    select: (s) => {
+      const matches = s.matches;
+      const index = matches.findIndex((d) => d.id === matchId);
+      return matches[index + 1]?.id;
+    }
+  });
+  const pendingElement = router.options.defaultPendingComponent ? /* @__PURE__ */ jsx(router.options.defaultPendingComponent, {}) : null;
+  if (parentGlobalNotFound) {
+    return renderRouteNotFound(router, route, void 0);
+  }
+  if (!childMatchId) {
+    return null;
+  }
+  const nextMatch = /* @__PURE__ */ jsx(Match, { matchId: childMatchId });
+  if (routeId === rootRouteId) {
+    return /* @__PURE__ */ jsx(React.Suspense, { fallback: pendingElement, children: nextMatch });
+  }
+  return nextMatch;
+});
+function Matches() {
+  const router = useRouter();
+  const rootRoute = router.routesById[rootRouteId];
+  const PendingComponent = rootRoute.options.pendingComponent ?? router.options.defaultPendingComponent;
+  const pendingElement = PendingComponent ? /* @__PURE__ */ jsx(PendingComponent, {}) : null;
+  const ResolvedSuspense = router.isServer || typeof document !== "undefined" && router.ssr ? SafeFragment : React.Suspense;
+  const inner = /* @__PURE__ */ jsxs(ResolvedSuspense, { fallback: pendingElement, children: [
+    !router.isServer && /* @__PURE__ */ jsx(Transitioner, {}),
+    /* @__PURE__ */ jsx(MatchesInner, {})
+  ] });
+  return router.options.InnerWrap ? /* @__PURE__ */ jsx(router.options.InnerWrap, { children: inner }) : inner;
+}
+function MatchesInner() {
+  const router = useRouter();
+  const matchId = useRouterState({
+    select: (s) => {
+      return s.matches[0]?.id;
+    }
+  });
+  const resetKey = useRouterState({
+    select: (s) => s.loadedAt
+  });
+  const matchComponent = matchId ? /* @__PURE__ */ jsx(Match, { matchId }) : null;
+  return /* @__PURE__ */ jsx(matchContext.Provider, { value: matchId, children: router.options.disableGlobalCatchBoundary ? matchComponent : /* @__PURE__ */ jsx(
+    CatchBoundary,
+    {
+      getResetKey: () => resetKey,
+      errorComponent: ErrorComponent,
+      onCatch: (error) => {
+        warning(
+          false,
+          `The following error wasn't caught by any route! At the very least, consider setting an 'errorComponent' in your RootRoute!`
+        );
+        warning(false, error.message || error.toString());
+      },
+      children: matchComponent
+    }
+  ) });
+}
+function RouterContextProvider({
+  router,
+  children,
+  ...rest
+}) {
+  if (Object.keys(rest).length > 0) {
+    router.update({
+      ...router.options,
+      ...rest,
+      context: {
+        ...router.options.context,
+        ...rest.context
+      }
+    });
+  }
+  const routerContext2 = getRouterContext();
+  const provider = /* @__PURE__ */ jsx(routerContext2.Provider, { value: router, children });
+  if (router.options.Wrap) {
+    return /* @__PURE__ */ jsx(router.options.Wrap, { children: provider });
+  }
+  return provider;
+}
+function RouterProvider({ router, ...rest }) {
+  return /* @__PURE__ */ jsx(RouterContextProvider, { router, ...rest, children: /* @__PURE__ */ jsx(Matches, {}) });
+}
+function StartServer(props) {
+  return /* @__PURE__ */ jsx(RouterProvider, { router: props.router });
+}
+function splitSetCookieString$1(cookiesString) {
+  if (Array.isArray(cookiesString)) {
+    return cookiesString.flatMap((c2) => splitSetCookieString$1(c2));
+  }
+  if (typeof cookiesString !== "string") {
+    return [];
+  }
+  const cookiesStrings = [];
+  let pos = 0;
+  let start;
+  let ch;
+  let lastComma;
+  let nextStart;
+  let cookiesSeparatorFound;
+  const skipWhitespace = () => {
+    while (pos < cookiesString.length && /\s/.test(cookiesString.charAt(pos))) {
+      pos += 1;
+    }
+    return pos < cookiesString.length;
+  };
+  const notSpecialChar = () => {
+    ch = cookiesString.charAt(pos);
+    return ch !== "=" && ch !== ";" && ch !== ",";
+  };
+  while (pos < cookiesString.length) {
+    start = pos;
+    cookiesSeparatorFound = false;
+    while (skipWhitespace()) {
+      ch = cookiesString.charAt(pos);
+      if (ch === ",") {
+        lastComma = pos;
+        pos += 1;
+        skipWhitespace();
+        nextStart = pos;
+        while (pos < cookiesString.length && notSpecialChar()) {
+          pos += 1;
+        }
+        if (pos < cookiesString.length && cookiesString.charAt(pos) === "=") {
+          cookiesSeparatorFound = true;
+          pos = nextStart;
+          cookiesStrings.push(cookiesString.slice(start, lastComma));
+          start = pos;
+        } else {
+          pos = lastComma + 1;
+        }
+      } else {
+        pos += 1;
+      }
+    }
+    if (!cookiesSeparatorFound || pos >= cookiesString.length) {
+      cookiesStrings.push(cookiesString.slice(start));
+    }
+  }
+  return cookiesStrings;
+}
+function toHeadersInstance(init) {
+  if (init instanceof Headers) {
+    return new Headers(init);
+  } else if (Array.isArray(init)) {
+    return new Headers(init);
+  } else if (typeof init === "object") {
+    return new Headers(init);
+  } else {
+    return new Headers();
+  }
+}
+function mergeHeaders(...headers) {
+  return headers.reduce((acc, header) => {
+    const headersInstance = toHeadersInstance(header);
+    for (const [key, value] of headersInstance.entries()) {
+      if (key === "set-cookie") {
+        const splitCookies = splitSetCookieString$1(value);
+        splitCookies.forEach((cookie) => acc.append("set-cookie", cookie));
+      } else {
+        acc.set(key, value);
+      }
+    }
+    return acc;
+  }, new Headers());
 }
 const minifiedTsrBootStrapScript = 'self.$_TSR={c(){document.querySelectorAll(".\\\\$tsr").forEach(e=>{e.remove()}),this.hydrated&&this.streamEnd&&(delete self.$_TSR,delete self.$R.tsr)},p(e){this.initialized?e():this.buffer.push(e)},buffer:[]};\n';
+function transformReadableStreamWithRouter(router, routerStream) {
+  return transformStreamWithRouter(router, routerStream);
+}
+function transformPipeableStreamWithRouter(router, routerStream) {
+  return Readable.fromWeb(
+    transformStreamWithRouter(router, Readable.toWeb(routerStream))
+  );
+}
 const TSR_SCRIPT_BARRIER_ID = "$tsr-stream-barrier";
+const patternBodyEnd = /(<\/body>)/;
+const patternHtmlEnd = /(<\/html>)/;
+const patternClosingTag = /(<\/[a-zA-Z][\w:.-]*?>)/g;
+function createPassthrough(onCancel) {
+  let controller;
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream$1({
+    start(c2) {
+      controller = c2;
+    },
+    cancel() {
+      res.destroyed = true;
+      onCancel();
+    }
+  });
+  const res = {
+    stream,
+    write: (chunk) => {
+      if (res.destroyed) return;
+      if (typeof chunk === "string") {
+        controller.enqueue(encoder.encode(chunk));
+      } else {
+        controller.enqueue(chunk);
+      }
+    },
+    end: (chunk) => {
+      if (res.destroyed) return;
+      if (chunk) {
+        res.write(chunk);
+      }
+      res.destroyed = true;
+      controller.close();
+    },
+    destroy: (error) => {
+      if (res.destroyed) return;
+      res.destroyed = true;
+      controller.error(error);
+    },
+    destroyed: false
+  };
+  return res;
+}
+async function readStream(stream, opts) {
+  const reader = stream.getReader();
+  try {
+    let chunk;
+    while (!(chunk = await reader.read()).done) {
+      opts.onData?.(chunk);
+    }
+    opts.onEnd?.();
+  } catch (error) {
+    opts.onError?.(error);
+  } finally {
+    reader.releaseLock();
+  }
+}
+function transformStreamWithRouter(router, appStream, opts) {
+  let stopListeningToInjectedHtml = void 0;
+  let timeoutHandle;
+  let cleanedUp = false;
+  function cleanup() {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    if (stopListeningToInjectedHtml) {
+      stopListeningToInjectedHtml();
+      stopListeningToInjectedHtml = void 0;
+    }
+    clearTimeout(timeoutHandle);
+    router.serverSsr?.cleanup();
+  }
+  const finalPassThrough = createPassthrough(cleanup);
+  const textDecoder = new TextDecoder();
+  let isAppRendering = true;
+  let routerStreamBuffer = "";
+  let pendingClosingTags = "";
+  let streamBarrierLifted = false;
+  let leftover = "";
+  let leftoverHtml = "";
+  function getBufferedRouterStream() {
+    const html = routerStreamBuffer;
+    routerStreamBuffer = "";
+    return html;
+  }
+  function decodeChunk(chunk) {
+    if (chunk instanceof Uint8Array) {
+      return textDecoder.decode(chunk, { stream: true });
+    }
+    return String(chunk);
+  }
+  const injectedHtmlDonePromise = createControlledPromise();
+  let processingCount = 0;
+  handleInjectedHtml();
+  stopListeningToInjectedHtml = router.subscribe(
+    "onInjectedHtml",
+    handleInjectedHtml
+  );
+  function handleInjectedHtml() {
+    if (cleanedUp) return;
+    router.serverSsr.injectedHtml.forEach((promise) => {
+      processingCount++;
+      promise.then((html) => {
+        if (cleanedUp || finalPassThrough.destroyed) {
+          return;
+        }
+        if (isAppRendering) {
+          routerStreamBuffer += html;
+        } else {
+          finalPassThrough.write(html);
+        }
+      }).catch((err) => {
+        injectedHtmlDonePromise.reject(err);
+      }).finally(() => {
+        processingCount--;
+        if (!isAppRendering && processingCount === 0) {
+          injectedHtmlDonePromise.resolve();
+        }
+      });
+    });
+    router.serverSsr.injectedHtml = [];
+  }
+  injectedHtmlDonePromise.then(() => {
+    if (cleanedUp || finalPassThrough.destroyed) {
+      return;
+    }
+    clearTimeout(timeoutHandle);
+    const finalHtml = leftover + leftoverHtml + getBufferedRouterStream() + pendingClosingTags;
+    leftover = "";
+    leftoverHtml = "";
+    pendingClosingTags = "";
+    finalPassThrough.end(finalHtml);
+  }).catch((err) => {
+    if (cleanedUp || finalPassThrough.destroyed) {
+      return;
+    }
+    console.error("Error reading routerStream:", err);
+    finalPassThrough.destroy(err);
+  }).finally(cleanup);
+  readStream(appStream, {
+    onData: (chunk) => {
+      if (cleanedUp || finalPassThrough.destroyed) {
+        return;
+      }
+      const text = decodeChunk(chunk.value);
+      const chunkString = leftover + text;
+      const bodyEndMatch = chunkString.match(patternBodyEnd);
+      const htmlEndMatch = chunkString.match(patternHtmlEnd);
+      if (!streamBarrierLifted) {
+        const streamBarrierIdIncluded = chunkString.includes(
+          TSR_SCRIPT_BARRIER_ID
+        );
+        if (streamBarrierIdIncluded) {
+          streamBarrierLifted = true;
+          router.serverSsr.liftScriptBarrier();
+        }
+      }
+      if (bodyEndMatch && htmlEndMatch && bodyEndMatch.index < htmlEndMatch.index) {
+        const bodyEndIndex = bodyEndMatch.index;
+        pendingClosingTags = chunkString.slice(bodyEndIndex);
+        finalPassThrough.write(
+          chunkString.slice(0, bodyEndIndex) + getBufferedRouterStream() + leftoverHtml
+        );
+        leftover = "";
+        leftoverHtml = "";
+        return;
+      }
+      let result;
+      let lastIndex = 0;
+      patternClosingTag.lastIndex = 0;
+      while ((result = patternClosingTag.exec(chunkString)) !== null) {
+        lastIndex = result.index + result[0].length;
+      }
+      if (lastIndex > 0) {
+        const processed = chunkString.slice(0, lastIndex) + getBufferedRouterStream() + leftoverHtml;
+        finalPassThrough.write(processed);
+        leftover = chunkString.slice(lastIndex);
+        leftoverHtml = "";
+      } else {
+        leftover = chunkString;
+        leftoverHtml += getBufferedRouterStream();
+      }
+    },
+    onEnd: () => {
+      if (cleanedUp || finalPassThrough.destroyed) {
+        return;
+      }
+      isAppRendering = false;
+      router.serverSsr.setRenderFinished();
+      if (processingCount === 0) {
+        injectedHtmlDonePromise.resolve();
+      } else {
+        const timeoutMs = 6e4;
+        timeoutHandle = setTimeout(() => {
+          injectedHtmlDonePromise.reject(
+            new Error("Injected HTML timeout after app render finished")
+          );
+        }, timeoutMs);
+      }
+    },
+    onError: (error) => {
+      if (cleanedUp) {
+        return;
+      }
+      console.error("Error reading appStream:", error);
+      isAppRendering = false;
+      router.serverSsr.setRenderFinished();
+      clearTimeout(timeoutHandle);
+      leftover = "";
+      leftoverHtml = "";
+      routerStreamBuffer = "";
+      pendingClosingTags = "";
+      finalPassThrough.destroy(error);
+      injectedHtmlDonePromise.reject(error);
+    }
+  });
+  return finalPassThrough.stream;
+}
 const SCOPE_ID = "tsr";
 function dehydrateMatch(match) {
   const dehydratedMatch = {
@@ -2583,6 +7253,151 @@ function getOrigin(request) {
   } catch {
   }
   return "http://localhost";
+}
+function defineHandlerCallback(handler) {
+  return handler;
+}
+var fullPattern = " daum[ /]| deusu/|(?:^|[^g])news(?!sapphire)|(?<! (?:channel/|google/))google(?!(app|/google| pixel))|(?<! cu)bots?(?:\\b|_)|(?<!(?:lib))http|(?<![hg]m)score|(?<!cam)scan|24x7|@[a-z][\\w-]+\\.|\\(\\)|\\.com\\b|\\bperl\\b|\\btime/|\\||^[\\w \\.\\-\\(?:\\):%]+(?:/v?\\d+(?:\\.\\d+)?(?:\\.\\d{1,10})*?)?(?:,|$)|^[^ ]{50,}$|^\\d+\\b|^\\W|^\\w*search\\b|^\\w+/[\\w\\(\\)]*$|^active|^ad muncher|^amaya|^avsdevicesdk/|^azure|^biglotron|^bot|^bw/|^clamav[ /]|^client/|^cobweb/|^custom|^ddg[_-]android|^discourse|^dispatch/\\d|^downcast/|^duckduckgo|^email|^facebook|^getright/|^gozilla/|^hobbit|^hotzonu|^hwcdn/|^igetter/|^jeode/|^jetty/|^jigsaw|^microsoft bits|^movabletype|^mozilla/\\d\\.\\d\\s[\\w\\.-]+$|^mozilla/\\d\\.\\d\\s\\(compatible;?(?:\\s\\w+\\/\\d+\\.\\d+)?\\)$|^navermailapp|^netsurf|^offline|^openai/|^owler|^php|^postman|^python|^rank|^read|^reed|^rest|^rss|^snapchat|^space bison|^svn|^swcd |^taringa|^thumbor/|^track|^w3c|^webbandit/|^webcopier|^wget|^whatsapp|^wordpress|^xenu link sleuth|^yahoo|^yandex|^zdm/\\d|^zoom marketplace/|agent\\b|analyzer|archive|ask jeeves/teoma|audit|bit\\.ly/|bluecoat drtr|browsex|burpcollaborator|capture|catch|check\\b|checker|chrome-lighthouse|chromeframe|classifier|cloudflare|convertify|crawl|cypress/|dareboost|datanyze|dejaclick|detect|dmbrowser|download|evc-batch/|exaleadcloudview|feed|fetcher|firephp|functionize|grab|headless|httrack|hubspot marketing grader|hydra|ibisbrowser|infrawatch|insight|inspect|iplabel|java(?!;)|library|linkcheck|mail\\.ru/|manager|measure|neustar wpm|node\\b|nutch|offbyone|onetrust|optimize|pageburst|pagespeed|parser|phantomjs|pingdom|powermarks|preview|proxy|ptst[ /]\\d|retriever|rexx;|rigor|rss\\b|scrape|server|sogou|sparkler/|speedcurve|spider|splash|statuscake|supercleaner|synapse|synthetic|tools|torrent|transcoder|url|validator|virtuoso|wappalyzer|webglance|webkit2png|whatcms/|xtate/";
+var naivePattern = /bot|crawl|http|lighthouse|scan|search|spider/i;
+var pattern;
+function getPattern() {
+  if (pattern instanceof RegExp) {
+    return pattern;
+  }
+  try {
+    pattern = new RegExp(fullPattern, "i");
+  } catch (error) {
+    pattern = naivePattern;
+  }
+  return pattern;
+}
+function isbot(userAgent) {
+  return Boolean(userAgent) && getPattern().test(userAgent);
+}
+const renderRouterToStream = async ({
+  request,
+  router,
+  responseHeaders,
+  children
+}) => {
+  if (typeof ReactDOMServer.renderToReadableStream === "function") {
+    const stream = await ReactDOMServer.renderToReadableStream(children, {
+      signal: request.signal,
+      nonce: router.options.ssr?.nonce,
+      progressiveChunkSize: Number.POSITIVE_INFINITY
+    });
+    if (isbot(request.headers.get("User-Agent"))) {
+      await stream.allReady;
+    }
+    const responseStream = transformReadableStreamWithRouter(
+      router,
+      stream
+    );
+    return new Response(responseStream, {
+      status: router.state.statusCode,
+      headers: responseHeaders
+    });
+  }
+  if (typeof ReactDOMServer.renderToPipeableStream === "function") {
+    const reactAppPassthrough = new PassThrough();
+    try {
+      const pipeable = ReactDOMServer.renderToPipeableStream(children, {
+        nonce: router.options.ssr?.nonce,
+        progressiveChunkSize: Number.POSITIVE_INFINITY,
+        ...isbot(request.headers.get("User-Agent")) ? {
+          onAllReady() {
+            pipeable.pipe(reactAppPassthrough);
+          }
+        } : {
+          onShellReady() {
+            pipeable.pipe(reactAppPassthrough);
+          }
+        },
+        onError: (error, info) => {
+          console.error("Error in renderToPipeableStream:", error, info);
+          if (!reactAppPassthrough.destroyed) {
+            reactAppPassthrough.destroy(
+              error instanceof Error ? error : new Error(String(error))
+            );
+          }
+        }
+      });
+    } catch (e) {
+      console.error("Error in renderToPipeableStream:", e);
+      reactAppPassthrough.destroy(e instanceof Error ? e : new Error(String(e)));
+    }
+    const responseStream = transformPipeableStreamWithRouter(
+      router,
+      reactAppPassthrough
+    );
+    return new Response(responseStream, {
+      status: router.state.statusCode,
+      headers: responseHeaders
+    });
+  }
+  throw new Error(
+    "No renderToReadableStream or renderToPipeableStream found in react-dom/server. Ensure you are using a version of react-dom that supports streaming."
+  );
+};
+const defaultStreamHandler = defineHandlerCallback(
+  ({ request, router, responseHeaders }) => renderRouterToStream({
+    request,
+    router,
+    responseHeaders,
+    children: /* @__PURE__ */ jsx(StartServer, { router })
+  })
+);
+function json(payload, init) {
+  return new Response(JSON.stringify(payload), {
+    ...init,
+    headers: mergeHeaders(
+      { "content-type": "application/json" },
+      init?.headers
+    )
+  });
+}
+const TSS_FORMDATA_CONTEXT = "__TSS_CONTEXT";
+const TSS_SERVER_FUNCTION = Symbol.for("TSS_SERVER_FUNCTION");
+const X_TSS_SERIALIZED = "x-tss-serialized";
+const X_TSS_RAW_RESPONSE = "x-tss-raw";
+const startStorage = new AsyncLocalStorage();
+async function runWithStartContext(context, fn2) {
+  return startStorage.run(context, fn2);
+}
+function getStartContext(opts) {
+  const context = startStorage.getStore();
+  if (!context && opts?.throwIfNotFound !== false) {
+    throw new Error(
+      `No Start context found in AsyncLocalStorage. Make sure you are using the function within the server runtime.`
+    );
+  }
+  return context;
+}
+const getStartOptions = () => getStartContext().startOptions;
+function flattenMiddlewares(middlewares) {
+  const seen = /* @__PURE__ */ new Set();
+  const flattened = [];
+  const recurse = (middleware) => {
+    middleware.forEach((m2) => {
+      if (m2.options.middleware) {
+        recurse(m2.options.middleware);
+      }
+      if (!seen.has(m2)) {
+        seen.add(m2);
+        flattened.push(m2);
+      }
+    });
+  };
+  recurse(middlewares);
+  return flattened;
+}
+function getDefaultSerovalPlugins() {
+  const start = getStartOptions();
+  const adapters = start?.serializationAdapters;
+  return [
+    ...adapters?.map(makeSerovalPlugin) ?? [],
+    ...defaultSerovalPlugins
+  ];
 }
 const NullProtoObj = /* @__PURE__ */ (() => {
   const e = function() {
@@ -3215,15 +8030,12 @@ function getH3Event() {
   }
   return event.h3Event;
 }
-function getRequestHeaders() {
-  return getH3Event().req.headers;
-}
 function getResponse() {
   const event = getH3Event();
   return event._res;
 }
 async function getStartManifest() {
-  const { tsrStartManifest } = await import("./assets/_tanstack-start-manifest_v-yo8qn37E.js");
+  const { tsrStartManifest } = await import("./assets/_tanstack-start-manifest_v-uxLmYTyG.js");
   const startManifest = tsrStartManifest();
   const rootRoute = startManifest.routes[rootRouteId] = startManifest.routes[rootRouteId] || {};
   rootRoute.assets = rootRoute.assets || [];
@@ -3258,19 +8070,7 @@ async function getStartManifest() {
   };
   return manifest2;
 }
-const manifest = { "f76e8f8721c12c8547a3ced6a10916f5b5076c1a10dcbeaa607360ce419d0a48": {
-  functionName: "personServerFn_createServerFn_handler",
-  importer: () => import("./assets/deferred-CosnZVSY.js")
-}, "fc3988c64f434639dfd4eab3f926b87ee39cc0c14f65b4d0e852c7fd73279a3b": {
-  functionName: "slowServerFn_createServerFn_handler",
-  importer: () => import("./assets/deferred-CosnZVSY.js")
-}, "0029094260fc8f554fa3ac223696de0e9591567ec6420250e896c91244c812c5": {
-  functionName: "fetchPost_createServerFn_handler",
-  importer: () => import("./assets/posts-DOERrLE-.js")
-}, "cbb8ca69048418e62742f2c511faa56326b80ace384144a35bb3e0bf5e8124be": {
-  functionName: "fetchPosts_createServerFn_handler",
-  importer: () => import("./assets/posts-DOERrLE-.js")
-} };
+const manifest = {};
 async function getServerFnById(id) {
   const serverFnInfo = manifest[id];
   if (!serverFnInfo) {
@@ -3550,7 +8350,7 @@ function createStartHandler(cb) {
   let routerEntry = null;
   const getEntries = async () => {
     if (routerEntry === null) {
-      routerEntry = await import("./assets/router-B2fdo7UV.js").then((n) => n.r);
+      routerEntry = await import("./assets/router-C1SSjqoG.js").then((n) => n.r);
     }
     if (startEntry === null) {
       startEntry = await import("./assets/start-HYkvq4Ni.js");
@@ -3722,7 +8522,7 @@ function createStartHandler(cb) {
           );
         }
         const router2 = await getRouter();
-        const redirect = router2.resolveRedirect(response);
+        const redirect2 = router2.resolveRedirect(response);
         if (request.headers.get("x-tsr-redirect") === "manual") {
           return json(
             {
@@ -3734,7 +8534,7 @@ function createStartHandler(cb) {
             }
           );
         }
-        return redirect;
+        return redirect2;
       }
       return response;
     } finally {
@@ -3887,12 +8687,25 @@ function createServerEntry(entry) {
 }
 const server = createServerEntry({ fetch: fetch$1 });
 export {
-  TSS_SERVER_FUNCTION as T,
-  getRequestHeaders as a,
-  createServerRpc as b,
-  createServerFn as c,
+  ErrorComponent as E,
+  RouterCore as R,
+  useRouter as a,
+  useForwardedRef as b,
+  useIntersectionObserver as c,
   createServerEntry,
+  dummyMatchContext as d,
   server as default,
-  getServerFnById as g,
-  json as j
+  exactPathTest as e,
+  functionalUpdate as f,
+  removeTrailingSlash as g,
+  deepEqual as h,
+  invariant as i,
+  joinPaths as j,
+  isModuleNotFoundError as k,
+  json as l,
+  matchContext as m,
+  rootRouteId as r,
+  trimPathLeft as t,
+  useRouterState as u,
+  warning as w
 };

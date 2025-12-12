@@ -5,41 +5,9 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera, Stats } from '@react-three/drei'
 import * as THREE from 'three'
 import type { ParsedFrame, ColorMap } from '~/types/sph'
-
-/** Create a circular particle texture */
-function createCircleTexture(): THREE.Texture {
-  const size = 64
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
-  const ctx = canvas.getContext('2d')!
-  
-  // Create radial gradient for smooth circular particle
-  const gradient = ctx.createRadialGradient(
-    size / 2, size / 2, 0,
-    size / 2, size / 2, size / 2
-  )
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)')
-  gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.8)')
-  gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.3)')
-  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
-  
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, size, size)
-  
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.needsUpdate = true
-  return texture
-}
-
-// Singleton texture for all particles
-let circleTexture: THREE.Texture | null = null
-function getCircleTexture(): THREE.Texture {
-  if (!circleTexture) {
-    circleTexture = createCircleTexture()
-  }
-  return circleTexture
-}
+// Shared utilities (SSOT)
+import { getCircleTexture } from '~/utils/three-helpers'
+import { interpolateColorHex, hexToRgbCached } from '~/utils/color-interpolation'
 
 interface ParticleCloudProps {
   frame: ParsedFrame | null
@@ -157,7 +125,7 @@ function ParticleCloud({ frame, colorField, colorMap, pointSize, opacity }: Part
       }
       t = Math.max(0, Math.min(1, t))
 
-      const color = interpolateColorFast(colorMap.colors, t)
+      const color = interpolateColorHex(colorMap.colors, t)
       colors[i * 3] = color.r
       colors[i * 3 + 1] = color.g
       colors[i * 3 + 2] = color.b
@@ -197,49 +165,8 @@ function ParticleCloud({ frame, colorField, colorMap, pointSize, opacity }: Part
   )
 }
 
-// Pre-parsed color cache
-const colorCache = new Map<string, { r: number; g: number; b: number }>()
-
-/** Fast color interpolation with caching */
-function interpolateColorFast(colors: string[], t: number): { r: number; g: number; b: number } {
-  if (colors.length === 0) return { r: 1, g: 1, b: 1 }
-  if (colors.length === 1) return hexToRgbCached(colors[0])
-
-  const index = t * (colors.length - 1)
-  const lower = Math.floor(index)
-  const upper = Math.min(lower + 1, colors.length - 1)
-  const localT = index - lower
-
-  const c1 = hexToRgbCached(colors[lower])
-  const c2 = hexToRgbCached(colors[upper])
-
-  return {
-    r: c1.r + (c2.r - c1.r) * localT,
-    g: c1.g + (c2.g - c1.g) * localT,
-    b: c1.b + (c2.b - c1.b) * localT,
-  }
-}
-
-/** Cached hex to RGB conversion */
-function hexToRgbCached(hex: string): { r: number; g: number; b: number } {
-  let cached = colorCache.get(hex)
-  if (!cached) {
-    cached = hexToRgb(hex)
-    colorCache.set(hex, cached)
-  }
-  return cached
-}
-
-/** Convert hex color to RGB (0-1 range) */
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-  if (!result) return { r: 1, g: 1, b: 1 }
-  return {
-    r: parseInt(result[1], 16) / 255,
-    g: parseInt(result[2], 16) / 255,
-    b: parseInt(result[3], 16) / 255,
-  }
-}
+// Note: Color interpolation functions (interpolateColorHex, hexToRgbCached, hexToRgb)
+// are now imported from ~/utils/color-interpolation (SSOT)
 
 /** Axes helper */
 function AxesHelper({ size = 1 }: { size?: number }) {

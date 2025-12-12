@@ -1,13 +1,26 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useLoaderData } from '@tanstack/react-router'
 import { Dashboard } from '~/components/dashboard/Dashboard'
 import type { SimulationMetadata, ParsedFrame, FrameStatistics } from '~/types/sph'
 import { Folder, ChevronRight, RefreshCw } from 'lucide-react'
 
+// Loader to fetch simulations on the server
 export const Route = createFileRoute('/viz/')({
   component: VisualizationPage,
+  loader: async () => {
+    try {
+      // This runs on server during SSR
+      const response = await fetch('http://localhost:3000/api/simulations')
+      const data = await response.json()
+      console.log('[Loader] Fetched simulations:', data.simulations?.length || 0)
+      return { simulations: data.simulations || [] }
+    } catch (err) {
+      console.error('[Loader] Failed:', err)
+      return { simulations: [] }
+    }
+  },
 })
 
 /** Parse binary frame data directly from ArrayBuffer - NO base64 overhead! */
@@ -63,7 +76,9 @@ function parseBinaryFrame(
 }
 
 function VisualizationPage() {
-  const [simulations, setSimulations] = useState<SimulationMetadata[]>([])
+  // Get initial data from loader
+  const loaderData = useLoaderData({ from: '/viz/' }) as { simulations: SimulationMetadata[] }
+  const [simulations, setSimulations] = useState<SimulationMetadata[]>(loaderData?.simulations || [])
   const [selectedSimulation, setSelectedSimulation] = useState<SimulationMetadata | null>(null)
   const [frames, setFrames] = useState<Map<number, ParsedFrame>>(new Map())
   const [statistics, setStatistics] = useState<FrameStatistics[]>([])
@@ -71,22 +86,36 @@ function VisualizationPage() {
   const [loadingProgress, setLoadingProgress] = useState({ loaded: 0, total: 0 })
   const [error, setError] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [isLoadingSimulations, setIsLoadingSimulations] = useState(false)
 
-  // Load available simulations
+  // Update simulations when loader data changes
+  useEffect(() => {
+    if (loaderData?.simulations) {
+      console.log('[useEffect] Setting simulations from loader:', loaderData.simulations.length)
+      setSimulations(loaderData.simulations)
+    }
+  }, [loaderData])
+
+  // Load available simulations (for refresh button)
   const loadSimulations = useCallback(async () => {
+    console.log('[loadSimulations] Starting fetch...')
+    setIsLoadingSimulations(true)
     try {
       const response = await fetch('/api/simulations')
+      console.log('[loadSimulations] Response status:', response.status)
       const data = await response.json()
+      console.log('[loadSimulations] Data received:', data)
+      console.log('[loadSimulations] Simulations count:', data.simulations?.length || 0)
       setSimulations(data.simulations || [])
     } catch (err) {
       console.error('Failed to load simulations:', err)
       setError('Failed to load simulations')
+    } finally {
+      setIsLoadingSimulations(false)
     }
   }, [])
 
-  useEffect(() => {
-    loadSimulations()
-  }, [loadSimulations])
+  // Note: No longer using useEffect to load simulations - using loader instead
 
   // Load a single frame from binary endpoint with retry support
   const loadSingleFrame = useCallback(async (
@@ -156,6 +185,7 @@ function VisualizationPage() {
 
   // Select simulation and LOAD ALL FRAMES INTO MEMORY for instant playback
   const selectSimulation = useCallback(async (sim: SimulationMetadata) => {
+    console.log('[selectSimulation] Called with:', sim.id, sim.name)
     setSelectedSimulation(sim)
     setFrames(new Map())
     setStatistics([])
@@ -164,6 +194,7 @@ function VisualizationPage() {
     setLoadingProgress({ loaded: 0, total: sim.totalFrames })
 
     const simId = encodeURIComponent(sim.id.replace(/\//g, '|'))
+    console.log('[selectSimulation] Encoded simId:', simId)
     const totalFrames = sim.totalFrames
     const newFrames = new Map<number, ParsedFrame>()
     const newStats: FrameStatistics[] = []
@@ -287,19 +318,32 @@ function VisualizationPage() {
         {/* Simulation list */}
         {!sidebarCollapsed && (
           <div className="flex-1 overflow-y-auto">
-            {simulations.length === 0 ? (
+            {isLoadingSimulations ? (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                <div className="mb-2">Loading simulations...</div>
+                <RefreshCw size={16} className="animate-spin mx-auto" />
+              </div>
+            ) : simulations.length === 0 ? (
               <div className="p-4 text-center text-gray-500 text-sm">
                 <div className="mb-2">No simulations found</div>
-                <div className="text-xs">
+                <div className="text-xs mb-2">
                   Run the data exporter to prepare simulation data
                 </div>
+                <div className="text-xs text-yellow-500">
+                  Debug: Check browser console (F12) for fetch logs
+                </div>
+                {error && <div className="text-xs text-red-500 mt-2">Error: {error}</div>}
               </div>
             ) : (
               <div className="p-2 space-y-1">
                 {simulations.map((sim) => (
                   <button
                     key={sim.id}
-                    onClick={() => selectSimulation(sim)}
+                    onClick={() => {
+                      console.log('[Button Click] Simulation clicked:', sim.id)
+                      alert(`Loading simulation: ${sim.name}`)
+                      selectSimulation(sim)
+                    }}
                     className={`w-full text-left p-2 rounded text-sm ${
                       selectedSimulation?.id === sim.id
                         ? 'bg-blue-600 text-white'

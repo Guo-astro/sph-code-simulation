@@ -1,32 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { json } from '@tanstack/react-start'
-import * as fs from 'fs'
-import * as path from 'path'
-import { fileURLToPath } from 'url'
 import type { FrameResponse } from '~/types/sph'
 
 /**
  * Frame Data API - Serves individual frame data
  * GET /api/simulations/[simId]/frames/[frameId] - Returns frame binary data
+ * 
+ * Note: Node.js modules (fs, path, url) are loaded dynamically to avoid 
+ * Vite bundling them into client code.
  */
-
-/** ESM-compatible __dirname equivalent */
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-/** Logging utility for consistent server-side logging */
-const log = {
-  info: (msg: string, ...args: any[]) => console.log(`[FRAME-API] ${new Date().toISOString()} INFO: ${msg}`, ...args),
-  warn: (msg: string, ...args: any[]) => console.warn(`[FRAME-API] ${new Date().toISOString()} WARN: ${msg}`, ...args),
-  error: (msg: string, ...args: any[]) => console.error(`[FRAME-API] ${new Date().toISOString()} ERROR: ${msg}`, ...args),
-  debug: (msg: string, ...args: any[]) => console.log(`[FRAME-API] ${new Date().toISOString()} DEBUG: ${msg}`, ...args),
-}
-
-const getDataRoot = (): string => {
-  const root = process.env.SPH_DATA_ROOT || path.resolve(__dirname, '../../../../../')
-  log.debug(`getDataRoot() __dirname=${__dirname}, resolved=${root}`)
-  return root
-}
 
 export const Route = createFileRoute('/api/simulations/$simId/frames/$frameId')({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -35,6 +17,14 @@ export const Route = createFileRoute('/api/simulations/$simId/frames/$frameId')(
   server: {
     handlers: {
       GET: async ({ params, request }) => {
+        // Dynamic imports - only executed on server, prevents Vite bundling
+        const fs = await import('fs')
+        const path = await import('path')
+        const { fileURLToPath } = await import('url')
+        
+        const __dirname = path.dirname(fileURLToPath(import.meta.url))
+        const dataRoot = process.env.SPH_DATA_ROOT || path.resolve(__dirname, '../../../../../')
+        
         try {
           const { simId, frameId } = params
           const frameIndex = parseInt(frameId)
@@ -53,8 +43,6 @@ export const Route = createFileRoute('/api/simulations/$simId/frames/$frameId')(
             }
             return json({ error: 'Invalid frame ID' }, { status: 400 })
           }
-
-          const dataRoot = getDataRoot()
           
           // Decode simulation path - handle nested paths
           const simPath = decodeURIComponent(simId).replace(/\|/g, '/')

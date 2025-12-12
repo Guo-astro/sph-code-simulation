@@ -1875,6 +1875,402 @@ NOT needed:
 
 ---
 
+## 8. Molecular Chemistry: HCN and CO for PV Diagram Reproduction
+
+To reproduce the observed position-velocity (PV) diagrams from Oka et al. (2017), we must consider the molecular line emission from HCN and CO. This requires understanding the chemistry of these molecules and determining the appropriate treatment for SPH simulations.
+
+### 8.1 First-Principles Analysis: Chemistry Timescales
+
+#### 8.1.1 CO Chemistry
+
+CO is the most abundant molecule after H$_2$ in molecular clouds. Its formation proceeds through two main pathways:
+
+**Gas-phase formation (dominant at high density):**
+$$\mathrm{C^+ + H_2 \rightarrow CH_2^+ + h\nu}$$
+$$\mathrm{CH_2^+ + e^- \rightarrow CH + H}$$
+$$\mathrm{CH + O \rightarrow CO + H}$$
+
+Or via neutral-neutral reactions in dense gas:
+$$\mathrm{C + OH \rightarrow CO + H} \quad (k \approx 10^{-10}\,\mathrm{cm^3\,s^{-1}})$$
+
+**CO formation timescale:**
+$$\tau_\mathrm{CO,form} \sim \frac{1}{k \times n(\mathrm{OH})} \sim \frac{1}{10^{-10} \times 10^{-7} \times n}$$
+
+For $n = 10^4$ cm$^{-3}$ with typical OH abundance $[\mathrm{OH}]/[\mathrm{H_2}] \sim 10^{-7}$:
+$$\tau_\mathrm{CO,form} \sim \frac{1}{10^{-10} \times 10^{-7} \times 10^4} = 10^{13}\,\mathrm{s} \approx 3 \times 10^5\,\mathrm{yr}$$
+
+For the dense clump ($n = 3 \times 10^6$ cm$^{-3}$):
+$$\boxed{\tau_\mathrm{CO,form}^\mathrm{dense} \approx 10^3\,\mathrm{yr}}$$
+
+**CO destruction timescale:**
+CO is destroyed primarily by UV photodissociation in diffuse regions and by cosmic ray-induced photodissociation in dense cores:
+$$\mathrm{CO + CR \rightarrow C + O}$$
+
+The destruction rate is $\xi_\mathrm{CO} \sim 10^{-17}$ s$^{-1}$ (cosmic ray dominated in dense gas):
+$$\tau_\mathrm{CO,dest} \sim \frac{1}{\xi_\mathrm{CO}} \sim 10^{17}\,\mathrm{s} \approx 3 \times 10^9\,\mathrm{yr}$$
+
+$$\boxed{\tau_\mathrm{CO,dest} \gg \tau_\mathrm{dyn}}$$
+
+**Conclusion for CO:** Formation is fast in dense gas ($\tau_\mathrm{form} < \tau_\mathrm{dyn}$), destruction is negligible. **CO is in chemical equilibrium.**
+
+#### 8.1.2 HCN Chemistry
+
+HCN formation involves nitrogen chemistry, which is more complex:
+
+**Primary formation pathways:**
+$$\mathrm{N + CH_2 \rightarrow HCN + H} \quad (k \approx 5 \times 10^{-11}\,\mathrm{cm^3\,s^{-1}})$$
+$$\mathrm{CN + H_2 \rightarrow HCN + H} \quad (k \approx 10^{-13}\,\mathrm{cm^3\,s^{-1}}\text{ at } T < 100\,\mathrm{K})$$
+
+And ion-molecule chemistry:
+$$\mathrm{HCNH^+ + e^- \rightarrow HCN + H}$$
+
+**HCN formation timescale:**
+The limiting step is often CN or CH$_2$ formation. For the CN + H$_2$ pathway:
+$$\tau_\mathrm{HCN,form} \sim \frac{1}{k \times n(\mathrm{H_2})} \sim \frac{1}{10^{-13} \times n}$$
+
+For $n = 3 \times 10^6$ cm$^{-3}$:
+$$\tau_\mathrm{HCN,form} \sim \frac{1}{10^{-13} \times 3 \times 10^6} = 3 \times 10^6\,\mathrm{s} \approx 0.1\,\mathrm{yr}$$
+
+However, the N → CN → HCN chain is limited by atomic N availability:
+$$\tau_\mathrm{HCN,chain} \sim 10^4 - 10^5\,\mathrm{yr}$$
+
+**HCN destruction:**
+$$\mathrm{HCN + H^+ \rightarrow HCN^+ + H}$$
+$$\mathrm{HCN + C^+ \rightarrow C_2N^+ + H}$$
+
+Destruction timescale in dense gas:
+$$\tau_\mathrm{HCN,dest} \sim 10^6 - 10^7\,\mathrm{yr}$$
+
+$$\boxed{\tau_\mathrm{HCN,form} \sim \tau_\mathrm{dyn} \sim 10^4\,\mathrm{yr}}$$
+
+**Conclusion for HCN:** Formation timescale is **comparable** to dynamical timescale. Chemical equilibrium is a reasonable but not exact approximation.
+
+### 8.2 Timescale Comparison Summary
+
+| Timescale | Value | Ratio to $\tau_\mathrm{dyn}$ |
+|-----------|-------|------------------------------|
+| Dynamical time $\tau_\mathrm{dyn}$ | $10^4$ yr | 1 |
+| CO formation (dense) | $10^3$ yr | 0.1 |
+| CO destruction | $10^9$ yr | $10^5$ |
+| HCN formation (chain) | $10^4$–$10^5$ yr | 1–10 |
+| HCN destruction | $10^6$ yr | $10^2$ |
+| Shock crossing | $10^3$ yr | 0.1 |
+
+**Key insight:** CO is safely in equilibrium. HCN formation timescale is marginal—equilibrium is approximate but acceptable for dense regions.
+
+### 8.3 Recommended Approach: Equilibrium Chemistry with Post-Processing
+
+Based on the timescale analysis, we recommend:
+
+$$\boxed{\textbf{Chemical equilibrium + Post-processing radiative transfer}}$$
+
+#### 8.3.1 Justification for Equilibrium Assumption
+
+1. **CO:** $\tau_\mathrm{CO,form} \ll \tau_\mathrm{dyn}$ in dense gas. CO abundance reaches equilibrium rapidly.
+
+2. **HCN:** $\tau_\mathrm{HCN,form} \sim \tau_\mathrm{dyn}$. While not exact, equilibrium is acceptable because:
+   - HCN is only detectable in the densest regions ($n > 10^6$ cm$^{-3}$)
+   - At these densities, formation is faster
+   - Shock compression accelerates chemistry
+   - The dense clump was likely pre-existing before IMBH encounter
+
+3. **Computational efficiency:** Time-dependent chemistry networks add significant computational cost without substantially changing the PV diagram morphology.
+
+4. **Dominant physics:** The PV structure is determined by **kinematics** (tidal stretching), not by chemistry variations. Abundance gradients are secondary effects.
+
+#### 8.3.2 Equilibrium Abundance Prescriptions
+
+**CO abundance:**
+In well-shielded molecular gas ($A_V > 3$), CO reaches maximum abundance:
+$$X(\mathrm{CO}) = \frac{n(\mathrm{CO})}{n(\mathrm{H_2})} \approx 10^{-4}$$
+
+For SPH post-processing, use:
+$$X(\mathrm{CO}) = X_\mathrm{CO,max} \times f_\mathrm{shield}(N_\mathrm{H_2})$$
+
+where the shielding function:
+$$f_\mathrm{shield} = \begin{cases}
+1 & N_\mathrm{H_2} > 10^{21}\,\mathrm{cm^{-2}} \\
+(N_\mathrm{H_2}/10^{21})^2 & N_\mathrm{H_2} < 10^{21}\,\mathrm{cm^{-2}}
+\end{cases}$$
+
+**HCN abundance:**
+HCN abundance correlates with density in dense cores:
+$$X(\mathrm{HCN}) = \frac{n(\mathrm{HCN})}{n(\mathrm{H_2})} \approx 10^{-8} \times \left(\frac{n}{10^4\,\mathrm{cm^{-3}}}\right)^{0.5}$$
+
+This empirical scaling captures the density-dependent nitrogen chemistry.
+
+For the Oka et al. dense clump:
+$$X(\mathrm{HCN}) \approx 10^{-8} \times \left(\frac{3 \times 10^6}{10^4}\right)^{0.5} \approx 2 \times 10^{-7}$$
+
+### 8.4 Radiative Transfer: Post-Processing Strategy
+
+#### 8.4.1 Why Post-Processing is Sufficient
+
+1. **Radiative transfer timescale:** $\tau_\mathrm{RT} \sim L/c \sim 10^{-4}$ yr $\ll \tau_\mathrm{dyn}$
+
+   Radiation field equilibrates instantaneously compared to dynamics.
+
+2. **Optically thin regime:** Most sightlines through the tidally disrupted cloud are optically thin (see Section 1.4.4).
+
+3. **Decoupling:** Molecular line emission does not significantly affect gas dynamics (no radiation pressure, negligible cooling contribution compared to dust).
+
+#### 8.4.2 Recommended Radiative Transfer Codes
+
+| Code | Strengths | Best for |
+|------|-----------|----------|
+| **RADMC-3D** | Full 3D, flexible, LTE + non-LTE | CO imaging, dust continuum |
+| **LIME** | Non-LTE line transfer, fast | HCN J=3-2, complex geometries |
+| **RADEX** | Non-LTE, single-zone | Quick abundance estimates |
+| **MOLLIE** | Non-LTE, turbulent sub-structure | Dense clump analysis |
+
+**Primary recommendation:** RADMC-3D for synthetic observations, with RADEX cross-checks.
+
+#### 8.4.3 Post-Processing Pipeline for PV Diagrams
+
+```
+SPH Simulation Output → Export to Grid → Radiative Transfer → Synthetic Observation
+       │                       │                  │                    │
+       ▼                       ▼                  ▼                    ▼
+  (ρ, T, v)_particles   AMR or regular      RADMC-3D or        Convolve with
+                        Cartesian grid       LIME               ALMA beam
+                             │                  │                    │
+                             ▼                  ▼                    ▼
+                        Assign X(CO),     Compute τ, I_ν      Generate P-V
+                        X(HCN) from       for each channel    diagram
+                        equilibrium
+```
+
+**Step 1: Grid interpolation**
+
+Convert SPH particles to a regular or AMR grid:
+- Grid resolution: $\Delta x \lesssim h_\mathrm{min}/2$ (half minimum smoothing length)
+- Recommended: $256^3$ to $512^3$ for 5 pc domain
+
+```python
+# Example: SPH to grid conversion
+from scipy.interpolate import griddata
+
+def sph_to_grid(particles, grid_size=256):
+    """
+    Interpolate SPH data to regular grid.
+
+    Parameters:
+    -----------
+    particles : dict with keys 'pos', 'rho', 'T', 'vel', 'h'
+    grid_size : int, number of grid cells per dimension
+    """
+    # Create regular grid
+    x = np.linspace(-3, 3, grid_size)  # pc
+    X, Y, Z = np.meshgrid(x, x, x, indexing='ij')
+    grid_points = np.stack([X.ravel(), Y.ravel(), Z.ravel()], axis=1)
+
+    # Interpolate density and temperature
+    rho_grid = griddata(particles['pos'], particles['rho'],
+                        grid_points, method='linear')
+    T_grid = griddata(particles['pos'], particles['T'],
+                      grid_points, method='linear')
+
+    # Interpolate velocity components
+    vx_grid = griddata(particles['pos'], particles['vel'][:, 0],
+                       grid_points, method='linear')
+    # ... repeat for vy, vz
+
+    return rho_grid.reshape((grid_size,)*3), T_grid.reshape((grid_size,)*3)
+```
+
+**Step 2: Assign molecular abundances**
+
+```python
+def compute_abundances(n_H2, T):
+    """
+    Compute equilibrium CO and HCN abundances.
+
+    Parameters:
+    -----------
+    n_H2 : array, H2 number density [cm^-3]
+    T : array, temperature [K]
+    """
+    # CO abundance (constant in well-shielded regions)
+    X_CO = 1e-4 * np.ones_like(n_H2)
+
+    # HCN abundance (density-dependent)
+    X_HCN = 1e-8 * (n_H2 / 1e4)**0.5
+    X_HCN = np.minimum(X_HCN, 1e-6)  # Cap at maximum observed
+
+    # Temperature dependence (optional: enhanced in warm shocked gas)
+    warm_factor = np.where(T > 100, 1.5, 1.0)
+    X_HCN *= warm_factor
+
+    return X_CO, X_HCN
+```
+
+**Step 3: Radiative transfer with RADMC-3D**
+
+Input files required:
+- `amr_grid.inp`: Grid structure
+- `dust_density.inp`: For continuum (optional)
+- `gas_velocity.inp`: 3D velocity field
+- `gas_temperature.inp`: Kinetic temperature
+- `numberdens_co.inp`: CO number density
+- `molecule_co.inp`: CO molecular data file
+
+**Step 4: Generate synthetic observations**
+
+```python
+# RADMC-3D command for CO J=2-1 image cube
+# radmc3d image lambda 1300.4 incl 70 phi 41.6 npix 256
+#         vkms -120 nvkms 100 dvkms 2
+
+def create_pv_from_cube(image_cube, spatial_axis, velocity_axis,
+                        cut_position=0, cut_angle=0):
+    """
+    Extract P-V diagram from image cube.
+
+    Parameters:
+    -----------
+    image_cube : 3D array (v, y, x) intensity
+    cut_position : float, offset from center [arcsec]
+    cut_angle : float, position angle [degrees]
+    """
+    # Rotate and extract 1D cut
+    # ... implementation
+
+    return pv_diagram
+```
+
+### 8.5 LTE vs Non-LTE Considerations
+
+#### 8.5.1 When LTE is Valid
+
+LTE holds when collisional excitation dominates over radiative de-excitation:
+$$n > n_\mathrm{crit} = \frac{A_{ul}}{\gamma_{ul}}$$
+
+| Transition | $n_\mathrm{crit}$ (cm$^{-3}$) | LTE valid in IMBH cloud? |
+|------------|------------------------------|--------------------------|
+| CO J=2-1 | $3 \times 10^3$ | **YES** ($n \sim 10^4$–$10^6$) |
+| CO J=3-2 | $3 \times 10^4$ | **YES** (dense regions) |
+| HCN J=3-2 | $3 \times 10^6$ | **Marginal** (dense clump only) |
+
+**Recommendation:**
+- **CO J=2-1, J=3-2:** Use LTE radiative transfer. This simplifies computation:
+  $$T_b = T_\mathrm{ex} (1 - e^{-\tau}) \approx T_\mathrm{kin} (1 - e^{-\tau})$$
+
+- **HCN J=3-2:** Use non-LTE (RADEX/LIME) with excitation calculation:
+  $$\frac{n_u}{n_l} = \frac{g_u}{g_l} \frac{C_{lu} + \bar{J}_{ul} B_{lu}}{C_{ul} + A_{ul} + \bar{J}_{ul} B_{ul}}$$
+
+  where $C_{ul}$, $C_{lu}$ are collisional rates and $\bar{J}_{ul}$ is the mean intensity.
+
+#### 8.5.2 Non-LTE Effects on HCN
+
+For HCN J=3-2 in the Oka et al. dense clump:
+- $n = 3 \times 10^6$ cm$^{-3}$ ≈ $n_\mathrm{crit}$
+- Sub-thermal excitation: $T_\mathrm{ex} < T_\mathrm{kin}$
+- Expected $T_\mathrm{ex} \approx 0.6$–$0.8 \times T_\mathrm{kin}$
+
+Non-LTE correction factor:
+$$\frac{I_\mathrm{non-LTE}}{I_\mathrm{LTE}} \approx \frac{n}{n + n_\mathrm{crit}} \approx 0.5$$
+
+This primarily affects absolute intensity, not PV morphology.
+
+### 8.6 Shock Chemistry Enhancement (Optional)
+
+Strong shocks ($\mathcal{M} \sim 10$–15) can temporarily alter molecular abundances:
+
+#### 8.6.1 Shock-Enhanced HCN
+
+In C-type shocks, elevated temperatures (100–1000 K) accelerate nitrogen chemistry:
+- N$_2$ + He$^+$ → N$^+$ + N + He (cosmic ray ionization opens N$_2$)
+- N + CH$_2$ → HCN + H (enhanced at $T > 100$ K)
+
+**Enhancement factor in post-shock gas:**
+$$X(\mathrm{HCN})_\mathrm{shock} \approx 3$–$10 \times X(\mathrm{HCN})_\mathrm{ambient}$$
+
+This enhancement persists for $\tau_\mathrm{chem} \sim 10^4$ yr.
+
+#### 8.6.2 CO Survival in Shocks
+
+CO is remarkably robust in shocks:
+- Dissociation requires $T > 3000$ K (not reached in $\mathcal{M} \sim 15$ shocks)
+- Post-shock temperature $T \sim 2600$ K cools rapidly
+- CO survives and may be enhanced due to liberation from grains
+
+**Recommendation:** For shock regions ($T > 100$ K), apply HCN enhancement factor of 3×.
+
+### 8.7 Implementation Summary: Best Practice for PV Diagram Reproduction
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    RECOMMENDED WORKFLOW FOR PV DIAGRAMS                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  1. SPH SIMULATION (no chemistry)                                            │
+│     ├── Pure hydrodynamics + self-gravity + point mass (IMBH)               │
+│     ├── Track: density (ρ), temperature (T), velocity (v)                   │
+│     └── Output snapshots at t = 7 × 10^5 yr                                  │
+│                                                                              │
+│  2. POST-PROCESSING: ABUNDANCE ASSIGNMENT                                    │
+│     ├── CO: X(CO) = 10^{-4} (constant, equilibrium)                         │
+│     ├── HCN: X(HCN) = 10^{-8} × (n/10^4)^{0.5}                             │
+│     └── Optional: Shock enhancement for T > 100 K regions                   │
+│                                                                              │
+│  3. POST-PROCESSING: RADIATIVE TRANSFER                                      │
+│     ├── CO J=2-1: LTE with RADMC-3D                                         │
+│     │     └── T_ex = T_kin (valid for n > 10^4 cm^{-3})                     │
+│     └── HCN J=3-2: Non-LTE with LIME or RADEX                               │
+│           └── Solve excitation explicitly                                    │
+│                                                                              │
+│  4. SYNTHETIC OBSERVATION                                                    │
+│     ├── Observer geometry: i = 70°, PA = 41.6°, V_LSR = -120 km/s          │
+│     ├── Convolve with ALMA beam (1.87" × 1.14" for CO)                      │
+│     └── Add noise: σ_rms ≈ 10 mJy/beam per 2 km/s channel                  │
+│                                                                              │
+│  5. COMPARISON WITH OBSERVATIONS                                             │
+│     ├── PV diagram morphology (parallelogram shape)                         │
+│     ├── Velocity width (~100 km/s)                                          │
+│     ├── Dense clump position (0.2 pc offset from continuum)                │
+│     └── Integrated intensity ratio HCN/CO                                   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 8.8 Why NOT to Couple Chemistry to SPH
+
+**Arguments against time-dependent chemistry in SPH:**
+
+1. **Computational cost:** Chemical networks (e.g., UMIST, KIDA) with ~50+ species add 10–100× computational overhead per timestep.
+
+2. **Stiffness:** Chemical timescales span $10^{-10}$ to $10^{10}$ years, requiring implicit solvers or subcycling.
+
+3. **Marginal benefit:** The PV diagram shape is kinematically determined. Chemistry affects intensity, not morphology.
+
+4. **Uncertainty dominates:** Reaction rate uncertainties (factor of 2–10) exceed any precision gained from time-dependent integration.
+
+5. **Post-processing flexibility:** Equilibrium assumptions can be tested and modified without re-running expensive SPH simulations.
+
+**Exception:** If studying the **formation** of the cloud or **long-term** chemical evolution ($> 10^6$ yr), time-dependent chemistry becomes necessary.
+
+### 8.9 Conclusions for Chemistry Treatment
+
+$$\boxed{\textbf{Equilibrium chemistry + post-processing radiative transfer}}$$
+
+**Key recommendations:**
+
+1. **Do NOT couple chemistry to SPH dynamics** — the equilibrium timescale is shorter than or comparable to the dynamical timescale.
+
+2. **Use constant CO abundance** $X(\mathrm{CO}) = 10^{-4}$ throughout the well-shielded cloud.
+
+3. **Use density-dependent HCN abundance** $X(\mathrm{HCN}) \propto n^{0.5}$ to capture the dense gas selectivity.
+
+4. **Apply LTE radiative transfer for CO** — densities exceed $n_\mathrm{crit}$.
+
+5. **Apply non-LTE radiative transfer for HCN** — densities are marginal relative to $n_\mathrm{crit}$.
+
+6. **Post-process with RADMC-3D** for synthetic PV diagrams, applying ALMA beam convolution.
+
+7. **Focus on kinematics** — the PV diagram morphology (parallelogram, velocity width) is the primary observable to match.
+
+---
+
 ## Appendix A: Derivation of Key Formulas
 
 ### A.1 Tidal Radius
@@ -1936,3 +2332,19 @@ $$\tau_\mathrm{AD} = \frac{L}{v_\mathrm{AD}} = \frac{L \gamma_\mathrm{AD} \rho_i
 3. Koyama, H., & Inutsuka, S. (2000). "Molecular Cloud Formation in Shock-compressed Layers." ApJ, 532, 980.
 
 4. Draine, B. T. (1986). "Multicomponent, Reacting MHD Flows." MNRAS, 220, 133.
+
+5. van Dishoeck, E. F., & Black, J. H. (1988). "The Photodissociation and Chemistry of Interstellar CO." ApJ, 334, 771.
+
+6. Boger, G. I., & Sternberg, A. (2005). "CN and HCN in Dense Interstellar Clouds." ApJ, 632, 302.
+
+7. Glover, S. C. O., et al. (2010). "Modelling CO Formation in the Turbulent Interstellar Medium." MNRAS, 404, 2.
+
+8. Dullemond, C. P., et al. (2012). "RADMC-3D: A Multi-purpose Radiative Transfer Tool." Astrophysics Source Code Library, ascl:1202.015.
+
+9. Brinch, C., & Hogerheijde, M. R. (2010). "LIME - a Flexible, Non-LTE Line Excitation and Radiation Transfer Method for Millimeter and Far-infrared Wavelengths." A&A, 523, A25.
+
+10. van der Tak, F. F. S., et al. (2007). "A Computer Program for Fast Non-LTE Analysis of Interstellar Line Spectra." A&A, 468, 627. (RADEX)
+
+11. Gao, Y., & Solomon, P. M. (2004). "HCN Survey of Normal Spiral, Infrared-luminous, and Ultraluminous Galaxies." ApJS, 152, 63.
+
+12. McElroy, D., et al. (2013). "The UMIST Database for Astrochemistry 2012." A&A, 550, A36.

@@ -19,7 +19,7 @@
 #   b1p5 - b=1.5 pc (deep disruption,   b/r_t=0.41)
 #   b3   - b=3.0 pc (partial disruption, b/r_t=0.83)
 #   b6   - b=6.0 pc (weak interaction,   b/r_t=1.65)
-#   oka  - Oka et al. orbit (pericentre=1.69 pc, hyperbolic e=1.24)
+#   oka  - Oka et al. orbit (b=5.17 pc, pericentre=2.22 pc, e=1.45)
 #
 # ============================================================================
 # USAGE
@@ -82,7 +82,11 @@ FPS ?= 15
         all_C_b1p5 all_C_b3 all_C_b6 \
         compare_physics_b1p5 compare_physics_b3 compare_physics_b6 \
         compare_resolution_CAT1_b3 compare_resolution_CAT2_b3 compare_resolution_CAT3_b3 \
-        clean_CAT1 clean_CAT2 clean_CAT3 clean_CAT_OKA clean_all
+        clean_CAT1 clean_CAT2 clean_CAT3 clean_CAT_OKA clean_all \
+        CAT_OKA_A_oka_3d CAT_OKA_B_oka_3d CAT_OKA_C_oka_3d \
+        CAT1_A_b3_3d CAT1_B_b3_3d CAT1_C_b3_3d \
+        CAT3_A_b3_3d CAT3_B_b3_3d CAT3_C_b3_3d \
+        anim3d_all
 
 # ============================================================================
 # HELP
@@ -118,7 +122,7 @@ cat_help:
 	@echo "│  b1p5  b=1.5 pc          Deep disruption (b/r_tidal = 0.41)                  │"
 	@echo "│  b3    b=3.0 pc          Partial disruption (b/r_tidal = 0.83)               │"
 	@echo "│  b6    b=6.0 pc          Weak interaction (b/r_tidal = 1.65)                 │"
-	@echo "│  oka   Oka et al. orbit  Hyperbolic, pericentre=1.69pc (only for CAT_OKA)    │"
+	@echo "│  oka   Oka et al. orbit  Hyperbolic, b=5.17pc, r_peri=2.22pc, e=1.45         │"
 	@echo "└──────────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "┌──────────────────────────────────────────────────────────────────────────────┐"
@@ -133,6 +137,10 @@ cat_help:
 	@echo "│                                                                              │"
 	@echo "│  # Run simulation only (no animation):                                       │"
 	@echo "│  make -f sample/imbh_cloud/Makefile.categories CAT1_A_b3_run                 │"
+	@echo "│                                                                              │"
+	@echo "│  # Generate 3D animation only (one-shot with analytic orbit):               │"
+	@echo "│  make -f sample/imbh_cloud/Makefile.categories CAT_OKA_A_oka_3d              │"
+	@echo "│  make -f sample/imbh_cloud/Makefile.categories anim3d_all                    │"
 	@echo "└──────────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "┌──────────────────────────────────────────────────────────────────────────────┐"
@@ -233,13 +241,32 @@ define animate_category
 	@python $(SCRIPTS_DIR)/animate_single_run.py $(RESULTS_DIR)/$(1)/$(2)_$(3)/$(4) \
 		-o $(ANIM_DIR)/$(1)/$(2)_$(3)/$(4)/density.gif --mode density --fps $(FPS) 2>/dev/null || \
 		echo "  ⚠ Skipped"
-	@echo "[4/4] 3D view..."
+	@echo "[4/4] 3D view with analytic orbit..."
 	@python $(SCRIPTS_DIR)/animate_3d_view.py $(RESULTS_DIR)/$(1)/$(2)_$(3)/$(4) \
-		-o $(ANIM_DIR)/$(1)/$(2)_$(3)/$(4)/3d.gif --mode density --fps $(FPS) 2>/dev/null || \
+		-o $(ANIM_DIR)/$(1)/$(2)_$(3)/$(4)/3d.gif --mode density --fps $(FPS) \
+		--config $(CONFIG_DIR)/$(1)/$(2)_$(3)/$(4).json 2>/dev/null || \
 		echo "  ⚠ Skipped"
 	@echo ""
 	@echo "✓ Animations: $(ANIM_DIR)/$(1)/$(2)_$(3)/$(4)/"
 	@ls -lh $(ANIM_DIR)/$(1)/$(2)_$(3)/$(4)/*.gif 2>/dev/null || true
+endef
+
+# 3D animation only (with correct analytic orbit from config)
+define animate_3d_only
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  3D Animation: $(1)_$(2)_$(4)"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Results: $(RESULTS_DIR)/$(1)/$(2)_$(3)/$(4)"
+	@echo "  Config:  $(CONFIG_DIR)/$(1)/$(2)_$(3)/$(4).json"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@mkdir -p $(ANIM_DIR)/$(1)/$(2)_$(3)/$(4)
+	python $(SCRIPTS_DIR)/animate_3d_view.py $(RESULTS_DIR)/$(1)/$(2)_$(3)/$(4) \
+		-o $(ANIM_DIR)/$(1)/$(2)_$(3)/$(4)/3d.gif --mode density --fps $(FPS) \
+		--config $(CONFIG_DIR)/$(1)/$(2)_$(3)/$(4).json
+	@echo ""
+	@echo "✓ 3D Animation: $(ANIM_DIR)/$(1)/$(2)_$(3)/$(4)/3d.gif"
+	@ls -lh $(ANIM_DIR)/$(1)/$(2)_$(3)/$(4)/3d.gif 2>/dev/null || true
 endef
 
 # ============================================================================
@@ -536,12 +563,13 @@ CAT3_C_b6_anim:
 # ============================================================================
 # CAT_OKA: OKA ET AL. (2017) EXACT ORBIT
 # ============================================================================
-# Uses exact orbital parameters from Nature Astronomy paper, scaled for
-# our SPH cloud radius R=1.13 pc:
+# Hyperbolic orbit with parameters from Nature Astronomy paper:
 #   - Initial position: (20.0, -5.17, 0) pc
-#   - Initial velocity: (-9.35, 4.48, 0) km/s
-#   - Pericentre: 1.69 pc (1.5 × cloud radius)
-#   - Eccentricity: 1.241 (hyperbolic orbit)
+#   - Initial velocity: (-10.18, 5.05, 0) km/s
+#   - Impact parameter: 5.17 pc
+#   - Approach velocity: 9.35 km/s
+#   - Pericentre: 2.22 pc
+#   - Eccentricity: 1.45 (hyperbolic orbit)
 # ============================================================================
 
 # Resolution A (61k)
@@ -713,6 +741,51 @@ compare_resolution_CAT3_b3: CAT3_A_b3 CAT3_B_b3 CAT3_C_b3
 	@echo "    B (200k): $(RESULTS_DIR)/CAT3/B_200k/b3/"
 	@echo "    C (1M):   $(RESULTS_DIR)/CAT3/C_1M/b3/"
 	@echo ""
+
+# ============================================================================
+# 3D ANIMATION ONLY (ONE-SHOT COMMANDS)
+# ============================================================================
+# Generate 3D animation with correct analytic orbit from config file.
+# Usage: make -f sample/imbh_cloud/Makefile.categories CAT_OKA_A_oka_3d
+# ============================================================================
+
+# CAT_OKA 3D animations
+CAT_OKA_A_oka_3d:
+	$(call animate_3d_only,CAT_OKA,A,61k,oka)
+
+CAT_OKA_B_oka_3d:
+	$(call animate_3d_only,CAT_OKA,B,200k,oka)
+
+CAT_OKA_C_oka_3d:
+	$(call animate_3d_only,CAT_OKA,C,1M,oka)
+
+# CAT1 3D animations (b=3pc)
+CAT1_A_b3_3d:
+	$(call animate_3d_only,CAT1,A,61k,b3)
+
+CAT1_B_b3_3d:
+	$(call animate_3d_only,CAT1,B,200k,b3)
+
+CAT1_C_b3_3d:
+	$(call animate_3d_only,CAT1,C,1M,b3)
+
+# CAT3 3D animations (b=3pc)
+CAT3_A_b3_3d:
+	$(call animate_3d_only,CAT3,A,61k,b3)
+
+CAT3_B_b3_3d:
+	$(call animate_3d_only,CAT3,B,200k,b3)
+
+CAT3_C_b3_3d:
+	$(call animate_3d_only,CAT3,C,1M,b3)
+
+# Generate all 3D animations
+anim3d_all: CAT_OKA_A_oka_3d CAT_OKA_B_oka_3d CAT_OKA_C_oka_3d \
+            CAT1_A_b3_3d CAT1_B_b3_3d CAT1_C_b3_3d \
+            CAT3_A_b3_3d CAT3_B_b3_3d CAT3_C_b3_3d
+	@echo ""
+	@echo "✓ All 3D animations generated!"
+	@echo "  Output: $(ANIM_DIR)/*/3d.gif"
 
 # ============================================================================
 # CLEANUP

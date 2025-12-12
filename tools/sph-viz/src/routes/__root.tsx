@@ -5,12 +5,28 @@ import {
   Scripts,
   createRootRoute,
 } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import * as React from 'react'
 import { DefaultCatchBoundary } from '~/components/DefaultCatchBoundary'
 import { NotFound } from '~/components/NotFound'
 import appCss from '~/styles/app.css?url'
 import { seo } from '~/utils/seo'
+
+// Client-only devtools component
+function DevtoolsWrapper() {
+  const [DevtoolsComponent, setDevtoolsComponent] = React.useState<React.ComponentType<any> | null>(null)
+
+  React.useEffect(() => {
+    // Only load devtools on client in development
+    if (process.env.NODE_ENV !== 'production') {
+      import('@tanstack/react-router-devtools').then((mod) => {
+        setDevtoolsComponent(() => mod.TanStackRouterDevtools as React.ComponentType<any>)
+      })
+    }
+  }, [])
+
+  if (!DevtoolsComponent) return null
+  return <DevtoolsComponent position="bottom-right" />
+}
 
 export const Route = createRootRoute({
   head: () => ({
@@ -45,7 +61,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="bg-gray-900 text-white">
         {children}
-        <TanStackRouterDevtools position="bottom-right" />
+        <DevtoolsWrapper />
         <Scripts />
       </body>
     </html>

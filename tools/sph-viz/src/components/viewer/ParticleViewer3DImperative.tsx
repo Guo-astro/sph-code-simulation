@@ -4,6 +4,17 @@ import { useRef, useEffect, useCallback, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { ParsedFrame, ColorMap } from '~/types/sph'
+import {
+  createAllGalacticMarkers,
+  updateGalaxyRotation,
+  updateVCircularAnimation,
+  updateLSRRotation,
+  type GalacticMarkersConfig,
+  DEFAULT_GALACTIC_CONFIG,
+} from './GalacticMarkers'
+// Shared utilities (SSOT)
+import { getCircleTexture, createAxesWithLabels } from '~/utils/three-helpers'
+import { sampleColorMap, COLOR_MAP_DATA } from '~/utils/color-interpolation'
 
 // ============== Physical Constants & Unit Conversions ==============
 // Units: IMBH_ENCOUNTER ([L]=pc, [M]=1000 M_sun, [V]=km/s, [T]=0.978 Myr)
@@ -19,123 +30,114 @@ const UNITS = {
 
 /**
  * Compute hyperbolic orbit trajectory for the cloud's center of mass.
- * 
- * GEOMETRY SETUP:
- * ===============
+ *
+ * IMPORTANT: Orbital parameters are computed directly from the initial state
+ * (position and velocity) using orbital mechanics formulas. This ensures the
+ * analytical orbit matches the actual simulation trajectory.
+ *
+ * GEOMETRY SETUP (IMBH_ENCOUNTER coordinates):
+ * ============================================
  * - BH is at origin (0, 0, 0)
- * - Cloud approaches from -x direction with velocity (vx, 0, 0)
- * - Impact parameter b = y-coordinate of initial position (perpendicular distance to asymptote)
- * - Orbit lies in the x-y plane
- * 
- * HYPERBOLIC ORBIT EQUATIONS:
+ * - Cloud starts at position (x0, y0, z0), typically (20, -5.17, 0) pc
+ * - Cloud has initial velocity (vx, vy, vz), typically (-10.18, 5.05, 0) km/s
+ * - Orbit lies in the x-y plane (z ≈ 0)
+ *
+ * ORBITAL MECHANICS FORMULAS:
  * ===========================
- * Semi-major axis:     a = GM / v∞²
- * Eccentricity:        e = √(1 + (b v∞² / GM)²)
- * Semi-latus rectum:   p = a(e² - 1) = b² v∞² / GM
- * Perihelion:          r_p = a(e - 1)
- * 
- * Polar equation:      r = p / (1 + e cos(θ - θ_peri))
- * 
- * where θ_peri is the angle to perihelion from BH.
- * 
- * For approach from -x with y > 0:
- *   - Asymptotic direction: along -x
- *   - Perihelion is at angle θ_peri = π/2 - δ/2 where δ = deflection angle
- *   - Deflection: tan(δ/2) = GM / (b v∞²) = 1/e
+ * Specific orbital energy:    ε = v²/2 - GM/r
+ * Specific angular momentum:  h = |r × v|
+ * Semi-latus rectum:          p = h² / (GM)
+ * Eccentricity:               e = √(1 + 2εh²/(GM)²)
+ * Semi-major axis:            a = GM / (2ε)
+ * Pericentre:                 rp = a(e - 1)
  */
 function computeHyperbolicOrbit(
   config: {
     bhPosition: [number, number, number]
-    bhMass: number  // in code units (1 = 1000 M_sun)
+    bhMass: number  // in code units (1 = 1000 M_sun), so GM = bhMass since G=1
     cloudInitialPosition: [number, number, number]
     cloudInitialVelocity: [number, number, number]
   },
   numPoints: number = 200
 ): [number, number, number][] {
   const { bhPosition, bhMass, cloudInitialPosition, cloudInitialVelocity } = config
-  
+
   const [x0, y0, z0] = cloudInitialPosition
   const [vx0, vy0, vz0] = cloudInitialVelocity
   const [bh_x, bh_y, bh_z] = bhPosition
-  
-  // ========== Orbital Parameters ==========
-  // Velocity at infinity (approach velocity)
-  const v_inf = Math.sqrt(vx0 * vx0 + vy0 * vy0 + vz0 * vz0)
-  
-  // Impact parameter (perpendicular distance from BH to asymptotic velocity vector)
-  // For motion in +x direction starting at (x0, y0, z0), b = |y0 - bh_y|
-  const b = Math.abs(y0 - bh_y)
-  
-  // Gravitational parameter
-  const GM = UNITS.G * bhMass
-  
-  // Semi-major axis (positive for hyperbola calculation)
-  const a = GM / (v_inf * v_inf)
-  
-  // Eccentricity (e > 1 for hyperbolic orbit)
-  const e = Math.sqrt(1 + Math.pow(b * v_inf * v_inf / GM, 2))
-  
-  // Semi-latus rectum
-  const p = a * (e * e - 1)  // = b² v∞² / GM
-  
-  // Perihelion distance (closest approach)
+
+  // Position and velocity relative to BH
+  const rx = x0 - bh_x
+  const ry = y0 - bh_y
+  const r0 = Math.sqrt(rx * rx + ry * ry)
+  const v0 = Math.sqrt(vx0 * vx0 + vy0 * vy0 + vz0 * vz0)
+
+  // GM in code units (G=1, M=bhMass)
+  const GM = bhMass
+
+  // ========== Compute Orbital Parameters from State Vectors ==========
+  // Specific orbital energy: ε = v²/2 - GM/r
+  const epsilon = v0 * v0 / 2 - GM / r0
+
+  // Check for hyperbolic orbit (ε > 0)
+  if (epsilon <= 0) {
+    console.warn('[computeHyperbolicOrbit] Non-hyperbolic orbit (ε <= 0), using straight line')
+    return computeStraightLineTrajectory({ cloudInitialPosition, cloudInitialVelocity }, -0.5, 5, numPoints)
+  }
+
+  // Specific angular momentum (z-component for 2D orbit): h = x*vy - y*vx
+  const h = Math.abs(rx * vy0 - ry * vx0)
+
+  // Semi-latus rectum: p = h² / (GM)
+  const p = h * h / GM
+
+  // Eccentricity: e = √(1 + 2εh²/(GM)²)
+  const e = Math.sqrt(1 + 2 * epsilon * h * h / (GM * GM))
+
+  // Semi-major axis: a = GM / (2ε)
+  const a = GM / (2 * epsilon)
+
+  // Pericentre: rp = a(e - 1)
   const r_peri = a * (e - 1)
-  
+
   // ========== Orbit Orientation ==========
-  // Half deflection angle
-  const half_deflection = Math.atan(1 / e)  // = atan(GM / (b v∞²))
-  
-  // Full deflection angle
-  const deflection = 2 * half_deflection
-  
-  // Asymptotic true anomaly (angle where r → ∞)
-  // cos(θ_asymp) = -1/e, so θ_asymp = π - acos(1/e)
-  const theta_asymp = Math.PI - Math.acos(1 / e)
-  
-  // Perihelion angle in our coordinate system:
-  // Cloud approaches from -x (θ = π), so perihelion is at θ_peri
-  // For y0 > 0 (cloud above x-axis): perihelion is in upper half
-  const sign_y = y0 >= bh_y ? 1 : -1
-  const theta_peri = Math.PI / 2 * sign_y  // Perihelion at +y (or -y if cloud below)
-  
+  // Find the angle of the initial position
+  const theta0 = Math.atan2(ry, rx)
+
+  // From the orbit equation r = p / (1 + e·cos(ν)), solve for ν at r = r0
+  const cosNu0 = Math.max(-0.9999, Math.min(0.9999, (p / r0 - 1) / e))
+
+  // Determine sign of ν from radial velocity (r·v)
+  // If r·v < 0, cloud is approaching (ν < 0)
+  const rdotv = rx * vx0 + ry * vy0
+  const nu0 = rdotv < 0 ? -Math.acos(cosNu0) : Math.acos(cosNu0)
+
+  // Argument of pericentre: ω = θ0 - ν0
+  const omega = theta0 - nu0
+
   // ========== Generate Orbit Points ==========
-  // True anomaly ranges from incoming asymptote to outgoing asymptote
-  // ν ranges from -(π - acos(1/e)) to +(π - acos(1/e))
-  const nu_max = Math.PI - Math.acos(1 / e) - 0.02  // Slightly less than asymptotic
+  // For hyperbola: ν ranges from -(π - acos(1/e)) to +(π - acos(1/e))
+  const nu_asymp = Math.acos(-1 / e)
+  const nu_max = nu_asymp - 0.05
   const nu_min = -nu_max
-  
+
   const orbit: [number, number, number][] = []
-  
+
   for (let i = 0; i < numPoints; i++) {
-    // True anomaly ν (measured from perihelion)
     const nu = nu_min + (nu_max - nu_min) * (i / (numPoints - 1))
-    
-    // Radial distance
-    const r = p / (1 + e * Math.cos(nu))
-    
-    // Angle in x-y plane (θ = θ_peri + ν)
-    // But we need to rotate so that incoming asymptote aligns with -x direction
-    // 
-    // At ν = -nu_max (incoming), the position should be at large -x, y ≈ b
-    // At ν = 0 (perihelion), position is at (0, r_peri) for y > 0 case
-    // At ν = +nu_max (outgoing), position is at large x with deflected y
-    //
-    // For incoming from -x with impact parameter b (y-offset):
-    // We rotate the standard orbit by angle (π - theta_peri + nu_max)
-    const rotation = Math.PI - theta_asymp * sign_y
-    const theta = nu + rotation
-    
-    // Cartesian coordinates
+    const denom = 1 + e * Math.cos(nu)
+    if (denom <= 0) continue
+    const r = p / denom
+    const theta = omega + nu
     const x = bh_x + r * Math.cos(theta)
-    const y = bh_y + r * Math.sin(theta) * sign_y
-    const z = bh_z + z0 * (1 - Math.abs(nu) / nu_max * 0.1)  // Small z variation
-    
-    // Only include points within reasonable bounds and on the correct side of approach
-    if (Math.abs(x) < 100 && Math.abs(y) < 100) {
+    const y = bh_y + r * Math.sin(theta)
+    const z = bh_z
+
+    if (Math.abs(x) < 100 && Math.abs(y) < 100 && r > 0) {
       orbit.push([x, y, z])
     }
   }
-  
+
   return orbit
 }
 
@@ -174,62 +176,8 @@ function computeStraightLineTrajectory(
   return trajectory
 }
 
-/** Create a circular particle texture for smooth round particles */
-function createCircleTexture(): THREE.Texture {
-  const size = 64
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
-  const ctx = canvas.getContext('2d')!
-  
-  // Create radial gradient for smooth circular particle
-  const gradient = ctx.createRadialGradient(
-    size / 2, size / 2, 0,
-    size / 2, size / 2, size / 2
-  )
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)')
-  gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.8)')
-  gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.3)')
-  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
-  
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, size, size)
-  
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.needsUpdate = true
-  return texture
-}
-
-// Singleton texture for all particles
-let circleTexture: THREE.Texture | null = null
-function getCircleTexture(): THREE.Texture {
-  if (!circleTexture) {
-    circleTexture = createCircleTexture()
-  }
-  return circleTexture
-}
-
-// ============== Color Maps ==============
-const COLOR_MAP_DATA: Record<string, number[][]> = {
-  viridis: [[0.267,0.004,0.329],[0.282,0.140,0.458],[0.253,0.265,0.530],[0.206,0.372,0.553],[0.163,0.471,0.558],[0.127,0.566,0.551],[0.134,0.658,0.518],[0.266,0.749,0.441],[0.477,0.821,0.318],[0.741,0.873,0.150],[0.993,0.906,0.144]],
-  plasma: [[0.050,0.030,0.528],[0.295,0.012,0.615],[0.492,0.012,0.658],[0.665,0.138,0.618],[0.798,0.280,0.470],[0.899,0.396,0.301],[0.966,0.530,0.128],[0.988,0.680,0.063],[0.961,0.850,0.298],[0.940,0.975,0.131]],
-  inferno: [[0.001,0.000,0.014],[0.122,0.047,0.282],[0.304,0.063,0.420],[0.499,0.086,0.397],[0.680,0.144,0.295],[0.833,0.253,0.160],[0.937,0.405,0.049],[0.981,0.588,0.068],[0.987,0.772,0.264],[0.988,0.998,0.645]],
-  turbo: [[0.190,0.072,0.232],[0.235,0.318,0.860],[0.137,0.572,0.996],[0.140,0.780,0.820],[0.376,0.920,0.512],[0.670,0.979,0.280],[0.924,0.904,0.145],[0.996,0.724,0.132],[0.994,0.472,0.122],[0.881,0.200,0.102],[0.528,0.055,0.052]]
-}
-
-function sampleColorMap(name: string, t: number): [number, number, number] {
-  const map = COLOR_MAP_DATA[name] || COLOR_MAP_DATA.viridis
-  t = Math.max(0, Math.min(1, t))
-  const idx = t * (map.length - 1)
-  const i = Math.floor(idx)
-  const f = idx - i
-  if (i >= map.length - 1) return map[map.length - 1] as [number, number, number]
-  return [
-    map[i][0] + f * (map[i+1][0] - map[i][0]),
-    map[i][1] + f * (map[i+1][1] - map[i][1]),
-    map[i][2] + f * (map[i+1][2] - map[i][2])
-  ]
-}
+// Note: createCircleTexture, getCircleTexture, COLOR_MAP_DATA, and sampleColorMap
+// are now imported from shared utilities (~/utils/three-helpers and ~/utils/color-interpolation)
 
 /** IMBH physics configuration for visualization */
 export interface IMBHPhysicsConfig {
@@ -250,6 +198,34 @@ export interface IMBHPhysicsConfig {
   tidalRadius: number
   /** Time unit in Myr */
   timeUnit: number
+  /** Impact parameter in pc */
+  impactParameter?: number
+  /** Pericentre distance in pc (from preset config) */
+  pericentre?: number
+  /** Orbital eccentricity (>1 for hyperbolic, from preset config) */
+  eccentricity?: number
+}
+
+/** Galactic coordinate configuration for markers */
+export interface GalacticConfig {
+  /** Distance from Earth/Sun to Galactic Center (kpc) */
+  distanceToGC: number
+  /** Galactic longitude of the source (degrees) */
+  galacticLongitude: number
+  /** Galactic latitude of the source (degrees) */
+  galacticLatitude: number
+  /** Orbital plane inclination (degrees) */
+  inclination: number
+  /** Position angle on sky (degrees) */
+  positionAngle: number
+  /** V_LSR in km/s (negative = approaching) */
+  lsrVelocity: number
+  /** Show low-opacity Milky Way disk visualization */
+  showGalaxyDisk?: boolean
+  /** Show Solar System demo at Sun position (enlarged for visibility) */
+  showSolarSystem?: boolean
+  /** Rotation speed for galaxy animation (rad/s, 0 = static) */
+  galaxyRotationSpeed?: number
 }
 
 export interface ParticleViewer3DImperativeProps {
@@ -280,6 +256,14 @@ export interface ParticleViewer3DImperativeProps {
   showTrajectory?: boolean
   /** Show tidal and Hill radii circles */
   showRadii?: boolean
+  /** Show galactic coordinate markers (Sun, Earth, GC, LoS, HVCC) */
+  showGalacticMarkers?: boolean
+  /** Galactic coordinate configuration */
+  galacticConfig?: GalacticConfig
+  /** Camera view mode: 'free' = orbit controls, 'earth' = view from Earth toward BH */
+  cameraMode?: 'free' | 'earth'
+  /** Callback when camera mode changes (for UI sync) */
+  onCameraModeChange?: (mode: 'free' | 'earth') => void
 }
 
 /**
@@ -310,6 +294,10 @@ export function ParticleViewer3DImperative({
   showBlackHole = true,
   showTrajectory = true,
   showRadii = true,
+  showGalacticMarkers = true,
+  galacticConfig,
+  cameraMode = 'free',
+  onCameraModeChange,
 }: ParticleViewer3DImperativeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
@@ -327,6 +315,9 @@ export function ParticleViewer3DImperative({
   const comMarkerRef = useRef<THREE.Mesh | null>(null)
   const tidalCircleRef = useRef<THREE.Line | null>(null)
   const hillCircleRef = useRef<THREE.Line | null>(null)
+  
+  // Galactic markers group
+  const galacticMarkersGroupRef = useRef<THREE.Group | null>(null)
   
   // Track the last rendered frame to avoid redundant updates
   const lastFrameIndexRef = useRef<number>(-1)
@@ -627,70 +618,15 @@ export function ParticleViewer3DImperative({
     const gridHelper = new THREE.GridHelper(200, 20, 0x444444, 0x222222)
     scene.add(gridHelper)
 
-    // Create text sprite for axis labels
-    const createTextSprite = (text: string, color: string = '#ffffff'): THREE.Sprite => {
-      const canvas = document.createElement('canvas')
-      const size = 256
-      canvas.width = size
-      canvas.height = size / 2
-      const ctx = canvas.getContext('2d')!
-      ctx.fillStyle = color
-      ctx.font = 'Bold 48px Arial'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(text, size / 2, size / 4)
-      
-      const texture = new THREE.CanvasTexture(canvas)
-      const material = new THREE.SpriteMaterial({ map: texture, transparent: true })
-      const sprite = new THREE.Sprite(material)
-      sprite.scale.set(8, 4, 1)
-      return sprite
-    }
-
-    // Axes helper with physical unit labels
+    // Axes helper with physical unit labels (using shared utility with LARGER labels)
     if (showAxes) {
-      const axesHelper = new THREE.AxesHelper(30)
-      scene.add(axesHelper)
-      
-      // Add axis labels with physical units
-      const xLabel = createTextSprite('X (pc)', '#ff4444')
-      xLabel.position.set(32, 0, 0)
-      scene.add(xLabel)
-      
-      const yLabel = createTextSprite('Y (pc)', '#44ff44')
-      yLabel.position.set(0, 32, 0)
-      scene.add(yLabel)
-      
-      const zLabel = createTextSprite('Z (pc)', '#4444ff')
-      zLabel.position.set(0, 0, 32)
-      scene.add(zLabel)
-      
-      // Add tick marks at 10 pc intervals
-      const tickMaterial = new THREE.LineBasicMaterial({ color: 0x666666 })
-      for (let i = -20; i <= 20; i += 10) {
-        if (i === 0) continue
-        // X-axis ticks
-        const xTickGeom = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(i, -0.5, 0),
-          new THREE.Vector3(i, 0.5, 0)
-        ])
-        scene.add(new THREE.Line(xTickGeom, tickMaterial))
-        
-        // Y-axis ticks  
-        const yTickGeom = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(-0.5, i, 0),
-          new THREE.Vector3(0.5, i, 0)
-        ])
-        scene.add(new THREE.Line(yTickGeom, tickMaterial))
-        
-        // Add tick labels
-        if (i % 10 === 0) {
-          const tickLabel = createTextSprite(`${i}`, '#888888')
-          tickLabel.position.set(i, -2, 0)
-          tickLabel.scale.set(4, 2, 1)
-          scene.add(tickLabel)
-        }
-      }
+      const axesGroup = createAxesWithLabels({
+        size: 30,
+        showTickMarks: true,
+        tickInterval: 10,
+        labelUnit: 'pc'
+      })
+      scene.add(axesGroup)
     }
 
     // Initialize particle system with empty buffers
@@ -813,8 +749,10 @@ export function ParticleViewer3DImperative({
       // --- Analytical Trajectory (Hyperbolic Orbit from Orbital Mechanics) ---
       // Orbit equation: r(θ) = a(e²-1) / (1 + e·cos(θ))
       // where: a = GM/v∞², e = √(1 + (b·v∞²/GM)²)
+      // When pericentre and eccentricity are provided from preset, use them directly
       if (showTrajectory) {
         // Compute hyperbolic orbit using analytical solution
+        // Orbital parameters are computed from initial position and velocity
         const orbitPoints = computeHyperbolicOrbit({
           bhPosition: imbhPhysics.bhPosition,
           bhMass: imbhPhysics.bhMass,
@@ -887,6 +825,41 @@ export function ParticleViewer3DImperative({
     }
     // =========================================================================
 
+    // =========================================================================
+    // GALACTIC COORDINATE MARKERS (Sun, Earth, LoS, GC, HVCC)
+    // =========================================================================
+    if (showGalacticMarkers && imbhPhysics?.enabled) {
+      const bhPos = new THREE.Vector3(
+        imbhPhysics.bhPosition[0],
+        imbhPhysics.bhPosition[1],
+        imbhPhysics.bhPosition[2]
+      )
+      
+      // Build galactic config from props or use defaults
+      const galConfig: GalacticMarkersConfig = {
+        distanceToGC: galacticConfig?.distanceToGC ?? DEFAULT_GALACTIC_CONFIG.distanceToGC,
+        galacticLongitude: galacticConfig?.galacticLongitude ?? DEFAULT_GALACTIC_CONFIG.galacticLongitude,
+        galacticLatitude: galacticConfig?.galacticLatitude ?? DEFAULT_GALACTIC_CONFIG.galacticLatitude,
+        inclination: galacticConfig?.inclination ?? DEFAULT_GALACTIC_CONFIG.inclination,
+        positionAngle: galacticConfig?.positionAngle ?? DEFAULT_GALACTIC_CONFIG.positionAngle,
+        lsrVelocity: galacticConfig?.lsrVelocity ?? DEFAULT_GALACTIC_CONFIG.lsrVelocity,
+        hvccPosition: DEFAULT_GALACTIC_CONFIG.hvccPosition,
+        hvccSize: DEFAULT_GALACTIC_CONFIG.hvccSize,
+        // Pass cloud radius from imbhPhysics if available
+        cloudRadius_pc: imbhPhysics?.cloudRadius ?? DEFAULT_GALACTIC_CONFIG.cloudRadius_pc,
+        // Galaxy disk visualization options
+        showGalaxyDisk: galacticConfig?.showGalaxyDisk ?? false,  // Off by default for performance
+        showSolarSystem: galacticConfig?.showSolarSystem ?? false,  // Off by default
+        galaxyRotationSpeed: galacticConfig?.galaxyRotationSpeed ?? 0.1,  // Slow rotation for demo
+      }
+
+      const galacticMarkers = createAllGalacticMarkers(bhPos, galConfig)
+      galacticMarkers.visible = showGalacticMarkers
+      scene.add(galacticMarkers)
+      galacticMarkersGroupRef.current = galacticMarkers
+    }
+    // =========================================================================
+
     // Compute initial stats
     computeStats()
 
@@ -909,12 +882,18 @@ export function ParticleViewer3DImperative({
 
     // Animation loop - THIS IS KEY: runs independently of React
     let animationId: number
+    let lastTime = performance.now()
+    
     const animate = () => {
       animationId = requestAnimationFrame(animate)
+      
+      // Calculate delta time for animations
+      const now = performance.now()
+      const deltaTime = (now - lastTime) / 1000  // Convert to seconds
+      lastTime = now
 
       // FPS calculation
       fpsRef.current.frames++
-      const now = performance.now()
       if (now - fpsRef.current.lastTime >= 1000) {
         fpsRef.current.fps = fpsRef.current.frames
         fpsRef.current.frames = 0
@@ -927,6 +906,33 @@ export function ParticleViewer3DImperative({
       
       // Update IMBH trajectory
       updateTrajectory()
+      
+      // Update galaxy disk rotation if present
+      if (galacticMarkersGroupRef.current) {
+        const galaxyDisk = galacticMarkersGroupRef.current.getObjectByName('galaxyDisk')
+        if (galaxyDisk) {
+          updateGalaxyRotation(galaxyDisk as THREE.Group, deltaTime)
+          
+          // Also rotate the Solar System / LSR frame around GC if animation is enabled
+          const solarSystemDemo = galacticMarkersGroupRef.current.getObjectByName('solarSystemDemo')
+          if (solarSystemDemo && (galaxyDisk as THREE.Group).userData?.rotationSpeed) {
+            // Get GC position (center of galaxy disk)
+            const gcPosition = (galaxyDisk as THREE.Group).position.clone()
+            updateLSRRotation(
+              solarSystemDemo as THREE.Group,
+              gcPosition,
+              (galaxyDisk as THREE.Group).userData.rotationSpeed,
+              deltaTime
+            )
+          }
+        }
+        
+        // Update V_circular animation in the observer direction indicator
+        const observerIndicator = galacticMarkersGroupRef.current.getObjectByName('observerIndicator')
+        if (observerIndicator) {
+          updateVCircularAnimation(observerIndicator as THREE.Group, deltaTime)
+        }
+      }
 
       // Update controls
       controls.update()
@@ -983,12 +989,109 @@ export function ParticleViewer3DImperative({
     if (hillCircleRef.current) {
       hillCircleRef.current.visible = showRadii
     }
-  }, [showBlackHole, showTrajectory, showRadii])
+    if (galacticMarkersGroupRef.current) {
+      galacticMarkersGroupRef.current.visible = showGalacticMarkers
+    }
+  }, [showBlackHole, showTrajectory, showRadii, showGalacticMarkers])
+
+  // Recreate galactic markers when galacticConfig changes (showGalaxyDisk, showSolarSystem)
+  useEffect(() => {
+    if (!sceneRef.current || !imbhPhysics?.enabled || !showGalacticMarkers) return
+    
+    // Remove existing galactic markers
+    if (galacticMarkersGroupRef.current) {
+      sceneRef.current.remove(galacticMarkersGroupRef.current)
+      galacticMarkersGroupRef.current = null
+    }
+    
+    // Recreate with new config
+    const bhPos = new THREE.Vector3(
+      imbhPhysics.bhPosition[0],
+      imbhPhysics.bhPosition[1],
+      imbhPhysics.bhPosition[2]
+    )
+    
+    const galConfig: GalacticMarkersConfig = {
+      distanceToGC: galacticConfig?.distanceToGC ?? DEFAULT_GALACTIC_CONFIG.distanceToGC,
+      galacticLongitude: galacticConfig?.galacticLongitude ?? DEFAULT_GALACTIC_CONFIG.galacticLongitude,
+      galacticLatitude: galacticConfig?.galacticLatitude ?? DEFAULT_GALACTIC_CONFIG.galacticLatitude,
+      inclination: galacticConfig?.inclination ?? DEFAULT_GALACTIC_CONFIG.inclination,
+      positionAngle: galacticConfig?.positionAngle ?? DEFAULT_GALACTIC_CONFIG.positionAngle,
+      lsrVelocity: galacticConfig?.lsrVelocity ?? DEFAULT_GALACTIC_CONFIG.lsrVelocity,
+      hvccPosition: DEFAULT_GALACTIC_CONFIG.hvccPosition,
+      hvccSize: DEFAULT_GALACTIC_CONFIG.hvccSize,
+      // Pass cloud radius from imbhPhysics if available
+      cloudRadius_pc: imbhPhysics?.cloudRadius ?? DEFAULT_GALACTIC_CONFIG.cloudRadius_pc,
+      showGalaxyDisk: galacticConfig?.showGalaxyDisk ?? false,
+      showSolarSystem: galacticConfig?.showSolarSystem ?? false,
+      galaxyRotationSpeed: galacticConfig?.galaxyRotationSpeed ?? 0.1,
+    }
+
+    const galacticMarkers = createAllGalacticMarkers(bhPos, galConfig)
+    galacticMarkers.visible = showGalacticMarkers
+    sceneRef.current.add(galacticMarkers)
+    galacticMarkersGroupRef.current = galacticMarkers
+  }, [galacticConfig?.showGalaxyDisk, galacticConfig?.showSolarSystem, galacticConfig?.galaxyRotationSpeed, imbhPhysics, showGalacticMarkers])
 
   // Recompute stats when frames change
   useEffect(() => {
     computeStats()
   }, [framesRef.current?.size])
+
+  // Handle camera mode changes (free orbit vs Earth view)
+  useEffect(() => {
+    if (!cameraRef.current || !controlsRef.current || !imbhPhysics?.enabled) return
+    
+    const camera = cameraRef.current
+    const controls = controlsRef.current
+    
+    if (cameraMode === 'earth') {
+      // Position camera at Earth's location, looking toward BH
+      // Use same geometry as createAllGalacticMarkers
+      const inclination = galacticConfig?.inclination ?? 70
+      const positionAngle = galacticConfig?.positionAngle ?? 41.6
+      
+      const inc = inclination * Math.PI / 180
+      const pa = positionAngle * Math.PI / 180
+      
+      // Line of sight direction (from BH toward Earth)
+      const losDir = new THREE.Vector3(
+        Math.sin(inc) * Math.cos(pa),
+        Math.sin(inc) * Math.sin(pa),
+        Math.cos(inc)
+      ).normalize()
+      
+      // Position camera at Earth's symbolic location (along LoS direction)
+      const earthDisplayDist = 50  // Symbolic distance for camera
+      const bhPos = new THREE.Vector3(
+        imbhPhysics.bhPosition[0],
+        imbhPhysics.bhPosition[1],
+        imbhPhysics.bhPosition[2]
+      )
+      
+      const earthPos = bhPos.clone().add(losDir.clone().multiplyScalar(earthDisplayDist))
+      
+      // Position camera at Earth, looking at BH
+      camera.position.copy(earthPos)
+      controls.target.copy(bhPos)
+      camera.lookAt(bhPos)
+      
+      // Reduce controls damping for smoother viewing
+      controls.enableDamping = true
+      controls.dampingFactor = 0.02
+      
+      console.log(`[Camera] Earth view: i=${inclination}°, PA=${positionAngle}°, pos=(${earthPos.x.toFixed(1)}, ${earthPos.y.toFixed(1)}, ${earthPos.z.toFixed(1)})`)
+    } else {
+      // Free mode - reset to default orbit controls
+      controls.enableDamping = true
+      controls.dampingFactor = 0.05
+      
+      // Don't force camera position - let user control it
+      console.log('[Camera] Free orbit mode')
+    }
+    
+    controls.update()
+  }, [cameraMode, galacticConfig?.inclination, galacticConfig?.positionAngle, imbhPhysics])
 
   return (
     <div ref={containerRef} className={`w-full h-full ${className}`} />

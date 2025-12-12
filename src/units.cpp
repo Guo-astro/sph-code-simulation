@@ -236,7 +236,8 @@ UnitSystem UnitSystem::create_imbh_encounter(real length_pc, real mass_1e3Msun, 
     //   - Cloud M = 10^4 M_sun = 10 code_mass
     //   - Cloud R = 5 pc = 5 code_length
     //   - Velocity = 10 km/s = 10 code_velocity
-    //   - Time = (1 pc) / (1 km/s) = 0.978 kyr
+    //   - Time = (1 pc) / (1 km/s) = 0.978 Myr (NOT kyr!)
+    //   - The time unit t_code = L_code/V_code = 1 pc / (1 km/s) ≈ 0.978 Myr
     
     real length_cm = length_pc * PC_TO_CM;
     real mass_g = mass_1e3Msun * 1.0e3 * MSUN_TO_G;  // 10^3 M_sun to grams
@@ -248,9 +249,10 @@ UnitSystem UnitSystem::create_imbh_encounter(real length_pc, real mass_1e3Msun, 
     UnitSystem units(Type::GALACTIC, length_kpc, mass_1e3Msun * 1.0e3, velocity_kms);
     
     // Override labels for clarity
+    // Note: 1 code_time = L/V = 1 pc / (1 km/s) = 3.086e13 s ≈ 0.978 Myr
     units.m_length_label = "pc";
     units.m_mass_label = "1000 M_sun";
-    units.m_time_label = "kyr";
+    units.m_time_label = "Myr";  // Corrected from "kyr" - actual unit is ~0.978 Myr
     units.m_velocity_label = "km/s";
     units.m_energy_label = "erg";
     units.m_density_label = "M_sun/pc³";
@@ -278,6 +280,37 @@ real UnitSystem::to_physical_mass(real code_val) const {
 
 real UnitSystem::to_physical_time(real code_val) const {
     return code_val * m_time_to_cgs;
+}
+
+real UnitSystem::to_display_time(real code_val) const {
+    // Convert code time to display units (matches get_time_unit_name())
+    // First convert to CGS seconds, then to the appropriate display unit
+    real time_seconds = code_val * m_time_to_cgs;
+    
+    // Determine the display unit conversion factor based on the time label
+    // This handles various time unit labels that might be set
+    const std::string& label = m_time_label;
+    
+    if (label == "Myr" || label == "myr") {
+        return time_seconds / MYR_TO_S;  // Convert seconds to Myr
+    } else if (label == "kyr") {
+        return time_seconds / (MYR_TO_S / 1000.0);  // 1 kyr = 1e-3 Myr
+    } else if (label == "yr" || label == "year" || label == "years") {
+        return time_seconds / (MYR_TO_S / 1.0e6);  // 1 yr = 1e-6 Myr
+    } else if (label == "s" || label == "sec" || label == "second" || label == "seconds") {
+        return time_seconds;  // Already in seconds
+    } else if (label == "ms") {
+        return time_seconds * 1.0e3;  // Convert to milliseconds
+    } else if (label == "L/c") {
+        // Relativistic: time in light-crossing time
+        return code_val;  // Already in natural units
+    } else if (label == "code_time") {
+        return code_val;  // No conversion needed
+    }
+    
+    // Default: return code value (assume 1 code_time = 1 display_time)
+    // This is a fallback for unknown labels
+    return code_val;
 }
 
 real UnitSystem::to_physical_velocity(real code_val) const {

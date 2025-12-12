@@ -16,4 +16,11 @@ export default defineConfig({
     }),
     viteReact(),
   ],
+  // Ensure Node.js modules are not bundled for client
+  ssr: {
+    noExternal: ['@tanstack/react-router', '@tanstack/react-start'],
+  },
+  optimizeDeps: {
+    exclude: ['fs', 'path', 'url'],
+  },
 })

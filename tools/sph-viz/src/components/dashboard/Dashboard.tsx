@@ -4,8 +4,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ParticleViewer3D } from '~/components/viewer/ParticleViewer3D'
 import { ParticleViewer3DImperative } from '~/components/viewer/ParticleViewer3DImperative'
 import { Projection2D } from '~/components/viewer/Projection2D'
-import { OrbitalGeometryPanel } from '~/components/viewer/OrbitalGeometryPanel'
-import { EnergyChart, MomentumChart, RadialProfileChart } from '~/components/charts/Charts'
+import { EnergyChart, MomentumChart } from '~/components/charts/Charts'
 import { PlaybackControls } from '~/components/controls/PlaybackControls'
 import { VisualizationSettings } from '~/components/controls/VisualizationSettings'
 import { COLOR_MAPS, type ParsedFrame, type FrameStatistics, type SimulationMetadata, type ColorMap } from '~/types/sph'
@@ -121,7 +120,6 @@ export function Dashboard({
   // Layout state
   const [showProjections, setShowProjections] = useState(true)
   const [showCharts, setShowCharts] = useState(true)
-  const [showOrbitalGeometry, setShowOrbitalGeometry] = useState(false)
   
   // High-performance mode toggle
   const [useImperativeMode, setUseImperativeMode] = useState(true)
@@ -131,6 +129,12 @@ export function Dashboard({
   const [showBlackHole, setShowBlackHole] = useState(true)
   const [showTrajectory, setShowTrajectory] = useState(true)
   const [showRadii, setShowRadii] = useState(true)
+  const [showGalacticMarkers, setShowGalacticMarkers] = useState(true)
+  const [showGalaxyDisk, setShowGalaxyDisk] = useState(true)  // Low-opacity Milky Way disk
+  const [showSolarSystem, setShowSolarSystem] = useState(true)  // Observer direction indicator (i, PA, V_LSR)
+  const [animateGalaxy, setAnimateGalaxy] = useState(false)  // Animate galaxy rotation
+  const [galaxyAnimationSpeed, setGalaxyAnimationSpeed] = useState(1.0)  // Animation speed multiplier
+  const [cameraMode, setCameraMode] = useState<'free' | 'earth'>('free')  // Camera view mode
   
   // IMBH physics configuration - use from simulation metadata or defaults
   const imbhPhysics = useMemo(() => {
@@ -140,19 +144,21 @@ export function Dashboard({
       return simulation.imbhPhysics
     }
     
-    // Default fallback for non-IMBH simulations
-    console.log('[Dashboard] Using default IMBH physics (no config found)')
+    // Default fallback for IMBH simulations (Oka et al. 2017 / CAT_OKA A_61k preset values)
+    console.log('[Dashboard] Using default IMBH physics (CAT_OKA/A_61k/oka.json preset values)')
     return {
-      enabled: false,  // Disabled by default if no config
+      enabled: true,  // Enable by default for visualizing galactic markers
       bhPosition: [0, 0, 0] as [number, number, number],
-      bhMass: 100,
-      cloudInitialPosition: [-20, 3, 0] as [number, number, number],
-      cloudInitialVelocity: [10, 0, 0] as [number, number, number],
-      cloudMass: 1,
-      cloudRadius: 1.0,
-      tidalRadius: 3.63,
-      impactParameter: 3.0,
-      timeUnit: 0.978,
+      bhMass: 100,  // 10^5 M_sun in code units (1000 M_sun)
+      cloudInitialPosition: [20.0, -5.17, 0] as [number, number, number],  // From preset
+      cloudInitialVelocity: [-10.18, 5.05, 0] as [number, number, number], // From preset (km/s)
+      cloudMass: 1,  // 1000 M_sun in code units
+      cloudRadius: 1.13,  // From preset (pc)
+      tidalRadius: 5.24,  // From preset (pc)
+      impactParameter: 5.17,  // From preset (pc)
+      pericentre: 2.217,  // From preset (pc)
+      eccentricity: 1.4504,  // From preset (hyperbolic)
+      timeUnit: 0.978,  // Myr
     }
   }, [simulation])
 
@@ -255,17 +261,16 @@ export function Dashboard({
         const nextFrame = currentIdx + 1
         
         if (nextFrame >= totalFrames) {
-          // Reached end - stop playback
-          stopImperativePlayback()
-          frameIndexRef.current = totalFrames - 1
-          setCurrentFrameIndex(totalFrames - 1)
-          return
-        }
-        
-        // Only advance if frame is loaded
-        if (framesRef.current.has(nextFrame)) {
-          frameIndexRef.current = nextFrame
+          // Reached end - auto-replay from beginning
+          frameIndexRef.current = 0
+          setCurrentFrameIndex(0)
           lastTime = timestamp
+        } else {
+          // Only advance if frame is loaded
+          if (framesRef.current.has(nextFrame)) {
+            frameIndexRef.current = nextFrame
+            lastTime = timestamp
+          }
         }
       }
       
@@ -365,13 +370,6 @@ export function Dashboard({
             2D Views
           </button>
           <button
-            onClick={() => setShowOrbitalGeometry(!showOrbitalGeometry)}
-            className={`px-2 py-1 text-xs rounded ${showOrbitalGeometry ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400'}`}
-            title="Show orbital geometry diagram with impact parameter, pericentre, inclination, etc."
-          >
-            🌍 Orbital
-          </button>
-          <button
             onClick={() => setShowCharts(!showCharts)}
             className={`px-2 py-1 text-xs rounded ${showCharts ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400'}`}
           >
@@ -383,7 +381,7 @@ export function Dashboard({
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left sidebar - Settings */}
-        <div className="w-64 shrink-0 overflow-y-auto border-r border-gray-700 p-2">
+        <div className="w-56 shrink-0 overflow-y-auto border-r border-gray-700 p-2">
           <VisualizationSettings
             colorField={colorField}
             onColorFieldChange={setColorField}
@@ -435,6 +433,94 @@ export function Dashboard({
                   />
                   <span className="text-gray-300">Show Tidal/Hill Radii</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showGalacticMarkers}
+                    onChange={(e) => setShowGalacticMarkers(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-gray-300">Show Galactic Markers</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer" title="Show schematic Milky Way disk with Sun at 8 kpc from GC">
+                  <input
+                    type="checkbox"
+                    checked={showGalaxyDisk}
+                    onChange={(e) => setShowGalaxyDisk(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-gray-300">Show Galaxy Disk</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer" title="Show observer direction with inclination (70°), position angle (41.6°), and V_LSR indicator">
+                  <input
+                    type="checkbox"
+                    checked={showSolarSystem}
+                    onChange={(e) => setShowSolarSystem(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-gray-300">Show Observer Geometry</span>
+                </label>
+                {/* Galaxy Animation Controls */}
+                {showGalaxyDisk && (
+                  <div className="mt-2 pt-2 border-t border-gray-600">
+                    <label className="flex items-center gap-2 cursor-pointer" title="Animate galactic rotation (Sun orbits GC in ~220 Myr)">
+                      <input
+                        type="checkbox"
+                        checked={animateGalaxy}
+                        onChange={(e) => setAnimateGalaxy(e.target.checked)}
+                        className="rounded"
+                      />
+                      <span className="text-gray-300">Animate Galaxy</span>
+                    </label>
+                    {animateGalaxy && (
+                      <div className="mt-2 ml-4">
+                        <div className="text-gray-400 text-[10px] mb-1">Speed: {galaxyAnimationSpeed.toFixed(1)}× (1× = 220 Myr period)</div>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="10"
+                          step="0.1"
+                          value={galaxyAnimationSpeed}
+                          onChange={(e) => setGalaxyAnimationSpeed(parseFloat(e.target.value))}
+                          className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[9px] text-gray-500 mt-1">
+                          <span>Slow</span>
+                          <span>~{(220 / galaxyAnimationSpeed).toFixed(0)} Myr/rev</span>
+                          <span>Fast</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Camera Mode Toggle */}
+                <div className="mt-3 pt-2 border-t border-gray-700">
+                  <div className="text-gray-400 text-[10px] mb-2">Camera View</div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setCameraMode('free')}
+                      className={`flex-1 px-2 py-1 text-xs rounded ${
+                        cameraMode === 'free' 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                      title="Free orbit camera controls"
+                    >
+                      🎥 Free
+                    </button>
+                    <button
+                      onClick={() => setCameraMode('earth')}
+                      className={`flex-1 px-2 py-1 text-xs rounded ${
+                        cameraMode === 'earth' 
+                          ? 'bg-green-600 text-white' 
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                      title="View from Earth (observer's perspective)"
+                    >
+                      🌍 Earth View
+                    </button>
+                  </div>
+                </div>
                 <div className="mt-2 pt-2 border-t border-gray-700">
                   <div className="text-gray-400 text-[10px]">
                     <div>BH: {imbhPhysics.bhMass}×10⁵ M☉</div>
@@ -514,6 +600,23 @@ export function Dashboard({
                   showBlackHole={showBlackHole}
                   showTrajectory={showTrajectory}
                   showRadii={showRadii}
+                  showGalacticMarkers={showGalacticMarkers}
+                  cameraMode={cameraMode}
+                  galacticConfig={{
+                    distanceToGC: 60,  // ~60 pc from Galactic Center
+                    galacticLongitude: -0.398,
+                    galacticLatitude: -0.224,
+                    inclination: simulation?.imbhPhysics?.inclination ?? 70,
+                    positionAngle: simulation?.imbhPhysics?.positionAngle ?? 41.6,
+                    lsrVelocity: simulation?.imbhPhysics?.lsrVelocity ?? -120,
+                    showGalaxyDisk,
+                    showSolarSystem,
+                    // Physical rotation: Sun orbits GC at V_circ = 220 km/s, period ~220 Myr
+                    // For visualization: 2π rad / (220 Myr) ≈ 2.86e-17 rad/s (too slow to see)
+                    // We use a visual speed: 0.1 rad/s = ~63 seconds per revolution
+                    // Speed multiplier adjusts this: higher = faster animation
+                    galaxyRotationSpeed: animateGalaxy ? 0.1 * galaxyAnimationSpeed : 0,
+                  }}
                 />
               ) : (
                 <ParticleViewer3D
@@ -539,90 +642,47 @@ export function Dashboard({
 
             {/* 2D Projections */}
             {showProjections && (
-              <div className="w-80 shrink-0 flex flex-col gap-2 p-2 overflow-y-auto border-l border-gray-700">
+              <div className="w-64 shrink-0 flex flex-col gap-1 p-1 overflow-y-auto border-l border-gray-700">
                 <Projection2D
                   frame={currentFrame}
                   projection="xy"
                   colorField={colorField}
                   colorMap={colorMap}
-                  width={300}
-                  height={200}
+                  width={240}
+                  height={150}
                 />
                 <Projection2D
                   frame={currentFrame}
                   projection="xz"
                   colorField={colorField}
                   colorMap={colorMap}
-                  width={300}
-                  height={200}
+                  width={240}
+                  height={150}
                 />
                 <Projection2D
                   frame={currentFrame}
                   projection="yz"
                   colorField={colorField}
                   colorMap={colorMap}
-                  width={300}
-                  height={200}
+                  width={240}
+                  height={150}
                 />
-              </div>
-            )}
-            
-            {/* Orbital Geometry Panel */}
-            {showOrbitalGeometry && (
-              <div className="w-[620px] shrink-0 flex flex-col p-2 overflow-y-auto border-l border-gray-700">
-                <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                  <span>🌍</span>
-                  <span>Orbital Geometry (Oka et al. 2017 / CAT_OKA)</span>
-                </div>
-                <OrbitalGeometryPanel
-                  config={imbhPhysics.enabled ? {
-                    bhMass: imbhPhysics.bhMass / 100,  // Convert from code units
-                    cloudRadius: imbhPhysics.cloudRadius,
-                    cloudMass: imbhPhysics.cloudMass,
-                    impactParameter: imbhPhysics.impactParameter || 5.16,
-                    pericentre: 1.69,  // CAT_OKA pericentre
-                    eccentricity: 1.24,  // CAT_OKA eccentricity
-                    initialPosition: imbhPhysics.cloudInitialPosition,
-                    initialVelocity: imbhPhysics.cloudInitialVelocity,
-                    inclination: 70,  // Oka et al. inclination
-                    positionAngle: 41.6,  // Oka et al. position angle
-                    lsrVelocity: -120,  // Oka et al. LSR velocity
-                    distanceToGC: 8.0,  // Distance to GC in kpc
-                  } : undefined}  // Use defaults when IMBH not enabled
-                  width={600}
-                  height={500}
-                  showLabels={true}
-                  viewMode="3d"
-                />
-                <div className="mt-2 text-xs text-gray-400 bg-gray-800 p-2 rounded">
-                  <div className="font-medium text-gray-300 mb-1">Key Elements:</div>
-                  <ul className="space-y-0.5">
-                    <li><span className="text-green-400">●</span> Hyperbolic orbit trajectory</li>
-                    <li><span className="text-orange-400">●</span> Impact parameter b (perpendicular to asymptote)</li>
-                    <li><span className="text-yellow-400">●</span> Pericentre r_p (closest approach)</li>
-                    <li><span className="text-purple-400">●</span> Line of Sight (Earth → system)</li>
-                    <li><span className="text-amber-400">●</span> Inclination i = 70° (orbital plane tilt)</li>
-                    <li><span className="text-teal-400">●</span> Position Angle PA = 41.6°</li>
-                    <li><span className="text-blue-400">●</span> Cloud initial position & velocity</li>
-                    <li><span className="text-pink-400">●</span> V_LSR = -120 km/s (bulk motion)</li>
-                  </ul>
-                </div>
               </div>
             )}
           </div>
 
           {/* Charts */}
           {showCharts && statistics.length > 0 && (
-            <div className="h-52 shrink-0 border-t border-gray-700 flex gap-2 p-2 overflow-x-auto">
+            <div className="h-40 shrink-0 border-t border-gray-700 flex gap-2 p-1 overflow-x-auto">
               <EnergyChart
                 statistics={statistics}
                 currentFrame={currentFrameIndex}
-                className="flex-1 min-w-[300px]"
+                className="flex-1 min-w-[250px]"
               />
               <MomentumChart
                 statistics={statistics}
                 currentFrame={currentFrameIndex}
-                className="flex-1 min-w-[300px]"
+                className="flex-1 min-w-[250px]"
               />
             </div>
           )}
