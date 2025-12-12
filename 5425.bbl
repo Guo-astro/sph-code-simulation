@@ -1,0 +1,146 @@
+\begin{thebibliography}{31}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+
+\bibitem[{{Baraffe} {et~al.}(1998){Baraffe}, {Chabrier}, {Allard}, \&
+  {Hauschildt}}]{baraffe98}
+{Baraffe}, I., {Chabrier}, G., {Allard}, F., \& {Hauschildt}, P.~H. 1998, \aap,
+  337, 403
+
+\bibitem[{{Bouvier} {et~al.}(2006){Bouvier}, {Alencar}, {Harries},
+  {Johns-Krull}, \& {Romanova}}]{bouvier06}
+{Bouvier}, J., {Alencar}, S.~H.~P., {Harries}, T.~J., {Johns-Krull}, C.~M., \&
+  {Romanova}, M.~M. 2006, in Protostars and Planets V, ed. B.~{Reipurth},
+  D.~{Jewitt}, \& K.~{Keil}, in~press [arXiv:astro--ph/0603498]
+
+\bibitem[{{Bouvier} {et~al.}(1993){Bouvier}, {Cabrit}, {Fernandez}, {Martin},
+  \& {Matthews}}]{bouvier93}
+{Bouvier}, J., {Cabrit}, S., {Fernandez}, M., {Martin}, E.~L., \& {Matthews},
+  J.~M. 1993, \aap, 272, 176
+
+\bibitem[{{Brice{\~n}o} {et~al.}(2002){Brice{\~n}o}, {Luhman}, {Hartmann},
+  {Stauffer}, \& {Kirkpatrick}}]{briceno02}
+{Brice{\~n}o}, C., {Luhman}, K.~L., {Hartmann}, L., {Stauffer}, J.~R., \&
+  {Kirkpatrick}, J.~D. 2002, \apj, 580, 317
+
+\bibitem[{{Cardelli} {et~al.}(1989){Cardelli}, {Clayton}, \&
+  {Mathis}}]{cardelli89}
+{Cardelli}, J.~A., {Clayton}, G.~C., \& {Mathis}, J.~S. 1989, \apj, 345, 245
+
+\bibitem[{{Ehle} {et~al.}(2005){Ehle}, {Breitfellner}, {Gonz{\'a}lez-Riestra},
+  {Guainazzi}, {Loiseau}, {Rodr{\'{i}}guez}, {Santos-Lle{\'o}}, {Schartel},
+  {Tom{\'a}s}, {Verdugo}, \& {Dahlem}}]{ehle05}
+{Ehle}, M., {Breitfellner}, M., {Gonz{\'a}lez-Riestra}, R., {et~al.} 2005,
+  {XMM-Newton Users' Handbook}
+
+\bibitem[{{G{\" u}del} {et~al.}(2006){G{\" u}del}, {Briggs}, {Arzner},
+  {Audard}, {Bouvier}, {Dougados}, {Franciosini}, {Feigelson}, {Glauser}, \&
+  {Grosso}}]{guedel06b}
+{G{\" u}del}, M., {Briggs}, K.~R., {Arzner}, K., {et~al.} 2006, \aap, 999,
+  0~(this issue)
+
+\bibitem[{{Gizis} {et~al.}(2005){Gizis}, {Shipman}, \& {Harvin}}]{gizis05}
+{Gizis}, J.~E., {Shipman}, H.~L., \& {Harvin}, J.~A. 2005, \apjl, 630, L89
+
+\bibitem[{{Grosso} {et~al.}(2006{\natexlab{a}}){Grosso}, {Briggs}, {G{\"u}del},
+  {Guieu}, {Franciosini}, {Audard}, {Dougados}, {Monin}, {M{\acute{e}}nard},
+  {Bouvier}, \& {the XEST Team}}]{grosso06c}
+{Grosso}, N., {Briggs}, K., {G{\"u}del}, M., {et~al.} 2006{\natexlab{a}}, in
+  ESA SP-604: The X-ray Universe 2005, ed. A.~{Wilson}, 83--84
+
+\bibitem[{{Grosso} {et~al.}(2006{\natexlab{b}}){Grosso}, {Briggs}, {G{\"u}del},
+  {Guieu}, {Franciosini}, {Palla}, {Dougados}, {Monin}, {M{\acute{e}}nard}, \&
+  {Bouvier}}]{grosso06}
+{Grosso}, N., {Briggs}, K., {G{\"u}del}, M., {et~al.} 2006{\natexlab{b}}, \aap,
+  999, 0~(this issue)
+
+\bibitem[{{G{\"u}del} {et~al.}(2004){G{\"u}del}, {Audard}, {Reale}, {Skinner},
+  \& {Linsky}}]{guedel04}
+{G{\"u}del}, M., {Audard}, M., {Reale}, F., {Skinner}, S.~L., \& {Linsky},
+  J.~L. 2004, \aap, 416, 713
+
+\bibitem[{{Guieu} {et~al.}(2006){Guieu}, {Dougados}, {Monin}, {Magnier}, \&
+  {Mart\'{\i}n}}]{guieu06}
+{Guieu}, S., {Dougados}, C., {Monin}, J.~L., {Magnier}, E., \& {Mart\'{\i}n},
+  E.~L. 2006, \aap, 446, 485
+
+\bibitem[{{Gullbring} {et~al.}(1998){Gullbring}, {Hartmann}, {Brice\~no}, \&
+  {Calvet}}]{gullbring98}
+{Gullbring}, E., {Hartmann}, L., {Brice\~no}, C., \& {Calvet}, N. 1998, \apj,
+  492, 323
+
+\bibitem[{{Hartmann} {et~al.}(1994){Hartmann}, {Hewett}, \&
+  {Calvet}}]{hartmann94}
+{Hartmann}, L., {Hewett}, R., \& {Calvet}, N. 1994, \apj, 426, 669
+
+\bibitem[{{Jayawardhana} {et~al.}(2003){Jayawardhana}, {Mohanty}, \&
+  {Basri}}]{jayawardhana03}
+{Jayawardhana}, R., {Mohanty}, S., \& {Basri}, G. 2003, \apj, 592, 282
+
+\bibitem[{{Luhman}(2004)}]{luhman04}
+{Luhman}, K.~L. 2004, \apj, 617, 1216
+
+\bibitem[{{Luhman}(2006)}]{luhman06}
+{Luhman}, K.~L. 2006, \apj, 645, 676
+
+\bibitem[{{Mason} {et~al.}(2001){Mason}, {Breeveld}, {Much}, {Carter},
+  {Cordova}, {Cropper}, {Fordham}, {Huckle}, {Ho}, {Kawakami}, {Kennea},
+  {Kennedy}, {Mittaz}, {Pandel}, {Priedhorsky}, {Sasseen}, {Shirey}, {Smith},
+  \& {Vreux}}]{mason01}
+{Mason}, K.~O., {Breeveld}, A., {Much}, R., {et~al.} 2001, \aap, 365, L36
+
+\bibitem[{{Mitra-Kraev} {et~al.}(2005){Mitra-Kraev}, {Harra}, {G{\"u}del},
+  {Audard}, {Branduardi-Raymont}, {Kay}, {Mewe}, {Raassen}, \& {van
+  Driel-Gesztelyi}}]{mitra05}
+{Mitra-Kraev}, U., {Harra}, L.~K., {G{\"u}del}, M., {et~al.} 2005, \aap, 431,
+  679
+
+\bibitem[{{Mohanty} {et~al.}(2005){Mohanty}, {Jayawardhana}, \&
+  {Basri}}]{mohanty05}
+{Mohanty}, S., {Jayawardhana}, R., \& {Basri}, G. 2005, \apj, 626, 498
+
+\bibitem[{{Mokler} \& {Stelzer}(2002)}]{mokler02}
+{Mokler}, F. \& {Stelzer}, B. 2002, \aap, 391, 1025
+
+\bibitem[{{Muzerolle} {et~al.}(2005){Muzerolle}, {Luhman}, {Brice{\~n}o},
+  {Hartmann}, \& {Calvet}}]{muzerolle05b}
+{Muzerolle}, J., {Luhman}, K.~L., {Brice{\~n}o}, C., {Hartmann}, L., \&
+  {Calvet}, N. 2005, \apj, 625, 906
+
+\bibitem[{{Natta} {et~al.}(2004){Natta}, {Testi}, {Muzerolle}, {Randich},
+  {Comer{\'o}n}, \& {Persi}}]{natta04}
+{Natta}, A., {Testi}, L., {Muzerolle}, J., {et~al.} 2004, \aap, 424, 603
+
+\bibitem[{{Neuh{\"a}user} {et~al.}(1999){Neuh{\"a}user}, {Brice{\~n}o},
+  {Comer{\'o}n}, {Hearty}, {Mart{\'{\i}}n}, {Schmitt}, {Stelzer}, {Supper},
+  {Voges}, \& {Zinnecker}}]{neuhaeuser99}
+{Neuh{\"a}user}, R., {Brice{\~n}o}, C., {Comer{\'o}n}, F., {et~al.} 1999, \aap,
+  343, 883
+
+\bibitem[{{Preibisch} {et~al.}(2005){Preibisch}, {McCaughrean}, {Grosso},
+  {Feigelson}, {Flaccomio}, {Getman}, {Hillenbrand}, {Meeus}, {Micela},
+  {Sciortino}, \& {Stelzer}}]{preibisch05}
+{Preibisch}, T., {McCaughrean}, M.~J., {Grosso}, N., {et~al.} 2005, \apjs, 160,
+  582
+
+\bibitem[{{Scholz} \& {Eisl{\"o}ffel}(2004{\natexlab{a}})}]{scholz04a}
+{Scholz}, A. \& {Eisl{\"o}ffel}, J. 2004{\natexlab{a}}, \aap, 419, 249
+
+\bibitem[{{Scholz} \& {Eisl{\"o}ffel}(2004{\natexlab{b}})}]{scholz04b}
+{Scholz}, A. \& {Eisl{\"o}ffel}, J. 2004{\natexlab{b}}, \aap, 421, 259
+
+\bibitem[{{Scholz} \& {Eisl{\"o}ffel}(2005)}]{scholz05b}
+{Scholz}, A. \& {Eisl{\"o}ffel}, J. 2005, \aap, 429, 1007
+
+\bibitem[{{Scholz} \& {Jayawardhana}(2006)}]{scholz06}
+{Scholz}, A. \& {Jayawardhana}, R. 2006, \apj, 638, 1056
+
+\bibitem[{{Scholz} {et~al.}(2005){Scholz}, {Jayawardhana}, \&
+  {Brandeker}}]{scholz05a}
+{Scholz}, A., {Jayawardhana}, R., \& {Brandeker}, A. 2005, \apjl, 629, L41
+
+\bibitem[{{Zapatero Osorio} {et~al.}(2006){Zapatero Osorio}, {Mart{\'{\i}}n},
+  {Bouy}, {Tata}, {Deshpande}, \& {Wainscoat}}]{zapatero06}
+{Zapatero Osorio}, M.~R., {Mart{\'{\i}}n}, E.~L., {Bouy}, H., {et~al.} 2006,
+  \apj, 647, 1405
+
+\end{thebibliography}

@@ -1,0 +1,1016 @@
+1985ApJ. . .291. .747T
+
+The Astrophysical Journal, 291:747-754,1985 April 15
+© 1985. The American Astronomical Society.All rights reserved. Printed in U.S.A.
+
+PHOTODISSOCIATION REGIONS. II. A MODEL FOR THE ORION
+PHOTODISSOCIATION REGION
+A. G. G. M. Tielens and David Hollenbach
+NASA/Ames Research Center, Moffett Field, California
+Received 1984 July 13 accepted 1984 October 31
+ABSTRACT
+We have constructed a model for the photodissociation region in Orion. This model matches the observed
+emission in the fine-structure lines of O i 63 41m and 145 41m, C 1 609 /un, and C 11 158 41m and the low-lying
+rotational lines of CO. It also explains the extended H2 1-0 S(l) emission, the carbon recombination lines, and
+the C i 9850 Â line. The emission in the C 1 370 /tm, Si 11 35 /¿m, and Fe 11 26 /tm, 35 /¿m lines is predicted.
+The model fit implies that a fairly uniform density (~105 cm-3) photodissociation region lies behind the Trapezium stars. The peak temperature in this region is about 500 K, and the intensity of the incident farultraviolet (FUV) field is approximately 105 times as intense as the ambient interstellar field. This model
+shows that the observed high brightness temperature of the C 1 609 /mi line can be explained by emission
+from the C+/C/CO transition region. This difference with previous chemical models is due to a higher gas
+phase elemental abundance of carbon, to the charge exchange reactions of C+ with S and SiO, and to carbon
+self-shielding.
+Subject headings: interstellar: molecules — nebulae: H 11 regions — nebulae: Orion Nebula
+I. INTRODUCTION
+In a previous paper we have modeled the chemistry and
+heating balance in molecular clouds illuminated by an intense
+far-ultraviolet (FUV) (6 eV < hv < 13.6 eV) field (Tielens and
+Hollenbach 1985, hereafter Paper I). The models assumed an
+FUV-illuminated plane-parallel slab, so that the calculation
+was strictly in one dimension, the depth measured in visual
+extinction Av into the slab. Microturbulence with a characteristic Doppler width ôvd was assumed to dominate the pressure.
+Constant hydrogen nucleus density n0 was assumed, so that
+the pressure was approximately constant through the slab. The
+numerical code solved for the equilibrium gas temperature T
+and the chemistry as a function of Av. The dominant heating
+mechanism was found to be the photoelectric ejection of energetic electrons from grains, which transforms up to 0.04 of the
+incident FUV flux into gas heating. This “ heating efficiency ”
+depends on the positive charge of the grains, which in turn
+depends on a unitless parameter y cc GqT0 5^1, with ne the
+electron number density and G0 the FUV flux measured in
+units of the “Habing field,” which is taken to be 1.6 x 10-3
+ergs cm-2 s_ 1 (Habing 1968). The emergent spectrum from the
+slab was calculated using an escape probability formalism for
+the line radiation. The predicted spectra included the finestructure lines of O i, C i, C 11, Fe 11, and Si 11; the low-lying
+rotational transitions of CO, and an estimate of the FUVpumped H2 1-0 2 41m vibrational transitions. The spectra
+depended mainly on the model free parameters n0 and G0.
+Other model parameters which generally can be derived from
+other observations or theoretical considerations include the
+gaseous elemental abundances, c)i;d, the ratio of FUV opacity
+to optical opacity of the grains, the ratio of Av to column
+density of hydrogen nuclei, and the emergent far-infrared continuum flux from dust, FIR, which can be calculated from the
+dust temperature T0 and the 100 41m dust optical depth t100 Mm.
+The results of the models show that the FUV creates a hot
+(100-1000 K) layer (Av < 3) of atomic gas (H, O, C+). This gas
+is heated by photoelectrons from dust grains and cooled by the
+
+O i 63 41m and C 11 158 /im fine-structure lines. Around Av »
+3-4 atomic hydrogen and ionized carbon are transformed into
+H2 and C or CO, respectively. This warm (50-100 K) gas is
+also heated by photoelectrons from dust grains but is cooled by
+molecular rotation lines from CO. Beyond Av> 4 carbon is
+mainly in the form of CO. The gas is now heated by the infrared continuum from warm (~75 K) dust grains. Ground state
+atomic oxygen is radiatively excited by 63 /tm continuum
+photons, followed by collisional de-excitation by H2 molecules
+which heats the gas. The gas is also heated by collisions with
+warm dust grains. Cooling still occurs through the CO rotational lines. Deep in the cloud (Av >10) atomic oxygen is converted into 02.
+These models are relevant not only to the gas which
+separates H 11 regions from their parental molecular cloud but
+also to neutral shells around planetary nebulae, bright-rimmed
+clouds, reflection nebulae, and regions surrounding protostars.
+In this paper we will apply our model to the well-studied Orion
+photodissociation region. Applications to the other regions are
+deferred to future publications.
+This paper is organized as follows. Section II summarizes the
+observations of Orion. In § III we analyze the fine-structure
+observations. The emphasis is on a simple semianalytic model
+which highlights the essential physics. In this way values for
+physical parameters of this region such as density, temperature,
+electron density, and intensity of the incident FUV field are
+derived. The observations are also compared with our detailed
+numerical model calculations, and a best fit model is constructed. Section IV summarizes the main results.
+II. THE OBSERVATIONS
+The Orion complex is the nearest site of recent massive star
+formation. Most of the observational studies devoted to Orion
+are reviewed in Glassgold, Huggins, and Schucking (1982). In
+this section we will summarize these and more recent observations relevant to the understanding of the photodissociation
+region.
+747
+
+© American Astronomical Society • Provided by the NASA Astrophysics Data System
+
+1985ApJ. . .291. .747T
+
+748
+
+TIELENS AND HOLLENBACH
+
+The Orion region has been observed in the O i 63 jam and
+145 /mi, C ii 158 /on, and C i 609 /mi fine-structure lines
+(Melnick, Gull, and Harwit 1979; Furniss et al 1983; Ellis and
+Werner 1985; Werner ei al 1984; Stacey et al. 1983; Russell et
+al 1980; Phillips and Huggins 1981). Table 1 summarizes the
+observed integrated intensities for these lines, as well as those
+of the low-lying rotational levels of CO (Phillips et al 1977,
+1979). The absolute calibration is uncertain by ~ 30%. The
+beam sizes of the far-infrared fine-structure line measurements
+are all about 45", except for the C i 609 /¿m measurement,
+which has a beam size of 2'.6. The beam size of the CO observations are about 1'.
+The O i 63 /mi emission in Orion has been mapped with 30"
+resolution by Werner et al (1984) and with L65 by Furniss et
+al (1983). The emission is extended on a 3' scale and shows two
+distinct peaks. The northern one is centered on the BN/KL
+region and is probably associated with the wind shock (Werner
+et al 1984). The southern peak occurs southwest of the Trapezium, slightly south of the radio continuum peak. It is about
+halfway between the Trapezium and a peak in the far-infrared
+and submillimeter continuum (Keene, Hildebrand, and Whitcomb 1982; Werner 1983; Drapatz et al 1983) and in the 13CO
+column density map (Schloerb and Loren 1982). This southern
+continuum source does not contain any embedded 20 /mi
+sources brighter than 60 Jy (less than about 10% of the BN
+object) and probably represents a column-density enhancement (Keene, Hildebrand, and Whitcomb 1982).
+In a northwest-to-southeast scan in the O i 63 ¡um line
+across the central region of the Orion Nebula, a third peak
+shows up at the position of 02 Ori A, slightly southeast of the
+prominent ionization bar (Ellis and Werner 1985). It coincides
+with a peak in the 12CO as well as in the 13CO brightness
+temperatures (Schloerb and Loren 1982).
+The O i 145 /mi and C n 158 jam lines have recently been
+observed both from the Lear Jet and from the Kuiper Airborne
+Observatory (KAO) (Stacey ei al 1983; Ellis and Werner 1985;
+Russell et al 1980). The distribution of the O i 145 /mi and
+C ii 158 /mi intensities in a scan across the Orion Nebula
+
+Vol. 291
+
+looks remarkably similar to that of the O i 63 /¿m intensity. All
+three show a peak at the Trapezium and at the ionization bar.
+These far-infrared lines are more extended and spatially
+uniform than the continuum.
+The Orion region has also been scanned with a Z6 beam in
+the C i 609 /mi line (Phillips et al 1980; Phillips and Huggins
+1981)
+observations will be discussed in more detail in § Hid.
+The molecular gas temperature as derived from 12CO observations has a peak value of about 75 K in the direction of the
+BN/KL objects and drops to a value of about 10 K at a distance of 1 pc (~6'), although the distribution is quite irregular.
+Distinct patches of higher temperature and column density can
+be discerned in the CO maps. The 12CO line is expected to
+become optically thick within the photodissociation region,
+and therefore the models are constrained to fit these observations.
+The carbon radio recombination lines also originate in the
+photodissociation region. They indicate an electron density of
+about 102 cm-3 and a gas temperature in excess of 100 K
+(Boughton 1978). The red C i lines at 9850 and 8727 Â seem
+also to be associated with the neutral gas (Münch and Hippelein 1982). It has been suggested that these lines are emitted
+during the radiative recombination of C+ and e (Cesarsky
+1982)
+5(1) emission in Orion. The intensity of this emission is low,
+and its association with the ionization bar suggests an origin in
+the photodissociation region.
+In addition to the above observations of fine-structure, H2,
+CO, and carbon lines which we intend to model, there are a
+number of observations of the H n region, the photodissociation region, and the molecular cloud which can be used
+to constrain the model parameters.
+The Orion Nebula is an H n region which is ionized by the
+Trapezium stars, in particular 61 Ori C, and to a lesser extent
+Q2 Ori A. It appears as a blister on the much larger Orion
+molecular cloud (Zuckerman 1973; Balick, Gammon, and
+Doherty 1974). The luminosity of the ionizing stars is about
+
+TABLE 1
+Comparison of the Model Calculations with Observations toward Orion
+
+Line
+0163 /mi
+O i 145/mi
+C ii 158 /¿m
+C1610 fim
+C1370/mi
+Si ii 34.8 /mi
+Fe ii 26 /mi
+Fe ii 35.4/mi
+COJ=1-0
+CO J = 2-1
+CO J = 3-2
+CO J = 4-3
+CO J = 5-4
+CO J = 6-5
+CO J = 7-6
+CO J = 8-7
+CO J = 9-8
+
+Observed
+1
+at 6-2
+Ori C
+(ergs cm s_1 sr-1)
+4 to 6 (-2)
+3 to 6 (-3)
+4 to 7 ( — 3)
+6.7( —6)
+...
+...
+...
+...
+6.5( —7)
+6.0( — 6)
+1.9( —5)
+...
+...
+...
+...
+...
+...
+
+Standard Model
+(ergs cm-2 s-1 sr-1)
+7.5(-2)
+3.2(-3)
+2.6(-3)
+3.5(-6)
+1.8( —5)
+1.6( —3)
+l.l(-3)
+1.9(-4)
+4.1( —7)
+4.6( — 6)
+1.8( —5)
+4.1( —5)
+7.6( — 5)
+1.2( —4)
+1.5( —4)
+1.8( —4)
+1.8( —4)
+
+Model Fit3
+(ergs cm-2 s-1 sr-1)
+4.6(-2)
+3.5(-3)
+3.8(-3)
+8.8(-6)
+3.8(-5)
+1.8(-3)
+6.0(-4)
+7.0(-5)
+4.9( — 7)
+5.4(-6)
+1.9(-5)
+4.5( —5)
+4.5( — 5)
+1.1( —4)
+1.3( —4)
+1.4( —4)
+1.3( —4)
+
+Note.—Numbers
+in parentheses: 7.5(-2) = 7.5 x 10“2.
+3
+A possible improved fit with lower than standard dust-to-gas ratio ôd = 0.5 and a lower gas density
+n0 = 105 cm - 3 (see text).
+
+© American Astronomical Society • Provided by the NASA Astrophysics Data System
+
+1985ApJ. . .291. .747T
+
+No. 2, 1985
+
+PHOTODISSOCIATION REGIONS
+
+5
+
+10 Lq, and the stars are located at a distance of about 0.10.2 pc from the molecular cloud (Werner et al 1976). This leads
+to an incident FUV flux of about G0 ~ 105.
+For the elemental abundances,
+the values obtained for
+the heavily depleted line of sight toward C Oph are chosen
+(Morton 1974; de Boer 1981; Jenkins, Jura, and Loewenstein
+1983). Note that for the carbon abundance the upper limit has
+been chosen (see Table 2). This value is equal to the measured
+carbon abundance in the Orion Nebula (Peimbert 1982) and is
+therefore probably more appropriate for models of the Orion
+photodissociation region (the oxygen abundance in Table 2 is
+also equal to the measured value in the H n region, as expected
+if the H ii plasma consists of ionized molecular cloud material).
+The derived lower limit to the carbon abundance toward
+C Oph is half the upper limit (Jenkins, Jura, and Loewenstein
+1983). As discussed in Paper I, we do not expect that carbon is
+depleted in the form of grain mantles in the photodissociation
+region.
+The gas density in the central core of the H n region is about
+104 cm-3. With a gas temperature of about 104 K, the H n
+region gas pressure against the neutral gas is about
+108 K cm-3. The pressure in the photodissociation region,
+P ccn0 ôvj (see Paper I), is therefore constrained to be of this
+order. The gas distribution in the H n region may, however, be
+quite clumpy, and the external pressure on the photodissociation region may differ somewhat from this value (see
+Peimbert 1982).
+The photodissociation region gas density and pressure are
+also constrained somewhat by using millimeter observations of
+the molecular gas which lies deep in the photodissociation
+region and beyond, in the opaque molecular core. The somewhat dubious premise here is that the pressure and density
+deep in the cloud reflect the surface pressure and density. These
+observations reveal a ridge of high-density (~106cm-3)
+molecular material running N-S through the BN/KL region
+
+TABLE 2
+Standard Model Parameters'
+Parameter
+n0(cm 3) ...
+G0
+••
+ôvd (km s x)
+^Si
+
+Standard Model
+2.3(5)
+1.0(5)
+2.7
+3-0( — 4)
+5.0( —4)
+7.9( —7)
+7.9(-6)
+2.5( —7)
+1.3(-6)
+5.0(2)
+75
+3.0( —1)
+1.0
+
+f
+Mg ■
+Fir (ergs cm“
+T>(K)
+^100 pm
+^
+Note.—Numbers
+in parentheses: see Table 1.
+a
+The photodissociation region parameters are
+defined as follows : n0 is the hydrogen nucleus
+density, G0 is the incident FUV flux in units of the
+“Habing flux” (see Paper I), ôvd is the turbulent
+velocity width,
+is the fractional abundance of
+species i, FlR is the integrated far-infrared flux from
+the slab, T0 is the dust temperature, Ti00fim is the
+dust optical depth at 100 ^m, and Sd is the depletion
+of dust relative to its abundance in the diffuse
+interstellar
+medium, or ôd = {Av/NH)/5.2 x 10“22 mag
+2
+cm .
+
+© American Astronomical Society
+
+749
+
+with a gas temperature of perhaps ~ 50 K. The molecular gas
+density seems to decrease with a r~2 dependence from this
+region to a value of about 103 cm-3 at a distance of 1 pc
+(Westbrook et al. 1976; Goldsmith et al. 1980; Keene, Hildebrand, and Whitcomb 1982).
+Several observations may be used to constrain the turbulent
+Doppler width ôvd in the photodissociation region. Unfortunately, the line width of the far-infrared fine-structure lines is
+less than the instrumental resolution (~30 km s -1) except for
+the C i 609 /¿m line, which has an observed FWHM width of
+5 km s_1. (We ignore here the small region of shock-excited
+O i 63 /am emission toward BN/KL which was resolved by
+Werner et al. 1984.) This places an upper limit on ôvd of about
+3 km s-1. The carbon recombination lines indicate that the
+gas in the photodissociation region has <5i;d ä 2.7 km s-1
+behind the Trapezium stars (Boughton 1978), although some
+velocity structure may be present within the fairly large beams
+(2Í6) of these observations (Jaffe and Pankonin 1978). In the
+calculations we will adopt ôvd = 2.7 km s-1.
+Observations which constrain the dust extinction properties
+are discussed in the next section. However, we note here that
+the far-infrared continuum observations show a maximum
+color temperature of the dust of about T0 ^ 75 K and a
+maximum optical depth at 100/un (iioo/im) °f about 0.3
+(Werner er a/. 1976).
+III. THE MODEL
+The parameters of the standard model in Paper I have been
+chosen to mimic the conditions expected for the photodissociation region directly behind 91 Ori C (Table 2). The calculated emergent line intensities for the standard model are
+compared with the observations in Table 1. Also shown in this
+table are the results of a possible best fit model. This model has
+a lower dust-to-gas ratio (ôd = 0.5 or Av/Nn = 2.6 x 10"22
+mag cm2) and a slightly lower gas density (105 cm-3) than the
+standard model (Sd = 1 or AV/NH = 5.2 x 10~22 mag cm2,
+the value appropriate for diffuse clouds, and n0 = 2.3 x
+105 cm-3). As discussed below, other small changes in the parameters can also produce a good fit. As a result of this change,
+this model has a somewhat lower temperature throughout the
+atomic region than the standard model. The maximum temperature, for example, is only 550 K in the best fit model, as
+opposed to 1100 K in the standard model (cf. Fig. 7 of
+Paper I). The temperature in the molecular gas is equal to
+about 50 K in both cases. The behavior of the molecular abundances as a function of visual extinction in this model is quite
+similar to that in the standard model (cf. Fig. 9 of Paper I). The
+column density of most species are, however, larger by a factor
+of 2 because of the increased penetration depth of the FUV.
+a) The Oi 65 uva Line
+The core of our interpretation of the O i 63 /un emission in
+Orion is that the gas is heated by electrons, photoelectrically
+ejected from dust grains. As much as a few percent of the
+energy absorbed by a dust grain can be converted into heat for
+the gas and ultimately into O i 63 /an emission. The remaining
+heat will be radiated by the grains in infrared continuum radiation. It is the identification of the heat source of the gas that
+will allow us to calculate the global physical parameters of the
+region (e.g., T, n0, and G0) from the observations.
+As will be discussed in detail below, the average efficiency of
+the photoelectric heating can be obtained from the observed
+
+Provided by the NASA Astrophysics Data System
+
+1985ApJ. . .291. .747T
+
+750
+
+TIELENS AND HOLLENBACH
+
+total line and continuum flux. This efficiency depends on the
+unitless parameter y = 2.9 x 10"5G0 T0 5n~ \ with T in K and
+ne in cm"3 (see Fig. 5 of Paper I). Because the intensity of the
+incident FUV field can be determined from the dust infrared
+continuum and the gas temperature from an estimate of the
+peak intensity of the optically thick O i 63 ¡im line, a reasonable value of the electron density can be derived. Given the
+carbon abundance, this determines the gas density in the
+photodissociation region.
+The integrated intensity of all far-infrared fine-structure lines
+is not much more than the O i 63 ¿un intensity of 5 x 10"2
+ergs cm"2 s"1 sr"1 at the Trapezium. The integrated farinfrared continuum intensity at that position is about
+1.2 x 101 ergs cm"2 s"1 sr"1 (Werner et al 1976; Drapatz et
+al 1983). This yields an efficiency e of the photoelectric effect of
+about 4 x 10"3. Actually, this efficiency should be divided by
+2. In a semi-infinite plane-parallel layer, a good assumption for
+the O i 63 ¿un, the cooling radiation only escapes through one
+boundary. The far-infrared emission from the dust, however, is
+optically thin and escapes in two hemispheres. This yields for e
+about 0.2%. Using Figure 6 from Paper I, we then estimate
+that y * 0.6, or G0 T°-V1 ^ 2 x 104 K0*5 cm3.
+The intensity of the incident FUV field G0 and the gas temperature T can be estimated in the following way prior to
+detailed model fits. The average interstellar FUV intensity on a
+cloud is 1.2 x 10"4 ergs cm"2 s"1 sr"1 (Habing 1968). The
+observed integrated infrared intensity toward the Trapezium
+(see above) implies that G0 = 105 at that position, assuming
+that FUV is primarily responsible for heating the dust. The
+integrated intensity of an optically thick line emerging from a
+homogeneous (constant density and constant excitation temperature Tx) plane-parallel slab is given by
+IxBv(Tx)v(ôvd/c)f(T),
+(1)
+where BV(TX) is the Planck function at the frequency of the line,
+Svd is the turbulent Doppler width, and the factor/(t) arises
+from optical-depth effects, with t the line-averaged optical
+depth (Paper I). The function/(t) varies logarithmically with t
+and is typically of order unity for t ~ 5. The O i 63 /mi line
+becomes optically thick for hydrogen nucleus column densities
+NH> 2 x 1021 cm"2 or Av > 1. In our detailed model calculations, this line is always optically thick (t ~ 5) and/(r) ~ 1.
+Assuming ôvd = 2.7 km s"1 and using the observed intensity
+in O i 63 /un, we derive Tx æ 265 K.
+Using these estimates for G0 and Tx and assuming that T =
+Tx, we find from the derived value of y an electron density ne of
+80 cm "3 in the photoelectrically heated region. This is in good
+agreement with detailed models of the carbon recombination
+lines which originate in the same region (Boughton 1978). If we
+assume a carbon elemental abundance of 3 x 10"4 as in the
+models, then the gas density in the photoelectrically heated
+region is 2.6 x 105 cm"3 in order to explain the ratio of the
+O i 63 /nh to the IR continuum intensity.
+The parameters of the models are close to these estimates
+(Table 2). The O i 63 /on intensity calculated for the standard
+model is actually somewhat higher than the observed intensity
+(Table 1). This overestimate is caused by the increase in heating
+efficiency with increasing depth into the cloud (decreasing
+FUV field and less positively charged grains), an effect ignored
+in the simple analysis discussed above. This also explains the
+higher maximum gas temperature (~ 1000 K) in the standard
+model as compared with the 265 K estimated above. The “ best
+fit ” model has a somewhat lower value for the density u0 = 105
+
+Vol. 291
+
+cm"3, in order to lower the cloud surface heating efficiency
+somewhat. This model therefore has a maximum temperature
+of about 500 K, which is closer to the “ average ” temperature
+estimated from equation (1).
+In a similar way we can derive the physical parameters in the
+photodissociation region behind the prominent ionization bar
+southeast of 01 Orí C. The integrated O i 63 /un intensity is
+4 x 10"2 ergs cm"2 s"1 sr"1, and the total far infrared continuum intensity is 5.3 ergs cm"2 s"1 sr"1 (Werner et al 1976;
+Ellis and Werner 1985). Therefore, an analogous analysis as
+described above results in a calculated heating efficiency of
+0.4%, an estimated intensity of the FUV field of G0 « 4.4
+x 104, a gas temperature of 230 K, an electron density of
+60 cm"3, and a gas density n0 of 2 x 105 cm"3. Because of the
+increase in the efficiency with depth into the slab, the density
+may have been overestimated by about a factor of 2-3. Despite
+the lower incident FUV field, the O i 63 /un intensity does not
+drop appreciably because of the increase in heating efficiency
+with decreasing G0. In other words, the O i 63 /un intensity in
+the model is more spatially uniform than the far-infrared continuum flux, as is observed.
+As an aside, it should be noted that the bar is probably an
+ionization front seen almost edge-on (Becklin et al 1976;
+Werner et al 1976; Schloerb and Loren 1982; Keene, Hildebrand, and Whitcomb 1982). However, the almost edge-on
+geometry does not appreciably alter the calculated O i 63 /un
+intensities, since the gas temperature is relatively constant on
+the surface of the cloud where O i 63 /un becomes optically
+thick to the observer (assuming that the photodissociation slab
+slightly faces the observer). In order to match calculated intensities with observed intensities, one must assume that the face
+of the photodissociation region fills the beam.
+The derived gas density is about an order of magnitude
+larger than the lower limit to the density estimated from the
+extent of the 10 and 20 /un emission associated with the ionization bar (Becklin et al 1976). With our estimated density the
+physical extent of the atomic region emitting the 10 and 20 /un
+radiation is only 1016 cm. The extent along the line of sight is
+estimated to be about 0.1 pc (Werner et al 1976). This implies
+that we view the ionization bar at an angle of 70° rather than
+90°. Alternatively, the 10 and 20 /un emission may originate
+from dust just inside the ionized gas, which has a lower density
+than the gas in the photodissociation region because of the
+streaming away of material from the ionization front.
+The molecular data provide an insight into the overall
+density distribution in the molecular cloud behind 01 Ori C.
+These data indicate a density of about 105 cm"3 at a distance
+of 3' from the BN/KL region (Goldsmith et al 1980). The
+region with higher density (~ 106 cm"3) in the BN/KL region
+indicated by the molecular data must then be buried deeper
+(Av >10) inside the molecular cloud in order that the photodissociation models match the observations. In our view, the
+formation of the infrared cluster in the BN/KL region has
+produced a density gradient (r~2) in the surrounding gas
+because of gravitational collapse. This density distribution is
+further modified at the front of the molecular cloud by the
+presence of the H n region around 9 Ori C, which produces a
+roughly circular slab with a projected radius of about 0.45 pc
+(3') in which the density is quite constant (~105 cm"3). At a
+distance of about 10', pressure equilibrium between the H n
+region and the molecular cloud may not yet have been reached,
+possibly resulting in the propagation of a slow shock into the
+molecular cloud (Schloerb and Loren 1982). In Figure 1 a
+
+© American Astronomical Society • Provided by the NASA Astrophysics Data System
+
+1985ApJ. . .291. .747T
+
+No. 2, 1985
+
+PHOTODISSOCIATION REGIONS
+
+Fig. 1.—Schematic view of Orion region in the model. See text.
+schematic view is given of the Orion region in our model. The
+high-density (~106cm~3) molecular gas lies approximately
+within the small circle around BN/KL. Whether the gravitational collapse in the central region has been induced by the
+pressure of the H n region (Elmegreen and Lada 1977) cannot
+be ascertained from the infrared fine-structure data.
+b) The Cu 15& fim Line
+The observed intensity of the C n 158 /un line is relatively
+easy to analyze. Because the density in the photodissociation
+region is much larger than the critical density, the level populations are given by the Boltzmann distribution function.
+Because the temperature in the C+ zone is much larger than
+the excitation energy (92 K), the level populations are only
+weakly dependent on T. Thus, for an optically thin line, the
+C ii 158 /¿m intensity is mainly dependent on the total C +
+column density. For an optically thick line the C n 158 jm\
+intensity is given by the Planck function at the kinetic temperature (cf. eq. [1]). In Paper I a simple analytical model was
+used to derive the intensity of the C n 158 jum line as a function of the total C+ column density and the temperature (see
+Fig. 5 in Paper I). For our best estimate of turbulent Doppler
+width SvD = 2.7 km s-1 in the photodissociation region, the
+observed C n 158 jam intensity implies a temperature of at
+least ~250 K, in good agreement with values estimated from
+the O i 63 /¿m line. The observations also imply a total C +
+column density of about 5 x 1018 cm-2.
+The column density of C + is mainly determined by the penetration of FUV photons into the slab. Typically, the C +
+region extends to a grain optical depth at À ~ 1000 Â of
+x ä 10. Assuming “normal” dust properties (t/Av = 2.6 and
+Av/Nh = 5.2 x 10-22 mag cm2), NH = 6.8 x 1021 cm-2 is
+derived. Taking the above C+ column densities at face value,
+this implies a carbon abundance of 7.5 x 10“4, larger than the
+cosmic abundance value of 4 x 10“4 (Allen 1973) or the
+carbon abundance in the Orion H n region (Peimbert 1982).
+Rather than a superabundance of carbon, the C+ column
+density can be raised by two more probable causes. First, the
+dust in molecular clouds may not have “ normal ” properties.
+The extinction curve of the dust along the line of sight to the
+Trapezium stars differs considerably from the average interstellar extinction curve. The ratio of total to selective extinction, R = AJEb_v, is larger, and the 2200 Â bump and the
+
+751
+
+ratio of FUV opacity to Av is smaller (t/^ ~ 1), than in the
+diffuse interstellar medium (Johnson 1968; Bless and Savage
+1972; Panek 1983). These differences, in dust which is presumably leftover molecular cloud material, seem to point to a
+larger mean size of the grains rather than the absence of small
+grains. The larger grain size may be caused by grain processing
+in the molecular cloud—for example, by coagulation of large
+and small grains. If the photodissociation region dust has a
+similar low FUV opacity, this would increase the extent of the
+C+ region. Second, the large C+ column density may be due to
+geometrical effects. Viewing the slab at an angle with the
+normal increases the observed column density, without
+increasing the extent of the C+ region. In order to explain the
+intensities observed in Orion, the slab has to be tilted by about
+60°.
+These simple analytical considerations agree well with our
+extensive numerical calculations. The C n 158 fim intensity in
+the standard model falls short of the observations by about a
+factor of 2 (Table 2). The C II 158 jj,m line intensity in the
+possible best fit model, which has a lower dust-to-gas ratio
+than the standard model, is in much better agreement with the
+observations. It should be emphasized, however, that an
+equally good fit to the observations can be obtained by tilting
+the slab or by choosing a normal gas-to-dust ratio combined
+with a gray FUV dust opacity (t/Av = 1). At present we cannot
+rule out any of these possibilities, and it is possible that all are
+operating. We do note, however, that the observed variations
+in the C ii 158 /xm line intensities in Orion are probably due to
+variations in geometry rather than to dust properties.
+c) The O 1145 /un Line
+The intensity in the 01145 /um line is a complicated function
+of density, temperature, and optical depth in both the
+O i 63 /un and 145 /un lines. It is therefore difficult to interpret
+the observed 01145 /un intensities in terms of a simple analytic model. Instead the full-scale numerical model calculation is
+needed. The intensity of the O i 145 jam line in the standard
+model is in reasonable agreement with the observations (Table
+1). The ratio of the O i 145 /un to the O i 63 /¿m line may be
+somewhat small compared with the observations, although it
+should be kept in mind that the observed intensities are uncertain by about ±30%. We note that if this observed ratio is as
+high as 0.1, then both transitions are optically thick (cf. the
+curve for n0 = 105 cm-3 in Fig. 2 of Paper I). In the standard
+model the O i 63 /un line is optically thick but the O i 145 /un
+line is still optically thin. Increasing the O column density, as in
+the possible improved model fit (Table 2), does indeed increase
+the O i 145 /un/O i 63 /nn line ratio. In this model the
+O i 145 ¡am line does reach an optical depth of about unity in
+the warm gas.
+d) Origin of the C i 609 /nn and Millimeter CO Emission
+The C i fine-structure lines as well as the CO rotational
+levels originate in the warm (50-200 K) molecular gas deep in
+the photodissociation region. The calculated intensity of the
+C i 609 /un line in the standard model is about a factor of 2
+lower then the observed intensity in Orion (Table 2). Because
+this line is optically thin (t ~ 0.5) in our model, this discrepancy is due to a C i column density which is somewhat too
+small. As discussed in relation to the C n 158 /nn line, this may
+be caused by geometrical effects or to a difference in the dust
+properties. This discrepancy may also be attributed to a higher
+C/O ratio, which tends to shift the C/CO equilibrium toward C
+
+© American Astronomical Society • Provided by the NASA Astrophysics Data System
+
+1985ApJ. . .291. .747T
+
+752
+
+HELENS AND HOLLENBACH
+
+(see Paper I). In view of the C n 158 /mi results, however, the
+first two explanations are preferred. As exemplified by the
+results of the possible best fit model in Table 2, a good fit to the
+observations can be easily obtained.
+The calculated intensities for the CO 1-0, 2-1, and 3-2 transitions are in reasonable agreement with the observations
+(brightness temperatures ^75 K). It should be noted that the
+brightness temperature of the CO rotational transitions in the
+model increases with increasing J for low values of J. This is
+caused by the increase in Einstein X-value with J which makes
+the higher J-levels optically thick closer to the (warmer)
+surface. This effect may have been observed in the J = 6-5
+transition, which is measured to have a brightness temperature
+of 120 K (Buhl et al 1982).
+The column density of neutral carbon in the photodissociation region model is about 10 times larger than previous calculations indicated (Glassgold and Langer 1975;
+Langer 1976, 1977; de Jong, Dalgarno, and Boland 1980). As
+discussed in Paper I, this is partly caused by improvements in
+the chemical modeling: we include charge exchange reactions
+between C+ and S and SiO and self-shielding of neutral
+carbon. The rest of the difference is due to the choice of a
+higher elemental abundance of carbon in the gas phase than
+previous studies have assumed (cf. Paper I). This is consistent
+with recent determinations of the carbon depletion in the
+diffuse interstellar medium (Jenkins, Jura, and Loewenstein
+1983). It should also be emphasized that a high carbon abundance is also needed to explain the C n 158 /mi observations.
+The low column densities of atomic carbon predicted by
+previous gas-phase chemistry models failed to provide the
+observed C i 609 /mi intensities. The failure of these chemical
+equilibrium models has led to several speculations in the literature on the origin of the high atomic carbon column densities
+inferred from observation.
+It has been suggested that the high atomic carbon column
+densities are caused by the lack of chemical equilibrium in
+molecular clouds. The chemical equilibrium time scale inside a
+dense cloud, where the chemistry is dominated by cosmic-ray
+ionization, is about 106 yr. Starting with an atomic cloud (i.e.,
+all carbon in C+), large abundances of C i are present for
+t< 106 yr in time-dependent models (Iglesias 1977; Gerola
+and Glassgold 1978; Graedel, Langer, and Frerking 1982;
+Tarafdar et al 1985). However, this young implied age for
+molecular clouds is in conflict with other observations which
+suggest ages of 107-108 yr (cf. Bash and Peters 1976; Bash,
+Green, and Peters 1977). In particular, the presence of several
+subassociations suggest a lifetime of the Orion molecular cloud
+larger than 107 yr (Elmegreen and Lada 1977).
+The nonequilibrium of the molecular cloud might be caused
+by turbulence. Boland and de Jong (1982) suggest that churning of atomic material from the surface to the center of the
+cloud leads to large amounts of C i, because of the photodissociation of CO at the surface and the long time scale for
+re-formation of CO in the center. However, it should be noted
+that an FUV radiation field capable of photodissociating CO is
+also capable of photoionizing C to C + . Furthermore, the
+chemical equilibrium time scale in the presence of an FUV field
+is much shorter than the 106 yr quoted above for the interiors
+of dense clouds (a fact noted by Boland and de Jong 1982). As
+estimated in Paper I, the chemical equilibrium time scale in
+photodissociation regions is only 104 yr, much shorter than the
+turbulent circulation time scale. Consequently, photodissociation regions are expected to be in chemical equi-
+
+Vol. 291
+
+librium, and the carbon brought to the interior by turbulence
+should be mainly in the form of CO. Indeed, detailed model
+calculations of Boland and de Jong (1984) show atomic carbon
+in the photodissociation region of a dark molecular cloud, but
+the center is entirely CO.
+Our photodissociation model for the C i 609 /un emission
+places the C i in chemical equilibrium at the cloud surface
+(Av < 10). The emission is barely optically thin (t ~ 1) and
+originates in a warm (50 K) molecular gas. Our models predict
+about 10 times greater atomic carbon column densities than
+previous theoretical models and match the observationally
+inferred (optically thin) lower limits on C column densities. In
+the remainder of this section we argue for these lower limits on
+the observed C i column densities rather than the higher values
+favored by Phillips and Huggins (1981). They propose that
+C i 609 fim is very optically thick, based on a curve-of-growth
+analysis.
+The emission from the C i 609 /¿m line is very extended
+( ~ 25'), and its brightness temperature is about equal to that of
+the 12CO J = 1-0 line in the outer regions which lie > 10' from
+01 Ori C. In the central region the brightness temperature of
+the C i 609 /¿m line is only about one-third that of the 12CO
+J = 1-0 line. In our model this behavior of the C i 609 /¿m line
+is caused by an increase in optical depth with distance from
+Q1 Ori C. In the central region the C i 609 /im line has an
+optical depth < 1 in our model; in the outer regions this line is
+optically thick. This difference in optical depth is caused not by
+an increase in the C i column density but rather by a decreased
+turbulent Doppler width. The C i 609 /mi line width decreases
+from about 5 km s_ 1 in the central region to about 2 km s-1
+25' away (T. G. Phillips 1984, private communication). Therefore, in the outer regions where they are both optically thick,
+the 12CO J = 1-0 and C i 609 /¿m lines measure essentially the
+kinetic gas temperature and are insensitive to n0 and G0.
+Phillips and Huggins (1981) have suggested that the
+C i 609 jim line is very optically thick even in the center of the
+OMC-1 region. This conclusion was reached on the basis of a
+comparison of its line width to that of the 12CO lines and its
+isotopes. We feel that such a curve-of-growth analysis of this
+complex region may be misleading. The presence of temperature, density, and turbulent or systematic velocity gradients can lead to erroneous conclusions based on line-width
+comparisons. For example, the C i 609 /on and 13CO J = 2-1
+lines are both optically thick in the central region (tc ! ~ 25),
+according to the analysis of Phillips and Huggins (1981), yet
+their brightness temperatures are much less than the kinetic
+gas temperature derived from the J = 1-0 12CO line (t ~ 80).
+In our opinion, this difficulty stems from the presence of two
+regions superposed on the sky: (1) the warm OMC-1 core
+around BN/KL, including the warm photodissociation region
+behind the Trapezium, and (2) the cold, lower density molecular gas behind BN/KL (see Fig. 1). These regions have quite
+different densities, temperatures, column densities, and intrinsic line widths. The H2CO and CO observations, for example,
+show complex velocity structure (Bastien et al 1981; Schloerb
+and Loren 1982). The H2CO line width (FWHM) is only
+1-2 km s-1, which may reflect quiescent conditions much
+deeper into the Orion molecular cloud, far beyond the photodissociation region. Therefore, we believe that the colder
+quiescent region has an intrinsic line width (FWHM) of about
+1-2 km s~\ while the region around and in front of BN/KL
+has a line width (FWHM) of about 5 km s -1 (or ôvd = 2.7 km
+s_1), as inferred from the carbon recombination lines. The CO
+
+© American Astronomical Society • Provided by the NASA Astrophysics Data System
+
+1985ApJ. . .291. .747T
+
+No. 2, 1985
+
+PHOTODISSOCIATION REGIONS
+
+lines with high opacity (e.g., 12CO J = 2-1 and J = 1-0 and
+13
+CO J = 2-1) originate mainly in the warm turbulent region.
+Those of lower opacity (e.g., 13CO J = 1-0 and 12C180
+J = 1-0 and J = 2-1) have a significant contribution from the
+cold quiescent molecular cloud. Thus, in our model, the
+increased width of a line does not imply greatly increased
+column densities, as in a curve-of-growth analysis, but rather is
+indicative of variations in the velocity field with depth into the
+cloud. It is apparent from this discussion, however, that high
+spectral resolution observations of the far-infrared finestructure lines are important. The C n 158 fim and O i 145 /un
+lines are ideally suited for determination of ôvd, since they are
+generally optically thin and both arise in the photodissociation
+region.
+Further discussion of this point must await a more thorough
+radiative transfer calculation than ours. However, we wish to
+emphasize that the 12 CO and C i 609 /un line intensities calculated for the photodissociation region are in reasonable agreement with the observations (Table 2). Although we have not
+included 13CO in our chemical calculations, the following
+simple argument shows that the 13CO line intensities can also
+be obtained in our model. Assuming that the 12CO/13CO ratio
+is cosmic (90) and that the kinetic temperature is constant
+(70 K) over the emitting region, we obtain brightness temperatures from the photodissociation region of 20 and 7 K for
+the 13CO J — 2-1 and J = 1-0 lines, respectively. The value
+for the 2-1 line is in reasonable agreement with the observations. Phillips et al (1979) observed a width corresponding to
+övd ä 2.9 km s_1 for the 13CO J = 2-1 line, consistent with
+our assumed width for the photodissociation region. The
+J = 1-0 line, however, has a model peak brightness temperature which is about a factor of 2 lower than the observation. Because of the low optical depth of this line in the
+photodissociation region, it may have a substantial contribution from the cold quiescent molecular cloud. This may explain
+the observed width of the 13CO J = 1-0 line, Svd » 2.3 km s~ \
+which is somewhat narrower than lines which originate purely
+in the photodissociation region.
+From this discussion it may appear that measuring the
+C i 370 /un line in OMC-1 will be helpful in distinguishing
+whether atomic carbon is mainly at the cloud surface with line
+opacities of order unity or whether the carbon exists throughout the cloud with correspondingly large opacities. The latter
+model predicts equal brightness temperatures in the lines. In
+our model, however, the brightness temperatures depend on
+the optical depths in the lines and, a priori these might be
+expected to differ. The optical depths in the 370 and 609 pm
+lines are, however, quite similar, so that the brightness temperatures of the two lines are similar even in the optically thin
+case (i.e., both models predict about the same ratio of intensities C i 370 pm/C i 609 pm). In view of the uncertainty in
+the absolute calibration of submillimeter lines, it appears that
+measuring the C i 370 pm intensity will not settle this question.
+e) C19850 Â
+The observed intensity of the 9850 Â Ci line is somewhat
+uncertain because of an unknown reddening correction. In our
+model this line originates within the region 0 <
+< 3.
+Assuming that the wavelength dependence of the dust is represented by van de Hulst curve No. 15, this corresponds to an
+optical depth at 9850 Â of about 0.5. Correcting the observed
+intensity (Münch and Hippelein 1982) by this amount of
+
+753
+
+extinction results in an emitted intensity of 1.1 x 10-4 ergs
+cm-3 s-1 sr-1. It should, however, be noted that this correction for extinction is uncertain in the photodissociation region.
+The calculated intensity in the standard model is about
+9 x 10“5 ergs cm“3 s“1 sr“1, in good agreement with this
+value, lending further support to the suggestion that this line
+originates from carbon recombination in the photodissociation
+region (Cesarsky 1982; Münch and Hippelein 1982).
+/) H2 1-0 5(1)
+The extended emission in the H2 1-0 S(l) line, which we
+attribute to FUV-pumped H2 molecules in the photodissociation region, has an average intensity of about 2 x 10“ 4
+ergs cm“3 s“1 sr“1 (Treffers 1983). This implies a column
+density of H2 in the r = 1, J = 3 level of about 7.5 x 1015
+cm“2. Assuming that the H2 molecules in the v = 1 state are
+distributed over the rotational levels according to the kinetic
+temperature of the gas (~500 K), we compute a total column
+density of H2 molecules in i; = 1 of about 2 x 1016 cm“2.
+According to Shull’s (1978) accurate calculations, the column
+density of H2 in all v > 1 states is about 2.5 times that in the
+v = 1 state. This leads to a total “ observed ” column density of
+Hf of about 5 x 1016 cm"2, which is in good agreement with
+the predicted standard model value of 4.4 x 1016 cm"2 (see
+Paper I).
+It should perhaps be noted that the possible best fit model of
+Table 1 predicts a Hf column density which is about equal to
+that in the standard model. In both models Hf peaks and then
+rapidly falls off at Av >2, where dust and H2 self-shielding
+both attenuate FUV pumping. The best fit model has a ratio
+AJNh one-half that of the standard model, so that the extent of
+the Hf region is twice that of the standard model. However,
+this is offset by the abundance of Hf, which is one-half that of
+the standard model because of the factor of 2 decrease in H2
+formation on grains. If, instead, we had changed the FUV
+opacity of the dust to t = Av, then again we would have
+increased the extent of the Hf region (or the penetration of the
+FUV) but without lowering the H2 formation rate. Thus, in
+this case, the Hf column density would have increased by a
+factor of 2, as H2 competed more effectively with the dust for
+FUV photons.
+Finally, we note that the detection of extended emission
+from vibrationally excited Hf in Orion implies that H2 can be
+formed with high efficiency on warm dust grains. It is difficult
+to make this more quantitative because of the possible presence of multiple dust components and different sizes, resulting
+in different grain temperatures in a given region (cf. Paper I).
+IV. SUMMARY
+We have applied our theoretical model, which calculates the
+energy balance and chemical equilibrium of dense molecular
+clouds illuminated by high FUV fields, to the photodissociation region in Orion. Our model can explain the
+observed intensities in the O i 63 pm and 145 pm,
+C ii 158 pm, C i 609 pm, and the low-lying rotational transitions of CO. It also explains the extended vibrationally
+excited H2 emission, the carbon radio recombination lines, and
+the far-red C i 9850 Â emission.
+We have illustrated how the O i 63 pm, C n 158 pm, and IR
+continuum maps can be used, without the detailed thermochemical modeling described in Paper I, to probe the physical
+state of the photodissociation region. The ratio of the sum of
+
+© American Astronomical Society • Provided by the NASA Astrophysics Data System
+
+1985ApJ. . .291. .747T
+
+754
+
+TIELENS AND HOLLENBACH
+
+the integrated line strengths to the IR continuum gives an
+efficiency of gas to grain heating by the FUV incident on the
+cloud. This efficiency depends on the grain charge, which in
+turn depends on ne, G0, and T. The FUV flux G0 can be
+obtained from the IR continuum; the gas temperature T can be
+estimated from the integrated O i 63 /im or C n 158 fim intensity together with an assumed line width. The measured efficiency, together with G0 and T, provides the electron density if
+the photoelectric heating mechanism is valid. The abundance
+of carbon, which is constrained by the C i and C n finestructure line strengths, then can be used to derive n0 from ne.
+A detailed thermochemical one-dimensional model fit to the
+observed emission from the photodissociation region associated with the Trapezium in Orion is obtained with a gas
+density of n0 = 105 cm-3 and an incident FUV flux 105 times
+the average interstellar value. The FUV flux implies that
+61 Ori C. lies about 0.2 pc from the molecular cloud. The gas
+density in the photodissociation region is relatively constant to
+a distance <3' from 61 Ori C. The dense (~ 106 cm-3) molecular ridge at BN/KL must lie buried deeper (Av > 10) in the
+cloud. The match to the extended H2 1-0 S(l) emission implies
+that H2 formation occurs efficiently on grains with temperatures Tgr ~ 75 K.
+The large extent of the O i 63 /mi emission is a natural consequence of the photoelectric heating mechanism. When the
+FUV flux drops, the positive grain charge decreases, resulting
+
+in a larger heating efficiency per FUV photon. As a consequence, the intensity of the O i 63 /im line, the dominant
+cooling line of the gas, does not drop as fast as the far-infrared
+continuum with distance from the exciting star.
+Most of the C i 609 ¿mi emission and the 12CO 1-0 emission
+observed toward OMC-1 originates in the photodissociation
+region. The 12CO 1-0 transition becomes optically thick at
+Av ~ 4, and the peak brightness temperature measures the gas
+temperature at this depth. The C i 609 /im emission is marginally optically thin, so that its peak brightness temperature
+( ~ 20 K) lies below the gas temperature. We argue that it is not
+necessary to invoke nonequilibrium chemistry, and therefore
+extremely young ages <106 years, in order to explain C i
+abundances observed toward molecular clouds. To explain the
+CO millimeter emission, we propose a two-component model
+with a warm foreground turbulent region (which includes the
+photodissociation region) and a cold background quiescent
+region. Some of the CO lines (e.g., 12CO 1-0 and 2-1 and 13CO
+2-1) come from the turbulent region; others (e.g., 13CO 1-0
+and 12C180 and 2-1) come from the cold molecular cloud.
+We have benefited from discussions with R. Genzel, D.
+Watson, and M. Werner. We would like to thank the
+Astronomy/Relativity Branch at NASA Headquarters for their
+support under NASA RTOP 188-41-53.
+
+REFERENCES
+Langer, W. D. 1976, Ap. J., 206, 699.
+Allen, C. W. 1973, Astrophysical Quantities (London: Athlone).
+. 1977, Ap. J. (Letters), 212, L39.
+Balick, B., Gammon, R. H., and Doherty, L. H. 1974, Ap. J., 188,45.
+Melnick, G., Gull, G. E., and Harwit, M. 1979, Ap. J. (Letters), 227, L29.
+Bash, F. N., Green, E., and Peters, W. L. 1977, Ap. J., 217,464.
+Morton, D. C. 1974, Ap. J. (Letters), 143, L35.
+Bash, F. N., and Peters, W. L. 1976, Ap. J., 205,786.
+Münch, G., and Hippelein, H. 1982, in Symposium on the Orion Nebula to
+Bastien, P., Bieging, J., Henkel, C, Martin, R. N., Pauls, T., Walmsley, C. M.,
+Honor Henry Draper, ed. A. E. Glassgold, P. J. Huggins, and E. L. SchuckWilson, T. L., and Ziurys, L. M. 1981, Asir./Ip., 98, L4.
+ing (Ann. NY Acad. Sei., Vol. 395), p. 170.
+Becklin, E. E., Beckwith, S., Gatley, I., Matthews, K., Neugebauer, G., Sarazin,
+Panek,
+R. J. 1983, Ap. J., 270,169.
+C, and Werner, M. W. 1976, Ap. J., 207, 770.
+Peimbert, M. 1982, in Symposium on the Orion Nebula to Honor Henry Draper,
+Bless, R. C, and Savage, B. D. 1972, Ap. J., 171, 293.
+ed. A. E. Glassgold, P. J. Huggins, and E. L. Schucking (Ann. NY Acad. Sei.,
+Boland, W., and de Jong, T. 1982, Ap. J., 261,110.
+Vol. 395), p. 24.
+. 1984, Asir. Ap., 134, 87.
+Phillips, T. G., and Huggins, P. J. 1981, Ap. J., 251, 553.
+Boughton, W. L. 1978, Ap. J., 222, 517.
+Phillips, T. G., Huggins, P. J., Kuiper, T. B. H., and Miller, R. E. 1980, Ap. J.
+Buhl, D., Chin, G., Koepf, G. A., Peck, D. D., and Fetterman, H. R. 1982, in
+(Letters), 238, L103.
+Submillimeter Wave Astronomy, ed. J. E. Beckman and J. P. Phillips
+Phillips, T. G., Huggins, P. J., Neugebauer, G., and Werner, M. W. 1977, Ap. J.
+(Cambridge: Cambridge University Press).
+(Letters), 217, L161.
+Cesarsky, D. A. 1982, Astr. Ap., 113, L7.
+Phillips, T. G., Huggins, P. J., Wannier, P. G., and Sco ville, N.Z. 1979, Ap. J.,
+de Boer, K. S. 1981, Ap. J., 244,848.
+231,720.
+de Jong, T., Dalgarno, A., and Boland, W. 1980, Astr. Ap., 91,68.
+Russell, R. W., Melnick, G., Gull, G. E., and Harwit, M. 1980, Ap. J. (Letters),
+Drapatz, S., Haser, L., Hofmann, R., Oda, N., and Iyengar, K. V. K. 1983, Astr.
+240, L99.
+Ap., 128, 207.
+Schloerb, F. P., and Loren, R. B. 1982, in Symposium on the Orion Nebula to
+Ellis, H. B., and Werner, M. W. 1985, in preparation.
+Honor Henry Draper ed. A. E. Glassgold, P. J. Huggins, and E. L. Schucking
+Elmegreen, B. G., and Lada, C. J. 1977, Ap. J., 214,725.
+(Ann. NY Acad. Sei., Vol. 395), p. 32.
+Furniss, I., Jennings, R. E., King, K. J., Lightfoot, F. G., Emery, R. J., Naylor,
+Shull, J. M. 1978, Ap. J., 219, 877.
+D. A., and Fitton, B. 1983, M.N.R.A.S., 202, 859.
+Stacey, G. J., Smyers, S. D., Kurtz, N. T., and Harwit, M. 1983, Ap. J. (Letters),
+Gerola, H., and Glassgold, A. E. 1978, Ap. J. Suppl, 37,1.
+265, L7.
+Glassgold, A. E., Huggins, P. J., and Schucking, E. L., eds. 1982, Symposium on
+Tarafdar,
+S. P., Prasad, S. S., Huntress, W. T., Jr., Villere, K. R., and Black, D.
+the Orion Nebula to Honor Henry Draper (Ann. NY Acad. Sci., No\. 395).
+C. 1985, Ap. J., 289,220.
+Glassgold, A. E., and Langer, W. D. 1975, Ap. J., 197,347.
+Tielens, A. G. G. M., and Hollenbach, D. 1985, Ap. J., 291, 722 (Paper I).
+Goldsmith, P. F., Langer, W. D., Schloerb, F. P., and Scoville, N. Z. 1980, Ap.
+. 1984, Icarus, in press.
+J., 240, 524.
+Treffers, R. 1983, private communication.
+Graedel, T. E., Langer, W. D., and Frerking, M. A. 1982, Ap. J. Suppl., 48, 321.
+Werner, M. W. 1983, private communication.
+Habing, H. J. 1968, Bull. Astr. Inst. Netherlands, 19,421.
+Werner, M. W., Crawford, M. K., Genzel, R., Hollenbach, D. J., Townes, C. H.,
+Iglesias, E. R. 1977, Ap. J., 218, 697.
+and Watson, D. M. 1984, Ap. J. (Letters), 282, L81.
+Jaffe, D. T., and Pankonin, V. 1978, Ap. J., 226, 869.
+Werner, M. W., Gatley, I., Harper, D. A., Becklin, E. E., Loewenstein, R. F.,
+Jenkins, E. B., Jura, M., and Loewenstein, M. 1983, Ap. J., 270, 88.
+Telesco,
+C. M., and Thronson, H. A. 1976, Ap. J., 204,420.
+Johnson, H. L. 1968, in Stars and Stellar Systems, Vol. 7, Nebulae and InterWestbrook, W. E., Werner, M. W., Elias, J. H., Gezari, D. Y., Hauser, M. G.,
+stellar Matter, ed. B. M. Middlehurst and L. H. Aller (Chicago: University
+Lo, K. Y., and Neugebauer, G. 1976, Ap. J., 209,94.
+of Chicago Press), p. 167.
+Zuckerman, B. 1973, Ap. J., 183, 863.
+Keene, J., Hildebrand, R. H., and Whitcomb, S. E. 1982, Ap. J. (Letters), 252,
+LI 1.
+A. G. G. M. Tielens and David Hollenbach: Mail Stop 245-6, NASA/Ames Research Center, Moffett Field, CA 94035
+
+© American Astronomical Society • Provided by the NASA Astrophysics Data System
+
+
