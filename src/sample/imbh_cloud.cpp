@@ -18,7 +18,7 @@
 #include "particle.hpp"
 #include "simulation.hpp"
 #include "parameters.hpp"
-#include "thermal/koyama_inutsuka_cooling.hpp"
+#include "thermal/inoue_inutsuka_cooling.hpp"
 #include "external_forces/point_mass_bh.hpp"
 #include "exception.hpp"
 #include <vector>
@@ -163,14 +163,15 @@ void Solver::make_imbh_cloud()
     // INITIALIZE THERMAL EQUILIBRIUM MODULE
     // ========================================================================
     
-    constexpr real N_H_column = 1e20;  // Column density for K&I cooling
-    auto cooling = std::make_shared<thermal::KoyamaInutsukaCooling>("", N_H_column);
+    // Inoue & Inutsuka (2008) cooling function with γ=5/3
+    constexpr real gamma_gas = 5.0 / 3.0;
+    auto cooling = std::make_shared<thermal::InoueInutsukaCooling>(gamma_gas);
     
     // Density to n_H conversion: n_H = ρ [M_☉/pc³] * 40.5 [cm⁻³/(M_☉/pc³)]
     constexpr real density_to_nH = 40.5;  // For μ=1, neutral H
     
-    std::cout << "Thermal equilibrium (Koyama & Inutsuka 2000):" << std::endl;
-    std::cout << "  N_H column = " << N_H_column << " cm⁻²" << std::endl;
+    std::cout << "Thermal equilibrium (Inoue & Inutsuka 2008):" << std::endl;
+    std::cout << "  Cooling function: Λ/Γ = 10^7 exp(-114800/(T+1000)) + 0.014 sqrt(T) exp(-92/T)" << std::endl;
     std::cout << "  Density conversion: n_H = ρ * " << density_to_nH << std::endl;
     std::cout << std::endl;
     
@@ -231,15 +232,15 @@ void Solver::make_imbh_cloud()
             
             if (dens <= 1e-10) continue;
             
-            // Number density for K&I cooling
+            // Number density for Inoue & Inutsuka cooling
             const real n_H = dens * density_to_nH;
             
-            // Equilibrium temperature from K&I
-            const real T_eq = cooling->temperature(n_H);
+            // Equilibrium temperature from Inoue & Inutsuka (2008)
+            const real T_eq = cooling->equilibrium_temperature(n_H);
             
             // Pressure from thermal equilibrium (not polytropic!)
             // P = n k_B T, but in code units we use P/k_B
-            const real pres = cooling->pressure(n_H);
+            const real pres = cooling->equilibrium_pressure(n_H);
             
             // Internal energy: u = P / ((γ-1) * ρ)
             // Note: K&I gives P/k_B in [K cm⁻³], need to convert

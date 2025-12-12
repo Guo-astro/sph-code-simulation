@@ -1,4 +1,4 @@
 target_sources(sph
     PRIVATE
-        koyama_inutsuka_cooling.cpp
+        inoue_inutsuka_cooling.cpp
     )

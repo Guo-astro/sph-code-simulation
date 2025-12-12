@@ -6,7 +6,7 @@
 
 namespace sph {
 namespace thermal {
-    class KoyamaInutsukaCooling;  // Forward declaration
+    class InoueInutsukaCooling;  // Forward declaration
 }
 }
 
@@ -21,7 +21,7 @@ class FluidForce : public sph::FluidForce {
     
     // Thermal cooling (optional)
     bool m_enable_cooling;
-    std::shared_ptr<thermal::KoyamaInutsukaCooling> m_cooling;
+    std::shared_ptr<thermal::InoueInutsukaCooling> m_cooling;
     real m_thermal_relax_time;
     real m_density_to_n_H;
 

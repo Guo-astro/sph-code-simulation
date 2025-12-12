@@ -35,12 +35,23 @@ k_B = 1.380649e-16  # Boltzmann constant [erg/K]
 # K&I 2000 Heating and Cooling Functions (Appendix A.1)
 # =============================================================================
 
-def heating_photoelectric(n: float, T: float, G_0: float = 1.7) -> float:
-    """Photoelectric heating from dust grains (K&I eq. 1).
+def heating_photoelectric(n: float, T: float, G_0: float = 1.7, use_correct_bt94: bool = True) -> float:
+    """Photoelectric heating from dust grains.
 
-    Gamma_PE = 1.0e-24 * epsilon * G_0 [erg s^-1 H^-1]
+    NOTE: K&I 2000 Eq. (1) contains a TYPO - they use 1.0e-24 but the
+    correct BT94 coefficient is 1.3e-24 (confirmed in Wolfire et al. 2003).
+    
+    Correct (BT94): Gamma_PE = 1.3e-24 * epsilon * G_0 [erg s^-1 H^-1]
+    K&I typo:       Gamma_PE = 1.0e-24 * epsilon * G_0 [erg s^-1 H^-1]
+    
     epsilon = 4.9e-2 / (1 + (psi/1925)^0.73) + 3.7e-2 * (T/1e4)^0.7 / (1 + psi/5000)
     psi = G_0 * sqrt(T) / n_e
+    
+    Parameters
+    ----------
+    use_correct_bt94 : bool
+        If True, use correct BT94 coefficient (1.3e-24).
+        If False, use K&I 2000 typo value (1.0e-24) for comparison.
     """
     # Need x_e to compute psi - use approximate value
     x_e = 0.01 if n > 10 else 0.1
@@ -52,7 +63,9 @@ def heating_photoelectric(n: float, T: float, G_0: float = 1.7) -> float:
     psi = G_0 * np.sqrt(T) / n_e
     epsilon = 4.9e-2 / (1 + (psi / 1925)**0.73) + 3.7e-2 * (T / 1e4)**0.7 / (1 + psi / 5000)
 
-    return 1.0e-24 * epsilon * G_0
+    # BT94 correct: 1.3e-24, K&I 2000 typo: 1.0e-24
+    coeff = 1.3e-24 if use_correct_bt94 else 1.0e-24
+    return coeff * epsilon * G_0
 
 
 def heating_xray(N_H: float = 1e19) -> float:

@@ -5,7 +5,7 @@
 #include "bhtree.hpp"
 #include "kernel/kernel_function.hpp"
 #include "gdisph/gd_fluid_force.hpp"
-#include "thermal/koyama_inutsuka_cooling.hpp"
+#include "thermal/inoue_inutsuka_cooling.hpp"
 
 #include <iostream>  // For debug output
 #include <cstdio>    // For FILE debug output
@@ -25,13 +25,10 @@ void FluidForce::initialize(std::shared_ptr<SPHParameters> param)
     m_is_2nd_order = param->gsph.is_2nd_order;
     m_gamma = param->physics.gamma;
     
-    // Initialize ISM cooling if enabled
+    // Initialize ISM cooling if enabled (Inoue & Inutsuka 2008)
     m_enable_cooling = param->thermal.enable_cooling;
     if (m_enable_cooling) {
-        m_cooling = std::make_shared<thermal::KoyamaInutsukaCooling>(
-            "",  // Data is hardcoded
-            param->thermal.N_H_column
-        );
+        m_cooling = std::make_shared<thermal::InoueInutsukaCooling>(m_gamma);
         m_thermal_relax_time = param->thermal.relaxation_time;
         m_density_to_n_H = param->thermal.density_to_n_H;
     }
@@ -209,7 +206,7 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
             // Check if density is in valid range for cooling table
             if (n_H >= 0.1 && n_H <= 1000.0) {
                 // Get equilibrium temperature from cooling curve [K]
-                const real T_eq = m_cooling->temperature(n_H);
+                const real T_eq = m_cooling->equilibrium_temperature(n_H);
                 
                 // Get current temperature from pressure and density
                 // In our code units: P = n_H * T, so T = P / n_H
@@ -257,7 +254,7 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
             if (m_enable_cooling && p_i.dens > 0 && p_i.pres > 0) {
                 real n_H = p_i.dens * m_density_to_n_H;
                 if (n_H >= 0.1 && n_H <= 1000.0) {
-                    real T_eq = m_cooling->temperature(n_H);
+                    real T_eq = m_cooling->equilibrium_temperature(n_H);
                     real T_current = p_i.pres / p_i.dens;
                     if (T_eq > 0 && T_current > 0 && std::isfinite(T_eq) && std::isfinite(T_current)) {
                         real u_eq = T_eq / (m_gamma - 1.0);
