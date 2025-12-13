@@ -356,7 +356,7 @@ def get_density_profile_from_solver(
 # =============================================================================
 IC_PRESETS: Dict[str, Dict[str, Any]] = {
     # IMBH Cloud 10k relaxed IC
-    # Source: sample/imbh_cloud/results/ic_relax_10k/snapshot_0032.csv header
+    # Source: simulations/astrophysics/imbh_cloud/results/ic_relax_10k/snapshot_0032.csv header
     "imbh_10k": {
         "rho_c": 1.430096922633852,   # Central density (exact from IC header)
         "R": 1.0,                      # Cloud radius
@@ -367,7 +367,7 @@ IC_PRESETS: Dict[str, Dict[str, Any]] = {
         "n": 1.5,                      # Polytropic index
         "dim": 3,                      # Dimension
         "N_particles": 10648,          # Number of particles
-        "source": "sample/imbh_cloud/results/ic_relax_10k/snapshot_0032.csv",
+        "source": "simulations/astrophysics/imbh_cloud/results/ic_relax_10k/snapshot_0032.csv",
         "description": "IMBH cloud 10k relaxed Lane-Emden n=1.5 polytrope",
     },
     # Add more presets as needed...

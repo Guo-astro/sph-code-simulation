@@ -1,0 +1,8 @@
+{
+  "checkpoint": {
+    "resumeFile": "simulations/benchmarks/shock_tube/results/snapshot_0010.csv"
+  },
+  "outputDirectory": "simulations/benchmarks/shock_tube/results",
+  "endTime": 0.4,
+  "outputTime": 0.01
+}

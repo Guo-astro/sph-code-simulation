@@ -225,7 +225,7 @@ To trigger instability in 1D, we need $\alpha > c_s^2 k^2$. This can be achieved
 **Test configuration:** Use strong gravity ($G = 10$), steep density profile ($\rho_c = 10$), 
 low polytropic constant ($K = 0.1$ for low $c_s$), and long wavelength perturbation ($\lambda = 1.0$).
 
-See: `sample/gradh_study_1d/config/presets/gsph_instability_test.json`
+See: `simulations/stability/gradh_study_1d/config/presets/gsph_instability_test.json`
 
 #### In 3D spherical:
 
@@ -423,7 +423,7 @@ This result is expected because:
 | Polytrope (gradh_study) | Pressure gradients | **Yes** |
 | Lane-Emden equilibrium | Hydrostatic balance | **Yes** |
 
-For polytrope stability tests (`sample/gradh_study_1d/`, `sample/gradh_study_3d/`):
+For polytrope stability tests (`simulations/stability/gradh_study_1d/`, `simulations/stability/gradh_study_3d/`):
 - Pressure gradients must precisely balance gravity
 - Missing Ω factor causes systematic pressure underestimation
 - 3D geometric effects amplify this into runaway collapse
@@ -439,7 +439,7 @@ The Jeans instability test demonstrates:
 4. **Key insight:** Grad-h is critical when **pressure gradients** dominate (hydrostatic equilibrium), 
    not when **gravity** dominates (Jeans instability)
 
-See: `sample/jeans_instability/jeans_wavelength_comparison.png` for visualization.
+See: `simulations/stability/jeans_instability/jeans_wavelength_comparison.png` for visualization.
 
 ---
 

@@ -33,7 +33,7 @@ async function findSimulationsServer(): Promise<SimulationMetadata[]> {
   const imbhResultsDir = path.join(dataRoot, 'sample', 'imbh_cloud', 'results')
   
   if (fs.existsSync(imbhResultsDir)) {
-    console.log('📁 Scanning sample/imbh_cloud/results/ categories...')
+    console.log('📁 Scanning simulations/astrophysics/imbh_cloud/results/ categories...')
     
     for (const catName of categoryDirs) {
       const catDir = path.join(imbhResultsDir, catName)

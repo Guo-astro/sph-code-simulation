@@ -62,8 +62,8 @@ e = np.maximum(e, 0.0)  # Enforce non-negative energy
 ## Implementation Fixes
 
 ### Files Modified:
-1. `/sample/vacuum/scripts/vacuum_analytical.py`
-2. `/sample/vacuum/scripts/compare_vacuum_methods.py`
+1. `/simulations/benchmarks/vacuum/scripts/vacuum_analytical.py`
+2. `/simulations/benchmarks/vacuum/scripts/compare_vacuum_methods.py`
 
 ### Changes Applied:
 

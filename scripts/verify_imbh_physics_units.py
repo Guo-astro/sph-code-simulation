@@ -315,7 +315,7 @@ def main():
     base_dir = "/Users/guo/Downloads/sphcode"
     snapshot_path = os.path.join(
         base_dir,
-        "sample/imbh_cloud/results/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph/snapshot_0000.csv"
+        "simulations/astrophysics/imbh_cloud/results/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph/snapshot_0000.csv"
     )
     
     if len(sys.argv) > 1:

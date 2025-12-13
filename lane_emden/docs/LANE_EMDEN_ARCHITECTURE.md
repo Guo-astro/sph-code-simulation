@@ -185,7 +185,7 @@ python3 lane_emden/scripts/config_manager.py update \
 
 The old system had:
 ```
-sample/lane_emden/lane_emden.json
+lane_emden/lane_emden.json
 config/relaxation_config.json
 ```
 
@@ -196,7 +196,7 @@ New system organizes everything under `lane_emden/` with:
 
 ### Backward Compatibility
 
-The old `sample/lane_emden/` will be symlinked to `lane_emden/results/legacy/` for compatibility.
+The old `lane_emden/` will be symlinked to `lane_emden/results/legacy/` for compatibility.
 
 ## Implementation Phases
 

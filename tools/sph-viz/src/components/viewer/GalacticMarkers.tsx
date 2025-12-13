@@ -204,7 +204,7 @@ export function createArrow(
     opacity?: number
   } = {}
 ): THREE.Group {
-  const { headLength = 1.0, headWidth = 0.5, shaftRadius = 0.08, opacity = 1.0 } = options
+  const { headLength = 1.0, headWidth = 0.6, shaftRadius = 0.15, opacity = 1.0 } = options  // Thicker for visibility
   
   const group = new THREE.Group()
   const direction = to.clone().sub(from).normalize()

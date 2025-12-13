@@ -50,8 +50,8 @@ help: all
 # SPH Visualization Tool
 #==============================================================================
 # Usage:
-#   make viz SIM=sample/sedov/results/gsph_wendland
-#   make viz SIM=sample/imbh_cloud/results/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph
+#   make viz SIM=simulations/benchmarks/sedov/results/gsph_wendland
+#   make viz SIM=simulations/astrophysics/imbh_cloud/results/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph
 #   make viz_export SIM=lane_emden/results/n3_gsph
 #   make viz_server
 #
@@ -71,7 +71,7 @@ viz_export:
 ifndef SIM
 	@echo "❌ Error: SIM path required"
 	@echo "Usage: make viz_export SIM=<simulation_path>"
-	@echo "Example: make viz_export SIM=sample/sedov/results/gsph_wendland"
+	@echo "Example: make viz_export SIM=simulations/benchmarks/sedov/results/gsph_wendland"
 	@exit 1
 endif
 	@echo "========================================"
@@ -101,38 +101,38 @@ viz: viz_export viz_server
 -include lane_emden/3d/Makefile.3d
 
 # Shock Tube preset-based system
--include sample/shock_tube/Makefile.shock_tube
+-include simulations/benchmarks/shock_tube/Makefile.shock_tube
 
 # Shock Tube preset-based system
--include sample/shock_tube_2d/Makefile.shock_tube_2d
+-include simulations/benchmarks/shock_tube_2d/Makefile.shock_tube_2d
 
 # Pairing Instability preset-based system
--include sample/pairing_instability/Makefile.pairing_instability
+-include simulations/stability/pairing_instability/Makefile.pairing_instability
 
 # Hydrostatic Test preset-based system
--include sample/hydrostatic/Makefile.hydrostatic
+-include simulations/stability/hydrostatic/Makefile.hydrostatic
 
 # Kelvin-Helmholtz Instability preset-based system
--include sample/khi/Makefile.khi
+-include simulations/stability/khi/Makefile.khi
 
 # Gresho-Chan Vortex preset-based system
--include sample/gresho_chan_vortex/Makefile.gresho
+-include simulations/stability/gresho_chan_vortex/Makefile.gresho
 
 # Sedov Blast Wave preset-based system
--include sample/sedov/Makefile.sedov
+-include simulations/benchmarks/sedov/Makefile.sedov
 
 # Vacuum Test preset-based system
--include sample/vacuum/Makefile.vacuum
+-include simulations/benchmarks/vacuum/Makefile.vacuum
 
 # Strong Shock Test preset-based system
--include sample/strong_shock/Makefile.strong_shock
+-include simulations/benchmarks/strong_shock/Makefile.strong_shock
 
 # SR-GSPH Relativistic Test preset-based system
--include sample/sr_sod/Makefile.sr_sod
+-include simulations/relativistic/sr_sod/Makefile.sr_sod
 
 # IMBH-Cloud Tidal Disruption preset-based system
--include sample/imbh_cloud/Makefile.imbh_cloud
+-include simulations/astrophysics/imbh_cloud/Makefile.imbh_cloud
 
 # Grad-h Study Test Suites (GSPH/SSPH × grad-h comparison)
--include sample/gradh_study_2d_planar/Makefile.gradh_2d_planar
--include sample/gradh_study_3d_cylinder/Makefile.gradh_3d_cylinder
+-include simulations/stability/gradh_study_2d_planar/Makefile.gradh_2d_planar
+-include simulations/stability/gradh_study_3d_cylinder/Makefile.gradh_3d_cylinder

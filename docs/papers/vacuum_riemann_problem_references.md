@@ -125,7 +125,7 @@ As ρ → 0, we get e → 0 (as physically expected), not e = constant.
 
 ## Implementation in This Repository
 
-### File: `sample/vacuum/scripts/vacuum_analytical.py`
+### File: `simulations/benchmarks/vacuum/scripts/vacuum_analytical.py`
 
 The `VacuumRiemannSolver` class implements the analytical solution with:
 
@@ -212,7 +212,7 @@ To verify the analytical solution implementation:
 
 ## Notes on SPH Implementation
 
-The SPH code (`src/sample/vacuum.cpp`) uses the correct thermodynamic relation:
+The SPH code (`src/simulations/benchmarks/vacuum.cpp`) uses the correct thermodynamic relation:
 ```cpp
 p_i.ene = pressure / ((gamma - 1.0) * density);
 ```

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
 # Load relaxed data
-data = np.loadtxt('sample/lane_emden/results/00000.dat')
+data = np.loadtxt('lane_emden/results/00000.dat')
 print(f"Loaded {len(data)} particles from relaxed configuration")
 
 # Extract variables (file format: x y z vx vy vz ax ay az mass dens pres ene sml id neighbor alpha gradh)
@@ -129,7 +129,7 @@ ax12.set_ylabel('count')
 ax12.set_title('Acceleration Distribution')
 
 plt.suptitle('Lane-Emden Relaxed Configuration Analysis', fontsize=16, y=0.995)
-output_file = 'sample/lane_emden/results/relaxed_analysis.png'
+output_file = 'lane_emden/results/relaxed_analysis.png'
 plt.savefig(output_file, dpi=150, bbox_inches='tight')
 print(f"\n✓ Saved comprehensive analysis: {output_file}")
 
@@ -185,7 +185,7 @@ axes[1, 1].grid(True, alpha=0.3)
 
 plt.suptitle('Lane-Emden Radial Profiles', fontsize=14)
 plt.tight_layout()
-output_file2 = 'sample/lane_emden/results/relaxed_profiles.png'
+output_file2 = 'lane_emden/results/relaxed_profiles.png'
 plt.savefig(output_file2, dpi=150)
 print(f"✓ Saved radial profiles: {output_file2}")
 

@@ -47,7 +47,7 @@ def main():
     }
     
     # Write to lane_emden.json
-    output_path = "sample/lane_emden/lane_emden.json"
+    output_path = "lane_emden/lane_emden.json"
     with open(output_path, 'w') as f:
         json.dump(resume_config, f, indent=2)
     

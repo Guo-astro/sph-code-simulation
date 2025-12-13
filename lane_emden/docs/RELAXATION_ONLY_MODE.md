@@ -17,7 +17,7 @@ make lane_emden_relax_only
 This will:
 1. Automatically configure the JSON to enable relaxation-only mode
 2. Run 100 relaxation steps
-3. Save the relaxed particle configuration to `sample/lane_emden/results/00000.dat`
+3. Save the relaxed particle configuration to `lane_emden/results/00000.dat`
 4. Generate comprehensive analysis visualizations
 
 ### Output Files
@@ -55,7 +55,7 @@ make lane_emden_relax_only   # Run ONLY relaxation (no simulation) + analysis
 
 ## Manual Configuration
 
-To manually enable/disable relaxation-only mode, edit `sample/lane_emden/lane_emden.json`:
+To manually enable/disable relaxation-only mode, edit `lane_emden/lane_emden.json`:
 
 ```json
 {
@@ -150,7 +150,7 @@ The relaxation-only mode is controlled by three parameters:
 
 - `include/solver.hpp` - Added `m_relaxation_only` member
 - `src/solver.cpp` - Added relaxation-only logic in `run()` and `initialize()`
-- `sample/lane_emden/lane_emden.json` - Added `relaxationOnly` parameter
+- `lane_emden/lane_emden.json` - Added `relaxationOnly` parameter
 - `Makefile` - Added `lane_emden_relax_only` target
 - `scripts/analyze_relaxed_state.py` - New comprehensive analysis script
 

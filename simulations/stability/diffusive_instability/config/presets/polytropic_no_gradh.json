@@ -1,0 +1,36 @@
+{
+    "comment": "1D Polytropic Self-Gravitating Slab - WITHOUT grad-h correction",
+    "comment2": "For studying diffusive instability in GSPH",
+
+    "sample": "polytropic_slab",
+    "N": 200,
+    "rho_center": 1.0,
+    "K": 1.0,
+
+    "outputDirectory": "simulations/stability/diffusive_instability/results/polytropic_no_gradh",
+    "outputFormat": ["hdf5", "csv"],
+
+    "startTime": 0.0,
+    "endTime": 100.0,
+    "outputTime": 1.0,
+    "energyOutputTime": 0.1,
+
+    "SPHType": "gsph",
+    "kernel": "cubic_spline",
+    "neighborNumber": 8,
+    "gamma": 1.4,
+
+    "useGravity": true,
+    "G": 1.0,
+    "gravityTheta": 0.5,
+
+    "useGradH": false,
+    "iterativeSmoothingLength": true,
+
+    "CFL_sound": 0.3,
+    "CFL_force": 0.125,
+
+    "artificialViscosity": {
+        "alpha": 1.0
+    }
+}

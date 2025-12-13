@@ -1,13 +1,33 @@
 'use client'
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { ParticleViewer3D } from '~/components/viewer/ParticleViewer3D'
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { ParticleViewer3DImperative } from '~/components/viewer/ParticleViewer3DImperative'
-import { Projection2D } from '~/components/viewer/Projection2D'
+import { Projection3DInteractive, type Projection3DInteractiveHandle } from '~/components/viewer/Projection3DInteractive'
+import { ShockDiagnosticsPanelImperative } from '~/components/viewer/ShockDiagnosticsPanelImperative'
 import { EnergyChart, MomentumChart } from '~/components/charts/Charts'
 import { PlaybackControls } from '~/components/controls/PlaybackControls'
 import { VisualizationSettings } from '~/components/controls/VisualizationSettings'
-import { COLOR_MAPS, type ParsedFrame, type FrameStatistics, type SimulationMetadata, type ColorMap } from '~/types/sph'
+import { COLOR_MAPS, type ParsedFrame, type FrameStatistics, type SimulationMetadata, type ColorMap, type IMBHPhysicsConfig } from '~/types/sph'
+import { DEFAULT_IMBH_CONFIG, PRESET_SCENARIOS, presetToIMBHConfig, type SimulationPreset } from '~/utils/preset-loader'
+
+/** Resize handle component for panels */
+function ResizeHandle({ direction = 'horizontal' }: { direction?: 'horizontal' | 'vertical' }) {
+  return (
+    <PanelResizeHandle
+      className={`
+        ${direction === 'horizontal' ? 'w-1.5 cursor-col-resize' : 'h-1.5 cursor-row-resize'}
+        bg-gray-700 hover:bg-cyan-500 active:bg-cyan-400 transition-colors
+        flex items-center justify-center group
+      `}
+    >
+      <div className={`
+        ${direction === 'horizontal' ? 'w-0.5 h-8' : 'h-0.5 w-8'}
+        bg-gray-500 group-hover:bg-cyan-300 rounded-full transition-colors
+      `} />
+    </PanelResizeHandle>
+  )
+}
 
 /** Compute global color range statistics across all frames */
 function computeGlobalColorStats(frames: Map<number, ParsedFrame>, colorField: string): [number, number] {
@@ -109,20 +129,95 @@ export function Dashboard({
 
   // Visualization settings
   const [colorField, setColorField] = useState('density')
-  const [colorMapName, setColorMapName] = useState('viridis')
+  const [colorMapName, setColorMapName] = useState('cosmicDawn')
   const [pointSize, setPointSize] = useState(0.02)
   const [opacity, setOpacity] = useState(0.8)
   const [showAxes, setShowAxes] = useState(true)
   const [showBoundingBox, setShowBoundingBox] = useState(true)
   const [colorRange, setColorRange] = useState<[number, number]>([0, 0]) // 0,0 = auto
   const [useLogScale, setUseLogScale] = useState(false)
+  
+  // Per-projection color field settings (allows showing different fields in each 2D projection)
+  const [projectionColorFields, setProjectionColorFields] = useState<{
+    xy: string
+    xz: string
+    yz: string
+  }>({
+    xy: 'density',
+    xz: 'pressure',
+    yz: 'velocity',
+  })
+  const [useMultiColorField, setUseMultiColorField] = useState(false)
 
   // Layout state
   const [showProjections, setShowProjections] = useState(true)
   const [showCharts, setShowCharts] = useState(true)
+  const [showShockDiagnostics, setShowShockDiagnostics] = useState(true)  // Default ON for equal importance
   
-  // High-performance mode toggle
-  const [useImperativeMode, setUseImperativeMode] = useState(true)
+  // Panel dimension tracking for responsive canvas sizing
+  const [panelDimensions, setPanelDimensions] = useState({
+    projection: { width: 300, height: 120 },
+    shock: { width: 600, height: 250 },
+  })
+  const projectionPanelRef = useRef<HTMLDivElement>(null)
+  const shockPanelRef = useRef<HTMLDivElement>(null)
+  
+  // Refs for interactive projection components (for reset camera)
+  const projectionXYRef = useRef<Projection3DInteractiveHandle>(null)
+  const projectionXZRef = useRef<Projection3DInteractiveHandle>(null)
+  const projectionYZRef = useRef<Projection3DInteractiveHandle>(null)
+  
+  // Reset all projection cameras
+  const resetAllProjectionCameras = useCallback(() => {
+    projectionXYRef.current?.resetCamera()
+    projectionXZRef.current?.resetCamera()
+    projectionYZRef.current?.resetCamera()
+  }, [])
+  
+  // Update panel dimensions on resize
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (projectionPanelRef.current) {
+        const rect = projectionPanelRef.current.getBoundingClientRect()
+        // Account for: padding (8px top/bottom), label (~24px with mb-1), gaps (8px = 2 * gap-1)
+        // Total deduction: 8 + 24 + 8 = 40px
+        const availableHeight = rect.height - 40
+        const projectionHeight = Math.floor(availableHeight / 3)
+        setPanelDimensions(prev => ({
+          ...prev,
+          projection: { 
+            width: Math.floor(rect.width) - 16, 
+            height: Math.max(60, projectionHeight)  // minimum 60px per projection
+          }
+        }))
+      }
+      if (shockPanelRef.current) {
+        const rect = shockPanelRef.current.getBoundingClientRect()
+        setPanelDimensions(prev => ({
+          ...prev,
+          shock: { width: Math.floor(rect.width) - 16, height: Math.floor(rect.height) - 60 }  // Extra space for description
+        }))
+      }
+    }
+    
+    // Initial update
+    updateDimensions()
+    
+    // Update on window resize
+    window.addEventListener('resize', updateDimensions)
+    
+    // Use ResizeObserver for panel resizes
+    const observer = new ResizeObserver(updateDimensions)
+    if (projectionPanelRef.current) observer.observe(projectionPanelRef.current)
+    if (shockPanelRef.current) observer.observe(shockPanelRef.current)
+    
+    return () => {
+      window.removeEventListener('resize', updateDimensions)
+      observer.disconnect()
+    }
+  }, [])
+  
+  // Performance monitoring
   const [currentFps, setCurrentFps] = useState(0)
   
   // IMBH visualization settings
@@ -130,37 +225,68 @@ export function Dashboard({
   const [showTrajectory, setShowTrajectory] = useState(true)
   const [showRadii, setShowRadii] = useState(true)
   const [showGalacticMarkers, setShowGalacticMarkers] = useState(true)
+  const [showLabels, setShowLabels] = useState(true)  // Text labels on markers
   const [showGalaxyDisk, setShowGalaxyDisk] = useState(true)  // Low-opacity Milky Way disk
   const [showSolarSystem, setShowSolarSystem] = useState(true)  // Observer direction indicator (i, PA, V_LSR)
   const [animateGalaxy, setAnimateGalaxy] = useState(false)  // Animate galaxy rotation
   const [galaxyAnimationSpeed, setGalaxyAnimationSpeed] = useState(1.0)  // Animation speed multiplier
   const [cameraMode, setCameraMode] = useState<'free' | 'earth'>('free')  // Camera view mode
   
-  // IMBH physics configuration - use from simulation metadata or defaults
+  // Preset configuration state
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null)
+  const [loadedPresetConfig, setLoadedPresetConfig] = useState<IMBHPhysicsConfig | null>(null)
+  
+  // Load preset config when selection changes
+  useEffect(() => {
+    if (!selectedPresetId) {
+      setLoadedPresetConfig(null)
+      return
+    }
+    
+    const preset = PRESET_SCENARIOS.find(p => p.id === selectedPresetId)
+    if (!preset) return
+    
+    // Load preset from local file via fetch
+    const loadPreset = async () => {
+      try {
+        // Try loading through API first
+        const response = await fetch(`http://localhost:3001/api/preset?path=${encodeURIComponent(preset.path)}`)
+        if (response.ok) {
+          const presetData: SimulationPreset = await response.json()
+          const config = presetToIMBHConfig(presetData)
+          if (config) {
+            console.log('[Dashboard] Loaded preset config:', preset.name, config)
+            setLoadedPresetConfig(config)
+          }
+        } else {
+          console.warn('[Dashboard] Failed to load preset from API, using default')
+        }
+      } catch (error) {
+        console.warn('[Dashboard] Error loading preset:', error)
+      }
+    }
+    
+    loadPreset()
+  }, [selectedPresetId])
+  
+  // IMBH physics configuration - priority: loadedPreset > simulation metadata > defaults
   const imbhPhysics = useMemo(() => {
-    // Use simulation metadata if available
+    // Priority 1: Use loaded preset config if available
+    if (loadedPresetConfig) {
+      console.log('[Dashboard] Using IMBH physics from loaded preset')
+      return loadedPresetConfig
+    }
+    
+    // Priority 2: Use simulation metadata if available
     if (simulation?.imbhPhysics) {
       console.log('[Dashboard] Using IMBH physics from simulation config:', simulation.imbhPhysics)
       return simulation.imbhPhysics
     }
     
-    // Default fallback for IMBH simulations (Oka et al. 2017 / CAT_OKA A_61k preset values)
-    console.log('[Dashboard] Using default IMBH physics (CAT_OKA/A_61k/oka.json preset values)')
-    return {
-      enabled: true,  // Enable by default for visualizing galactic markers
-      bhPosition: [0, 0, 0] as [number, number, number],
-      bhMass: 100,  // 10^5 M_sun in code units (1000 M_sun)
-      cloudInitialPosition: [20.0, -5.17, 0] as [number, number, number],  // From preset
-      cloudInitialVelocity: [-10.18, 5.05, 0] as [number, number, number], // From preset (km/s)
-      cloudMass: 1,  // 1000 M_sun in code units
-      cloudRadius: 1.13,  // From preset (pc)
-      tidalRadius: 5.24,  // From preset (pc)
-      impactParameter: 5.17,  // From preset (pc)
-      pericentre: 2.217,  // From preset (pc)
-      eccentricity: 1.4504,  // From preset (hyperbolic)
-      timeUnit: 0.978,  // Myr
-    }
-  }, [simulation])
+    // Priority 3: Default fallback
+    console.log('[Dashboard] Using default IMBH physics')
+    return DEFAULT_IMBH_CONFIG
+  }, [loadedPresetConfig, simulation])
 
   // Refs for imperative viewer (avoids React re-renders)
   const framesRef = useRef<Map<number, ParsedFrame>>(frames)
@@ -193,7 +319,7 @@ export function Dashboard({
 
   // Color map with range
   const colorMap: ColorMap = useMemo(() => {
-    const baseMap = COLOR_MAPS[colorMapName] || COLOR_MAPS.viridis
+    const baseMap = COLOR_MAPS[colorMapName] || COLOR_MAPS.cosmicDawn
     
     // Use manual range if set, otherwise use global stats
     let min = colorRange[0]
@@ -269,6 +395,8 @@ export function Dashboard({
           // Only advance if frame is loaded
           if (framesRef.current.has(nextFrame)) {
             frameIndexRef.current = nextFrame
+            // Sync React state for 2D projections and charts
+            setCurrentFrameIndex(nextFrame)
             lastTime = timestamp
           }
         }
@@ -292,16 +420,12 @@ export function Dashboard({
   }, [])
 
   const handlePlayPauseChange = useCallback((playing: boolean) => {
-    if (useImperativeMode) {
-      if (playing) {
-        startImperativePlayback()
-      } else {
-        stopImperativePlayback()
-      }
+    if (playing) {
+      startImperativePlayback()
     } else {
-      setIsPlaying(playing)
+      stopImperativePlayback()
     }
-  }, [useImperativeMode, startImperativePlayback, stopImperativePlayback])
+  }, [startImperativePlayback, stopImperativePlayback])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -355,19 +479,17 @@ export function Dashboard({
               {allFramesLoaded ? '✓ All frames in memory' : `${preloadedCount}/${totalFrameCount} frames`}
             </span>
           </div>
-          {/* Performance mode toggle */}
-          <button
-            onClick={() => setUseImperativeMode(!useImperativeMode)}
-            className={`px-2 py-1 text-xs rounded ${useImperativeMode ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400'}`}
-            title={useImperativeMode ? 'High-performance mode (120+ FPS)' : 'Standard React mode'}
-          >
-            {useImperativeMode ? '🚀 Fast' : '⚛️ React'}
-          </button>
           <button
             onClick={() => setShowProjections(!showProjections)}
             className={`px-2 py-1 text-xs rounded ${showProjections ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400'}`}
           >
             2D Views
+          </button>
+          <button
+            onClick={() => setShowShockDiagnostics(!showShockDiagnostics)}
+            className={`px-2 py-1 text-xs rounded ${showShockDiagnostics ? 'bg-orange-600 text-white' : 'bg-gray-700 text-gray-400'}`}
+          >
+            Shock
           </button>
           <button
             onClick={() => setShowCharts(!showCharts)}
@@ -401,10 +523,67 @@ export function Dashboard({
             onLogScaleChange={setUseLogScale}
           />
           
+          {/* Multi-Field 2D Projections Settings */}
+          <div className="mt-2 bg-gray-800 rounded p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-gray-300">2D Projections</h3>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useMultiColorField}
+                  onChange={(e) => setUseMultiColorField(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-xs text-gray-400">Multi-field</span>
+              </label>
+            </div>
+            
+            {useMultiColorField && (
+              <div className="space-y-2 text-xs">
+                {(['xy', 'xz', 'yz'] as const).map(proj => (
+                  <div key={proj} className="flex items-center gap-2">
+                    <span className="text-gray-400 w-8 uppercase font-mono">{proj}:</span>
+                    <select
+                      value={projectionColorFields[proj]}
+                      onChange={(e) => setProjectionColorFields(prev => ({
+                        ...prev,
+                        [proj]: e.target.value
+                      }))}
+                      className="flex-1 bg-gray-700 text-gray-200 rounded px-1 py-0.5 border border-gray-600"
+                    >
+                      <option value="density">Density</option>
+                      <option value="pressure">Pressure</option>
+                      <option value="velocity">Velocity</option>
+                      <option value="energy">Energy</option>
+                      <option value="machNumber">Mach #</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
           {/* IMBH Visualization Settings */}
-          {useImperativeMode && (
-            <div className="mt-2 bg-gray-800 rounded p-3">
+          <div className="mt-2 bg-gray-800 rounded p-3">
               <h3 className="text-sm font-medium text-gray-300 mb-2">IMBH Physics</h3>
+              
+              {/* Preset Selector */}
+              <div className="mb-3">
+                <label className="block text-xs text-gray-400 mb-1">Preset Config</label>
+                <select
+                  value={selectedPresetId ?? ''}
+                  onChange={(e) => setSelectedPresetId(e.target.value || null)}
+                  className="w-full bg-gray-700 text-gray-200 text-xs rounded px-2 py-1 border border-gray-600"
+                >
+                  <option value="">Default (from simulation)</option>
+                  {PRESET_SCENARIOS.map(preset => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
               <div className="space-y-2 text-xs">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -441,6 +620,15 @@ export function Dashboard({
                     className="rounded"
                   />
                   <span className="text-gray-300">Show Galactic Markers</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer" title="Show text labels on all markers and arrows">
+                  <input
+                    type="checkbox"
+                    checked={showLabels}
+                    onChange={(e) => setShowLabels(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-gray-300">Show Labels</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer" title="Show schematic Milky Way disk with Sun at 8 kpc from GC">
                   <input
@@ -530,7 +718,6 @@ export function Dashboard({
                 </div>
               </div>
             </div>
-          )}
           
           {/* Statistics panel */}
           {currentFrame && (
@@ -569,123 +756,212 @@ export function Dashboard({
           )}
         </div>
 
-        {/* Main viewer area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 flex overflow-hidden">
-            {/* 3D Viewer */}
-            <div className={`flex-1 ${showProjections ? '' : 'w-full'} relative`}>
-              {isLoading && !currentFrame ? (
-                <div className="flex items-center justify-center h-full bg-gray-900 text-gray-400">
-                  <div className="text-center">
-                    <div className="animate-spin text-2xl mb-2">⏳</div>
-                    <div>Loading frame {currentFrameIndex}...</div>
+        {/* Main viewer area - Equal 2x2 Grid Layout */}
+        <div className="flex-1 overflow-hidden">
+          <PanelGroup direction="vertical" className="h-full">
+            {/* Top Row: 3D Viewer + 2D Projections (50/50) */}
+            <Panel defaultSize={50} minSize={25}>
+              <PanelGroup direction="horizontal" className="h-full">
+                {/* 3D Viewer Panel (50%) */}
+                <Panel defaultSize={50} minSize={25}>
+                  <div className="h-full relative bg-gray-900">
+                    {isLoading && !currentFrame ? (
+                      <div className="flex items-center justify-center h-full text-gray-400">
+                        <div className="text-center">
+                          <div className="animate-spin text-2xl mb-2">⏳</div>
+                          <div>Loading frame {currentFrameIndex}...</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <ParticleViewer3DImperative
+                        framesRef={framesRef}
+                        frameIndexRef={frameIndexRef}
+                        colorField={colorField}
+                        colorMapName={colorMapName}
+                        pointSize={pointSize * 100}
+                        opacity={opacity}
+                        logScale={useLogScale}
+                        showAxes={showAxes}
+                        showBoundingBox={showBoundingBox}
+                        boundingBox={simulation.boundingBox}
+                        className="h-full w-full"
+                        onFpsUpdate={setCurrentFps}
+                        globalColorRange={globalColorStats}
+                        imbhPhysics={imbhPhysics}
+                        showBlackHole={showBlackHole}
+                        showTrajectory={showTrajectory}
+                        showRadii={showRadii}
+                        showGalacticMarkers={showGalacticMarkers}
+                        showLabels={showLabels}
+                        cameraMode={cameraMode}
+                        galacticConfig={{
+                          distanceToGC: 60,
+                          galacticLongitude: -0.398,
+                          galacticLatitude: -0.224,
+                          inclination: simulation?.imbhPhysics?.inclination ?? 70,
+                          positionAngle: simulation?.imbhPhysics?.positionAngle ?? 41.6,
+                          lsrVelocity: simulation?.imbhPhysics?.lsrVelocity ?? -120,
+                          showGalaxyDisk,
+                          showSolarSystem,
+                          galaxyRotationSpeed: animateGalaxy ? 0.1 * galaxyAnimationSpeed : 0,
+                        }}
+                      />
+                    )}
+                    {/* FPS overlay */}
+                    <div className="absolute bottom-2 right-2 text-green-400 text-xs font-mono bg-black/50 px-2 py-1 rounded">
+                      FPS: {currentFps}
+                    </div>
+                    {/* Panel label */}
+                    <div className="absolute top-2 left-2 text-cyan-400 text-xs font-bold bg-black/60 px-2 py-1 rounded">
+                      3D VIEW
+                    </div>
                   </div>
-                </div>
-              ) : useImperativeMode ? (
-                <ParticleViewer3DImperative
-                  framesRef={framesRef}
-                  frameIndexRef={frameIndexRef}
-                  colorField={colorField}
-                  colorMapName={colorMapName}
-                  pointSize={pointSize * 100} // Scale for imperative viewer
-                  opacity={opacity}
-                  logScale={useLogScale}
-                  showAxes={showAxes}
-                  showBoundingBox={showBoundingBox}
-                  boundingBox={simulation.boundingBox}
-                  className="h-full"
-                  onFpsUpdate={setCurrentFps}
-                  globalColorRange={globalColorStats}
-                  imbhPhysics={imbhPhysics}
-                  showBlackHole={showBlackHole}
-                  showTrajectory={showTrajectory}
-                  showRadii={showRadii}
-                  showGalacticMarkers={showGalacticMarkers}
-                  cameraMode={cameraMode}
-                  galacticConfig={{
-                    distanceToGC: 60,  // ~60 pc from Galactic Center
-                    galacticLongitude: -0.398,
-                    galacticLatitude: -0.224,
-                    inclination: simulation?.imbhPhysics?.inclination ?? 70,
-                    positionAngle: simulation?.imbhPhysics?.positionAngle ?? 41.6,
-                    lsrVelocity: simulation?.imbhPhysics?.lsrVelocity ?? -120,
-                    showGalaxyDisk,
-                    showSolarSystem,
-                    // Physical rotation: Sun orbits GC at V_circ = 220 km/s, period ~220 Myr
-                    // For visualization: 2π rad / (220 Myr) ≈ 2.86e-17 rad/s (too slow to see)
-                    // We use a visual speed: 0.1 rad/s = ~63 seconds per revolution
-                    // Speed multiplier adjusts this: higher = faster animation
-                    galaxyRotationSpeed: animateGalaxy ? 0.1 * galaxyAnimationSpeed : 0,
-                  }}
-                />
-              ) : (
-                <ParticleViewer3D
-                  frame={currentFrame}
-                  colorField={colorField}
-                  colorMap={colorMap}
-                  pointSize={pointSize}
-                  opacity={opacity}
-                  showAxes={showAxes}
-                  showBoundingBox={showBoundingBox}
-                  boundingBox={simulation.boundingBox}
-                  className="h-full"
-                />
-              )}
-              
-              {/* FPS overlay for imperative mode */}
-              {useImperativeMode && (
-                <div className="absolute bottom-2 right-2 text-green-400 text-xs font-mono bg-black/50 px-2 py-1 rounded">
-                  FPS: {currentFps}
-                </div>
-              )}
-            </div>
+                </Panel>
 
-            {/* 2D Projections */}
-            {showProjections && (
-              <div className="w-64 shrink-0 flex flex-col gap-1 p-1 overflow-y-auto border-l border-gray-700">
-                <Projection2D
-                  frame={currentFrame}
-                  projection="xy"
-                  colorField={colorField}
-                  colorMap={colorMap}
-                  width={240}
-                  height={150}
-                />
-                <Projection2D
-                  frame={currentFrame}
-                  projection="xz"
-                  colorField={colorField}
-                  colorMap={colorMap}
-                  width={240}
-                  height={150}
-                />
-                <Projection2D
-                  frame={currentFrame}
-                  projection="yz"
-                  colorField={colorField}
-                  colorMap={colorMap}
-                  width={240}
-                  height={150}
-                />
-              </div>
+                {/* Interactive 3D Projections Panel (50%) */}
+                {showProjections && (
+                  <>
+                    <ResizeHandle direction="horizontal" />
+                    <Panel defaultSize={50} minSize={25}>
+                      <div ref={projectionPanelRef} className="h-full bg-gray-900 p-2 flex flex-col overflow-hidden">
+                        {/* Panel label with reset all button */}
+                        <div className="flex items-center justify-between mb-1 shrink-0">
+                          <div className="text-cyan-400 text-xs font-bold">3D PROJECTIONS</div>
+                          <button
+                            onClick={resetAllProjectionCameras}
+                            className="px-1.5 py-0.5 text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
+                            title="Reset all cameras to default view"
+                          >
+                            ⟲ Reset All
+                          </button>
+                        </div>
+                        {/* Use flex-1 for equal distribution, overflow-hidden to prevent overlap */}
+                        <div className="flex-1 flex flex-col gap-1 min-h-0 overflow-hidden">
+                          <div className="flex-1 min-h-0 overflow-hidden">
+                            <Projection3DInteractive
+                              ref={projectionXYRef}
+                              framesRef={framesRef}
+                              frameIndexRef={frameIndexRef}
+                              projection="xy"
+                              colorField={useMultiColorField ? projectionColorFields.xy : colorField}
+                              colorMap={colorMap}
+                              width={panelDimensions.projection.width}
+                              height={panelDimensions.projection.height}
+                              showShockSampling={showShockDiagnostics}
+                              shockSamplingParams={{ columnRadius: 0.15, sliceThickness: 0.15 }}
+                              globalColorRange={globalColorStats}
+                              logScale={useLogScale}
+                              particleSize={pointSize * 100}
+                            />
+                          </div>
+                          <div className="flex-1 min-h-0 overflow-hidden">
+                            <Projection3DInteractive
+                              ref={projectionXZRef}
+                              framesRef={framesRef}
+                              frameIndexRef={frameIndexRef}
+                              projection="xz"
+                              colorField={useMultiColorField ? projectionColorFields.xz : colorField}
+                              colorMap={colorMap}
+                              width={panelDimensions.projection.width}
+                              height={panelDimensions.projection.height}
+                              showShockSampling={showShockDiagnostics}
+                              shockSamplingParams={{ columnRadius: 0.15, sliceThickness: 0.15 }}
+                              globalColorRange={globalColorStats}
+                              logScale={useLogScale}
+                              particleSize={pointSize * 100}
+                            />
+                          </div>
+                          <div className="flex-1 min-h-0 overflow-hidden">
+                            <Projection3DInteractive
+                              ref={projectionYZRef}
+                              framesRef={framesRef}
+                              frameIndexRef={frameIndexRef}
+                              projection="yz"
+                              colorField={useMultiColorField ? projectionColorFields.yz : colorField}
+                              colorMap={colorMap}
+                              width={panelDimensions.projection.width}
+                              height={panelDimensions.projection.height}
+                              showShockSampling={showShockDiagnostics}
+                              shockSamplingParams={{ columnRadius: 0.15, sliceThickness: 0.15 }}
+                              globalColorRange={globalColorStats}
+                              logScale={useLogScale}
+                              particleSize={pointSize * 100}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </Panel>
+                  </>
+                )}
+              </PanelGroup>
+            </Panel>
+
+            {/* Bottom Row: Shock Diagnostics + Charts (50/50) */}
+            {(showShockDiagnostics || showCharts) && (
+              <>
+                <ResizeHandle direction="vertical" />
+                <Panel defaultSize={50} minSize={25}>
+                  <PanelGroup direction="horizontal" className="h-full">
+                    {/* Shock Diagnostics Panel (50%) */}
+                    {showShockDiagnostics && (
+                      <Panel defaultSize={showCharts ? 50 : 100} minSize={25}>
+                        <div ref={shockPanelRef} className="h-full bg-gray-900 p-2 overflow-hidden flex flex-col">
+                          {/* Panel label and description */}
+                          <div className="shrink-0 mb-1">
+                            <div className="text-cyan-400 text-xs font-bold">SHOCK DIAGNOSTICS</div>
+                            <div className="text-gray-500 text-[10px] leading-tight mt-0.5">
+                              <span className="text-red-400">●</span> Z-profile: cylinder r&lt;0.15 pc around CoM (vertical compression)
+                              <span className="mx-1">|</span>
+                              <span className="text-teal-400">━</span> X-profile: slice |y|,|z|&lt;0.15 pc (tidal stretching)
+                            </div>
+                          </div>
+                          <div className="flex-1 min-h-0">
+                            <ShockDiagnosticsPanelImperative
+                              framesRef={framesRef}
+                              frameIndexRef={frameIndexRef}
+                              initialFrame={frames.get(0) ?? null}
+                              width={panelDimensions.shock.width}
+                              height={panelDimensions.shock.height}
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+                      </Panel>
+                    )}
+
+                    {/* Charts Panel (50%) */}
+                    {showCharts && statistics.length > 0 && (
+                      <>
+                        {showShockDiagnostics && <ResizeHandle direction="horizontal" />}
+                        <Panel defaultSize={showShockDiagnostics ? 50 : 100} minSize={25}>
+                          <div className="h-full bg-gray-900 p-2 flex flex-col gap-2 overflow-hidden">
+                            {/* Panel label */}
+                            <div className="text-cyan-400 text-xs font-bold">ENERGY & MOMENTUM</div>
+                            <div className="flex-1 flex flex-col gap-2 min-h-0">
+                              <div className="flex-1 min-h-0">
+                                <EnergyChart
+                                  statistics={statistics}
+                                  currentFrame={currentFrameIndex}
+                                  className="h-full"
+                                />
+                              </div>
+                              <div className="flex-1 min-h-0">
+                                <MomentumChart
+                                  statistics={statistics}
+                                  currentFrame={currentFrameIndex}
+                                  className="h-full"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </Panel>
+                      </>
+                    )}
+                  </PanelGroup>
+                </Panel>
+              </>
             )}
-          </div>
-
-          {/* Charts */}
-          {showCharts && statistics.length > 0 && (
-            <div className="h-40 shrink-0 border-t border-gray-700 flex gap-2 p-1 overflow-x-auto">
-              <EnergyChart
-                statistics={statistics}
-                currentFrame={currentFrameIndex}
-                className="flex-1 min-w-[250px]"
-              />
-              <MomentumChart
-                statistics={statistics}
-                currentFrame={currentFrameIndex}
-                className="flex-1 min-w-[250px]"
-              />
-            </div>
-          )}
+          </PanelGroup>
         </div>
       </div>
 
@@ -698,7 +974,7 @@ export function Dashboard({
           onFrameChange={handleFrameChange}
           onPlayPauseChange={handlePlayPauseChange}
           isFrameReady={(frame) => frames.has(frame)}
-          imperativeMode={useImperativeMode}
+          imperativeMode={true}
           frameIndexRef={frameIndexRef}
           playbackSpeedRef={playbackSpeedRef}
         />

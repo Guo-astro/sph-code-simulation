@@ -1,0 +1,46 @@
+{
+  "comment": "CNM Thermal Relaxation Test - Koyama & Inutsuka (2000) Model C10",
+  "comment2": "Uniform CNM at n=10 cm^-3, T=107 K with temperature perturbations",
+  
+  "N": 1000,
+  
+  "SPHType": "gdisph",
+  "kernel": "cubic_spline",
+  "neighborNumber": 20,
+  "eta": 1.2,
+  "use2ndOrderGSPH": true,
+  "riemannSolver": "hll",
+  "iterativeSmoothingLength": true,
+  
+  "gamma": 1.666666667,
+  
+  "alpha": 0.0,
+  "beta": 0.0,
+  "useBalsaraSwitch": false,
+  "useArtificialConductivity": false,
+  
+  "useGravity": false,
+  
+  "periodic": true,
+  "rangeMin": [0.0],
+  "rangeMax": [1.0],
+  
+  "enableCooling": true,
+  "columnDensity": 1.0e20,
+  "thermalRelaxationTime": 0.1,
+  
+  "cflSound": 0.3,
+  "cflForce": 0.25,
+  "dtMin": 1.0e-10,
+  "dtMax": 0.01,
+  
+  "startTime": 0.0,
+  "endTime": 0.1,
+  "outputTime": 0.05,
+  "energyOutputTime": 0.1,
+  
+  "outputDirectory": "simulations/astrophysics/cooling_heating/results/cnm_relaxation",
+  "outputFormat": "csv",
+  
+  "sample": "ism_cooling_1d"
+}

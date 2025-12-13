@@ -213,67 +213,67 @@ void Solver::read_parameterfile(const char * filename)
     std::cout << "read_parameterfile: filename = '" << name_str << "'" << std::endl;
     std::cout.flush();
     if(name_str == "shock_tube") {
-        pt::read_json("sample/shock_tube/shock_tube.json", input);
+        pt::read_json("simulations/benchmarks/shock_tube/shock_tube.json", input);
         m_sample = Sample::ShockTube;
         m_sample_parameters["N"] = input.get<int>("N", 100);
     } else if(name_str == "shock_tube_2d") {
-        pt::read_json("sample/shock_tube_2d/shock_tube_2d.json", input);
+        pt::read_json("simulations/benchmarks/shock_tube_2d/shock_tube_2d.json", input);
         m_sample = Sample::ShockTube2D;
         m_sample_parameters["Nx"] = input.get<int>("Nx", 200);
         m_sample_parameters["Ny"] = input.get<int>("Ny", 40);
     } else if(name_str == "vacuum") {
-        pt::read_json("sample/vacuum/vacuum.json", input);
+        pt::read_json("simulations/benchmarks/vacuum/vacuum.json", input);
         m_sample = Sample::Vacuum;
         m_sample_parameters["N"] = input.get<int>("N", 800);
     } else if(name_str == "strong_shock") {
-        pt::read_json("sample/strong_shock/strong_shock.json", input);
+        pt::read_json("simulations/benchmarks/strong_shock/strong_shock.json", input);
         m_sample = Sample::StrongShock;
         m_sample_parameters["N"] = input.get<int>("N", 800);
     } else if(name_str == "gresho_chan_vortex") {
-        pt::read_json("sample/gresho_chan_vortex/gresho_chan_vortex.json", input);
+        pt::read_json("simulations/stability/gresho_chan_vortex/gresho_chan_vortex.json", input);
         m_sample = Sample::GreshoChanVortex;
         m_sample_parameters["N"] = input.get<int>("N", 64);
     } else if(name_str == "pairing_instability") {
-        pt::read_json("sample/pairing_instability/pairing_instability.json", input);
+        pt::read_json("simulations/stability/pairing_instability/pairing_instability.json", input);
         m_sample = Sample::PairingInstability;
         m_sample_parameters["N"] = input.get<int>("N", 64);
     } else if(name_str == "hydrostatic") {
-        pt::read_json("sample/hydrostatic/hydrostatic.json", input);
+        pt::read_json("simulations/stability/hydrostatic/hydrostatic.json", input);
         m_sample = Sample::HydroStatic;
         m_sample_parameters["N"] = input.get<int>("N", 32);
     } else if(name_str == "gradh_study") {
-        pt::read_json("sample/gradh_study/gradh_study.json", input);
+        pt::read_json("simulations/stability/gradh_study/gradh_study.json", input);
         m_sample = Sample::HydroStatic;  // Uses HydroStatic or resumeFromSnapshot
         m_sample_parameters["N"] = input.get<int>("N", 64);
     } else if(name_str == "khi") {
-        pt::read_json("sample/khi/khi.json", input);
+        pt::read_json("simulations/stability/khi/khi.json", input);
         m_sample = Sample::KHI;
         m_sample_parameters["N"] = input.get<int>("N", 128);
     } else if(name_str == "ism_cooling_1d") {
-        pt::read_json("sample/cooling_heating/ism_cooling_1d.json", input);
+        pt::read_json("simulations/astrophysics/cooling_heating/ism_cooling_1d.json", input);
         m_sample = Sample::ISMCooling1D;
         m_sample_parameters["N"] = input.get<int>("N", 1000);
         m_sample_parameters["n_min"] = input.get<real>("n_min", 0.1);
         m_sample_parameters["n_max"] = input.get<real>("n_max", 1000.0);
         m_sample_parameters["T_init"] = input.get<real>("T_init", 8000.0);
     } else if(name_str == "evrard") {
-        pt::read_json("sample/evrard/evrard.json", input);
+        pt::read_json("simulations/astrophysics/evrard/evrard.json", input);
         m_sample = Sample::Evrard;
         m_sample_parameters["N"] = input.get<int>("N", 20);
     } else if(name_str == "evrard_cold_collapse") {
-        pt::read_json("sample/evrard_cold_collapse/evrard_cold_collapse.json", input);
+        pt::read_json("simulations/astrophysics/evrard_cold_collapse/evrard_cold_collapse.json", input);
         m_sample = Sample::EvrardColdCollapse;
         m_sample_parameters["N"] = input.get<int>("N", 30);
     } else if(name_str == "lane_emden") {
-        pt::read_json("sample/lane_emden/lane_emden.json", input);
+        pt::read_json("lane_emden/lane_emden.json", input);
         m_sample = Sample::LaneEmden;
         m_sample_parameters["N"] = input.get<int>("N", 30);
     } else if(name_str == "sedov") {
-        pt::read_json("sample/sedov/sedov.json", input);
+        pt::read_json("simulations/benchmarks/sedov/sedov.json", input);
         m_sample = Sample::Sedov;
         m_sample_parameters["N"] = input.get<int>("N", 100);
     } else if(name_str == "sr_sod") {
-        pt::read_json("sample/sr_sod/sr_sod.json", input);
+        pt::read_json("simulations/relativistic/sr_sod/sr_sod.json", input);
         m_sample = Sample::SRSod;
         m_sample_parameters["N"] = input.get<int>("N", 50);
         m_sample_parameters["different_nu"] = input.get<bool>("different_nu", false);

@@ -1,0 +1,204 @@
+# 3D Cylindrical Lane-Emden Grad-h Study Makefile Targets
+#
+# This test suite compares GSPH vs SSPH with/without grad-h correction
+# for a 3D cylindrical Lane-Emden configuration (γ=5/3, n=1.5) with 
+# kernel-convolved 2D gravity in the xy-plane only.
+#
+# Single Method Usage:
+#   make gradh_3d_run PRESET=gsph_gradh    # Run specific preset
+#   make gradh_3d_clean                     # Clean results
+#
+# Multi-Method Comparison:
+#   make gradh_3d_compare_run              # Run all 4 methods (GSPH/SSPH × grad-h)
+#   make gradh_3d_compare_viz              # Generate comparison plots
+#   make gradh_3d_compare_animate          # Generate comparison animation
+#   make gradh_3d_compare_all              # Run all + visualizations
+#   make gradh_3d_compare_clean            # Clean comparison results
+
+# Default preset
+GRADH_3D_PRESET ?= gsph_gradh
+
+# Paths
+GRADH_3D_DIR = simulations/stability/gradh_study_3d_cylinder
+GRADH_3D_PRESET_DIR = $(GRADH_3D_DIR)/config/presets
+GRADH_3D_RESULTS_DIR = $(GRADH_3D_DIR)/results
+GRADH_3D_SCRIPTS_DIR = $(GRADH_3D_DIR)/scripts
+
+.PHONY: gradh_3d_run gradh_3d_clean gradh_3d_help \
+        gradh_3d_compare_run gradh_3d_compare_viz gradh_3d_compare_animate \
+        gradh_3d_compare_all gradh_3d_compare_clean \
+        gradh_3d_relaxation
+
+# ============================================================================
+# Single Method Targets
+# ============================================================================
+
+# Run single method
+gradh_3d_run: build/sph
+	@echo "=========================================="
+	@echo "3D Cylindrical Lane-Emden: $(GRADH_3D_PRESET)"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "SPH_DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
+		echo "✓ DIM=3 build detected"; \
+	else \
+		echo "❌ ERROR: 3D Cylinder test requires DIM=3 build"; \
+		echo ""; \
+		echo "Current build is configured for DIM=$$(grep 'SPH_DIM:STRING' build/CMakeCache.txt 2>/dev/null | cut -d= -f2 || echo 'unknown')."; \
+		echo ""; \
+		echo "To rebuild for 3D:"; \
+		echo "  cd build && rm -f CMakeCache.txt && cmake -DSPH_DIM=3 .. && make -j4 && cd .."; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "Output directory:"
+	@grep -o '"outputDirectory"[[:space:]]*:[[:space:]]*"[^"]*"' $(GRADH_3D_PRESET_DIR)/$(GRADH_3D_PRESET).json | sed 's/.*: *"\(.*\)"/  📁 \1/'
+	@echo "Creating results directory..."
+	@mkdir -p $(GRADH_3D_RESULTS_DIR)/$(GRADH_3D_PRESET)
+	@echo "Running simulation..."
+	./build/sph $(GRADH_3D_PRESET_DIR)/$(GRADH_3D_PRESET).json
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "📁 Results saved to: $(GRADH_3D_RESULTS_DIR)/$(GRADH_3D_PRESET)"
+
+# Clean results
+gradh_3d_clean:
+	@echo "Cleaning 3D cylindrical grad-h study results..."
+	@rm -rf $(GRADH_3D_RESULTS_DIR)/*
+	@echo "✓ Results cleaned"
+
+# Help
+gradh_3d_help:
+	@echo "3D Cylindrical Lane-Emden Grad-h Study"
+	@echo "======================================"
+	@echo ""
+	@echo "Test: γ=5/3 polytropic cylinder with 2D gravity in xy-plane"
+	@echo "Purpose: Compare energy conservation between GSPH/SSPH × grad-h"
+	@echo ""
+	@echo "Single Method Targets:"
+	@echo "  gradh_3d_run PRESET=<name>  - Run specific preset"
+	@echo "  gradh_3d_clean              - Clean all results"
+	@echo ""
+	@echo "Available presets:"
+	@echo "  relaxation    - Initial relaxation phase"
+	@echo "  gsph_gradh    - GSPH with grad-h correction"
+	@echo "  gsph_nogradh  - GSPH without grad-h correction"
+	@echo "  ssph_gradh    - SSPH with grad-h correction"
+	@echo "  ssph_nogradh  - SSPH without grad-h correction"
+	@echo ""
+	@echo "Multi-Method Comparison Targets:"
+	@echo "  gradh_3d_compare_run     - Run all 4 methods"
+	@echo "  gradh_3d_compare_viz     - Generate comparison plots"
+	@echo "  gradh_3d_compare_animate - Generate comparison animation"
+	@echo "  gradh_3d_compare_all     - Run all + visualizations"
+	@echo "  gradh_3d_compare_clean   - Clean comparison results"
+	@echo ""
+	@echo "Example workflow:"
+	@echo "  make gradh_3d_compare_all"
+	@echo ""
+	@echo "NOTE: 3D simulations are computationally expensive!"
+	@echo "Consider reducing N or endTime in presets for testing."
+
+# ============================================================================
+# Multi-Method Comparison Targets
+# ============================================================================
+
+# Run all four methods (GSPH/SSPH × grad-h/no-grad-h)
+gradh_3d_compare_run: build/sph
+	@echo "=========================================="
+	@echo "3D Cylindrical Lane-Emden: 4-Method Comparison"
+	@echo "Running: GSPH/SSPH × grad-h/no-grad-h"
+	@echo "=========================================="
+	@echo "Checking build configuration..."
+	@if grep -q "SPH_DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
+		echo "✓ DIM=3 build detected"; \
+	else \
+		echo "❌ ERROR: 3D Cylinder test requires DIM=3 build"; \
+		echo "To rebuild: cd build && rm -f CMakeCache.txt && cmake -DSPH_DIM=3 .. && make -j4"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "⚠️  NOTE: 3D simulations are computationally expensive!"
+	@echo ""
+	@echo "[1/4] Running GSPH + grad-h simulation..."
+	@echo "========================================"
+	@mkdir -p $(GRADH_3D_RESULTS_DIR)/gsph_gradh
+	@./build/sph $(GRADH_3D_PRESET_DIR)/gsph_gradh.json
+	@echo "✓ GSPH + grad-h complete"
+	@echo ""
+	@echo "[2/4] Running GSPH - grad-h simulation..."
+	@echo "========================================"
+	@mkdir -p $(GRADH_3D_RESULTS_DIR)/gsph_nogradh
+	@./build/sph $(GRADH_3D_PRESET_DIR)/gsph_nogradh.json
+	@echo "✓ GSPH - grad-h complete"
+	@echo ""
+	@echo "[3/4] Running SSPH + grad-h simulation..."
+	@echo "========================================"
+	@mkdir -p $(GRADH_3D_RESULTS_DIR)/ssph_gradh
+	@./build/sph $(GRADH_3D_PRESET_DIR)/ssph_gradh.json
+	@echo "✓ SSPH + grad-h complete"
+	@echo ""
+	@echo "[4/4] Running SSPH - grad-h simulation..."
+	@echo "========================================"
+	@mkdir -p $(GRADH_3D_RESULTS_DIR)/ssph_nogradh
+	@./build/sph $(GRADH_3D_PRESET_DIR)/ssph_nogradh.json
+	@echo "✓ SSPH - grad-h complete"
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ All 4 simulations complete!"
+	@echo "=========================================="
+
+# Generate comparison plots
+gradh_3d_compare_viz:
+	@echo "=========================================="
+	@echo "Generating 3D Cylinder Comparison Plots"
+	@echo "=========================================="
+	@if [ ! -d "$(GRADH_3D_RESULTS_DIR)/gsph_gradh" ]; then \
+		echo "❌ ERROR: Missing results directories"; \
+		echo "Run 'make gradh_3d_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(GRADH_3D_RESULTS_DIR)/comparison
+	@chmod +x $(GRADH_3D_SCRIPTS_DIR)/compare_methods.py 2>/dev/null || true
+	@python3 $(GRADH_3D_SCRIPTS_DIR)/compare_methods.py
+	@echo ""
+	@echo "✓ Comparison plots generated!"
+	@echo "📊 Output: $(GRADH_3D_RESULTS_DIR)/comparison/"
+
+# Generate comparison animation
+gradh_3d_compare_animate:
+	@echo "=========================================="
+	@echo "Generating 3D Cylinder Comparison Animation"
+	@echo "=========================================="
+	@if [ ! -d "$(GRADH_3D_RESULTS_DIR)/gsph_gradh" ]; then \
+		echo "❌ ERROR: Missing results directories"; \
+		echo "Run 'make gradh_3d_compare_run' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(GRADH_3D_RESULTS_DIR)/comparison
+	@chmod +x $(GRADH_3D_SCRIPTS_DIR)/animate_comparison.py 2>/dev/null || true
+	@python3 $(GRADH_3D_SCRIPTS_DIR)/animate_comparison.py
+	@echo ""
+	@echo "✓ Animation complete!"
+	@echo "🎬 Output: $(GRADH_3D_RESULTS_DIR)/comparison/4method_comparison.gif"
+
+# Run all comparisons and visualizations
+gradh_3d_compare_all: gradh_3d_compare_run gradh_3d_compare_viz gradh_3d_compare_animate
+	@echo ""
+	@echo "=========================================="
+	@echo "✓ Complete 3D Cylinder Comparison Done!"
+	@echo "=========================================="
+	@echo "Results: $(GRADH_3D_RESULTS_DIR)/"
+	@echo "  - gsph_gradh/    : GSPH with grad-h"
+	@echo "  - gsph_nogradh/  : GSPH without grad-h"
+	@echo "  - ssph_gradh/    : SSPH with grad-h"
+	@echo "  - ssph_nogradh/  : SSPH without grad-h"
+	@echo "  - comparison/    : Plots and animation"
+
+# Clean comparison results
+gradh_3d_compare_clean:
+	@echo "Cleaning 3D cylinder comparison results..."
+	@rm -rf $(GRADH_3D_RESULTS_DIR)/gsph_gradh $(GRADH_3D_RESULTS_DIR)/gsph_nogradh
+	@rm -rf $(GRADH_3D_RESULTS_DIR)/ssph_gradh $(GRADH_3D_RESULTS_DIR)/ssph_nogradh
+	@rm -rf $(GRADH_3D_RESULTS_DIR)/comparison
+	@echo "✓ Comparison results cleaned"

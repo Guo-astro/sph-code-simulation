@@ -120,7 +120,7 @@ These papers establish the theoretical framework for:
 
 All physics is detailed in:
 ```
-/Users/guo/Downloads/sphcode/sample/imbh_cloud/docs/RESEARCH_SETUP.md
+/Users/guo/Downloads/sphcode/simulations/astrophysics/imbh_cloud/docs/RESEARCH_SETUP.md
 ```
 Section A.9: "Shock Heating and Molecular Dissociation"
 

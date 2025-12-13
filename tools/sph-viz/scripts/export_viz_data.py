@@ -10,7 +10,7 @@ Usage:
     python export_viz_data.py <simulation_dir> [options]
 
 Example:
-    python export_viz_data.py sample/sedov/results/gsph_wendland --stride 1
+    python export_viz_data.py simulations/benchmarks/sedov/results/gsph_wendland --stride 1
     python export_viz_data.py lane_emden/results/n3_gsph --max-frames 100
 
 The output will be written to <simulation_dir>/viz_data/ with:

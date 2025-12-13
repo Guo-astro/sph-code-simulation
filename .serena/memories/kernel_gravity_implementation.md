@@ -83,10 +83,10 @@ Four test suites study energy conservation and grad-h effects:
 
 | Location | Geometry | Dimension | Gravity |
 |----------|----------|-----------|---------|
-| `sample/gradh_study_1d/` | Planar slab | 1D | 1D planar |
-| `sample/gradh_study_2d_planar/` | Planar slab | 2D | 1D planar (y-only) |
+| `simulations/stability/gradh_study_1d/` | Planar slab | 1D | 1D planar |
+| `simulations/stability/gradh_study_2d_planar/` | Planar slab | 2D | 1D planar (y-only) |
 | `lane_emden/` (2D build) | Disk | 2D | 2D radial |
-| `sample/gradh_study_3d_cylinder/` | Cylinder | 3D | 2D radial (xy-only) |
+| `simulations/stability/gradh_study_3d_cylinder/` | Cylinder | 3D | 2D radial (xy-only) |
 
 Each suite compares:
 - GSPH with grad-h (stable)
@@ -150,18 +150,18 @@ make gradh_3d_compare_animate   # Generate GIF animation
 
 ### Scripts
 ```
-sample/gradh_study_2d_planar/scripts/
+simulations/stability/gradh_study_2d_planar/scripts/
 ├── compare_methods.py      # Static comparison plots
 └── animate_comparison.py   # 2x2 animated GIF
 
-sample/gradh_study_3d_cylinder/scripts/
+simulations/stability/gradh_study_3d_cylinder/scripts/
 ├── compare_methods.py      # Static comparison plots
 └── animate_comparison.py   # 2x2 animated GIF (xy cross-section)
 ```
 
 ### Output Files
 ```
-sample/gradh_study_2d_planar/results/comparison/
+simulations/stability/gradh_study_2d_planar/results/comparison/
 ├── central_density_evolution.png
 ├── max_density_evolution.png
 ├── extent_evolution.png
@@ -170,7 +170,7 @@ sample/gradh_study_2d_planar/results/comparison/
 ├── density_profiles.png
 └── 4method_comparison.gif
 
-sample/gradh_study_3d_cylinder/results/comparison/
+simulations/stability/gradh_study_3d_cylinder/results/comparison/
 ├── central_density_evolution.png
 ├── max_density_evolution.png
 ├── radius_evolution.png

@@ -388,7 +388,7 @@ Examples:
     # Apply command (generate C++ config from preset)
     apply_parser = subparsers.add_parser('apply', help='Apply preset to sample directory (generate C++ config)')
     apply_parser.add_argument('--preset', required=True, help='Preset name to apply')
-    apply_parser.add_argument('--sample-dir', default='sample/lane_emden', help='Sample directory path (default: sample/lane_emden)')
+    apply_parser.add_argument('--sample-dir', default='lane_emden', help='Sample directory path (default: lane_emden)')
     
     args = parser.parse_args()
     

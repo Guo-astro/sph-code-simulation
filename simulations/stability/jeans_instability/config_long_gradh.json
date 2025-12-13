@@ -1,0 +1,41 @@
+{
+    "_comment": "UNSTABLE MODE: λ = 4.0 > λ_J ≈ 1.77, with grad-h → should match Jeans theory exactly",
+    "outputDirectory": "simulations/stability/jeans_instability/results/long_wave_gradh",
+    "startTime": 0.0,
+    "endTime": 3.0,
+    "outputTime": 0.02,
+    "energyTime": 0.02,
+    "checkpoint": {
+        "enabled": false,
+        "resumeFile": ""
+    },
+    "output": {
+        "formats": [
+            {
+                "type": "csv",
+                "precision": 16
+            }
+        ],
+        "enableEnergyFile": true
+    },
+    "sample": "jeans_instability",
+    "N": 500,
+    "wavelength": 4.0,
+    "amplitude": 0.01,
+    "rho_0": 1.0,
+    "c_s": 1.0,
+    "avAlpha": 1.0,
+    "neighborNumber": 8,
+    "gamma": 1.4,
+    "kernel": "cubic_spline",
+    "periodic": true,
+    "iterativeSmoothingLength": false,
+    "SPHType": "gsph",
+    "use2ndOrderGSPH": true,
+    "riemannSolver": "HLL",
+    "slopeLimiter": "van_leer",
+    "useGradH": true,
+    "useGravity": true,
+    "G": 1.0,
+    "gravityUseTree": false
+}

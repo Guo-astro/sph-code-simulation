@@ -53,7 +53,7 @@ void FluidForce::hll_solver() {
 
 ### 2. Vacuum Analytical Solver (Test-Only)
 
-**Location**: `sample/vacuum/scripts/vacuum_analytical.py`
+**Location**: `simulations/benchmarks/vacuum/scripts/vacuum_analytical.py`
 
 **Algorithm**: Exact solution for symmetric vacuum formation
 

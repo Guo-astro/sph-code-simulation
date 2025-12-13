@@ -318,12 +318,12 @@ When citing this work for SPH or Riemann solver implementations, use:
 
 ## Notes for This Repository
 
-The vacuum test case in `sample/vacuum/` implements the analytical solution based on the Riemann problem formulation described in van Leer (1979). The rarefaction wave formulas and vacuum detection criteria follow directly from this paper's treatment.
+The vacuum test case in `simulations/benchmarks/vacuum/` implements the analytical solution based on the Riemann problem formulation described in van Leer (1979). The rarefaction wave formulas and vacuum detection criteria follow directly from this paper's treatment.
 
 Key implementation files:
-- `sample/vacuum/scripts/vacuum_analytical.py`: Analytical Riemann solver
-- `src/sample/vacuum.cpp`: Initial conditions setup
-- `sample/vacuum/Makefile.vacuum`: Test automation
+- `simulations/benchmarks/vacuum/scripts/vacuum_analytical.py`: Analytical Riemann solver
+- `src/simulations/benchmarks/vacuum.cpp`: Initial conditions setup
+- `simulations/benchmarks/vacuum/Makefile.vacuum`: Test automation
 
 ---
 

@@ -239,7 +239,7 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
         static FILE* debug_file = nullptr;
         
         if (!debug_file_open) {
-            debug_file = fopen("sample/cooling_heating/results/cnm_relaxation/cooling_debug.txt", "w");
+            debug_file = fopen("simulations/astrophysics/cooling_heating/results/cnm_relaxation/cooling_debug.txt", "w");
             if (debug_file) {
                 fprintf(debug_file, "# Cooling debug output\n");
                 fprintf(debug_file, "# call  i  dene_total  dene_hydro  dene_cooling  n_H  T_current  T_eq  u_current  u_eq\n");

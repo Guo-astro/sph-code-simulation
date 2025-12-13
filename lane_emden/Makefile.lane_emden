@@ -85,7 +85,7 @@ lane_emden_run: build/sph
 	@echo "Applying preset to generate C++ config..."
 	@$(CONFIG_MANAGER) apply --preset $(PRESET)
 	@echo "Output directory:"
-	@python3 -c "import json; print('  📁 ' + json.load(open('sample/lane_emden/lane_emden.json'))['outputDirectory'])"
+	@python3 -c "import json; print('  📁 ' + json.load(open('lane_emden/lane_emden.json'))['outputDirectory'])"
 	@echo "Creating results directory..."
 	@mkdir -p $(RESULTS_DIR)
 	@echo "Running simulation..."
@@ -93,7 +93,7 @@ lane_emden_run: build/sph
 	@echo ""
 	@echo "✓ Simulation complete!"
 	@echo "📁 Results saved to:"
-	@python3 -c "import json; print('   ' + json.load(open('sample/lane_emden/lane_emden.json'))['outputDirectory'])"
+	@python3 -c "import json; print('   ' + json.load(open('lane_emden/lane_emden.json'))['outputDirectory'])"
 
 # ============================================================================
 # Relaxation Workflow Targets
@@ -127,11 +127,11 @@ lane_emden_relax: build/sph
 	@$(CONFIG_MANAGER) apply --preset $(PRESET)
 	@echo "Enabling relaxation-only mode..."
 	@python3 -c "import json; \
-		config = json.load(open('sample/lane_emden/lane_emden.json')); \
+		config = json.load(open('lane_emden/lane_emden.json')); \
 		config['relaxationOnly'] = True; \
-		json.dump(config, open('sample/lane_emden/lane_emden.json', 'w'), indent=2)"
+		json.dump(config, open('lane_emden/lane_emden.json', 'w'), indent=2)"
 	@echo "Output directory:"
-	@python3 -c "import json; print('  📁 ' + json.load(open('sample/lane_emden/lane_emden.json'))['outputDirectory'])"
+	@python3 -c "import json; print('  📁 ' + json.load(open('lane_emden/lane_emden.json'))['outputDirectory'])"
 	@echo "Creating results directory..."
 	@mkdir -p $(RESULTS_DIR)
 	@echo "Running relaxation..."
@@ -139,7 +139,7 @@ lane_emden_relax: build/sph
 	@echo ""
 	@echo "✓ Relaxation complete!"
 	@echo "📁 Results saved to:"
-	@python3 -c "import json; print('   ' + json.load(open('sample/lane_emden/lane_emden.json'))['outputDirectory'])"
+	@python3 -c "import json; print('   ' + json.load(open('lane_emden/lane_emden.json'))['outputDirectory'])"
 	@echo ""
 	@echo "Next steps:"
 	@echo "  - Run multi-method comparison: make lane_emden_compare_all"

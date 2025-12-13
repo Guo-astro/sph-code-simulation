@@ -1,0 +1,116 @@
+{
+  "simulation": {
+    "name": "GRB 170817A-like Cocoon",
+    "description": "Parameters tuned to match GRB 170817A observables"
+  },
+
+  "output": {
+    "directory": "simulations/astrophysics/bns_cocoon/results/grb170817a_like",
+    "formats": ["csv"],
+    "energyFile": true
+  },
+
+  "time": {
+    "start": 0.0,
+    "end": 200.0,
+    "outputInterval": 2.0,
+    "energyInterval": 0.2
+  },
+
+  "domain": {
+    "dimension": 1,
+    "boundary": "open"
+  },
+
+  "physics": {
+    "gamma": 1.333333,
+    "G": 0.0,
+    "c": 1.0,
+    "neighborNumber": 30
+  },
+
+  "sph": {
+    "type": "srgsph",
+    "kernel": "gaussian",
+    "balsara": true,
+    "alpha": 1.0,
+    "order": 2
+  },
+
+  "timestep": {
+    "CFL_sound": 0.3,
+    "CFL_force": 0.25
+  },
+
+  "sample": {
+    "type": "bns_cocoon",
+    "dimension": 1
+  },
+
+  "bns_cocoon": {
+    "ejecta_source": "analytic",
+    "ejecta_profile": "fasttail",
+    
+    "ejecta": {
+      "bulk_mass_msun": 0.03,
+      "bulk_velocity_c": 0.15,
+      "tail_mass_msun": 1e-4,
+      "tail_velocity_c": 0.6,
+      "velocity_power": -3.0
+    },
+    
+    "expansion": {
+      "t0_seconds": 1.0,
+      "length_unit_cm": 3e10
+    },
+    
+    "ism": {
+      "n_per_cc": 1e-4,
+      "extend_factor": 20.0
+    },
+    
+    "particles": {
+      "n_ejecta": 20000,
+      "random_seed": 42
+    },
+    
+    "cocoon": {
+      "enabled": true,
+      "energy_erg": 5e49,
+      "opening_angle_deg": 30.0,
+      "velocity_c": 0.8,
+      "n_particles": 2000
+    }
+  },
+
+  "analysis": {
+    "opacity_cm2_g": 0.2,
+    "redshift": 0.009783,
+    "distance_Mpc": 40.0,
+    "radiation_efficiency": 0.1
+  },
+
+  "grb170817a_targets": {
+    "E_iso_erg": 4.6e46,
+    "T_peak_keV": 185,
+    "T90_s": 2.0,
+    "viewing_angle_deg": 20
+  },
+
+  "unit_system": {
+    "type": "relativistic",
+    "length_cm": 3e10,
+    "c": 1.0
+  },
+
+  "_notes": {
+    "reference_event": "GRB 170817A / GW170817",
+    "references": [
+      "Abbott et al. 2017, ApJL 848:L12 (multi-messenger)",
+      "Goldstein et al. 2017, ApJL 848:L14 (Fermi)",
+      "Mooley et al. 2018, Nature 561:355 (structure)",
+      "Nakar & Piran 2017, ApJ 834:28 (cocoon theory)"
+    ],
+    "note": "Two-component ejecta: slow bulk + fast tail, matching kilonova constraints"
+  }
+}

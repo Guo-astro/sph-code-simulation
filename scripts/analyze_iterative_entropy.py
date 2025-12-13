@@ -5,8 +5,8 @@ import pandas as pd
 import numpy as np
 
 # Load snapshots
-s0 = pd.read_csv('sample/imbh_cloud/results/hydrostatic/10k/GSPH/snapshot_0000.csv')
-s1 = pd.read_csv('sample/imbh_cloud/results/hydrostatic/10k/GSPH/snapshot_0001.csv')
+s0 = pd.read_csv('simulations/astrophysics/imbh_cloud/results/hydrostatic/10k/GSPH/snapshot_0000.csv')
+s1 = pd.read_csv('simulations/astrophysics/imbh_cloud/results/hydrostatic/10k/GSPH/snapshot_0001.csv')
 
 # Calculate radius
 s0['r'] = np.sqrt(s0['x']**2 + s0['y']**2 + s0['z']**2)

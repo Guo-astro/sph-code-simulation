@@ -51,7 +51,7 @@ export const Route = createFileRoute('/api/simulations/$simId/frames/$frameId')(
           
           // Try different possible locations
           // For nested structure like imbh_cloud/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph
-          // The actual path is sample/imbh_cloud/results/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph/viz_data
+          // The actual path is simulations/astrophysics/imbh_cloud/results/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph/viz_data
           const pathParts = simPath.split('/')
           const possiblePaths = [
             path.join(dataRoot, 'sample', simPath, 'viz_data'),
@@ -60,7 +60,7 @@ export const Route = createFileRoute('/api/simulations/$simId/frames/$frameId')(
             path.join(dataRoot, simPath, 'viz_data'),
           ]
           
-          // Handle nested structure: testName/scenario/method -> sample/testName/results/scenario/method
+          // Handle nested structure: testName/scenario/method -> simulations/category/testName/results/scenario/method
           if (pathParts.length >= 3) {
             const [testName, ...rest] = pathParts
             possiblePaths.unshift(

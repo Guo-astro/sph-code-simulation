@@ -312,8 +312,8 @@ if __name__ == "__main__":
     
     # Test with a sample file if available
     test_paths = [
-        "sample/imbh_cloud/results/ic_relax_10k/snapshot_0032.csv",
-        "sample/shock_tube/results/snapshot_0000.csv",
+        "simulations/astrophysics/imbh_cloud/results/ic_relax_10k/snapshot_0032.csv",
+        "simulations/benchmarks/shock_tube/results/snapshot_0000.csv",
     ]
     
     for test_path in test_paths:

@@ -36,7 +36,7 @@ Before visualizing, you need to export your simulation data to the visualization
 python scripts/export_viz_data.py /path/to/simulation/results
 
 # Export with options
-python scripts/export_viz_data.py sample/sedov/results/gsph_wendland \\
+python scripts/export_viz_data.py simulations/benchmarks/sedov/results/gsph_wendland \\
     --stride 2 \\      # Export every 2nd frame
     --max-frames 100  # Limit to 100 frames
 \`\`\`

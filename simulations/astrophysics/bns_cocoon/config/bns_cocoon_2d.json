@@ -1,0 +1,65 @@
+{
+    "//": "========================================================================",
+    "//": " BNS Cocoon 2D Full Simulation",
+    "//": "========================================================================",
+    "//": " Special Relativistic Godunov SPH simulation of cocoon-driven shock",
+    "//": " propagating through BNS merger ejecta.",
+    "//": "",
+    "//": " Reference: Shibata & Hotokezaka (2019), Nakar & Piran (2017)",
+    "//": "========================================================================",
+    
+    "SPHType": "srgsph",
+    "sample_type": "bns_cocoon_2d",
+    "testType": "bns_cocoon_2d",
+    "name": "bns_cocoon_2d_full",
+    "outputDirectory": "simulations/astrophysics/bns_cocoon/results/2d",
+    
+    "//": "=== Time Settings ===",
+    "startTime": 0.0,
+    "endTime": 2.0,
+    "outputInterval": 0.02,
+    
+    "//": "=== Physics ===",
+    "gamma": 1.3333333333,
+    "courant": 0.2,
+    "AV.alpha": 1.0,
+    
+    "//": "=== Kernel Settings ===",
+    "//": "Gaussian kernel required for SRGSPH",
+    "kernel": "gaussian",
+    "dimension": 2,
+    "neighbors": 50,
+    
+    "//": "=== Ejecta Parameters (GW170817-like) ===",
+    "bns_cocoon": {
+        "//": "Ejecta mass (solar masses -> code units)",
+        "M_ej": 0.01,
+        
+        "//": "Velocity range (in units of c)",
+        "v_min": 0.05,
+        "v_max": 0.4,
+        
+        "//": "Power-law index for mass distribution dM/dv ~ v^(-beta)",
+        "beta": 0.5,
+        
+        "//": "Reference time for homologous expansion",
+        "t0": 1.0,
+        
+        "//": "Cocoon energy (code units)",
+        "E_cocoon": 0.001,
+        
+        "//": "Cocoon half-opening angle (radians, ~30 degrees)",
+        "theta_cocoon": 0.52,
+        
+        "//": "Angular distribution power (sin^n for equatorial concentration)",
+        "angular_power": 2.0,
+        
+        "//": "Resolution",
+        "n_radial": 60,
+        "n_angular": 50
+    },
+    
+    "//": "=== Other Settings ===",
+    "gravity": false,
+    "tree.periodic": false
+}

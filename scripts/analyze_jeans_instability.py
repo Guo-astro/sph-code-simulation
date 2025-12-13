@@ -149,7 +149,7 @@ def main():
     
     # Analyze both cases
     results = {}
-    base_dir = Path("sample/jeans_instability/results")
+    base_dir = Path("simulations/stability/jeans_instability/results")
     
     Gamma_gradh, A0_gradh = analyze_jeans(
         base_dir / "gradh", "grad-h", wavelength, ax_amp, ax_growth, 'blue')
@@ -206,7 +206,7 @@ def main():
                           f'{g:.3f}', ha='center', va='bottom')
     
     plt.tight_layout()
-    plt.savefig('sample/jeans_instability/jeans_analysis.png', dpi=150)
+    plt.savefig('simulations/stability/jeans_instability/jeans_analysis.png', dpi=150)
     plt.show()
     
     # Print summary

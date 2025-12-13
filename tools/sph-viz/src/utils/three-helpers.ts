@@ -254,8 +254,8 @@ export function createArrow(
 ): THREE.Group {
   const {
     headLength = 1.0,
-    headWidth = 0.5,
-    shaftRadius = 0.08,
+    headWidth = 0.6,
+    shaftRadius = 0.15,  // Increased from 0.08 for better visibility
     opacity = 1.0
   } = options
 

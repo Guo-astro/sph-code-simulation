@@ -18,7 +18,7 @@ LANE_EMDEN_2D_PRESET ?= polytrope_n1_5_ssph
 LANE_EMDEN_2D_DIR = lane_emden/2d
 LANE_EMDEN_2D_PRESET_DIR = $(LANE_EMDEN_2D_DIR)/config/presets
 LANE_EMDEN_2D_RESULTS_DIR = $(LANE_EMDEN_2D_DIR)/results
-SAMPLE_DIR = sample/lane_emden
+SAMPLE_DIR = lane_emden
 
 .PHONY: lane_emden_2d_run lane_emden_2d_clean lane_emden_2d_help \
         lane_emden_2d_compare_run lane_emden_2d_compare_viz \

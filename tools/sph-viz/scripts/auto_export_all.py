@@ -37,10 +37,10 @@ SPHCODE_ROOT = SPH_VIZ_DIR.parent.parent
 # Directories to scan for simulation results
 # Only scan IMBH cloud category results (CAT1, CAT2, CAT3, CAT_OKA)
 SCAN_DIRS = [
-    'sample/imbh_cloud/results/CAT1',
-    'sample/imbh_cloud/results/CAT2',
-    'sample/imbh_cloud/results/CAT3',
-    'sample/imbh_cloud/results/CAT_OKA',
+    'simulations/astrophysics/imbh_cloud/results/CAT1',
+    'simulations/astrophysics/imbh_cloud/results/CAT2',
+    'simulations/astrophysics/imbh_cloud/results/CAT3',
+    'simulations/astrophysics/imbh_cloud/results/CAT_OKA',
 ]
 
 
@@ -184,7 +184,7 @@ def main():
         if not args.quiet:
             print("\n⚠️  No simulation results found.")
             print("   Run some simulations first, e.g.:")
-            print("     make -f sample/sedov/Makefile.sedov sedov_compare_run")
+            print("     make -f simulations/benchmarks/sedov/Makefile.sedov sedov_compare_run")
         return 0
     
     # Count stats

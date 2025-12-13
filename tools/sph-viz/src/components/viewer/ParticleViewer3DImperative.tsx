@@ -258,6 +258,8 @@ export interface ParticleViewer3DImperativeProps {
   showRadii?: boolean
   /** Show galactic coordinate markers (Sun, Earth, GC, LoS, HVCC) */
   showGalacticMarkers?: boolean
+  /** Show text labels on markers and arrows */
+  showLabels?: boolean
   /** Galactic coordinate configuration */
   galacticConfig?: GalacticConfig
   /** Camera view mode: 'free' = orbit controls, 'earth' = view from Earth toward BH */
@@ -295,6 +297,7 @@ export function ParticleViewer3DImperative({
   showTrajectory = true,
   showRadii = true,
   showGalacticMarkers = true,
+  showLabels = true,
   galacticConfig,
   cameraMode = 'free',
   onCameraModeChange,
@@ -992,7 +995,16 @@ export function ParticleViewer3DImperative({
     if (galacticMarkersGroupRef.current) {
       galacticMarkersGroupRef.current.visible = showGalacticMarkers
     }
-  }, [showBlackHole, showTrajectory, showRadii, showGalacticMarkers])
+
+    // Toggle visibility of all text labels (Sprite objects) in the scene
+    if (sceneRef.current) {
+      sceneRef.current.traverse((object) => {
+        if (object instanceof THREE.Sprite) {
+          object.visible = showLabels
+        }
+      })
+    }
+  }, [showBlackHole, showTrajectory, showRadii, showGalacticMarkers, showLabels])
 
   // Recreate galactic markers when galacticConfig changes (showGalaxyDisk, showSolarSystem)
   useEffect(() => {

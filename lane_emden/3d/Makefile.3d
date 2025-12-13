@@ -15,7 +15,7 @@
 LANE_EMDEN_3D_DIR = lane_emden/3d
 LANE_EMDEN_3D_PRESET_DIR = $(LANE_EMDEN_3D_DIR)/config/presets
 LANE_EMDEN_3D_RESULTS_DIR = $(LANE_EMDEN_3D_DIR)/results
-SAMPLE_DIR = sample/lane_emden
+SAMPLE_DIR = lane_emden
 
 .PHONY: lane_emden_3d_relax lane_emden_3d_viz lane_emden_3d_animate \
         lane_emden_3d_all lane_emden_3d_clean lane_emden_3d_help

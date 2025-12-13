@@ -2,7 +2,7 @@
 
 **⚠️ SINGLE SOURCE OF TRUTH**: All configurations are managed through **presets** in `config/presets/`. 
 
-The C++ config file (`sample/lane_emden/lane_emden.json`) is **auto-generated** from presets - don't edit it directly!
+The C++ config file (`lane_emden/lane_emden.json`) is **auto-generated** from presets - don't edit it directly!
 
 ## 🚀 Quick Start (New Workflow)
 
@@ -161,8 +161,8 @@ Edit JSON files in `config/presets/`:
 
 **Old System** (deprecated):
 - Config: `config/relaxation_config.json`
-- Sample: `sample/lane_emden/lane_emden.json`
-- Results: `sample/lane_emden/results/`
+- Sample: `lane_emden/lane_emden.json`
+- Results: `lane_emden/results/`
 
 **New System**:
 - Presets: `lane_emden/config/presets/`

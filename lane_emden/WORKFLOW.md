@@ -2,7 +2,7 @@
 
 ## 🎯 Philosophy: Presets are the Single Source of Truth
 
-All Lane-Emden configurations are managed through **presets** in `lane_emden/config/presets/`. The C++ runtime config in `sample/lane_emden/lane_emden.json` is **generated** from presets, not edited directly.
+All Lane-Emden configurations are managed through **presets** in `lane_emden/config/presets/`. The C++ runtime config in `lane_emden/lane_emden.json` is **generated** from presets, not edited directly.
 
 ## 📁 Directory Structure
 
@@ -22,7 +22,7 @@ lane_emden/
 ├── results/
 └── docs/
 
-sample/lane_emden/
+lane_emden/
 └── lane_emden.json       ← GENERATED from presets (DO NOT EDIT)
 ```
 
@@ -51,7 +51,7 @@ python3 lane_emden_config_manager.py update --preset polytrope_n1_5_3d \
 
 ### 3. Apply Preset to Generate C++ Config
 ```bash
-# Generate sample/lane_emden/lane_emden.json from preset
+# Generate lane_emden/lane_emden.json from preset
 python3 lane_emden_config_manager.py apply --preset polytrope_n1_5_3d
 ```
 
@@ -98,7 +98,7 @@ tail -f lane_emden/results/run.log
 
 ## 🚨 Important Rules
 
-1. **NEVER** edit `sample/lane_emden/lane_emden.json` directly
+1. **NEVER** edit `lane_emden/lane_emden.json` directly
 2. **ALWAYS** update presets in `lane_emden/config/presets/`
 3. **ALWAYS** run `apply` command after updating a preset
 4. Presets are version-controlled; generated configs are not

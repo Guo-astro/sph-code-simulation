@@ -1,0 +1,45 @@
+{
+  "name": "relax_61k_GSPH",
+  "description": "Lane-Emden 3D Relaxation - 61k particles with GSPH method (pure Riemann)",
+  
+  "scenario": {
+    "size": "61k",
+    "particles": "~64,000 (N=40)",
+    "steps": 200000,
+    "derivation": "SPH error ε ~ N^(-2/3), need ~61k for 5% accuracy on ρ_c"
+  },
+  
+  "N": 40,
+  "sample": "lane_emden",
+  
+  "relaxationSteps": 200000,
+  "relaxationOutputFreq": 10,
+  "relaxationOnly": true,
+  "useRelaxation": true,
+  
+  "outputDirectory": "simulations/astrophysics/imbh_cloud/results/relaxation/61k/GSPH",
+  "outputFormat": "csv",
+  "enableEnergyFile": true,
+  
+  "SPHType": "gsph",
+  "use2ndOrderGSPH": false,
+  "kernel": "wendland",
+  "neighborNumber": 50,
+  "riemannSolver": "iterative",
+  
+  "useGravity": false,
+  "periodic": false,
+  
+  "cflSound": 0.3,
+  "cflForce": 0.125,
+  
+  "startTime": 0.0,
+  "endTime": 0.0,
+  "outputTime": 0.01,
+  
+  "gamma": 1.666666667,
+  
+  "maxTreeLevel": 20,
+  "leafParticleNumber": 1,
+  "iterativeSmoothingLength": true
+}

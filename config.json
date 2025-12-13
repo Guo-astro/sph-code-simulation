@@ -15,7 +15,7 @@
     "velocity_kms": 1.0
   },
   
-  "outputDirectory": "sample/imbh_cloud/results/b3pc_nocool/GSPH_61k",
+  "outputDirectory": "simulations/astrophysics/imbh_cloud/results/b3pc_nocool/GSPH_61k",
   "outputFormat": "csv",
   "enableEnergyFile": true,
   
@@ -38,12 +38,12 @@
   "outputTime": 0.02,
   
   "checkpointInterval": 1000,
-  "checkpointPath": "sample/imbh_cloud/results/b3pc_nocool/GSPH_61k/checkpoints",
+  "checkpointPath": "simulations/astrophysics/imbh_cloud/results/b3pc_nocool/GSPH_61k/checkpoints",
   
   "useGravity": true,
   "G": 1.0,
   
-  "resumeFromSnapshot": "sample/imbh_cloud/results/hydrostatic/61k/GSPH_kernel_gravity/snapshot_0000.csv",
+  "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/hydrostatic/61k/GSPH_kernel_gravity/snapshot_0000.csv",
   "resetTimeOnResume": true,
   
   "physics": {

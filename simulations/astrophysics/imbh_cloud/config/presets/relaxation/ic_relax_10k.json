@@ -1,0 +1,42 @@
+{
+  "comment": "Lane-Emden 3D Relaxation Test - ~10k particles (N=22)",
+  "description": "Fast relaxation test for IMBH-cloud initial conditions with 20,000 steps",
+  
+  "N": 22,
+  "sample": "lane_emden",
+  
+  "relaxationSteps": 400000,
+  "relaxationOutputFreq": 1000,
+  "relaxationOnly": true,
+  "useRelaxation": true,
+  
+  "outputDirectory": "simulations/astrophysics/imbh_cloud/results/ic_relax_10k",
+  "outputFormat": "csv",
+  "enableEnergyFile": true,
+  
+  "neighborNumber": 50,
+  "kernel": "wendland",
+  "SPHType": "gdisph",
+  "useGravity": false,
+  "periodic": false,
+  "use2ndOrderGSPH": false,
+  "riemannSolver": "hll",
+  
+  "alpha": 1.0,
+  "useBalsaraSwitch": true,
+  "useTimeDependentAV": false,
+  
+  "cflSound": 0.3,
+  "cflForce": 0.125,
+  
+  "startTime": 0.0,
+  "endTime": 0.0,
+  "outputTime": 0.01,
+  
+  "gamma": 1.666666667,
+  
+  "maxTreeLevel": 20,
+  "leafParticleNumber": 1,
+  
+  "iterativeSmoothingLength": true
+}

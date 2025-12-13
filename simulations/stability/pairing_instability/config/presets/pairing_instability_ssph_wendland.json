@@ -1,0 +1,31 @@
+{
+  "outputDirectory": "simulations/stability/pairing_instability/results/ssph_wendland",
+  "startTime": 0.0,
+  "endTime": 1.0,
+  "outputTime": 0.05,
+  "energyTime": 0.05,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "avAlpha": 1.0,
+  "useBalsaraSwitch": false,
+  "neighborNumber": 32,
+  "leafParticleNumber": 32,
+  "gamma": 1.66666666666666666666666666666666667,
+  "kernel": "wendland",
+  "N": 64,
+  "periodic": true,
+  "rangeMax": [0.5, 0.5],
+  "rangeMin": [-0.5, -0.5],
+  "SPHType": "ssph"
+}
