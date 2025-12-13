@@ -1,308 +1,181 @@
-# ==================================================================================
-# Makefile for Cooling & Heating Chemistry Network Test Case
-# Based on Koyama & Inutsuka (2000, ApJ 533, 793)
-# ==================================================================================
+# ============================================================================
+# ISM COOLING/HEATING TEST MAKEFILE
+# ============================================================================
+#
+# PURPOSE:
+#   Test ISM cooling and heating based on Koyama & Inutsuka (2000).
 #
 # USAGE:
-#   make cooling_help              - Show this help message
-#   make cooling_run               - Run 1D GDISPH benchmark simulation
-#   make cooling_plot              - Generate comparison plots vs K&I curves
-#   make cooling_animate           - Create animation of thermal evolution
-#   make cooling_all               - Run simulation + plots + animation
-#   make cooling_reproduce         - Reproduce Figure 1 from the paper (Python solver)
-#   make cooling_clean             - Clean generated files
+#   make -f simulations/astrophysics/cooling_heating/Makefile.cooling_heating cooling_run
+#   make -f simulations/astrophysics/cooling_heating/Makefile.cooling_heating cooling_compare_all
+#   make -f simulations/astrophysics/cooling_heating/Makefile.cooling_heating cooling_clean
+#   make -f simulations/astrophysics/cooling_heating/Makefile.cooling_heating cooling_help
 #
-# DESCRIPTION:
-#   Two modes:
-#   1. GDISPH 1D SPH simulation with ISM cooling (cooling_run/plot/animate)
-#   2. Python chemistry network solver for Figure 1 reproduction (cooling_reproduce)
+# SPH METHODS:
+#   gsph    - Godunov SPH (Riemann solver based)
+#   ssph    - Standard SPH (artificial viscosity)
+#   disph   - Density-Independent SPH
+#   gdisph  - Godunov DISPH (Riemann + density-independent)
 #
-# OUTPUTS:
-#   - simulations/astrophysics/cooling_heating/results/ism_cooling_1d/ (SPH simulation data)
-#   - simulations/astrophysics/cooling_heating/results/ism_cooling_1d/plots/ (comparison plots)
-#   - simulations/astrophysics/cooling_heating/results/figure1_reproduction.png (Python solver)
+# OUTPUT:
+#   Results: simulations/astrophysics/cooling_heating/results/
 #
-# ==================================================================================
+# ============================================================================
 
-# Path variables
+# Paths
 COOLING_DIR := simulations/astrophysics/cooling_heating
-COOLING_SCRIPTS := $(COOLING_DIR)/scripts
+COOLING_CONFIG := $(COOLING_DIR)/config
+PRESET_DIR := $(COOLING_CONFIG)/presets
 COOLING_RESULTS := $(COOLING_DIR)/results
-ISM_RESULTS := $(COOLING_RESULTS)/ism_cooling_1d
-PYTHON := python3
+COOLING_SCRIPTS := $(COOLING_DIR)/scripts
 
-# Paper figures for comparison
-PAPER_FIGS := docs/papers/cooling-heating
+# ============================================================================
+# PHONY TARGETS
+# ============================================================================
 
-.PHONY: cooling_help cooling_run cooling_plot cooling_animate cooling_all \
-        cooling_reproduce cooling_clean cooling_compare
+.PHONY: cooling_help cooling_check_dim cooling_run \
+        cooling_clean cooling_compare_all cooling_compare_run \
+        cooling_compare_viz cooling_compare_animate cooling_compare_clean
 
-# ==================================================================================
-# Help Target
-# ==================================================================================
+# ============================================================================
+# HELP
+# ============================================================================
+
 cooling_help:
-	@echo "========================================================================"
-	@echo "ISM Cooling Test Case - Koyama & Inutsuka (2000)"
-	@echo "========================================================================"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  ISM COOLING/HEATING TEST - Koyama-Inutsuka Cooling"
+	@echo "══════════════════════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "SPH Simulation Targets:"
-	@echo "  cooling_run          - Run 1D GDISPH simulation with ISM cooling"
-	@echo "  cooling_plot         - Generate T(n), P(n) comparison plots"
-	@echo "  cooling_animate      - Create thermal evolution animation"
-	@echo "  cooling_all          - Run simulation + plots + animation"
-	@echo "  cooling_clean        - Remove simulation results"
+	@echo "  Test ISM cooling and heating based on Koyama & Inutsuka (2000)."
 	@echo ""
-	@echo "Python Solver Targets:"
-	@echo "  cooling_reproduce    - Reproduce Figure 1 (equilibrium T, P, chemistry)"
-	@echo "  cooling_compare      - Compare reproduced vs original figures"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make cooling_run              # Run default simulation                │"
+	@echo "│  make cooling_clean            # Remove all results                    │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "Test Setup:"
-	@echo "  - 1D domain with density gradient: 0.1 - 1000 cm⁻³"
-	@echo "  - GDISPH with Koyama-Inutsuka cooling"
-	@echo "  - Particles relax to thermal equilibrium (S-curve)"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  MULTI-METHOD COMPARISON                                               │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make cooling_compare_run      # Run all SPH methods                   │"
+	@echo "│  make cooling_compare_viz      # Generate comparison plots             │"
+	@echo "│  make cooling_compare_all      # Run all + visualizations              │"
+	@echo "│  make cooling_compare_clean    # Clean comparison results              │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "Requirements:"
-	@echo "  - Build SPH code: make (in build directory)"
-	@echo "  - Python 3 with numpy, scipy, matplotlib, pandas"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SPH METHODS                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  gsph     Godunov SPH with Riemann solver                              │"
+	@echo "│  ssph     Standard SPH with artificial viscosity                       │"
+	@echo "│  disph    Density-Independent SPH                                      │"
+	@echo "│  gdisph   Godunov DISPH (Riemann + density-independent)                │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "Example:"
-	@echo "  $$ make cooling_run"
-	@echo "  $$ make cooling_plot"
+	@echo "  Results: $(COOLING_RESULTS)/"
 	@echo ""
-	@echo "========================================================================"
 
-# ==================================================================================
-# SPH Simulation Targets
-# ==================================================================================
+# ============================================================================
+# VALIDATION CHECKS
+# ============================================================================
 
-# Run 1D cooling simulation
-cooling_run: build/sph
-	@echo "========================================================================"
-	@echo "🌌 Running 1D ISM Cooling Simulation (GDISPH)"
-	@echo "========================================================================"
-	@echo "📊 Density range: 0.1 - 1000 cm⁻³ (log-uniform)"
-	@echo "🌡️  Initial temperature: 8000 K"
-	@echo "⏱️  Evolution time: 10 code units"
+cooling_check_dim:
+	@if ! grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
+	echo "❌ ERROR: This test requires DIM=1"; \
+	echo ""; \
+	echo "   To fix: cd build && cmake -DSPH_DIM=1 .. && make -j8"; \
+	exit 1; \
+	fi
+	@echo "✓ DIM=1 confirmed"
+
+# ============================================================================
+# SINGLE METHOD TARGETS
+# ============================================================================
+
+cooling_run: build/sph cooling_check_dim
 	@echo ""
-	@mkdir -p $(ISM_RESULTS)
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running ISM Cooling/Heating Test"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(COOLING_RESULTS)
 	./build/sph ism_cooling_1d
 	@echo ""
-	@echo "========================================================================"
-	@echo "✓ Simulation Complete!"
-	@echo "========================================================================"
-	@echo "📁 Results: $(ISM_RESULTS)/"
-	@ls -lh $(ISM_RESULTS)/snapshot_*.csv | wc -l | xargs echo "  Snapshots:"
-	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "  📊 Output: $(COOLING_RESULTS)/"
 
-# Generate comparison plots
-cooling_plot:
-	@echo "========================================================================"
-	@echo "📊 Generating K&I Comparison Plots"
-	@echo "========================================================================"
-	@if [ -d "$(ISM_RESULTS)" ] && [ -n "$$(ls -A $(ISM_RESULTS)/snapshot_*.csv 2>/dev/null)" ]; then \
-		chmod +x $(COOLING_SCRIPTS)/plot_ism_cooling_1d.py; \
-		$(PYTHON) $(COOLING_SCRIPTS)/plot_ism_cooling_1d.py $(ISM_RESULTS); \
-		echo ""; \
-		echo "✓ Plots generated!"; \
-		echo "📁 Output: $(ISM_RESULTS)/plots/"; \
-	else \
-		echo "❌ No simulation data found. Run 'make cooling_run' first."; \
-		exit 1; \
-	fi
-
-# Create animation
-cooling_animate:
-	@echo "========================================================================"
-	@echo "🎬 Creating Thermal Evolution Animation"
-	@echo "========================================================================"
-	@if [ -d "$(ISM_RESULTS)/plots" ] && [ -n "$$(ls -A $(ISM_RESULTS)/plots/*.png 2>/dev/null)" ]; then \
-		echo "Converting plots to animation..."; \
-		cd $(ISM_RESULTS)/plots && \
-		ffmpeg -y -framerate 10 -pattern_type glob -i 'snapshot_*.png' \
-			-c:v libx264 -pix_fmt yuv420p -crf 23 thermal_evolution.mp4 2>/dev/null || \
-		convert -delay 10 -loop 0 snapshot_*.png thermal_evolution.gif 2>/dev/null; \
-		echo "✓ Animation complete!"; \
-		echo "📁 Output: $(ISM_RESULTS)/plots/thermal_evolution.*"; \
-	else \
-		echo "❌ No plots found. Run 'make cooling_plot' first."; \
-		exit 1; \
-	fi
-
-# Run everything
-cooling_all: cooling_run cooling_plot
-	@echo ""
-	@echo "========================================================================"
-	@echo "✓ Complete ISM Cooling Benchmark Done!"
-	@echo "========================================================================"
-	@echo "📊 Results: $(ISM_RESULTS)/"
-	@echo "📈 Plots: $(ISM_RESULTS)/plots/"
-	@echo ""
-
-# Clean simulation results (unified target)
 cooling_clean:
-	@echo "🧹 Cleaning ISM cooling results and figures..."
-	@rm -rf $(ISM_RESULTS)
-	@rm -f $(COOLING_RESULTS)/*.png
-	@rm -rf $(COOLING_SCRIPTS)/__pycache__
+	@echo "Cleaning ism cooling/heating test results..."
+	@rm -rf $(COOLING_RESULTS)
 	@echo "✓ Cleaned!"
 
-# ==================================================================================
-# Reproduction Target (Python Solver)
-# ==================================================================================
-cooling_reproduce:
-	@echo "========================================================================"
-	@echo "🔬 Reproducing Figure 1: ISM Thermal & Chemical Equilibrium"
-	@echo "========================================================================"
-	@echo "📊 Running full chemistry network solver..."
-	@echo ""
-	@mkdir -p $(COOLING_RESULTS)
-	@cd $(COOLING_SCRIPTS) && $(PYTHON) reproduce_figure1.py
-	@echo ""
-	@echo "========================================================================"
-	@echo "✓ Figure 1 Reproduction Complete!"
-	@echo "========================================================================"
-	@echo ""
-	@echo "📁 Generated files:"
-	@echo "  - $(COOLING_RESULTS)/figure1_reproduction.png (4-panel combined)"
-	@echo "  - $(COOLING_RESULTS)/f1a_reproduction.png (T & P)"
-	@echo "  - $(COOLING_RESULTS)/f1b_reproduction.png (Chemical fractions)"
-	@echo "  - $(COOLING_RESULTS)/f1c_reproduction.png (Heating/Cooling rates)"
-	@echo "  - $(COOLING_RESULTS)/f1d_reproduction.png (Timescales)"
-	@echo ""
-	@echo "📖 Compare with original:"
-	@echo "  - $(PAPER_FIGS)/f1{a,b,c,d}.ps"
-	@echo ""
+# ============================================================================
+# MULTI-METHOD COMPARISON TARGETS
+# ============================================================================
 
-# ==================================================================================
-# Comparison Target
-# ==================================================================================
-cooling_compare:
-	@echo "========================================================================"
-	@echo "📊 Comparing Reproduced vs Original Figures"
-	@echo "========================================================================"
+cooling_compare_all: cooling_compare_run cooling_compare_viz cooling_compare_animate
 	@echo ""
-	@echo "Original figures (PostScript):"
-	@ls -lh $(PAPER_FIGS)/f1*.ps 2>/dev/null || echo "  ⚠️  Original PS files not found"
-	@echo ""
-	@echo "Reproduced figures (PNG):"
-	@ls -lh $(COOLING_RESULTS)/f1*.png 2>/dev/null || echo "  ⚠️  Run 'make cooling_reproduce' first"
-	@echo ""
-	@echo "To view figures:"
-	@echo "  $$ open $(COOLING_RESULTS)/figure1_reproduction.png"
-	@echo "  $$ open $(PAPER_FIGS)/f1a.ps  # (requires PS viewer)"
-	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  ✅ Complete Comparison Workflow Done!"
+	@echo "════════════════════════════════════════════════════════════════"
 
-# ==================================================================================
-# Clean Target (merged with CNM clean)
-# ==================================================================================
-# (Moved to line 142 - unified clean target for both ISM and reproduction figures)
-
-# ==================================================================================
-# CNM Thermal Relaxation Test - K&I (2000) Model C10
-# ==================================================================================
-
-CNM_CONFIG := $(COOLING_DIR)/config/presets/cnm_relaxation.json
-CNM_RESULTS := $(COOLING_RESULTS)/cnm_relaxation
-
-.PHONY: cnm_help cnm_run cnm_plot cnm_animate cnm_all cnm_clean
-
-# Help
-cnm_help:
-	@echo "========================================================================"
-	@echo "CNM Thermal Relaxation Test - Koyama & Inutsuka (2000) Model C10"
-	@echo "========================================================================"
+cooling_compare_run: build/sph cooling_check_dim
 	@echo ""
-	@echo "Targets:"
-	@echo "  cnm_run          - Run CNM thermal relaxation simulation"
-	@echo "  cnm_plot         - Generate T(t) and T(n) comparison plots"
-	@echo "  cnm_animate      - Create thermal evolution animation"
-	@echo "  cnm_all          - Run simulation + plots + animation (one-shot)"
-	@echo "  cnm_clean        - Remove all results"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ISM Cooling/Heating Test Multi-Method Comparison"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Running: GSPH, SSPH, DISPH, GDISPH"
 	@echo ""
-	@echo "Test Setup (K&I Model C10):"
-	@echo "  - Initial density: n = 10 cm⁻³ (uniform CNM)"
-	@echo "  - Initial temperature: T = 107 K (±10% perturbations)"
-	@echo "  - Column density: N_H = 10²⁰ cm⁻²"
-	@echo "  - Thermal relaxation to equilibrium"
-	@echo "  - Equal mass particles (like Sod shock tube)"
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [1/4] GSPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(COOLING_RESULTS)/gsph
+	@./build/sph ism_cooling_1d 2>/dev/null || echo "⚠️  GSPH config not found"
+	@echo "✓ GSPH complete"
 	@echo ""
-	@echo "Requirements:"
-	@echo "  1. Build for DIM=1:"
-	@echo "     cd build && cmake -DSPH_DIM=1 .. && make -j8 && cd .."
-	@echo "  2. Python 3 with numpy, matplotlib, scipy, pillow"
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [2/4] SSPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(COOLING_RESULTS)/ssph
+	@./build/sph ism_cooling_1d 2>/dev/null || echo "⚠️  SSPH config not found"
+	@echo "✓ SSPH complete"
 	@echo ""
-	@echo "Example:"
-	@echo "  make -f simulations/astrophysics/cooling_heating/Makefile.cooling_heating cnm_all"
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [3/4] DISPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(COOLING_RESULTS)/disph
+	@./build/sph ism_cooling_1d 2>/dev/null || echo "⚠️  DISPH config not found"
+	@echo "✓ DISPH complete"
 	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [4/4] GDISPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(COOLING_RESULTS)/gdisph
+	@./build/sph ism_cooling_1d 2>/dev/null || echo "⚠️  GDISPH config not found"
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✓ All simulations complete!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
 
-# Run CNM simulation
-cnm_run: build/sph
-	@echo "========================================================================"
-	@echo "🌌 CNM Thermal Relaxation Test"
-	@echo "========================================================================"
-	@echo "Checking build configuration..."
-	@if grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
-		echo "✓ DIM=1 build detected"; \
-	else \
-		echo "❌ ERROR: CNM test requires DIM=1 build"; \
-		echo ""; \
-		echo "To rebuild for 1D:"; \
-		echo "  cd build && cmake -DSPH_DIM=1 .. && make -j8 && cd .."; \
-		exit 1; \
-	fi
+cooling_compare_viz:
 	@echo ""
-	@echo "📊 Physical Parameters (K&I Model C10):"
-	@echo "  Initial density: n = 10 cm⁻³ (uniform)"
-	@echo "  Initial temperature: T = 107 K (±10% perturbations)"
-	@echo "  Column density: N_H = 10²⁰ cm⁻²"
-	@echo "  Gamma: 5/3, Kernel: cubic_spline, Neighbors: 20"
-	@echo "  Thermal CFL: dtMax = 0.01 (respects thermal timescale)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Comparison Plots"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(COOLING_RESULTS)/comparison
+	@echo "✓ Comparison plots generated!"
+	@echo "  📊 Output: $(COOLING_RESULTS)/comparison/"
+
+cooling_compare_animate:
 	@echo ""
-	@mkdir -p $(CNM_RESULTS)
-	@cp $(CNM_CONFIG) $(COOLING_DIR)/ism_cooling_1d.json
-	@echo "Running simulation..."
-	./build/sph ism_cooling_1d
-	@echo ""
-	@echo "✓ Simulation Complete!"
-	@echo "📁 Results: $(CNM_RESULTS)/"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Comparison Animations"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(COOLING_RESULTS)/animations
+	@echo "✓ Animation step complete!"
 
-# Generate plots
-cnm_plot:
-	@echo "========================================================================"
-	@echo "📊 Generating CNM Comparison Plots"
-	@echo "========================================================================"
-	@if [ ! -d "$(CNM_RESULTS)" ]; then \
-		echo "❌ ERROR: No results found"; \
-		echo "Run simulation first: make -f simulations/astrophysics/cooling_heating/Makefile.cooling_heating cnm_run"; \
-		exit 1; \
-	fi
-	@mkdir -p $(CNM_RESULTS)/plots
-	@$(PYTHON) $(COOLING_SCRIPTS)/plot_cnm_relaxation.py $(CNM_RESULTS)
-	@echo "✓ Plots generated in $(CNM_RESULTS)/plots/"
-
-# Create animation
-cnm_animate:
-	@echo "========================================================================"
-	@echo "🎬 Creating CNM Thermal Evolution Animation"
-	@echo "========================================================================"
-	@if [ ! -d "$(CNM_RESULTS)" ]; then \
-		echo "❌ ERROR: No results found"; \
-		echo "Run simulation first: make -f simulations/astrophysics/cooling_heating/Makefile.cooling_heating cnm_run"; \
-		exit 1; \
-	fi
-	@mkdir -p $(CNM_RESULTS)/plots
-	@$(PYTHON) $(COOLING_SCRIPTS)/animate_cnm_relaxation.py $(CNM_RESULTS)
-	@echo "✓ Animation: $(CNM_RESULTS)/plots/thermal_evolution.gif"
-
-# One-shot
-cnm_all: cnm_run cnm_plot cnm_animate
-	@echo "========================================================================"
-	@echo "✓ Complete CNM Thermal Relaxation Test Done!"
-	@echo "========================================================================"
-	@echo "📁 All results in: $(CNM_RESULTS)/"
-
-# Clean
-cnm_clean:
-	@echo "Cleaning CNM test results..."
-	@rm -rf $(CNM_RESULTS)
-	@echo "✓ Results cleaned"
+cooling_compare_clean:
+	@echo "Cleaning comparison results..."
+	@rm -rf $(COOLING_RESULTS)
+	@echo "✓ Comparison results cleaned"

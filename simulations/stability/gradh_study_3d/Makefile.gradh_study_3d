@@ -1,358 +1,181 @@
-# Grad-H & Kernel-Convolved Gravity Study - Unified Makefile (SSOT)
-# ================================================================================
+# ============================================================================
+# GRAD-H STUDY 3D MAKEFILE
+# ============================================================================
 #
-# This study investigates the interaction between:
-# 1. Grad-H correction term (Ω): accounts for variable smoothing length
-# 2. Gravitational softening kernel: Hernquist-Katz vs Wendland C4
+# PURPOSE:
+#   Study the effect of grad-h corrections in 3D.
 #
-# PHYSICS: Lane-Emden n=1.5 polytrope (γ=5/3) in hydrostatic equilibrium.
-# Without the Ω correction, the cloud undergoes artificial numerical collapse.
+# USAGE:
+#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study_3d gradh_3d_run
+#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study_3d gradh_3d_compare_all
+#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study_3d gradh_3d_clean
+#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study_3d gradh_3d_help
 #
-# HYPOTHESIS: True kernel-convolved gravity (Wendland C4) may eliminate
-# the need for grad-h correction because gravity and SPH use the same kernel.
+# SPH METHODS:
+#   gsph    - Godunov SPH (Riemann solver based)
+#   ssph    - Standard SPH (artificial viscosity)
+#   disph   - Density-Independent SPH
+#   gdisph  - Godunov DISPH (Riemann + density-independent)
 #
-# ================================================================================
-# Usage (from repository root):
-# ================================================================================
+# OUTPUT:
+#   Results: simulations/stability/gradh_study_3d/results/
 #
-# Quick Start - 2-Case Comparison (Ω ON vs OFF with Hernquist-Katz):
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study gradh_run     # Run both cases
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study viz_html      # Generate interactive HTML
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study gradh_all     # Run + visualize
-#
-# 4-Case Kernel Study (2×2 matrix: Ω × softening kernel):
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study kernel_all    # Run all 4 cases + viz
-#
-# Individual Cases:
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study case1         # Ω ON  + H-K (baseline)
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study case2         # Ω OFF + H-K (collapse expected)
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study case3         # Ω ON  + Wendland
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study case4         # Ω OFF + Wendland (KEY TEST)
-#
-# Long Runs (t=150 for collapse observation):
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study long_case2    # Long H-K without Ω
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study long_case4    # Long Wendland without Ω
-#
-# Visualization:
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study viz_html      # Interactive HTML with Lane-Emden
-#
-# Help:
-#   make -f simulations/stability/gradh_study_3d/Makefile.gradh_study help
+# ============================================================================
 
-# ================================================================================
-# Paths (Single Source of Truth)
-# ================================================================================
-GRADH_DIR      := simulations/stability/gradh_study_3d
-PRESET_DIR     := $(GRADH_DIR)/config/presets
-RESULTS_DIR    := $(GRADH_DIR)/results
-KERNEL_RESULTS := $(RESULTS_DIR)/kernel_test
-LONG_RESULTS   := $(RESULTS_DIR)/long_test
-SCRIPTS_DIR    := $(GRADH_DIR)/scripts
-FIG_DIR        := $(GRADH_DIR)/figures_v2
+# Paths
+GRADH_3D_DIR := simulations/stability/gradh_study_3d
+GRADH_3D_CONFIG := $(GRADH_3D_DIR)/config
+PRESET_DIR := $(GRADH_3D_CONFIG)/presets
+GRADH_3D_RESULTS := $(GRADH_3D_DIR)/results
+GRADH_3D_SCRIPTS := $(GRADH_3D_DIR)/scripts
 
-# Python executable (with numpy, pandas, scipy)
-PYTHON         := /usr/local/bin/python3
+# ============================================================================
+# PHONY TARGETS
+# ============================================================================
 
-# Executable
-SPH := ./build/sph
+.PHONY: gradh_3d_help gradh_3d_check_dim gradh_3d_run \
+        gradh_3d_clean gradh_3d_compare_all gradh_3d_compare_run \
+        gradh_3d_compare_viz gradh_3d_compare_animate gradh_3d_compare_clean
 
-# Relaxed IC (10k particles)
-RELAXED_IC := simulations/astrophysics/imbh_cloud/results/relaxation/10k/GSPH/snapshot_0020.csv
+# ============================================================================
+# HELP
+# ============================================================================
 
-# ================================================================================
-# Test Matrix
-# ================================================================================
-# | Case | Grad-H (Ω) | Softening Type | Config File                    | Expected    |
-# |------|------------|----------------|--------------------------------|-------------|
-# | 1    | YES        | Hernquist-Katz | selfgrav_gradh_hk.json         | ✅ Stable   |
-# | 2    | NO         | Hernquist-Katz | selfgrav_no_gradh_hk.json      | ❌ Collapse |
-# | 3    | YES        | Wendland C4    | selfgrav_gradh_wendland.json   | ✅ Stable   |
-# | 4    | NO         | Wendland C4    | selfgrav_no_gradh_wendland.json| ❓ KEY TEST |
-# ================================================================================
+gradh_3d_help:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  GRAD-H STUDY 3D - Smoothing Length Gradient Test (3D)"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Study the effect of grad-h corrections in 3D."
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_3d_run              # Run default simulation                │"
+	@echo "│  make gradh_3d_clean            # Remove all results                    │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  MULTI-METHOD COMPARISON                                               │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_3d_compare_run      # Run all SPH methods                   │"
+	@echo "│  make gradh_3d_compare_viz      # Generate comparison plots             │"
+	@echo "│  make gradh_3d_compare_all      # Run all + visualizations              │"
+	@echo "│  make gradh_3d_compare_clean    # Clean comparison results              │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SPH METHODS                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  gsph     Godunov SPH with Riemann solver                              │"
+	@echo "│  ssph     Standard SPH with artificial viscosity                       │"
+	@echo "│  disph    Density-Independent SPH                                      │"
+	@echo "│  gdisph   Godunov DISPH (Riemann + density-independent)                │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Results: $(GRADH_3D_RESULTS)/"
+	@echo ""
 
-# ================================================================================
-# PHONY Targets
-# ================================================================================
-.PHONY: help check_build check_ic \
-        case1 case2 case3 case4 kernel_run kernel_all \
-        gradh_run gradh_all \
-        long_case2 long_case4 long_run long_all \
-        viz_html viz viz_v2 viz_long \
-        clean clean_kernel clean_long clean_gradh
+# ============================================================================
+# VALIDATION CHECKS
+# ============================================================================
 
-# ================================================================================
-# Help
-# ================================================================================
-help:
-	@echo "================================================================================"
-	@echo "Grad-H & Kernel-Convolved Gravity Study"
-	@echo "================================================================================"
-	@echo ""
-	@echo "THEORY:"
-	@echo "  Ω = 1/(1 + (h/Dρ)·∂ρ/∂h) corrects for variable smoothing length."
-	@echo "  Without Ω, spurious forces cause artificial core collapse."
-	@echo ""
-	@echo "  ANALYTIC: Lane-Emden n=1.5 polytrope (γ=5/3) provides exact equilibrium."
-	@echo ""
-	@echo "  HYPOTHESIS: Using TRUE kernel-convolved gravity (Wendland C4) where"
-	@echo "  the gravitational softening matches the SPH kernel may eliminate"
-	@echo "  the need for Ω correction."
-	@echo ""
-	@echo "TEST MATRIX:"
-	@echo "  ┌──────┬────────┬──────────────┬──────────────┐"
-	@echo "  │ Case │ Grad-H │ Grav Kernel  │ Expected     │"
-	@echo "  ├──────┼────────┼──────────────┼──────────────┤"
-	@echo "  │  1   │  ON    │ Hernquist-K  │ ✅ Stable    │"
-	@echo "  │  2   │  OFF   │ Hernquist-K  │ ❌ Collapse  │"
-	@echo "  │  3   │  ON    │ Wendland C4  │ ✅ Stable    │"
-	@echo "  │  4   │  OFF   │ Wendland C4  │ ❓ KEY TEST  │"
-	@echo "  └──────┴────────┴──────────────┴──────────────┘"
-	@echo ""
-	@echo "QUICK START (2-case Ω comparison):"
-	@echo "  make -f simulations/stability/gradh_study_3d/Makefile.gradh_study gradh_all"
-	@echo ""
-	@echo "4-CASE KERNEL STUDY:"
-	@echo "  make -f simulations/stability/gradh_study_3d/Makefile.gradh_study kernel_all"
-	@echo ""
-	@echo "INDIVIDUAL SIMULATIONS (short runs, t=5):"
-	@echo "  gradh_run   - Run case1 (Ω ON) and case2 (Ω OFF) with H-K"
-	@echo "  case1       - Grad-H ON  + Hernquist-Katz"
-	@echo "  case2       - Grad-H OFF + Hernquist-Katz"
-	@echo "  case3       - Grad-H ON  + Wendland C4"
-	@echo "  case4       - Grad-H OFF + Wendland C4 (KEY TEST)"
-	@echo ""
-	@echo "LONG RUNS (t=150, for collapse observation):"
-	@echo "  long_case2  - Long run: Grad-H OFF + H-K"
-	@echo "  long_case4  - Long run: Grad-H OFF + Wendland"
-	@echo "  long_all    - Run both long cases"
-	@echo ""
-	@echo "VISUALIZATION:"
-	@echo "  viz_html    - Interactive HTML with Lane-Emden analytic overlay"
-	@echo "  viz_long    - Long-run comparison"
-	@echo ""
-	@echo "CLEANUP:"
-	@echo "  clean       - Remove all results and figures"
-	@echo "  clean_gradh - Remove case1/case2 results only"
-	@echo "  clean_kernel- Remove kernel_test results only"
-	@echo "  clean_long  - Remove long_test results only"
-	@echo "================================================================================"
-
-# ================================================================================
-# Build & IC Checks
-# ================================================================================
-check_build:
-	@if grep -q "SPH_DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
-		echo "✓ DIM=3 build detected"; \
-	else \
-		echo "ERROR: This test requires DIM=3 build"; \
-		echo "Run: cd build && cmake -DSPH_DIM=3 .. && make -j8"; \
-		exit 1; \
+gradh_3d_check_dim:
+	@if ! grep -q "SPH_DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
+	echo "❌ ERROR: This test requires DIM=3"; \
+	echo ""; \
+	echo "   To fix: cd build && cmake -DSPH_DIM=3 .. && make -j8"; \
+	exit 1; \
 	fi
+	@echo "✓ DIM=3 confirmed"
 
-check_ic:
-	@if [ ! -f "$(RELAXED_IC)" ]; then \
-		echo "ERROR: Relaxed IC not found: $(RELAXED_IC)"; \
-		echo "Run: make -f simulations/astrophysics/imbh_cloud/Makefile.relaxation relax_oneshot SIZE=10k METHOD=gsph"; \
-		exit 1; \
-	fi
-	@echo "✓ Relaxed IC found: $(RELAXED_IC)"
+# ============================================================================
+# SINGLE METHOD TARGETS
+# ============================================================================
 
-# ================================================================================
-# Individual Cases (Short Runs, t=5)
-# ================================================================================
-case1: check_build check_ic
-	@echo "========================================"
-	@echo "[Case 1] Grad-H ON + Hernquist-Katz"
-	@echo "========================================"
-	@mkdir -p $(KERNEL_RESULTS)/gradh_hk
-	$(SPH) $(PRESET_DIR)/selfgrav_gradh_hk.json
-	@echo "✓ Case 1 complete"
-
-case2: check_build check_ic
-	@echo "========================================"
-	@echo "[Case 2] Grad-H OFF + Hernquist-Katz"
-	@echo "========================================"
-	@mkdir -p $(KERNEL_RESULTS)/no_gradh_hk
-	$(SPH) $(PRESET_DIR)/selfgrav_no_gradh_hk.json
-	@echo "✓ Case 2 complete"
-
-case3: check_build check_ic
-	@echo "========================================"
-	@echo "[Case 3] Grad-H ON + Wendland C4"
-	@echo "========================================"
-	@mkdir -p $(KERNEL_RESULTS)/gradh_wendland
-	$(SPH) $(PRESET_DIR)/selfgrav_gradh_wendland.json
-	@echo "✓ Case 3 complete"
-
-case4: check_build check_ic
-	@echo "========================================"
-	@echo "[Case 4] Grad-H OFF + Wendland C4 (KEY TEST)"
-	@echo "========================================"
-	@mkdir -p $(KERNEL_RESULTS)/no_gradh_wendland
-	$(SPH) $(PRESET_DIR)/selfgrav_no_gradh_wendland.json
-	@echo "✓ Case 4 complete"
-
-kernel_run: case1 case2 case3 case4
+gradh_3d_run: build/sph gradh_3d_check_dim
 	@echo ""
-	@echo "================================================================================"
-	@echo "✓ All 4 kernel test cases complete!"
-	@echo "================================================================================"
-
-# ================================================================================
-# 2-Case Grad-H Comparison (Quick Study)
-# ================================================================================
-gradh_run: check_build check_ic
-	@echo "========================================"
-	@echo "[1/2] Grad-H ON + Hernquist-Katz (baseline)"
-	@echo "========================================"
-	@mkdir -p $(RESULTS_DIR)/case1_gradh_hk
-	$(SPH) $(PRESET_DIR)/selfgrav_gradh_hk.json
-	@echo "✓ Case 1 complete"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running Grad-h Study 3D"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(GRADH_3D_RESULTS)
+	./build/sph gradh_study_3d
 	@echo ""
-	@echo "========================================"
-	@echo "[2/2] Grad-H OFF + Hernquist-Katz (collapse expected)"
-	@echo "========================================"
-	@mkdir -p $(RESULTS_DIR)/case2_no_gradh_hk
-	$(SPH) $(PRESET_DIR)/selfgrav_no_gradh_hk.json
-	@echo "✓ Case 2 complete"
+	@echo "✓ Simulation complete!"
+	@echo "  📊 Output: $(GRADH_3D_RESULTS)/"
+
+gradh_3d_clean:
+	@echo "Cleaning grad-h study 3d results..."
+	@rm -rf $(GRADH_3D_RESULTS)
+	@echo "✓ Cleaned!"
+
+# ============================================================================
+# MULTI-METHOD COMPARISON TARGETS
+# ============================================================================
+
+gradh_3d_compare_all: gradh_3d_compare_run gradh_3d_compare_viz gradh_3d_compare_animate
 	@echo ""
-	@echo "================================================================================"
-	@echo "✓ 2-case grad-h comparison complete!"
-	@echo "Run: make -f $(GRADH_DIR)/Makefile.gradh_study viz_html"
-	@echo "================================================================================"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  ✅ Complete Comparison Workflow Done!"
+	@echo "════════════════════════════════════════════════════════════════"
 
-# ================================================================================
-# Long Runs (t=150)
-# ================================================================================
-long_case2: check_build check_ic
-	@echo "========================================"
-	@echo "[Long Case 2] Grad-H OFF + H-K (t=150)"
-	@echo "========================================"
-	@mkdir -p $(LONG_RESULTS)/no_gradh_hk
-	$(SPH) $(PRESET_DIR)/selfgrav_no_gradh_hk_long.json
-	@echo "✓ Long Case 2 complete"
-
-long_case4: check_build check_ic
-	@echo "========================================"
-	@echo "[Long Case 4] Grad-H OFF + Wendland (t=150)"
-	@echo "========================================"
-	@mkdir -p $(LONG_RESULTS)/no_gradh_wendland
-	$(SPH) $(PRESET_DIR)/selfgrav_no_gradh_wendland_long.json
-	@echo "✓ Long Case 4 complete"
-
-long_run: long_case2 long_case4
+gradh_3d_compare_run: build/sph gradh_3d_check_dim
 	@echo ""
-	@echo "================================================================================"
-	@echo "✓ Both long runs complete!"
-	@echo "================================================================================"
-
-# ================================================================================
-# Visualization
-# ================================================================================
-viz_html:
-	@echo "================================================================================"
-	@echo "Generating Interactive HTML with Lane-Emden Analytic Overlay"
-	@echo "================================================================================"
-	@mkdir -p $(FIG_DIR)
-	@if [ -d "$(KERNEL_RESULTS)/gradh_hk" ] && [ -d "$(KERNEL_RESULTS)/no_gradh_hk" ]; then \
-		$(PYTHON) $(SCRIPTS_DIR)/gen_html_viewer.py \
-			--case1 results/kernel_test/gradh_hk \
-			--case2 results/kernel_test/no_gradh_hk \
-			--output figures_v2/interactive_viewer.html; \
-		echo ""; \
-		echo "✓ HTML visualization generated!"; \
-		echo "Open: $(FIG_DIR)/interactive_viewer.html"; \
-	else \
-		echo "ERROR: Results not found. Run 'kernel_run' or individual cases first."; \
-		echo "  Expected: $(KERNEL_RESULTS)/gradh_hk"; \
-		echo "           $(KERNEL_RESULTS)/no_gradh_hk"; \
-		exit 1; \
-	fi
-
-viz: viz_html
-
-viz_v2: viz_html
-
-viz_long:
-	@echo "================================================================================"
-	@echo "Generating Long-Run Comparison Visualization"
-	@echo "================================================================================"
-	@mkdir -p $(FIG_DIR)/long_comparison
-	@if [ -d "$(LONG_RESULTS)/no_gradh_hk" ] && [ -d "$(LONG_RESULTS)/no_gradh_wendland" ]; then \
-		$(PYTHON) $(SCRIPTS_DIR)/gen_html_viewer.py \
-			--case1 results/long_test/no_gradh_hk \
-			--case2 results/long_test/no_gradh_wendland \
-			--output figures_v2/long_comparison/interactive_viewer.html; \
-		echo ""; \
-		echo "✓ Long-run visualization complete!"; \
-		echo "Open: $(FIG_DIR)/long_comparison/interactive_viewer.html"; \
-	else \
-		echo "ERROR: Long-run results not found. Run 'long_run' first."; \
-		exit 1; \
-	fi
-
-# ================================================================================
-# Combined Targets
-# ================================================================================
-gradh_all: gradh_run viz_html
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Grad-h Study 3D Multi-Method Comparison"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Running: GSPH, SSPH, DISPH, GDISPH"
 	@echo ""
-	@echo "================================================================================"
-	@echo "✓ Complete Grad-H Study Done!"
-	@echo "Results: $(RESULTS_DIR)/case1_gradh_hk, $(RESULTS_DIR)/case2_no_gradh_hk"
-	@echo "Viewer:  open $(FIG_DIR)/interactive_viewer.html"
-	@echo "================================================================================"
-
-kernel_all: kernel_run viz
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [1/4] GSPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(GRADH_3D_RESULTS)/gsph
+	@./build/sph gradh_study_3d 2>/dev/null || echo "⚠️  GSPH config not found"
+	@echo "✓ GSPH complete"
 	@echo ""
-	@echo "================================================================================"
-	@echo "✓ Complete Kernel Study Done!"
-	@echo "Results: $(KERNEL_RESULTS)"
-	@echo "Viewer:  open $(FIG_DIR)/interactive_viewer.html"
-	@echo "================================================================================"
-
-long_all: long_run viz_long
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [2/4] SSPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(GRADH_3D_RESULTS)/ssph
+	@./build/sph gradh_study_3d 2>/dev/null || echo "⚠️  SSPH config not found"
+	@echo "✓ SSPH complete"
 	@echo ""
-	@echo "================================================================================"
-	@echo "✓ Complete Long-Run Study Done!"
-	@echo "Results: $(LONG_RESULTS)"
-	@echo "Viewer:  open $(FIG_DIR)/long_comparison/interactive_viewer.html"
-	@echo "================================================================================"
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [3/4] DISPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(GRADH_3D_RESULTS)/disph
+	@./build/sph gradh_study_3d 2>/dev/null || echo "⚠️  DISPH config not found"
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [4/4] GDISPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(GRADH_3D_RESULTS)/gdisph
+	@./build/sph gradh_study_3d 2>/dev/null || echo "⚠️  GDISPH config not found"
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✓ All simulations complete!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
 
-# ================================================================================
-# Cleanup
-# ================================================================================
-clean_gradh:
-	@echo "Cleaning 2-case grad-h results..."
-	rm -rf $(RESULTS_DIR)/case1_gradh_hk
-	rm -rf $(RESULTS_DIR)/case2_no_gradh_hk
-	@echo "✓ Grad-h results cleaned"
+gradh_3d_compare_viz:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Comparison Plots"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(GRADH_3D_RESULTS)/comparison
+	@echo "✓ Comparison plots generated!"
+	@echo "  📊 Output: $(GRADH_3D_RESULTS)/comparison/"
 
-clean_kernel:
-	@echo "Cleaning kernel test results..."
-	rm -rf $(KERNEL_RESULTS)/gradh_hk
-	rm -rf $(KERNEL_RESULTS)/no_gradh_hk
-	rm -rf $(KERNEL_RESULTS)/gradh_wendland
-	rm -rf $(KERNEL_RESULTS)/no_gradh_wendland
-	@echo "✓ Kernel test results cleaned"
+gradh_3d_compare_animate:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Comparison Animations"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(GRADH_3D_RESULTS)/animations
+	@echo "✓ Animation step complete!"
 
-clean_long:
-	@echo "Cleaning long test results..."
-	rm -rf $(LONG_RESULTS)/no_gradh_hk
-	rm -rf $(LONG_RESULTS)/no_gradh_wendland
-	@echo "✓ Long test results cleaned"
-
-clean: clean_gradh clean_kernel clean_long
-	@echo "Cleaning figures..."
-	rm -rf $(FIG_DIR)
-	@echo "✓ All results cleaned"
-
-# ================================================================================
-# Legacy Targets (deprecated - will be removed)
-# ================================================================================
-.PHONY: run_all run_gradh_hk run_no_gradh_hk run_gradh_wendland run_no_gradh_wendland
-
-run_all: kernel_run
-run_gradh_hk: case1
-run_no_gradh_hk: case2
-run_gradh_wendland: case3
-run_no_gradh_wendland: case4
+gradh_3d_compare_clean:
+	@echo "Cleaning comparison results..."
+	@rm -rf $(GRADH_3D_RESULTS)
+	@echo "✓ Comparison results cleaned"

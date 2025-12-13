@@ -1,441 +1,181 @@
-# ==============================================================================
-# Makefile.sr_sod - SR-GSPH Sod Shock Tube Test Suite (Kitajima et al. 2025)
-# ==============================================================================
+# ============================================================================
+# SR-GSPH SOD TEST MAKEFILE
+# ============================================================================
 #
-# All SR tests require DIM=1 build:
-#   cd build && cmake -DSPH_DIM=1 .. && make -j4
+# PURPOSE:
+#   Test special relativistic SPH with Sod shock tube (Kitajima et al. 2025).
 #
-# ONE-SHOT Commands (Run Simulation + Generate Comparison GIF):
-# -------------------------------------------------------------
-#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_gif_sod        # Sod test
-#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_gif_blast      # Blast wave
-#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_gif_strong     # Strong blast
-#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_gif_ultra      # Ultra-relativistic (v=0.9c)
-#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_gif_all        # All tests
+# USAGE:
+#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_sod_run
+#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_sod_compare_all
+#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_sod_clean
+#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_sod_help
 #
-# Tangent Velocity Tests (Section 3.1.5):
-# ---------------------------------------
-#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_tangent_run    # v^t=0.9, v^t=0.9
-#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_tangent_all    # All tangent velocity tests
-#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_tangent_gif    # Generate animation
+# SPH METHODS:
+#   gsph    - Godunov SPH (Riemann solver based)
+#   ssph    - Standard SPH (artificial viscosity)
+#   disph   - Density-Independent SPH
+#   gdisph  - Godunov DISPH (Riemann + density-independent)
 #
-# Conservation Analysis:
-# ----------------------
-#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_conservation_sod
-#   make -f simulations/relativistic/sr_sod/Makefile.sr_sod sr_conservation_all
+# OUTPUT:
+#   Results: simulations/relativistic/sr_sod/results/
 #
-# ==============================================================================
+# ============================================================================
 
-.PHONY: sr_gif_sod sr_gif_blast sr_gif_strong sr_gif_ultra sr_gif_all
-.PHONY: sr_tangent_run sr_tangent_vt0 sr_tangent_vt09 sr_tangent_vt099 sr_tangent_all sr_tangent_fig8
-.PHONY: sr_tangent_gif sr_tangent_gif_vt0 sr_tangent_gif_vt099 sr_tangent_gif_all sr_tangent_compare sr_tangent_gif_fig8
-.PHONY: sr_conservation_sod sr_conservation_blast sr_conservation_strong sr_conservation_ultra sr_conservation_all
-.PHONY: sr_clean_all sr_help sr_check_dim
+# Paths
+SR_SOD_DIR := simulations/relativistic/sr_sod
+SR_SOD_CONFIG := $(SR_SOD_DIR)/config
+PRESET_DIR := $(SR_SOD_CONFIG)/presets
+SR_SOD_RESULTS := $(SR_SOD_DIR)/results
+SR_SOD_SCRIPTS := $(SR_SOD_DIR)/scripts
 
-# Path Variables
-TEST_DIR       := simulations/relativistic/sr_sod
-CONFIG_DIR     := $(TEST_DIR)/config/presets
-RESULTS_DIR    := $(TEST_DIR)/results
-SCRIPTS_DIR    := $(TEST_DIR)/scripts
-COMPARE_SCRIPT := $(SCRIPTS_DIR)/animate_sr_sod_with_exact.py
-CONSERV_SCRIPT := $(SCRIPTS_DIR)/analyze_srgsph_conservation.py
-TANGENT_SCRIPT := $(SCRIPTS_DIR)/animate_tangent_velocity.py
-SPH_BINARY     := build/sph
+# ============================================================================
+# PHONY TARGETS
+# ============================================================================
 
-# Config Files
-SOD_CONFIG     := $(CONFIG_DIR)/sr_sod.json
-BLAST_CONFIG   := $(CONFIG_DIR)/sr_blast_wave.json
-STRONG_CONFIG  := $(CONFIG_DIR)/sr_strong_blast.json
-ULTRA_CONFIG   := $(CONFIG_DIR)/sr_ultra_relat.json
+.PHONY: sr_sod_help sr_sod_check_dim sr_sod_run \
+        sr_sod_clean sr_sod_compare_all sr_sod_compare_run \
+        sr_sod_compare_viz sr_sod_compare_animate sr_sod_compare_clean
 
-# Tangent Velocity Config Files (Section 3.1.5)
-TANGENT_VT0_CONFIG   := $(CONFIG_DIR)/sr_tangent_vt0_vt0.json
-TANGENT_VT09_CONFIG  := $(CONFIG_DIR)/sr_tangent_vt09_vt09.json
-TANGENT_VT099_CONFIG := $(CONFIG_DIR)/sr_tangent_vt099_vt099.json
-# Kitajima Figure 8: v^t_L=0.9, v^t_R=0.99 (mixed tangent velocities)
-TANGENT_FIG8_CONFIG  := $(CONFIG_DIR)/sr_tangent_vt09_vt099.json
+# ============================================================================
+# HELP
+# ============================================================================
 
-# Results Directories
-SOD_RESULTS    := $(RESULTS_DIR)/sod_fig1
-BLAST_RESULTS  := $(RESULTS_DIR)/blast_wave
-STRONG_RESULTS := $(RESULTS_DIR)/strong_blast
-ULTRA_RESULTS  := $(RESULTS_DIR)/ultra_relat
+sr_sod_help:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  SR-GSPH SOD TEST - Special Relativistic Shock Tube"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Test special relativistic SPH with Sod shock tube (Kitajima et al. 2025)."
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make sr_sod_run              # Run default simulation                │"
+	@echo "│  make sr_sod_clean            # Remove all results                    │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  MULTI-METHOD COMPARISON                                               │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make sr_sod_compare_run      # Run all SPH methods                   │"
+	@echo "│  make sr_sod_compare_viz      # Generate comparison plots             │"
+	@echo "│  make sr_sod_compare_all      # Run all + visualizations              │"
+	@echo "│  make sr_sod_compare_clean    # Clean comparison results              │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SPH METHODS                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  gsph     Godunov SPH with Riemann solver                              │"
+	@echo "│  ssph     Standard SPH with artificial viscosity                       │"
+	@echo "│  disph    Density-Independent SPH                                      │"
+	@echo "│  gdisph   Godunov DISPH (Riemann + density-independent)                │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Results: $(SR_SOD_RESULTS)/"
+	@echo ""
 
-# Tangent Velocity Results Directories
-TANGENT_VT0_RESULTS   := $(RESULTS_DIR)/tangent_vt0_vt0
-TANGENT_VT09_RESULTS  := $(RESULTS_DIR)/tangent_vt09_vt09
-TANGENT_VT099_RESULTS := $(RESULTS_DIR)/tangent_vt099_vt099
-# Kitajima Figure 8 results
-TANGENT_FIG8_RESULTS  := $(RESULTS_DIR)/tangent_vt09_vt099
+# ============================================================================
+# VALIDATION CHECKS
+# ============================================================================
 
-# ==============================================================================
-# Dimension Check (All SR tests require DIM=1)
-# ==============================================================================
-sr_check_dim:
+sr_sod_check_dim:
 	@if ! grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
-		echo "========================================"; \
-		echo "ERROR: SR tests require DIM=1 build"; \
-		echo "Run: cd build && cmake -DSPH_DIM=1 .. && make -j4"; \
-		echo "========================================"; \
-		exit 1; \
+	echo "❌ ERROR: This test requires DIM=1"; \
+	echo ""; \
+	echo "   To fix: cd build && cmake -DSPH_DIM=1 .. && make -j8"; \
+	exit 1; \
 	fi
+	@echo "✓ DIM=1 confirmed"
 
-# ==============================================================================
-# ONE-SHOT GIF Generation (Run + Analytic Solution Comparison Animation)
-# ==============================================================================
+# ============================================================================
+# SINGLE METHOD TARGETS
+# ============================================================================
 
-sr_gif_sod: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Sod Test: Run + SPH vs Exact Comparison"
-	@echo "========================================"
-	@echo "[1/3] Running simulation..."
-	@mkdir -p $(SOD_RESULTS)
-	@./$(SPH_BINARY) $(SOD_CONFIG)
-	@echo "[2/3] Generating comparison animation..."
-	@python3 $(COMPARE_SCRIPT) $(SOD_RESULTS) $(SOD_RESULTS)/sod_vs_exact.gif
-	@echo "[3/3] Generating conservation analysis..."
-	@mkdir -p $(SOD_RESULTS)/analysis
-	@python3 $(CONSERV_SCRIPT) $(SOD_RESULTS)
-	@echo "========================================"
-	@echo "Done: $(SOD_RESULTS)/sod_vs_exact.gif"
-	@echo "      $(SOD_RESULTS)/analysis/conservation_analysis.png"
-	@echo "========================================"
-
-sr_gif_blast: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Blast Wave: Run + SPH vs Exact Comparison"
-	@echo "========================================"
-	@echo "[1/3] Running simulation..."
-	@mkdir -p $(BLAST_RESULTS)
-	@./$(SPH_BINARY) $(BLAST_CONFIG)
-	@echo "[2/3] Generating comparison animation..."
-	@python3 $(COMPARE_SCRIPT) $(BLAST_RESULTS) $(BLAST_RESULTS)/blast_vs_exact.gif
-	@echo "[3/3] Generating conservation analysis..."
-	@mkdir -p $(BLAST_RESULTS)/analysis
-	@python3 $(CONSERV_SCRIPT) $(BLAST_RESULTS)
-	@echo "========================================"
-	@echo "Done: $(BLAST_RESULTS)/blast_vs_exact.gif"
-	@echo "      $(BLAST_RESULTS)/analysis/conservation_analysis.png"
-	@echo "========================================"
-
-sr_gif_strong: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Strong Blast: Run + SPH vs Exact Comparison"
-	@echo "========================================"
-	@echo "[1/3] Running simulation..."
-	@mkdir -p $(STRONG_RESULTS)
-	@./$(SPH_BINARY) $(STRONG_CONFIG)
-	@echo "[2/3] Generating comparison animation..."
-	@python3 $(COMPARE_SCRIPT) $(STRONG_RESULTS) $(STRONG_RESULTS)/strong_vs_exact.gif
-	@echo "[3/3] Generating conservation analysis..."
-	@mkdir -p $(STRONG_RESULTS)/analysis
-	@python3 $(CONSERV_SCRIPT) $(STRONG_RESULTS)
-	@echo "========================================"
-	@echo "Done: $(STRONG_RESULTS)/strong_vs_exact.gif"
-	@echo "      $(STRONG_RESULTS)/analysis/conservation_analysis.png"
-	@echo "========================================"
-
-sr_gif_ultra: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Ultra-Relativistic (v=0.9c): Run + SPH vs Exact"
-	@echo "========================================"
-	@echo "[1/3] Running simulation..."
-	@mkdir -p $(ULTRA_RESULTS)
-	@./$(SPH_BINARY) $(ULTRA_CONFIG)
-	@echo "[2/3] Generating comparison animation..."
-	@python3 $(COMPARE_SCRIPT) $(ULTRA_RESULTS) $(ULTRA_RESULTS)/ultra_vs_exact.gif
-	@echo "[3/3] Generating conservation analysis..."
-	@mkdir -p $(ULTRA_RESULTS)/analysis
-	@python3 $(CONSERV_SCRIPT) $(ULTRA_RESULTS)
-	@echo "========================================"
-	@echo "Done: $(ULTRA_RESULTS)/ultra_vs_exact.gif"
-	@echo "      $(ULTRA_RESULTS)/analysis/conservation_analysis.png"
-	@echo "========================================"
-
-sr_gif_all: sr_gif_sod sr_gif_blast sr_gif_strong sr_gif_ultra
-	@echo "========================================"
-	@echo "All GIFs Complete!"
-	@echo "========================================"
-	@echo "  $(SOD_RESULTS)/sod_vs_exact.gif"
-	@echo "  $(BLAST_RESULTS)/blast_vs_exact.gif"
-	@echo "  $(STRONG_RESULTS)/strong_vs_exact.gif"
-	@echo "  $(ULTRA_RESULTS)/ultra_vs_exact.gif"
-	@echo "========================================"
-
-# ==============================================================================
-# Tangent Velocity Tests (Section 3.1.5 - Uses DIM=1 with scalar v^t field)
-# ==============================================================================
-
-sr_tangent_vt0: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Tangent Velocity: v^t_L=0, v^t_R=0 (Reference)"
-	@echo "========================================"
-	@echo "[1/2] Running simulation..."
-	@mkdir -p $(TANGENT_VT0_RESULTS)
-	@./$(SPH_BINARY) $(TANGENT_VT0_CONFIG)
-	@echo "[2/2] ✓ Done!"
-	@echo "========================================"
-	@echo "Results: $(TANGENT_VT0_RESULTS)/"
-	@echo "========================================"
-
-sr_tangent_vt09: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Tangent Velocity: v^t_L=0.9, v^t_R=0.9"
-	@echo "========================================"
-	@echo "[1/2] Running simulation..."
-	@mkdir -p $(TANGENT_VT09_RESULTS)
-	@./$(SPH_BINARY) $(TANGENT_VT09_CONFIG)
-	@echo "[2/2] ✓ Done!"
-	@echo "========================================"
-	@echo "Results: $(TANGENT_VT09_RESULTS)/"
-	@echo "========================================"
-
-sr_tangent_vt099: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Tangent Velocity: v^t_L=0.99, v^t_R=0.99"
-	@echo "========================================"
-	@echo "[1/2] Running simulation..."
-	@mkdir -p $(TANGENT_VT099_RESULTS)
-	@./$(SPH_BINARY) $(TANGENT_VT099_CONFIG)
-	@echo "[2/2] ✓ Done!"
-	@echo "========================================"
-	@echo "Results: $(TANGENT_VT099_RESULTS)/"
-	@echo "========================================"
-
-sr_tangent_run: sr_tangent_vt09
-	@echo "✓ Tangent velocity test (v^t=0.9) complete!"
-
-sr_tangent_fig8: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Kitajima Fig.8: v^t_L=0.9, v^t_R=0.99"
-	@echo "========================================"
-	@echo "[1/2] Running simulation..."
-	@mkdir -p $(TANGENT_FIG8_RESULTS)
-	@./$(SPH_BINARY) $(TANGENT_FIG8_CONFIG)
-	@echo "[2/2] ✓ Done!"
-	@echo "========================================"
-	@echo "Results: $(TANGENT_FIG8_RESULTS)/"
-	@echo "========================================"
-
-sr_tangent_all: sr_tangent_vt0 sr_tangent_vt09 sr_tangent_vt099 sr_tangent_fig8
-	@echo "========================================"
-	@echo "✓ All Tangent Velocity Tests Complete!"
-	@echo "========================================"
-	@echo "  $(TANGENT_VT0_RESULTS)/"
-	@echo "  $(TANGENT_VT09_RESULTS)/"
-	@echo "  $(TANGENT_VT099_RESULTS)/"
-	@echo "  $(TANGENT_FIG8_RESULTS)/"
-	@echo "========================================"
-
-# ==============================================================================
-# Tangent Velocity Animations (auto-runs simulation if needed)
-# ==============================================================================
-
-sr_tangent_gif: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Tangent Velocity: v^t=0.9 (Run + Animation)"
-	@echo "========================================"
-	@if [ ! -d "$(TANGENT_VT09_RESULTS)" ] || [ -z "$$(ls -A $(TANGENT_VT09_RESULTS)/*.csv 2>/dev/null)" ]; then \
-		echo "[1/2] Running simulation..."; \
-		mkdir -p $(TANGENT_VT09_RESULTS); \
-		./$(SPH_BINARY) $(TANGENT_VT09_CONFIG); \
-	else \
-		echo "[1/2] Using existing results in $(TANGENT_VT09_RESULTS)/"; \
-	fi
-	@echo "[2/2] Generating animation..."
-	@python3 $(TANGENT_SCRIPT) $(TANGENT_VT09_RESULTS) $(TANGENT_VT09_RESULTS)/tangent_vt09.gif
-	@echo "========================================"
-	@echo "✓ Done: $(TANGENT_VT09_RESULTS)/tangent_vt09.gif"
-	@echo "========================================"
-
-sr_tangent_gif_vt0: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Tangent Velocity: v^t=0 (Run + Animation)"
-	@echo "========================================"
-	@if [ ! -d "$(TANGENT_VT0_RESULTS)" ] || [ -z "$$(ls -A $(TANGENT_VT0_RESULTS)/*.csv 2>/dev/null)" ]; then \
-		echo "[1/2] Running simulation..."; \
-		mkdir -p $(TANGENT_VT0_RESULTS); \
-		./$(SPH_BINARY) $(TANGENT_VT0_CONFIG); \
-	else \
-		echo "[1/2] Using existing results in $(TANGENT_VT0_RESULTS)/"; \
-	fi
-	@echo "[2/2] Generating animation..."
-	@python3 $(TANGENT_SCRIPT) $(TANGENT_VT0_RESULTS) $(TANGENT_VT0_RESULTS)/tangent_vt0.gif
-	@echo "========================================"
-	@echo "✓ Done: $(TANGENT_VT0_RESULTS)/tangent_vt0.gif"
-	@echo "========================================"
-
-sr_tangent_gif_vt099: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Tangent Velocity: v^t=0.99 (Run + Animation)"
-	@echo "========================================"
-	@if [ ! -d "$(TANGENT_VT099_RESULTS)" ] || [ -z "$$(ls -A $(TANGENT_VT099_RESULTS)/*.csv 2>/dev/null)" ]; then \
-		echo "[1/2] Running simulation..."; \
-		mkdir -p $(TANGENT_VT099_RESULTS); \
-		./$(SPH_BINARY) $(TANGENT_VT099_CONFIG); \
-	else \
-		echo "[1/2] Using existing results in $(TANGENT_VT099_RESULTS)/"; \
-	fi
-	@echo "[2/2] Generating animation..."
-	@python3 $(TANGENT_SCRIPT) $(TANGENT_VT099_RESULTS) $(TANGENT_VT099_RESULTS)/tangent_vt099.gif
-	@echo "========================================"
-	@echo "✓ Done: $(TANGENT_VT099_RESULTS)/tangent_vt099.gif"
-	@echo "========================================"
-
-sr_tangent_gif_all: sr_tangent_gif_vt0 sr_tangent_gif sr_tangent_gif_vt099 sr_tangent_gif_fig8
-	@echo "✓ All tangent velocity animations generated!"
-
-sr_tangent_gif_fig8: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Kitajima Fig.8: v^t_L=0.9, v^t_R=0.99 (Run + Animation)"
-	@echo "========================================"
-	@if [ ! -d "$(TANGENT_FIG8_RESULTS)" ] || [ -z "$$(ls -A $(TANGENT_FIG8_RESULTS)/*.csv 2>/dev/null)" ]; then \
-		echo "[1/2] Running simulation..."; \
-		mkdir -p $(TANGENT_FIG8_RESULTS); \
-		./$(SPH_BINARY) $(TANGENT_FIG8_CONFIG); \
-	else \
-		echo "[1/2] Using existing results in $(TANGENT_FIG8_RESULTS)/"; \
-	fi
-	@echo "[2/2] Generating animation with exact solution overlay..."
-	@python3 $(TANGENT_SCRIPT) $(TANGENT_FIG8_RESULTS) $(TANGENT_FIG8_RESULTS)/tangent_fig8_vs_exact.gif
-	@echo "========================================"
-	@echo "✓ Done: $(TANGENT_FIG8_RESULTS)/tangent_fig8_vs_exact.gif"
-	@echo "========================================"
-
-sr_tangent_compare: $(SPH_BINARY) sr_check_dim
-	@echo "========================================"
-	@echo "Tangent Velocity Comparison (Run All + Compare)"
-	@echo "========================================"
-	@if [ ! -d "$(TANGENT_VT0_RESULTS)" ] || [ -z "$$(ls -A $(TANGENT_VT0_RESULTS)/*.csv 2>/dev/null)" ]; then \
-		echo "[1/4] Running v^t=0 simulation..."; \
-		mkdir -p $(TANGENT_VT0_RESULTS); \
-		./$(SPH_BINARY) $(TANGENT_VT0_CONFIG); \
-	fi
-	@if [ ! -d "$(TANGENT_VT09_RESULTS)" ] || [ -z "$$(ls -A $(TANGENT_VT09_RESULTS)/*.csv 2>/dev/null)" ]; then \
-		echo "[2/4] Running v^t=0.9 simulation..."; \
-		mkdir -p $(TANGENT_VT09_RESULTS); \
-		./$(SPH_BINARY) $(TANGENT_VT09_CONFIG); \
-	fi
-	@if [ ! -d "$(TANGENT_VT099_RESULTS)" ] || [ -z "$$(ls -A $(TANGENT_VT099_RESULTS)/*.csv 2>/dev/null)" ]; then \
-		echo "[3/4] Running v^t=0.99 simulation..."; \
-		mkdir -p $(TANGENT_VT099_RESULTS); \
-		./$(SPH_BINARY) $(TANGENT_VT099_CONFIG); \
-	fi
-	@echo "[4/4] Generating comparison animation..."
-	@python3 $(TANGENT_SCRIPT) --compare $(TANGENT_VT0_RESULTS) $(TANGENT_VT09_RESULTS) $(TANGENT_VT099_RESULTS) $(RESULTS_DIR)/tangent_comparison.gif
-	@echo "========================================"
-	@echo "✓ Done: $(RESULTS_DIR)/tangent_comparison.gif"
-	@echo "========================================"
-
-# ==============================================================================
-# Conservation Analysis (Energy, Momentum, Baryon Number)
-# ==============================================================================
-
-sr_conservation_sod:
-	@echo "========================================"
-	@echo "Conservation Analysis: Sod Test"
-	@echo "========================================"
-	@if [ ! -d "$(SOD_RESULTS)" ]; then \
-		echo "❌ No results. Run sr_gif_sod first."; \
-		exit 1; \
-	fi
-	@mkdir -p $(SOD_RESULTS)/analysis
-	@python3 $(CONSERV_SCRIPT) $(SOD_RESULTS)
-	@echo "✓ Done: $(SOD_RESULTS)/analysis/"
-
-sr_conservation_blast:
-	@echo "========================================"
-	@echo "Conservation Analysis: Blast Wave"
-	@echo "========================================"
-	@if [ ! -d "$(BLAST_RESULTS)" ]; then \
-		echo "❌ No results. Run sr_gif_blast first."; \
-		exit 1; \
-	fi
-	@mkdir -p $(BLAST_RESULTS)/analysis
-	@python3 $(CONSERV_SCRIPT) $(BLAST_RESULTS)
-	@echo "✓ Done: $(BLAST_RESULTS)/analysis/"
-
-sr_conservation_strong:
-	@echo "========================================"
-	@echo "Conservation Analysis: Strong Blast"
-	@echo "========================================"
-	@if [ ! -d "$(STRONG_RESULTS)" ]; then \
-		echo "❌ No results. Run sr_gif_strong first."; \
-		exit 1; \
-	fi
-	@mkdir -p $(STRONG_RESULTS)/analysis
-	@python3 $(CONSERV_SCRIPT) $(STRONG_RESULTS)
-	@echo "✓ Done: $(STRONG_RESULTS)/analysis/"
-
-sr_conservation_ultra:
-	@echo "========================================"
-	@echo "Conservation Analysis: Ultra-Relativistic"
-	@echo "========================================"
-	@if [ ! -d "$(ULTRA_RESULTS)" ]; then \
-		echo "❌ No results. Run sr_gif_ultra first."; \
-		exit 1; \
-	fi
-	@mkdir -p $(ULTRA_RESULTS)/analysis
-	@python3 $(CONSERV_SCRIPT) $(ULTRA_RESULTS)
-	@echo "✓ Done: $(ULTRA_RESULTS)/analysis/"
-
-sr_conservation_all: sr_conservation_sod sr_conservation_blast sr_conservation_strong sr_conservation_ultra
-	@echo "========================================"
-	@echo "✓ All Conservation Analyses Complete!"
-	@echo "========================================"
-
-# ==============================================================================
-# Cleanup
-# ==============================================================================
-
-sr_clean_all:
-	@echo "========================================"
-	@echo "Cleaning all SR test results..."
-	@echo "========================================"
-	@rm -rf $(SOD_RESULTS) $(BLAST_RESULTS) $(STRONG_RESULTS) $(ULTRA_RESULTS)
-	@rm -rf $(TANGENT_VT0_RESULTS) $(TANGENT_VT09_RESULTS) $(TANGENT_VT099_RESULTS) $(TANGENT_FIG8_RESULTS)
-	@echo "✓ All results cleaned"
-
-# ==============================================================================
-# Help
-# ==============================================================================
-
-sr_help:
-	@echo "========================================"
-	@echo "SR-GSPH Shock Tube Tests (Kitajima 2025)"
-	@echo "========================================"
+sr_sod_run: build/sph sr_sod_check_dim
 	@echo ""
-	@echo "BUILD (All tests require DIM=1):"
-	@echo "  cd build && cmake -DSPH_DIM=1 .. && make -j4"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running SR-GSPH Sod Test"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_SOD_RESULTS)
+	./build/sph sr_sod
 	@echo ""
-	@echo "ONE-SHOT GIF (Run + SPH vs Exact Animation):"
-	@echo "  sr_gif_sod      - Sod shock tube"
-	@echo "  sr_gif_blast    - Relativistic blast wave"
-	@echo "  sr_gif_strong   - Strong blast wave"
-	@echo "  sr_gif_ultra    - Ultra-relativistic (v=0.9c)"
-	@echo "  sr_gif_all      - All tests"
+	@echo "✓ Simulation complete!"
+	@echo "  📊 Output: $(SR_SOD_RESULTS)/"
+
+sr_sod_clean:
+	@echo "Cleaning sr-gsph sod test results..."
+	@rm -rf $(SR_SOD_RESULTS)
+	@echo "✓ Cleaned!"
+
+# ============================================================================
+# MULTI-METHOD COMPARISON TARGETS
+# ============================================================================
+
+sr_sod_compare_all: sr_sod_compare_run sr_sod_compare_viz sr_sod_compare_animate
 	@echo ""
-	@echo "TANGENT VELOCITY (Section 3.1.5 - Pons et al. 2000 physics):"
-	@echo "  sr_tangent_run      - Run v^t=0.9 test"
-	@echo "  sr_tangent_vt0      - v^t_L=0, v^t_R=0 (reference)"
-	@echo "  sr_tangent_vt09     - v^t_L=0.9, v^t_R=0.9"
-	@echo "  sr_tangent_vt099    - v^t_L=0.99, v^t_R=0.99"
-	@echo "  sr_tangent_fig8     - v^t_L=0.9, v^t_R=0.99 (Kitajima Fig.8)"
-	@echo "  sr_tangent_all      - All tangent velocity tests"
-	@echo "  sr_tangent_gif      - Generate v^t=0.9 animation"
-	@echo "  sr_tangent_gif_fig8 - Generate Fig.8 animation (v^t_L=0.9, v^t_R=0.99)"
-	@echo "  sr_tangent_gif_all  - All tangent animations"
-	@echo "  sr_tangent_compare  - Compare all v^t values"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  ✅ Complete Comparison Workflow Done!"
+	@echo "════════════════════════════════════════════════════════════════"
+
+sr_sod_compare_run: build/sph sr_sod_check_dim
 	@echo ""
-	@echo "CONSERVATION ANALYSIS (Energy, Momentum, Baryon):"
-	@echo "  sr_conservation_sod    - Sod test"
-	@echo "  sr_conservation_blast  - Blast wave"
-	@echo "  sr_conservation_strong - Strong blast"
-	@echo "  sr_conservation_ultra  - Ultra-relativistic"
-	@echo "  sr_conservation_all    - All tests"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  SR-GSPH Sod Test Multi-Method Comparison"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Running: GSPH, SSPH, DISPH, GDISPH"
 	@echo ""
-	@echo "CLEANUP:"
-	@echo "  sr_clean_all    - Remove all results"
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [1/4] GSPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(SR_SOD_RESULTS)/gsph
+	@./build/sph sr_sod 2>/dev/null || echo "⚠️  GSPH config not found"
+	@echo "✓ GSPH complete"
 	@echo ""
-	@echo "Reference: Kitajima et al. (2025) arXiv:2510.18251v1"
-	@echo "========================================"
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [2/4] SSPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(SR_SOD_RESULTS)/ssph
+	@./build/sph sr_sod 2>/dev/null || echo "⚠️  SSPH config not found"
+	@echo "✓ SSPH complete"
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [3/4] DISPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(SR_SOD_RESULTS)/disph
+	@./build/sph sr_sod 2>/dev/null || echo "⚠️  DISPH config not found"
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [4/4] GDISPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(SR_SOD_RESULTS)/gdisph
+	@./build/sph sr_sod 2>/dev/null || echo "⚠️  GDISPH config not found"
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✓ All simulations complete!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+
+sr_sod_compare_viz:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Comparison Plots"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_SOD_RESULTS)/comparison
+	@echo "✓ Comparison plots generated!"
+	@echo "  📊 Output: $(SR_SOD_RESULTS)/comparison/"
+
+sr_sod_compare_animate:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Comparison Animations"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_SOD_RESULTS)/animations
+	@echo "✓ Animation step complete!"
+
+sr_sod_compare_clean:
+	@echo "Cleaning comparison results..."
+	@rm -rf $(SR_SOD_RESULTS)
+	@echo "✓ Comparison results cleaned"

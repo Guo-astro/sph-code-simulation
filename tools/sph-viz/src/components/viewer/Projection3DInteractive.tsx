@@ -96,12 +96,51 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
   const lastFrameIndexRef = useRef<number>(-1)
   const lastColorFieldRef = useRef<string>(colorField)
   const lastLogScaleRef = useRef<boolean>(logScale)
-  
+
   // Animation frame ref
   const animationFrameRef = useRef<number | null>(null)
-  
-  // Store global color range in ref
+
+  // Refs to call functions from animation loop without recreating the loop
+  const updateParticlesRef = useRef<() => void>(() => {})
+  const computeStatsRef = useRef<() => void>(() => {})
+
+  // Store props in refs to avoid dependency issues in animation loop
+  const colorFieldRef = useRef<string>(colorField)
+  const colorMapRef = useRef<ColorMap>(colorMap)
+  const logScaleRef = useRef<boolean>(logScale)
+  const showShockSamplingRef = useRef<boolean>(showShockSampling)
+  const shockSamplingParamsRef = useRef(shockSamplingParams)
   const globalColorRangeRef = useRef<[number, number] | undefined>(globalColorRange)
+
+  // Sync refs with props
+  useEffect(() => {
+    colorFieldRef.current = colorField
+    // Force an update by resetting lastColorFieldRef so next animation frame picks up the change
+    if (lastColorFieldRef.current !== colorField) {
+      lastColorFieldRef.current = '__force_update__'
+    }
+  }, [colorField])
+
+  useEffect(() => {
+    colorMapRef.current = colorMap
+    lastColorFieldRef.current = '__force_update__'
+  }, [colorMap])
+
+  useEffect(() => {
+    logScaleRef.current = logScale
+    if (lastLogScaleRef.current !== logScale) {
+      lastLogScaleRef.current = !logScale // force update
+    }
+  }, [logScale])
+
+  useEffect(() => {
+    showShockSamplingRef.current = showShockSampling
+  }, [showShockSampling])
+
+  useEffect(() => {
+    shockSamplingParamsRef.current = shockSamplingParams
+  }, [shockSamplingParams])
+
   useEffect(() => {
     globalColorRangeRef.current = globalColorRange
   }, [globalColorRange])
@@ -197,8 +236,8 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
 
   // Update shock sampling visualization
   const updateShockSampling = useCallback((frame: ParsedFrame) => {
-    if (!shockGroupRef.current || !showShockSampling) return
-    
+    if (!shockGroupRef.current || !showShockSamplingRef.current) return
+
     // Clear existing objects
     while (shockGroupRef.current.children.length > 0) {
       const child = shockGroupRef.current.children[0]
@@ -210,9 +249,9 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
         }
       }
     }
-    
+
     const com = computeCoM(frame)
-    const { columnRadius, sliceThickness } = shockSamplingParams
+    const { columnRadius, sliceThickness } = shockSamplingParamsRef.current
     
     // CoM marker (white sphere)
     const comGeom = new THREE.SphereGeometry(0.08, 16, 16)
@@ -260,7 +299,7 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
     const sliceLine = new THREE.LineSegments(sliceEdges, sliceLineMat)
     sliceLine.position.copy(com)
     shockGroupRef.current.add(sliceLine)
-  }, [computeCoM, showShockSampling, shockSamplingParams])
+  }, [computeCoM])
 
   // Update particle buffers
   const updateParticles = useCallback(() => {
@@ -271,16 +310,19 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
     const frame = frames.get(frameIndex)
     if (!frame) return
 
-    const needsUpdate = 
+    const currentColorField = colorFieldRef.current
+    const currentLogScale = logScaleRef.current
+
+    const needsUpdate =
       frameIndex !== lastFrameIndexRef.current ||
-      colorField !== lastColorFieldRef.current ||
-      logScale !== lastLogScaleRef.current
+      currentColorField !== lastColorFieldRef.current ||
+      currentLogScale !== lastLogScaleRef.current
 
     if (!needsUpdate) return
 
     lastFrameIndexRef.current = frameIndex
-    lastColorFieldRef.current = colorField
-    lastLogScaleRef.current = logScale
+    lastColorFieldRef.current = currentColorField
+    lastLogScaleRef.current = currentLogScale
 
     const geometry = geometryRef.current
     const posAttr = geometry.attributes.position as THREE.BufferAttribute
@@ -304,8 +346,8 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
     let vMin: number, vMax: number
 
     const useGlobalRange = globalColorRangeRef.current && globalColorRangeRef.current[0] !== globalColorRangeRef.current[1]
-    
-    switch (colorField) {
+
+    switch (currentColorField) {
       case 'velocity': {
         fieldData = new Float32Array(frame.particleCount)
         for (let i = 0; i < frame.particleCount; i++) {
@@ -349,13 +391,14 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
     // Apply colors
     const colors = (geometry.attributes.color as THREE.BufferAttribute).array as Float32Array
     // Map color map name from colorMap.name to COLOR_MAP_DATA key
-    const colorMapKey = colorMap.name || 'Cosmic Dawn'
+    const currentColorMap = colorMapRef.current
+    const colorMapKey = currentColorMap.name || 'Cosmic Dawn'
 
     for (let i = 0; i < frame.particleCount; i++) {
       let value = fieldData[i]
-      
+
       // Apply log scale if enabled
-      if (logScale && value > 0 && vMin > 0) {
+      if (currentLogScale && value > 0 && vMin > 0) {
         const logMin = Math.log10(vMin)
         const logMax = Math.log10(vMax)
         value = (Math.log10(value) - logMin) / (logMax - logMin)
@@ -372,10 +415,19 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
     ;(geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true
 
     // Update shock sampling visualization
-    if (showShockSampling) {
+    if (showShockSamplingRef.current) {
       updateShockSampling(frame)
     }
-  }, [framesRef, frameIndexRef, colorField, colorMap, logScale, showShockSampling, updateShockSampling])
+  }, [framesRef, frameIndexRef, updateShockSampling])
+
+  // Keep function refs in sync
+  useEffect(() => {
+    updateParticlesRef.current = updateParticles
+  }, [updateParticles])
+
+  useEffect(() => {
+    computeStatsRef.current = computeStats
+  }, [computeStats])
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -468,13 +520,13 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
     shockGroupRef.current = shockGroup
 
     // Compute initial stats
-    computeStats()
+    computeStatsRef.current()
 
-    // Animation loop
+    // Animation loop - uses refs to always get latest function versions
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate)
-      
-      updateParticles()
+
+      updateParticlesRef.current()
       controls.update()
       renderer.render(scene, camera)
     }
@@ -493,7 +545,8 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
         containerRef.current.removeChild(renderer.domElement)
       }
     }
-  }, [projection, computeStats, updateParticles, width, height, particleSize])
+    // Only recreate scene when projection changes - other props are handled via refs
+  }, [projection])
 
   // Update renderer size when dimensions change
   useEffect(() => {

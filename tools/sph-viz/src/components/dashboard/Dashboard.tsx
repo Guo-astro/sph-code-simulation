@@ -6,6 +6,8 @@ import { ParticleViewer3DImperative } from '~/components/viewer/ParticleViewer3D
 import { Projection3DInteractive, type Projection3DInteractiveHandle } from '~/components/viewer/Projection3DInteractive'
 import { ShockDiagnosticsPanelImperative } from '~/components/viewer/ShockDiagnosticsPanelImperative'
 import { EnergyChart, MomentumChart } from '~/components/charts/Charts'
+import { TimescaleDiagnostics } from '~/components/charts/TimescaleDiagnostics'
+import { PVDiagramImperative } from '~/components/charts/PVDiagramImperative'
 import { PlaybackControls } from '~/components/controls/PlaybackControls'
 import { VisualizationSettings } from '~/components/controls/VisualizationSettings'
 import { COLOR_MAPS, type ParsedFrame, type FrameStatistics, type SimulationMetadata, type ColorMap, type IMBHPhysicsConfig } from '~/types/sph'
@@ -153,6 +155,8 @@ export function Dashboard({
   const [showProjections, setShowProjections] = useState(true)
   const [showCharts, setShowCharts] = useState(true)
   const [showShockDiagnostics, setShowShockDiagnostics] = useState(true)  // Default ON for equal importance
+  const [showPVDiagram, setShowPVDiagram] = useState(true)  // P-V diagram for Oka comparison
+  const [showTimescales, setShowTimescales] = useState(true)  // Equilibrium timescale diagnostics
   
   // Panel dimension tracking for responsive canvas sizing
   const [panelDimensions, setPanelDimensions] = useState({
@@ -291,6 +295,7 @@ export function Dashboard({
   // Refs for imperative viewer (avoids React re-renders)
   const framesRef = useRef<Map<number, ParsedFrame>>(frames)
   const frameIndexRef = useRef<number>(currentFrameIndex)
+  const currentFrameRef = useRef<ParsedFrame | null>(null)
   
   // Imperative playback state (bypasses React)
   const isPlayingRef = useRef(false)
@@ -301,6 +306,11 @@ export function Dashboard({
   useEffect(() => {
     framesRef.current = frames
   }, [frames])
+
+  // Keep current frame ref in sync
+  useEffect(() => {
+    currentFrameRef.current = frames.get(currentFrameIndex) ?? null
+  }, [frames, currentFrameIndex])
   
   // Sync frame index ref (for non-playing state)
   useEffect(() => {
@@ -497,11 +507,25 @@ export function Dashboard({
           >
             Charts
           </button>
+          <button
+            onClick={() => setShowPVDiagram(!showPVDiagram)}
+            className={`px-2 py-1 text-xs rounded ${showPVDiagram ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400'}`}
+            title="Position-Velocity diagram for radio observation comparison"
+          >
+            P-V
+          </button>
+          <button
+            onClick={() => setShowTimescales(!showTimescales)}
+            className={`px-2 py-1 text-xs rounded ${showTimescales ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400'}`}
+            title="Timescale diagnostics for equilibrium chemistry validation"
+          >
+            Timescales
+          </button>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left sidebar - Settings */}
         <div className="w-56 shrink-0 overflow-y-auto border-r border-gray-700 p-2">
           <VisualizationSettings
@@ -756,12 +780,12 @@ export function Dashboard({
           )}
         </div>
 
-        {/* Main viewer area - Equal 2x2 Grid Layout */}
-        <div className="flex-1 overflow-hidden">
-          <PanelGroup direction="vertical" className="h-full">
+        {/* Main viewer area - Scrollable layout with minimum heights */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <PanelGroup direction="vertical" className="min-h-[800px]">
             {/* Top Row: 3D Viewer + 2D Projections (50/50) */}
-            <Panel defaultSize={50} minSize={25}>
-              <PanelGroup direction="horizontal" className="h-full">
+            <Panel defaultSize={50} minSize={30}>
+              <PanelGroup direction="horizontal" className="h-full min-h-[350px]">
                 {/* 3D Viewer Panel (50%) */}
                 <Panel defaultSize={50} minSize={25}>
                   <div className="h-full relative bg-gray-900">
@@ -896,23 +920,23 @@ export function Dashboard({
               </PanelGroup>
             </Panel>
 
-            {/* Bottom Row: Shock Diagnostics + Charts (50/50) */}
-            {(showShockDiagnostics || showCharts) && (
+            {/* Bottom Row: Shock + P-V Diagram + Charts/Timescales */}
+            {(showShockDiagnostics || showPVDiagram || showCharts || showTimescales) && (
               <>
                 <ResizeHandle direction="vertical" />
-                <Panel defaultSize={50} minSize={25}>
-                  <PanelGroup direction="horizontal" className="h-full">
-                    {/* Shock Diagnostics Panel (50%) */}
+                <Panel defaultSize={50} minSize={30}>
+                  <PanelGroup direction="horizontal" className="h-full min-h-[350px]">
+                    {/* Shock Diagnostics Panel */}
                     {showShockDiagnostics && (
-                      <Panel defaultSize={showCharts ? 50 : 100} minSize={25}>
+                      <Panel defaultSize={33} minSize={20}>
                         <div ref={shockPanelRef} className="h-full bg-gray-900 p-2 overflow-hidden flex flex-col">
                           {/* Panel label and description */}
                           <div className="shrink-0 mb-1">
                             <div className="text-cyan-400 text-xs font-bold">SHOCK DIAGNOSTICS</div>
                             <div className="text-gray-500 text-[10px] leading-tight mt-0.5">
-                              <span className="text-red-400">●</span> Z-profile: cylinder r&lt;0.15 pc around CoM (vertical compression)
+                              <span className="text-red-400">●</span> Z-profile: cylinder r&lt;0.15 pc around CoM
                               <span className="mx-1">|</span>
-                              <span className="text-teal-400">━</span> X-profile: slice |y|,|z|&lt;0.15 pc (tidal stretching)
+                              <span className="text-teal-400">━</span> X-profile: slice |y|,|z|&lt;0.15 pc
                             </div>
                           </div>
                           <div className="flex-1 min-h-0">
@@ -929,30 +953,77 @@ export function Dashboard({
                       </Panel>
                     )}
 
-                    {/* Charts Panel (50%) */}
-                    {showCharts && statistics.length > 0 && (
+                    {/* P-V Diagram Panel */}
+                    {showPVDiagram && (
                       <>
                         {showShockDiagnostics && <ResizeHandle direction="horizontal" />}
-                        <Panel defaultSize={showShockDiagnostics ? 50 : 100} minSize={25}>
-                          <div className="h-full bg-gray-900 p-2 flex flex-col gap-2 overflow-hidden">
-                            {/* Panel label */}
-                            <div className="text-cyan-400 text-xs font-bold">ENERGY & MOMENTUM</div>
-                            <div className="flex-1 flex flex-col gap-2 min-h-0">
-                              <div className="flex-1 min-h-0">
-                                <EnergyChart
-                                  statistics={statistics}
-                                  currentFrame={currentFrameIndex}
-                                  className="h-full"
-                                />
-                              </div>
-                              <div className="flex-1 min-h-0">
-                                <MomentumChart
-                                  statistics={statistics}
-                                  currentFrame={currentFrameIndex}
-                                  className="h-full"
-                                />
+                        <Panel defaultSize={34} minSize={25}>
+                          <div className="h-full bg-gray-900 p-2 overflow-hidden flex flex-col">
+                            <div className="shrink-0 mb-1">
+                              <div className="text-purple-400 text-xs font-bold">P-V DIAGRAM</div>
+                              <div className="text-gray-500 text-[10px]">
+                                Drag to change viewing angle • Compare with Oka et al. HCN observations
                               </div>
                             </div>
+                            <div className="flex-1 min-h-0">
+                              <PVDiagramImperative
+                                framesRef={framesRef}
+                                frameIndexRef={frameIndexRef}
+                                initialObserver={{
+                                  inclination: simulation?.imbhPhysics?.inclination ?? 70,
+                                  positionAngle: simulation?.imbhPhysics?.positionAngle ?? 41.6,
+                                  vLSR: simulation?.imbhPhysics?.lsrVelocity ?? -120,
+                                }}
+                                posRange={[-5, 5]}
+                                velRange={[-180, -60]}
+                                className="h-full"
+                              />
+                            </div>
+                          </div>
+                        </Panel>
+                      </>
+                    )}
+
+                    {/* Charts + Timescales Panel */}
+                    {(showCharts || showTimescales) && (
+                      <>
+                        {(showShockDiagnostics || showPVDiagram) && <ResizeHandle direction="horizontal" />}
+                        <Panel defaultSize={33} minSize={20}>
+                          <div className="h-full bg-gray-900 p-2 flex flex-col gap-2 overflow-hidden">
+                            {/* Charts Section */}
+                            {showCharts && statistics.length > 0 && (
+                              <div className={`flex flex-col gap-1 ${showTimescales ? 'flex-[2]' : 'flex-1'} min-h-0`}>
+                                <div className="text-cyan-400 text-xs font-bold shrink-0">ENERGY & MOMENTUM</div>
+                                <div className="flex-1 min-h-0">
+                                  <EnergyChart
+                                    statistics={statistics}
+                                    currentFrame={currentFrameIndex}
+                                    className="h-full"
+                                  />
+                                </div>
+                                <div className="flex-1 min-h-0">
+                                  <MomentumChart
+                                    statistics={statistics}
+                                    currentFrame={currentFrameIndex}
+                                    className="h-full"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Timescale Diagnostics Section */}
+                            {showTimescales && (
+                              <div className="flex-1 min-h-0 flex flex-col">
+                                <div className="text-green-400 text-xs font-bold shrink-0 mb-1">TIMESCALE DIAGNOSTICS</div>
+                                <div className="flex-1 min-h-0">
+                                  <TimescaleDiagnostics
+                                    frameRef={currentFrameRef}
+                                    bhPosition={imbhPhysics.bhPosition}
+                                    className="h-full"
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </Panel>
                       </>

@@ -327,9 +327,51 @@ export function ParticleViewer3DImperative({
   const lastColorFieldRef = useRef<string>(colorField)
   const lastColorMapRef = useRef<string>(colorMapName)
   const lastLogScaleRef = useRef<boolean>(logScale)
-  
+
+  // Store props in refs for animation loop access (avoid stale closures)
+  const colorFieldRef = useRef<string>(colorField)
+  const colorMapNameRef = useRef<string>(colorMapName)
+  const logScaleRef = useRef<boolean>(logScale)
+  const showTrajectoryRef = useRef<boolean>(showTrajectory)
+  const imbhPhysicsRef = useRef<IMBHPhysicsConfig | undefined>(imbhPhysics)
+
   // Store global color range in ref for render loop access
   const globalColorRangeRef = useRef<[number, number] | undefined>(globalColorRange)
+
+  // Refs to call functions from animation loop without stale closures
+  const updateParticlesRef = useRef<() => void>(() => {})
+  const updateTrajectoryRef = useRef<() => void>(() => {})
+  const computeStatsRef = useRef<() => void>(() => {})
+
+  // Sync props to refs
+  useEffect(() => {
+    colorFieldRef.current = colorField
+    // Force update on next animation frame
+    if (lastColorFieldRef.current !== colorField) {
+      lastColorFieldRef.current = '__force_update__'
+    }
+  }, [colorField])
+
+  useEffect(() => {
+    colorMapNameRef.current = colorMapName
+    lastColorMapRef.current = '__force_update__'
+  }, [colorMapName])
+
+  useEffect(() => {
+    logScaleRef.current = logScale
+    if (lastLogScaleRef.current !== logScale) {
+      lastLogScaleRef.current = !logScale
+    }
+  }, [logScale])
+
+  useEffect(() => {
+    showTrajectoryRef.current = showTrajectory
+  }, [showTrajectory])
+
+  useEffect(() => {
+    imbhPhysicsRef.current = imbhPhysics
+  }, [imbhPhysics])
+
   useEffect(() => {
     globalColorRangeRef.current = globalColorRange
   }, [globalColorRange])
@@ -391,19 +433,24 @@ export function ParticleViewer3DImperative({
     const frame = frames.get(frameIndex)
     if (!frame) return
 
+    // Read current values from refs (avoids stale closures)
+    const currentColorField = colorFieldRef.current
+    const currentColorMapName = colorMapNameRef.current
+    const currentLogScale = logScaleRef.current
+
     // Check if we need to update
-    const needsUpdate = 
+    const needsUpdate =
       frameIndex !== lastFrameIndexRef.current ||
-      colorField !== lastColorFieldRef.current ||
-      colorMapName !== lastColorMapRef.current ||
-      logScale !== lastLogScaleRef.current
+      currentColorField !== lastColorFieldRef.current ||
+      currentColorMapName !== lastColorMapRef.current ||
+      currentLogScale !== lastLogScaleRef.current
 
     if (!needsUpdate) return
 
     lastFrameIndexRef.current = frameIndex
-    lastColorFieldRef.current = colorField
-    lastColorMapRef.current = colorMapName
-    lastLogScaleRef.current = logScale
+    lastColorFieldRef.current = currentColorField
+    lastColorMapRef.current = currentColorMapName
+    lastLogScaleRef.current = currentLogScale
 
     const geometry = geometryRef.current
     const posAttr = geometry.attributes.position as THREE.BufferAttribute
@@ -428,8 +475,8 @@ export function ParticleViewer3DImperative({
 
     // Use global color range if provided, otherwise fall back to internal stats
     const useGlobalRange = globalColorRangeRef.current && globalColorRangeRef.current[0] !== globalColorRangeRef.current[1]
-    
-    switch (colorField) {
+
+    switch (currentColorField) {
       case 'velocity': {
         fieldData = new Float32Array(frame.particleCount)
         for (let i = 0; i < frame.particleCount; i++) {
@@ -472,8 +519,8 @@ export function ParticleViewer3DImperative({
 
     // Update colors
     const colors = (geometry.attributes.color as THREE.BufferAttribute).array as Float32Array
-    const logMin = logScale && vMin > 0 ? Math.log10(vMin) : 0
-    const logRange = logScale && vMin > 0 ? Math.log10(vMax) - logMin : 1
+    const logMin = currentLogScale && vMin > 0 ? Math.log10(vMin) : 0
+    const logRange = currentLogScale && vMin > 0 ? Math.log10(vMax) - logMin : 1
     const range = vMax - vMin || 1
 
     for (let i = 0; i < frame.particleCount; i++) {
@@ -481,14 +528,14 @@ export function ParticleViewer3DImperative({
       if (!isFinite(val)) val = vMin
 
       let t: number
-      if (logScale && vMin > 0) {
+      if (currentLogScale && vMin > 0) {
         t = (Math.log10(Math.max(val, vMin)) - logMin) / logRange
       } else {
         t = (val - vMin) / range
       }
       t = Math.max(0, Math.min(1, t))
 
-      const [r, g, b] = sampleColorMap(colorMapName, t)
+      const [r, g, b] = sampleColorMap(currentColorMapName, t)
       colors[i * 3] = r
       colors[i * 3 + 1] = g
       colors[i * 3 + 2] = b
@@ -496,11 +543,12 @@ export function ParticleViewer3DImperative({
 
     ;(geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true
     geometry.computeBoundingSphere()
-  }, [framesRef, frameIndexRef, colorField, colorMapName, logScale])
+  }, [framesRef, frameIndexRef])
 
   // Update IMBH trajectory and COM marker
   const updateTrajectory = useCallback(() => {
-    if (!imbhPhysics?.enabled) return
+    const currentImbhPhysics = imbhPhysicsRef.current
+    if (!currentImbhPhysics?.enabled) return
     const frames = framesRef?.current
     const frameIndex = frameIndexRef?.current ?? 0
     if (!frames || frames.size === 0) return
@@ -535,9 +583,10 @@ export function ParticleViewer3DImperative({
     }
 
     // Update COM marker position
+    const currentShowTrajectory = showTrajectoryRef.current
     if (comMarkerRef.current) {
       comMarkerRef.current.position.set(comX, comY, comZ)
-      comMarkerRef.current.visible = showTrajectory
+      comMarkerRef.current.visible = currentShowTrajectory
     }
 
     // Add to trajectory if this is a new frame
@@ -581,7 +630,20 @@ export function ParticleViewer3DImperative({
     if (hillCircleRef.current) {
       hillCircleRef.current.position.set(comX, comY, 0)
     }
-  }, [framesRef, frameIndexRef, imbhPhysics, showTrajectory])
+  }, [framesRef, frameIndexRef])
+
+  // Keep function refs in sync (so animation loop always has latest versions)
+  useEffect(() => {
+    updateParticlesRef.current = updateParticles
+  }, [updateParticles])
+
+  useEffect(() => {
+    updateTrajectoryRef.current = updateTrajectory
+  }, [updateTrajectory])
+
+  useEffect(() => {
+    computeStatsRef.current = computeStats
+  }, [computeStats])
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -864,7 +926,7 @@ export function ParticleViewer3DImperative({
     // =========================================================================
 
     // Compute initial stats
-    computeStats()
+    computeStatsRef.current()
 
     // Fit camera to bounding box
     if (boundingBox) {
@@ -904,11 +966,11 @@ export function ParticleViewer3DImperative({
         onFpsUpdate?.(fpsRef.current.fps)
       }
 
-      // Update particles from current frame ref
-      updateParticles()
-      
+      // Update particles from current frame ref (via refs for latest function)
+      updateParticlesRef.current()
+
       // Update IMBH trajectory
-      updateTrajectory()
+      updateTrajectoryRef.current()
       
       // Update galaxy disk rotation if present
       if (galacticMarkersGroupRef.current) {
@@ -1047,7 +1109,7 @@ export function ParticleViewer3DImperative({
 
   // Recompute stats when frames change
   useEffect(() => {
-    computeStats()
+    computeStatsRef.current()
   }, [framesRef.current?.size])
 
   // Handle camera mode changes (free orbit vs Earth view)

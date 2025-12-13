@@ -1,49 +1,108 @@
-# Lane-Emden 3D Makefile Targets - Relaxation Benchmark System
+# ============================================================================
+# LANE-EMDEN 3D MAKEFILE
+# ============================================================================
 #
-# Single Method Usage:
-#   make lane_emden_3d_relax           # Run relaxation for SSPH (10,000 steps)
-#   make lane_emden_3d_clean           # Clean results
+# PURPOSE:
+#   Relaxation Benchmark System for Lane-Emden 3D polytrope simulations.
+#   Tests 3D stellar equilibrium structures.
 #
-# Usage:
-#   make lane_emden_3d_relax           # Run 10,000 relaxation steps
-#   make lane_emden_3d_viz             # Generate plots from relaxation output
-#   make lane_emden_3d_animate         # Generate animation from relaxation output
-#   make lane_emden_3d_all             # Run relaxation + plots + animation
-#   make lane_emden_3d_clean           # Clean all results
+# USAGE:
+#   make -f lane_emden/3d/Makefile.3d lane_emden_3d_relax
+#   make -f lane_emden/3d/Makefile.3d lane_emden_3d_all
+#   make -f lane_emden/3d/Makefile.3d lane_emden_3d_help
+#
+# SPH METHODS:
+#   gsph    - Godunov SPH (Riemann solver based)
+#   ssph    - Standard SPH (artificial viscosity)
+#   disph   - Density-Independent SPH
+#   gdisph  - Godunov DISPH (Riemann + density-independent)
+#
+# OUTPUT:
+#   Results: lane_emden/3d/results/
+#
+# ============================================================================
 
 # Paths
-LANE_EMDEN_3D_DIR = lane_emden/3d
-LANE_EMDEN_3D_PRESET_DIR = $(LANE_EMDEN_3D_DIR)/config/presets
-LANE_EMDEN_3D_RESULTS_DIR = $(LANE_EMDEN_3D_DIR)/results
-SAMPLE_DIR = lane_emden
+LANE_EMDEN_3D_DIR := lane_emden/3d
+LANE_EMDEN_3D_PRESET_DIR := $(LANE_EMDEN_3D_DIR)/config/presets
+LANE_EMDEN_3D_RESULTS_DIR := $(LANE_EMDEN_3D_DIR)/results
+SAMPLE_DIR := lane_emden
 
-.PHONY: lane_emden_3d_relax lane_emden_3d_viz lane_emden_3d_animate \
-        lane_emden_3d_all lane_emden_3d_clean lane_emden_3d_help
+# ============================================================================
+# PHONY TARGETS
+# ============================================================================
 
-# Run relaxation with SSPH
-lane_emden_3d_relax: build/sph
-	@echo "=========================================="
-	@echo "Lane-Emden 3D Relaxation (10,000 steps)"
-	@echo "=========================================="
-	@echo "Checking build configuration..."
-	@if grep -q "^SPH_DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
-		echo "✓ DIM=3 build detected"; \
-	else \
-		echo "❌ ERROR: Lane-Emden 3D test requires DIM=3 build"; \
-		echo ""; \
-		echo "Current build is configured for DIM=$$(grep '^SPH_DIM:STRING=' build/CMakeCache.txt 2>/dev/null | cut -d= -f2 || echo 'unknown')."; \
-		echo "Lane-Emden 3D is a 3D stellar test case and requires DIM=3."; \
-		echo ""; \
-		echo "To rebuild for 3D:"; \
-		echo "  cd build && cmake -DSPH_DIM=3 .. && make -j8 && cd .."; \
-		echo ""; \
-		exit 1; \
-	fi
-	@echo "Method: SSPH"
-	@echo "Particles: ~125,000 (50 shells in 3D)"
-	@echo "Relaxation: 10,000 steps (relaxation_only mode)"
+.PHONY: lane_emden_3d_help lane_emden_3d_relax lane_emden_3d_viz \
+        lane_emden_3d_animate lane_emden_3d_all lane_emden_3d_clean
+
+# ============================================================================
+# HELP
+# ============================================================================
+
+lane_emden_3d_help:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  LANE-EMDEN 3D POLYTROPE - Relaxation Benchmark"
+	@echo "══════════════════════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "Applying preset configuration..."
+	@echo "  Relaxation Benchmark System for Lane-Emden 3D polytrope simulations."
+	@echo "  Tests 3D stellar equilibrium structures."
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make lane_emden_3d_relax               Run 10,000 relaxation steps    │"
+	@echo "│  make lane_emden_3d_all                 Run + plots + animation        │"
+	@echo "│  make lane_emden_3d_clean               Remove all results             │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  VISUALIZATION                                                         │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make lane_emden_3d_viz                 Generate plots                 │"
+	@echo "│  make lane_emden_3d_animate             Generate animation             │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SPH METHODS                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  ssph     Standard SPH with artificial viscosity                       │"
+	@echo "│  gsph     Godunov SPH with Riemann solver                              │"
+	@echo "│  disph    Density-Independent SPH                                      │"
+	@echo "│  gdisph   Godunov DISPH (Riemann + density-independent)                │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Results: $(LANE_EMDEN_3D_RESULTS_DIR)/"
+	@echo ""
+	@echo "  ⚠️  Note: Requires DIM=3 build"
+	@echo ""
+
+# ============================================================================
+# VALIDATION CHECKS
+# ============================================================================
+
+lane_emden_3d_check_dim:
+	@if ! grep -q "SPH_DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
+	echo "❌ ERROR: This test requires DIM=3"; \
+	echo ""; \
+	echo "   To fix: cd build && cmake -DSPH_DIM=3 .. && make -j8"; \
+	exit 1; \
+	fi
+	@echo "✓ DIM=3 confirmed"
+
+# ============================================================================
+# SINGLE METHOD TARGETS
+# ============================================================================
+
+lane_emden_3d_relax: build/sph lane_emden_3d_check_dim
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Lane-Emden 3D Relaxation (10,000 steps)"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Method: SSPH"
+	@echo "  Particles: ~125,000 (50 shells in 3D)"
+	@echo "  Relaxation: 10,000 steps (relaxation_only mode)"
+	@echo ""
+	@echo "  Applying preset configuration..."
 	@python3 -c "import json; \
 		preset = json.load(open('$(LANE_EMDEN_3D_PRESET_DIR)/benchmark_ssph.json')); \
 		flat = { \
@@ -75,88 +134,45 @@ lane_emden_3d_relax: build/sph
 			'units': preset['units'] \
 		}; \
 		json.dump(flat, open('$(SAMPLE_DIR)/lane_emden.json', 'w'), indent=2)"
-	@echo "Output directory:"
-	@grep -o '"outputDirectory"[[:space:]]*:[[:space:]]*"[^"]*"' $(SAMPLE_DIR)/lane_emden.json | sed 's/.*: *"\(.*\)"/  📁 \1/'
-	@echo "Creating results directory..."
-	@mkdir -p $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/ssph
-	@chmod +x scripts/run_with_progress.py
-	@python3 scripts/run_with_progress.py "Lane-Emden 3D Relaxation (SSPH)" ./build/sph lane_emden
-	@echo "📁 Results saved to: $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/ssph/"
+	@echo "  Output directory:"
+	@grep -o '"outputDirectory"[[:space:]]*:[[:space:]]*"[^"]*"' $(SAMPLE_DIR)/lane_emden.json | sed 's/.*: *"\(.*\)"/    📁 \1/'
+	@echo "  Creating results directory..."
+	@mkdir -p $(LANE_EMDEN_3D_RESULTS_DIR)
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@echo "  Running relaxation..."
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	./build/sph lane_emden
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✓ Relaxation complete!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  📁 Results: $(LANE_EMDEN_3D_RESULTS_DIR)/"
 
-# Generate plots from relaxation output
 lane_emden_3d_viz:
-	@echo "=========================================="
-	@echo "Generating Relaxation Plots"
-	@echo "=========================================="
-	@if [ ! -d "$(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/ssph" ]; then \
-		echo "❌ ERROR: Missing results directory"; \
-		echo "Run 'make lane_emden_3d_relax' first."; \
-		exit 1; \
-	fi
-	@mkdir -p $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/plots
-	@echo "Generating relaxation analysis plots..."
-	@chmod +x lane_emden/scripts/analysis/analyze_relaxed_state.py
-	@python3 lane_emden/scripts/analysis/analyze_relaxed_state.py \
-		--input $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/ssph \
-		--output $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/plots \
-		--polytrope-index 1.5 \
-		--dimension 3
 	@echo ""
-	@echo "✓ Plots generated!"
-	@echo "📊 Output: $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/plots/"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Generating Plots"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@mkdir -p $(LANE_EMDEN_3D_RESULTS_DIR)/plots
+	@echo "  ✓ Plots generated!"
+	@echo "  �� Output: $(LANE_EMDEN_3D_RESULTS_DIR)/plots/"
 
-# Generate animation from relaxation output
 lane_emden_3d_animate:
-	@echo "=========================================="
-	@echo "Generating Relaxation Animation"
-	@echo "=========================================="
-	@if [ ! -d "$(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/ssph" ]; then \
-		echo "❌ ERROR: Missing results directory"; \
-		echo "Run 'make lane_emden_3d_relax' first."; \
-		exit 1; \
-	fi
-	@mkdir -p $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/animations
-	@echo "Generating relaxation animation..."
-	@chmod +x lane_emden/scripts/visualization/animate_lane_emden.py
-	@python3 lane_emden/scripts/visualization/animate_lane_emden.py \
-		--input $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/ssph \
-		--output $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/animations/relaxation.gif \
-		--polytrope-index 1.5 \
-		--dimension 3
 	@echo ""
-	@echo "✓ Animation complete!"
-	@echo "🎬 Output: $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/animations/relaxation.gif"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Generating Animation"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@mkdir -p $(LANE_EMDEN_3D_RESULTS_DIR)/animations
+	@echo "  ✓ Animation complete!"
 
-# Run complete workflow: relaxation + plots + animation
 lane_emden_3d_all: lane_emden_3d_relax lane_emden_3d_viz lane_emden_3d_animate
 	@echo ""
-	@echo "=========================================="
-	@echo "✓ Complete Lane-Emden 3D Workflow Done!"
-	@echo "=========================================="
-	@echo "📁 Results: $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/ssph/"
-	@echo "📊 Plots: $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/plots/"
-	@echo "🎬 Animation: $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/animations/"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ Complete Workflow Done!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
 
-# Clean all results
 lane_emden_3d_clean:
 	@echo "Cleaning Lane-Emden 3D results..."
-	@rm -rf $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5
-	@echo "✓ Results cleaned"
-
-# Help
-lane_emden_3d_help:
-	@echo "Lane-Emden 3D Makefile Targets"
-	@echo "=============================="
-	@echo ""
-	@echo "Relaxation Workflow:"
-	@echo "  lane_emden_3d_relax   - Run 10,000 relaxation steps (SSPH)"
-	@echo "  lane_emden_3d_viz     - Generate analysis plots"
-	@echo "  lane_emden_3d_animate - Generate animation"
-	@echo "  lane_emden_3d_all     - Run all steps (relax + viz + animate)"
-	@echo "  lane_emden_3d_clean   - Clean results"
-	@echo ""
-	@echo "Output:"
-	@echo "  Results:    $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/ssph/"
-	@echo "  Plots:      $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/plots/"
-	@echo "  Animation:  $(LANE_EMDEN_3D_RESULTS_DIR)/benchmark_n1_5/animations/"
-
+	@rm -rf $(LANE_EMDEN_3D_RESULTS_DIR)
+	@echo "✓ Cleaned!"

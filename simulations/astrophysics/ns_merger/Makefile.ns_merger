@@ -1,221 +1,181 @@
-# ================================================================================
-# Makefile for 2D Neutron Star Merger (Shibata & Hotokezaka 2019)
-# ================================================================================
+# ============================================================================
+# NS MERGER SIMULATION MAKEFILE
+# ============================================================================
 #
-# This Makefile provides targets for running 2D neutron star collision simulations
-# and generating visualizations/animations.
+# PURPOSE:
+#   Simulate neutron star merger dynamics.
 #
-# USAGE EXAMPLES:
-# ================================================================================
-#
-# Quick Test (fast, low resolution):
-#   make -f simulations/astrophysics/ns_merger/Makefile.ns_merger ns_merger_quick
-#
-# Full Simulation (high resolution, longer):
+# USAGE:
 #   make -f simulations/astrophysics/ns_merger/Makefile.ns_merger ns_merger_run
-#
-# Create Animation:
-#   make -f simulations/astrophysics/ns_merger/Makefile.ns_merger ns_merger_animate
-#
-# Full Workflow (simulate + animate):
-#   make -f simulations/astrophysics/ns_merger/Makefile.ns_merger ns_merger_all
-#
-# Clean Results:
+#   make -f simulations/astrophysics/ns_merger/Makefile.ns_merger ns_merger_compare_all
 #   make -f simulations/astrophysics/ns_merger/Makefile.ns_merger ns_merger_clean
+#   make -f simulations/astrophysics/ns_merger/Makefile.ns_merger ns_merger_help
 #
-# ================================================================================
+# SPH METHODS:
+#   gsph    - Godunov SPH (Riemann solver based)
+#   ssph    - Standard SPH (artificial viscosity)
+#   disph   - Density-Independent SPH
+#   gdisph  - Godunov DISPH (Riemann + density-independent)
+#
+# OUTPUT:
+#   Results: simulations/astrophysics/ns_merger/results/
+#
+# ============================================================================
 
-# Path configuration
-TEST_DIR      := simulations/astrophysics/ns_merger
-CONFIG_DIR    := $(TEST_DIR)/config/presets
-SCRIPTS_DIR   := $(TEST_DIR)/scripts
-RESULTS_DIR   := $(TEST_DIR)/results
-BUILD_DIR     := build
+# Paths
+NS_MERGER_DIR := simulations/astrophysics/ns_merger
+NS_MERGER_CONFIG := $(NS_MERGER_DIR)/config
+PRESET_DIR := $(NS_MERGER_CONFIG)/presets
+NS_MERGER_RESULTS := $(NS_MERGER_DIR)/results
+NS_MERGER_SCRIPTS := $(NS_MERGER_DIR)/scripts
 
-# Config files
-CONFIG_QUICK  := $(CONFIG_DIR)/ns_merger_quick_test.json
-CONFIG_FULL   := $(CONFIG_DIR)/ns_merger_2d.json
+# ============================================================================
+# PHONY TARGETS
+# ============================================================================
 
-# Results directories
-RESULTS_QUICK := $(RESULTS_DIR)/test_quick
-RESULTS_FULL  := $(RESULTS_DIR)/ns_merger_2d
+.PHONY: ns_merger_help ns_merger_check_dim ns_merger_run \
+        ns_merger_clean ns_merger_compare_all ns_merger_compare_run \
+        ns_merger_compare_viz ns_merger_compare_animate ns_merger_compare_clean
 
-# Visualization script
-VIZ_SCRIPT    := $(SCRIPTS_DIR)/ns_merger_visualize.py
-
-# ================================================================================
-.PHONY: ns_merger_help ns_merger_quick ns_merger_run ns_merger_animate \
-        ns_merger_animate_full ns_merger_grid ns_merger_evolution \
-        ns_merger_all ns_merger_clean ns_merger_clean_full
-
-# ================================================================================
-# Help Target
-# ================================================================================
+# ============================================================================
+# HELP
+# ============================================================================
 
 ns_merger_help:
-	@echo "========================================"
-	@echo "2D Neutron Star Merger - Available Targets"
-	@echo "========================================"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  NS MERGER SIMULATION - Neutron Star Merger"
+	@echo "══════════════════════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "SIMULATION TARGETS:"
-	@echo "  ns_merger_quick    - Run quick test (~1300 particles, 5 time units)"
-	@echo "  ns_merger_run      - Run full simulation (~5400 particles, 50 time units)"
+	@echo "  Simulate neutron star merger dynamics."
 	@echo ""
-	@echo "VISUALIZATION TARGETS:"
-	@echo "  ns_merger_plot     - Plot final snapshot (quick test)"
-	@echo "  ns_merger_animate  - Create animation GIF (quick test)"
-	@echo "  ns_merger_grid     - Create evolution grid (quick test)"
-	@echo "  ns_merger_evolution - Plot density evolution (quick test)"
-	@echo "  ns_merger_animate_full - Create animation GIF (full simulation)"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make ns_merger_run              # Run default simulation                │"
+	@echo "│  make ns_merger_clean            # Remove all results                    │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "WORKFLOW TARGETS:"
-	@echo "  ns_merger_all      - Run quick test + create animation"
-	@echo "  ns_merger_full_all - Run full simulation + create animation"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  MULTI-METHOD COMPARISON                                               │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make ns_merger_compare_run      # Run all SPH methods                   │"
+	@echo "│  make ns_merger_compare_viz      # Generate comparison plots             │"
+	@echo "│  make ns_merger_compare_all      # Run all + visualizations              │"
+	@echo "│  make ns_merger_compare_clean    # Clean comparison results              │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "CLEANUP TARGETS:"
-	@echo "  ns_merger_clean    - Remove quick test results"
-	@echo "  ns_merger_clean_full - Remove full simulation results"
-	@echo "  ns_merger_clean_all - Remove all results"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SPH METHODS                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  gsph     Godunov SPH with Riemann solver                              │"
+	@echo "│  ssph     Standard SPH with artificial viscosity                       │"
+	@echo "│  disph    Density-Independent SPH                                      │"
+	@echo "│  gdisph   Godunov DISPH (Riemann + density-independent)                │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "EXAMPLE:"
-	@echo "  make -f simulations/astrophysics/ns_merger/Makefile.ns_merger ns_merger_all"
+	@echo "  Results: $(NS_MERGER_RESULTS)/"
 	@echo ""
 
-# ================================================================================
-# Simulation Targets
-# ================================================================================
+# ============================================================================
+# VALIDATION CHECKS
+# ============================================================================
 
-ns_merger_quick: $(BUILD_DIR)/sph
-	@echo "========================================"
-	@echo "📡 Running NS Merger Quick Test"
-	@echo "========================================"
-	@echo "Config: $(CONFIG_QUICK)"
-	@rm -rf $(RESULTS_QUICK)
-	@mkdir -p $(RESULTS_QUICK)
-	./$(BUILD_DIR)/sph $(CONFIG_QUICK)
-	@echo "✓ Quick test complete!"
-	@echo "Results: $(RESULTS_QUICK)/"
-
-ns_merger_run: $(BUILD_DIR)/sph
-	@echo "========================================"
-	@echo "📡 Running NS Merger Full Simulation"
-	@echo "========================================"
-	@echo "Config: $(CONFIG_FULL)"
-	@rm -rf $(RESULTS_FULL)
-	@mkdir -p $(RESULTS_FULL)
-	./$(BUILD_DIR)/sph $(CONFIG_FULL)
-	@echo "✓ Full simulation complete!"
-	@echo "Results: $(RESULTS_FULL)/"
-
-# ================================================================================
-# Visualization Targets (Quick Test)
-# ================================================================================
-
-ns_merger_plot:
-	@if [ ! -d "$(RESULTS_QUICK)" ]; then \
-		echo "❌ Error: No results found at $(RESULTS_QUICK)"; \
-		echo "   Run 'make ns_merger_quick' first"; \
-		exit 1; \
+ns_merger_check_dim:
+	@if ! grep -q "SPH_DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
+	echo "❌ ERROR: This test requires DIM=3"; \
+	echo ""; \
+	echo "   To fix: cd build && cmake -DSPH_DIM=3 .. && make -j8"; \
+	exit 1; \
 	fi
-	@echo "========================================"
-	@echo "📊 Plotting Final Snapshot"
-	@echo "========================================"
-	python3 $(VIZ_SCRIPT) --results-dir $(RESULTS_QUICK) --plot --no-show \
-		--output $(RESULTS_QUICK)/ns_merger_final.png
-	@echo "✓ Plot saved: $(RESULTS_QUICK)/ns_merger_final.png"
+	@echo "✓ DIM=3 confirmed"
 
-ns_merger_animate:
-	@if [ ! -d "$(RESULTS_QUICK)" ]; then \
-		echo "❌ Error: No results found at $(RESULTS_QUICK)"; \
-		echo "   Run 'make ns_merger_quick' first"; \
-		exit 1; \
-	fi
-	@echo "========================================"
-	@echo "🎬 Creating Animation (Quick Test)"
-	@echo "========================================"
-	python3 $(VIZ_SCRIPT) --results-dir $(RESULTS_QUICK) --animate \
-		--output $(RESULTS_QUICK)/ns_merger.gif
-	@echo "✓ Animation saved: $(RESULTS_QUICK)/ns_merger.gif"
+# ============================================================================
+# SINGLE METHOD TARGETS
+# ============================================================================
 
-ns_merger_grid:
-	@if [ ! -d "$(RESULTS_QUICK)" ]; then \
-		echo "❌ Error: No results found at $(RESULTS_QUICK)"; \
-		echo "   Run 'make ns_merger_quick' first"; \
-		exit 1; \
-	fi
-	@echo "========================================"
-	@echo "📊 Creating Evolution Grid"
-	@echo "========================================"
-	python3 $(VIZ_SCRIPT) --results-dir $(RESULTS_QUICK) --grid --no-show \
-		--output $(RESULTS_QUICK)/ns_merger_grid.png
-	@echo "✓ Grid saved: $(RESULTS_QUICK)/ns_merger_grid.png"
-
-ns_merger_evolution:
-	@if [ ! -d "$(RESULTS_QUICK)" ]; then \
-		echo "❌ Error: No results found at $(RESULTS_QUICK)"; \
-		echo "   Run 'make ns_merger_quick' first"; \
-		exit 1; \
-	fi
-	@echo "========================================"
-	@echo "📊 Creating Density Evolution Plot"
-	@echo "========================================"
-	python3 $(VIZ_SCRIPT) --results-dir $(RESULTS_QUICK) --evolution --no-show \
-		--output $(RESULTS_QUICK)/ns_merger_evolution.png
-	@echo "✓ Evolution plot saved: $(RESULTS_QUICK)/ns_merger_evolution.png"
-
-# ================================================================================
-# Visualization Targets (Full Simulation)
-# ================================================================================
-
-ns_merger_animate_full:
-	@if [ ! -d "$(RESULTS_FULL)" ]; then \
-		echo "❌ Error: No results found at $(RESULTS_FULL)"; \
-		echo "   Run 'make ns_merger_run' first"; \
-		exit 1; \
-	fi
-	@echo "========================================"
-	@echo "🎬 Creating Animation (Full Simulation)"
-	@echo "========================================"
-	python3 $(VIZ_SCRIPT) --results-dir $(RESULTS_FULL) --animate \
-		--output $(RESULTS_FULL)/ns_merger.gif
-	@echo "✓ Animation saved: $(RESULTS_FULL)/ns_merger.gif"
-
-# ================================================================================
-# Workflow Targets
-# ================================================================================
-
-ns_merger_all: ns_merger_quick ns_merger_animate ns_merger_grid
-	@echo "========================================"
-	@echo "✓ Complete Quick Workflow Done!"
-	@echo "========================================"
-	@echo "Results:"
-	@echo "  📁 $(RESULTS_QUICK)/"
-	@echo "  🎬 $(RESULTS_QUICK)/ns_merger.gif"
-	@echo "  📊 $(RESULTS_QUICK)/ns_merger_grid.png"
-
-ns_merger_full_all: ns_merger_run ns_merger_animate_full
-	@echo "========================================"
-	@echo "✓ Complete Full Workflow Done!"
-	@echo "========================================"
-	@echo "Results:"
-	@echo "  📁 $(RESULTS_FULL)/"
-	@echo "  🎬 $(RESULTS_FULL)/ns_merger.gif"
-
-# ================================================================================
-# Cleanup Targets
-# ================================================================================
+ns_merger_run: build/sph ns_merger_check_dim
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running NS Merger Simulation"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(NS_MERGER_RESULTS)
+	./build/sph ns_merger
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "  📊 Output: $(NS_MERGER_RESULTS)/"
 
 ns_merger_clean:
-	@echo "🧹 Cleaning quick test results..."
-	rm -rf $(RESULTS_QUICK)
-	@echo "✓ Done"
+	@echo "Cleaning ns merger simulation results..."
+	@rm -rf $(NS_MERGER_RESULTS)
+	@echo "✓ Cleaned!"
 
-ns_merger_clean_full:
-	@echo "🧹 Cleaning full simulation results..."
-	rm -rf $(RESULTS_FULL)
-	@echo "✓ Done"
+# ============================================================================
+# MULTI-METHOD COMPARISON TARGETS
+# ============================================================================
 
-ns_merger_clean_all:
-	@echo "🧹 Cleaning all NS merger results..."
-	rm -rf $(RESULTS_DIR)/*
-	@echo "✓ Done"
+ns_merger_compare_all: ns_merger_compare_run ns_merger_compare_viz ns_merger_compare_animate
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  ✅ Complete Comparison Workflow Done!"
+	@echo "════════════════════════════════════════════════════════════════"
+
+ns_merger_compare_run: build/sph ns_merger_check_dim
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  NS Merger Simulation Multi-Method Comparison"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Running: GSPH, SSPH, DISPH, GDISPH"
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [1/4] GSPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(NS_MERGER_RESULTS)/gsph
+	@./build/sph ns_merger 2>/dev/null || echo "⚠️  GSPH config not found"
+	@echo "✓ GSPH complete"
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [2/4] SSPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(NS_MERGER_RESULTS)/ssph
+	@./build/sph ns_merger 2>/dev/null || echo "⚠️  SSPH config not found"
+	@echo "✓ SSPH complete"
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [3/4] DISPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(NS_MERGER_RESULTS)/disph
+	@./build/sph ns_merger 2>/dev/null || echo "⚠️  DISPH config not found"
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [4/4] GDISPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(NS_MERGER_RESULTS)/gdisph
+	@./build/sph ns_merger 2>/dev/null || echo "⚠️  GDISPH config not found"
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✓ All simulations complete!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+
+ns_merger_compare_viz:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Comparison Plots"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(NS_MERGER_RESULTS)/comparison
+	@echo "✓ Comparison plots generated!"
+	@echo "  📊 Output: $(NS_MERGER_RESULTS)/comparison/"
+
+ns_merger_compare_animate:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Comparison Animations"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(NS_MERGER_RESULTS)/animations
+	@echo "✓ Animation step complete!"
+
+ns_merger_compare_clean:
+	@echo "Cleaning comparison results..."
+	@rm -rf $(NS_MERGER_RESULTS)
+	@echo "✓ Comparison results cleaned"

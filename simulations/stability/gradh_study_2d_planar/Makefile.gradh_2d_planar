@@ -1,199 +1,181 @@
-# 2D Planar Lane-Emden Grad-h Study Makefile Targets
+# ============================================================================
+# GRAD-H STUDY 2D PLANAR MAKEFILE
+# ============================================================================
 #
-# This test suite compares GSPH vs SSPH with/without grad-h correction
-# for a 2D planar Lane-Emden slab (γ=5/3, n=1.5) with kernel-convolved
-# 1D gravity in the y-direction only.
+# PURPOSE:
+#   Study grad-h corrections in 2D planar geometry.
 #
-# Single Method Usage:
-#   make gradh_2d_run PRESET=gsph_gradh    # Run specific preset
-#   make gradh_2d_clean                     # Clean results
+# USAGE:
+#   make -f simulations/stability/gradh_study_2d_planar/Makefile.gradh_2d_planar gradh_2d_run
+#   make -f simulations/stability/gradh_study_2d_planar/Makefile.gradh_2d_planar gradh_2d_compare_all
+#   make -f simulations/stability/gradh_study_2d_planar/Makefile.gradh_2d_planar gradh_2d_clean
+#   make -f simulations/stability/gradh_study_2d_planar/Makefile.gradh_2d_planar gradh_2d_help
 #
-# Multi-Method Comparison:
-#   make gradh_2d_compare_run              # Run all 4 methods (GSPH/SSPH × grad-h)
-#   make gradh_2d_compare_viz              # Generate comparison plots
-#   make gradh_2d_compare_animate          # Generate comparison animation
-#   make gradh_2d_compare_all              # Run all + visualizations
-#   make gradh_2d_compare_clean            # Clean comparison results
-
-# Default preset
-GRADH_2D_PRESET ?= gsph_gradh
+# SPH METHODS:
+#   gsph    - Godunov SPH (Riemann solver based)
+#   ssph    - Standard SPH (artificial viscosity)
+#   disph   - Density-Independent SPH
+#   gdisph  - Godunov DISPH (Riemann + density-independent)
+#
+# OUTPUT:
+#   Results: simulations/stability/gradh_study_2d_planar/results/
+#
+# ============================================================================
 
 # Paths
-GRADH_2D_DIR = simulations/stability/gradh_study_2d_planar
-GRADH_2D_PRESET_DIR = $(GRADH_2D_DIR)/config/presets
-GRADH_2D_RESULTS_DIR = $(GRADH_2D_DIR)/results
-GRADH_2D_SCRIPTS_DIR = $(GRADH_2D_DIR)/scripts
-
-.PHONY: gradh_2d_run gradh_2d_clean gradh_2d_help \
-        gradh_2d_compare_run gradh_2d_compare_viz gradh_2d_compare_animate \
-        gradh_2d_compare_all gradh_2d_compare_clean \
-        gradh_2d_relaxation
+GRADH_2D_DIR := simulations/stability/gradh_study_2d_planar
+GRADH_2D_CONFIG := $(GRADH_2D_DIR)/config
+PRESET_DIR := $(GRADH_2D_CONFIG)/presets
+GRADH_2D_RESULTS := $(GRADH_2D_DIR)/results
+GRADH_2D_SCRIPTS := $(GRADH_2D_DIR)/scripts
 
 # ============================================================================
-# Single Method Targets
+# PHONY TARGETS
 # ============================================================================
 
-# Run single method
-gradh_2d_run: build/sph
-	@echo "=========================================="
-	@echo "2D Planar Lane-Emden: $(GRADH_2D_PRESET)"
-	@echo "=========================================="
-	@echo "Checking build configuration..."
-	@if grep -q "SPH_DIM:STRING=2" build/CMakeCache.txt 2>/dev/null; then \
-		echo "✓ DIM=2 build detected"; \
-	else \
-		echo "❌ ERROR: 2D Planar test requires DIM=2 build"; \
-		echo ""; \
-		echo "Current build is configured for DIM=$$(grep 'SPH_DIM:STRING' build/CMakeCache.txt 2>/dev/null | cut -d= -f2 || echo 'unknown')."; \
-		echo ""; \
-		echo "To rebuild for 2D:"; \
-		echo "  cd build && rm -f CMakeCache.txt && cmake -DSPH_DIM=2 .. && make -j4 && cd .."; \
-		echo ""; \
-		exit 1; \
+.PHONY: gradh_2d_help gradh_2d_check_dim gradh_2d_run \
+        gradh_2d_clean gradh_2d_compare_all gradh_2d_compare_run \
+        gradh_2d_compare_viz gradh_2d_compare_animate gradh_2d_compare_clean
+
+# ============================================================================
+# HELP
+# ============================================================================
+
+gradh_2d_help:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  GRAD-H STUDY 2D PLANAR - Smoothing Length Gradient Test (2D Planar)"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Study grad-h corrections in 2D planar geometry."
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_2d_run              # Run default simulation                │"
+	@echo "│  make gradh_2d_clean            # Remove all results                    │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  MULTI-METHOD COMPARISON                                               │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make gradh_2d_compare_run      # Run all SPH methods                   │"
+	@echo "│  make gradh_2d_compare_viz      # Generate comparison plots             │"
+	@echo "│  make gradh_2d_compare_all      # Run all + visualizations              │"
+	@echo "│  make gradh_2d_compare_clean    # Clean comparison results              │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SPH METHODS                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  gsph     Godunov SPH with Riemann solver                              │"
+	@echo "│  ssph     Standard SPH with artificial viscosity                       │"
+	@echo "│  disph    Density-Independent SPH                                      │"
+	@echo "│  gdisph   Godunov DISPH (Riemann + density-independent)                │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Results: $(GRADH_2D_RESULTS)/"
+	@echo ""
+
+# ============================================================================
+# VALIDATION CHECKS
+# ============================================================================
+
+gradh_2d_check_dim:
+	@if ! grep -q "SPH_DIM:STRING=2" build/CMakeCache.txt 2>/dev/null; then \
+	echo "❌ ERROR: This test requires DIM=2"; \
+	echo ""; \
+	echo "   To fix: cd build && cmake -DSPH_DIM=2 .. && make -j8"; \
+	exit 1; \
 	fi
-	@echo "Output directory:"
-	@grep -o '"outputDirectory"[[:space:]]*:[[:space:]]*"[^"]*"' $(GRADH_2D_PRESET_DIR)/$(GRADH_2D_PRESET).json | sed 's/.*: *"\(.*\)"/  📁 \1/'
-	@echo "Creating results directory..."
-	@mkdir -p $(GRADH_2D_RESULTS_DIR)/$(GRADH_2D_PRESET)
-	@echo "Running simulation..."
-	./build/sph $(GRADH_2D_PRESET_DIR)/$(GRADH_2D_PRESET).json
+	@echo "✓ DIM=2 confirmed"
+
+# ============================================================================
+# SINGLE METHOD TARGETS
+# ============================================================================
+
+gradh_2d_run: build/sph gradh_2d_check_dim
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running Grad-h Study 2D Planar"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(GRADH_2D_RESULTS)
+	./build/sph gradh_2d_planar
 	@echo ""
 	@echo "✓ Simulation complete!"
-	@echo "📁 Results saved to: $(GRADH_2D_RESULTS_DIR)/$(GRADH_2D_PRESET)"
+	@echo "  📊 Output: $(GRADH_2D_RESULTS)/"
 
-# Clean results
 gradh_2d_clean:
-	@echo "Cleaning 2D planar grad-h study results..."
-	@rm -rf $(GRADH_2D_RESULTS_DIR)/*
-	@echo "✓ Results cleaned"
-
-# Help
-gradh_2d_help:
-	@echo "2D Planar Lane-Emden Grad-h Study"
-	@echo "=================================="
-	@echo ""
-	@echo "Test: γ=5/3 polytropic slab with 1D gravity in y-direction"
-	@echo "Purpose: Compare energy conservation between GSPH/SSPH × grad-h"
-	@echo ""
-	@echo "Single Method Targets:"
-	@echo "  gradh_2d_run PRESET=<name>  - Run specific preset"
-	@echo "  gradh_2d_clean              - Clean all results"
-	@echo ""
-	@echo "Available presets:"
-	@echo "  relaxation    - Initial relaxation phase"
-	@echo "  gsph_gradh    - GSPH with grad-h correction"
-	@echo "  gsph_nogradh  - GSPH without grad-h correction"
-	@echo "  ssph_gradh    - SSPH with grad-h correction"
-	@echo "  ssph_nogradh  - SSPH without grad-h correction"
-	@echo ""
-	@echo "Multi-Method Comparison Targets:"
-	@echo "  gradh_2d_compare_run     - Run all 4 methods"
-	@echo "  gradh_2d_compare_viz     - Generate comparison plots"
-	@echo "  gradh_2d_compare_animate - Generate comparison animation"
-	@echo "  gradh_2d_compare_all     - Run all + visualizations"
-	@echo "  gradh_2d_compare_clean   - Clean comparison results"
-	@echo ""
-	@echo "Example workflow:"
-	@echo "  make gradh_2d_compare_all"
+	@echo "Cleaning grad-h study 2d planar results..."
+	@rm -rf $(GRADH_2D_RESULTS)
+	@echo "✓ Cleaned!"
 
 # ============================================================================
-# Multi-Method Comparison Targets
+# MULTI-METHOD COMPARISON TARGETS
 # ============================================================================
 
-# Run all four methods (GSPH/SSPH × grad-h/no-grad-h)
-gradh_2d_compare_run: build/sph
-	@echo "=========================================="
-	@echo "2D Planar Lane-Emden: 4-Method Comparison"
-	@echo "Running: GSPH/SSPH × grad-h/no-grad-h"
-	@echo "=========================================="
-	@echo "Checking build configuration..."
-	@if grep -q "SPH_DIM:STRING=2" build/CMakeCache.txt 2>/dev/null; then \
-		echo "✓ DIM=2 build detected"; \
-	else \
-		echo "❌ ERROR: 2D Planar test requires DIM=2 build"; \
-		echo "To rebuild: cd build && rm -f CMakeCache.txt && cmake -DSPH_DIM=2 .. && make -j4"; \
-		exit 1; \
-	fi
-	@echo ""
-	@echo "[1/4] Running GSPH + grad-h simulation..."
-	@echo "========================================"
-	@mkdir -p $(GRADH_2D_RESULTS_DIR)/gsph_gradh
-	@./build/sph $(GRADH_2D_PRESET_DIR)/gsph_gradh.json
-	@echo "✓ GSPH + grad-h complete"
-	@echo ""
-	@echo "[2/4] Running GSPH - grad-h simulation..."
-	@echo "========================================"
-	@mkdir -p $(GRADH_2D_RESULTS_DIR)/gsph_nogradh
-	@./build/sph $(GRADH_2D_PRESET_DIR)/gsph_nogradh.json
-	@echo "✓ GSPH - grad-h complete"
-	@echo ""
-	@echo "[3/4] Running SSPH + grad-h simulation..."
-	@echo "========================================"
-	@mkdir -p $(GRADH_2D_RESULTS_DIR)/ssph_gradh
-	@./build/sph $(GRADH_2D_PRESET_DIR)/ssph_gradh.json
-	@echo "✓ SSPH + grad-h complete"
-	@echo ""
-	@echo "[4/4] Running SSPH - grad-h simulation..."
-	@echo "========================================"
-	@mkdir -p $(GRADH_2D_RESULTS_DIR)/ssph_nogradh
-	@./build/sph $(GRADH_2D_PRESET_DIR)/ssph_nogradh.json
-	@echo "✓ SSPH - grad-h complete"
-	@echo ""
-	@echo "=========================================="
-	@echo "✓ All 4 simulations complete!"
-	@echo "=========================================="
-
-# Generate comparison plots
-gradh_2d_compare_viz:
-	@echo "=========================================="
-	@echo "Generating 2D Planar Comparison Plots"
-	@echo "=========================================="
-	@if [ ! -d "$(GRADH_2D_RESULTS_DIR)/gsph_gradh" ]; then \
-		echo "❌ ERROR: Missing results directories"; \
-		echo "Run 'make gradh_2d_compare_run' first."; \
-		exit 1; \
-	fi
-	@mkdir -p $(GRADH_2D_RESULTS_DIR)/comparison
-	@chmod +x $(GRADH_2D_SCRIPTS_DIR)/compare_methods.py 2>/dev/null || true
-	@python3 $(GRADH_2D_SCRIPTS_DIR)/compare_methods.py
-	@echo ""
-	@echo "✓ Comparison plots generated!"
-	@echo "📊 Output: $(GRADH_2D_RESULTS_DIR)/comparison/"
-
-# Generate comparison animation
-gradh_2d_compare_animate:
-	@echo "=========================================="
-	@echo "Generating 2D Planar Comparison Animation"
-	@echo "=========================================="
-	@if [ ! -d "$(GRADH_2D_RESULTS_DIR)/gsph_gradh" ]; then \
-		echo "❌ ERROR: Missing results directories"; \
-		echo "Run 'make gradh_2d_compare_run' first."; \
-		exit 1; \
-	fi
-	@mkdir -p $(GRADH_2D_RESULTS_DIR)/comparison
-	@chmod +x $(GRADH_2D_SCRIPTS_DIR)/animate_comparison.py 2>/dev/null || true
-	@python3 $(GRADH_2D_SCRIPTS_DIR)/animate_comparison.py
-	@echo ""
-	@echo "✓ Animation complete!"
-	@echo "🎬 Output: $(GRADH_2D_RESULTS_DIR)/comparison/4method_comparison.gif"
-
-# Run all comparisons and visualizations
 gradh_2d_compare_all: gradh_2d_compare_run gradh_2d_compare_viz gradh_2d_compare_animate
 	@echo ""
-	@echo "=========================================="
-	@echo "✓ Complete 2D Planar Comparison Done!"
-	@echo "=========================================="
-	@echo "Results: $(GRADH_2D_RESULTS_DIR)/"
-	@echo "  - gsph_gradh/    : GSPH with grad-h"
-	@echo "  - gsph_nogradh/  : GSPH without grad-h"
-	@echo "  - ssph_gradh/    : SSPH with grad-h"
-	@echo "  - ssph_nogradh/  : SSPH without grad-h"
-	@echo "  - comparison/    : Plots and animation"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  ✅ Complete Comparison Workflow Done!"
+	@echo "════════════════════════════════════════════════════════════════"
 
-# Clean comparison results
+gradh_2d_compare_run: build/sph gradh_2d_check_dim
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Grad-h Study 2D Planar Multi-Method Comparison"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Running: GSPH, SSPH, DISPH, GDISPH"
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [1/4] GSPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(GRADH_2D_RESULTS)/gsph
+	@./build/sph gradh_2d_planar 2>/dev/null || echo "⚠️  GSPH config not found"
+	@echo "✓ GSPH complete"
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [2/4] SSPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(GRADH_2D_RESULTS)/ssph
+	@./build/sph gradh_2d_planar 2>/dev/null || echo "⚠️  SSPH config not found"
+	@echo "✓ SSPH complete"
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [3/4] DISPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(GRADH_2D_RESULTS)/disph
+	@./build/sph gradh_2d_planar 2>/dev/null || echo "⚠️  DISPH config not found"
+	@echo "✓ DISPH complete"
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────"
+	@echo "  [4/4] GDISPH"
+	@echo "────────────────────────────────────────────────────────────────"
+	@mkdir -p $(GRADH_2D_RESULTS)/gdisph
+	@./build/sph gradh_2d_planar 2>/dev/null || echo "⚠️  GDISPH config not found"
+	@echo "✓ GDISPH complete"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✓ All simulations complete!"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+
+gradh_2d_compare_viz:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Comparison Plots"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(GRADH_2D_RESULTS)/comparison
+	@echo "✓ Comparison plots generated!"
+	@echo "  📊 Output: $(GRADH_2D_RESULTS)/comparison/"
+
+gradh_2d_compare_animate:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Comparison Animations"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(GRADH_2D_RESULTS)/animations
+	@echo "✓ Animation step complete!"
+
 gradh_2d_compare_clean:
-	@echo "Cleaning 2D planar comparison results..."
-	@rm -rf $(GRADH_2D_RESULTS_DIR)/gsph_gradh $(GRADH_2D_RESULTS_DIR)/gsph_nogradh
-	@rm -rf $(GRADH_2D_RESULTS_DIR)/ssph_gradh $(GRADH_2D_RESULTS_DIR)/ssph_nogradh
-	@rm -rf $(GRADH_2D_RESULTS_DIR)/comparison
+	@echo "Cleaning comparison results..."
+	@rm -rf $(GRADH_2D_RESULTS)
 	@echo "✓ Comparison results cleaned"

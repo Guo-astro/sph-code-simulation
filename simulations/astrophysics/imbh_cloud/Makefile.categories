@@ -73,10 +73,11 @@ FPS ?= 15
         CAT3_B_b1p5 CAT3_B_b3 CAT3_B_b6 \
         CAT3_C_b1p5 CAT3_C_b3 CAT3_C_b6 \
         CAT_OKA_A_oka CAT_OKA_B_oka CAT_OKA_C_oka \
+        CAT_OKA_A_oka_corrected CAT_OKA_B_oka_corrected CAT_OKA_C_oka_corrected \
         CAT1_all_b1p5 CAT1_all_b3 CAT1_all_b6 \
         CAT2_all_b1p5 CAT2_all_b3 CAT2_all_b6 \
         CAT3_all_b1p5 CAT3_all_b3 CAT3_all_b6 \
-        CAT_OKA_all_oka \
+        CAT_OKA_all_oka CAT_OKA_all_oka_corrected \
         all_A_b1p5 all_A_b3 all_A_b6 \
         all_B_b1p5 all_B_b3 all_B_b6 \
         all_C_b1p5 all_C_b3 all_C_b6 \
@@ -85,6 +86,8 @@ FPS ?= 15
         clean_CAT1 clean_CAT2 clean_CAT3 clean_CAT_OKA clean_all \
         anim3d anim3d_all anim3d_all_oka anim3d_all_CAT1 anim3d_all_CAT2 anim3d_all_CAT3 \
         CAT_OKA_A_oka_3d CAT_OKA_B_oka_3d CAT_OKA_C_oka_3d \
+        CAT_OKA_A_oka_corrected_3d CAT_OKA_B_oka_corrected_3d CAT_OKA_C_oka_corrected_3d \
+        anim3d_all_oka_corrected \
         CAT1_A_b1p5_3d CAT1_A_b3_3d CAT1_A_b6_3d \
         CAT1_B_b1p5_3d CAT1_B_b3_3d CAT1_B_b6_3d \
         CAT1_C_b1p5_3d CAT1_C_b3_3d CAT1_C_b6_3d \
@@ -704,6 +707,49 @@ CAT_OKA_C_oka_anim:
 	$(call animate_category,CAT_OKA,C,1M,oka)
 
 # ============================================================================
+# CAT_OKA: OKA ET AL. (2017) CORRECTED INITIAL CONDITIONS
+# ============================================================================
+# Corrected orbit using EXACT parameters from Nature Astronomy Methods section:
+#   - Initial position: (9.8, -0.65, 0) pc (from paper Table)
+#   - Initial velocity: (-8.19, 0.4, 0) km/s (from paper Table)
+#   - Nearly radial orbit with velocity dispersion giving range of pericentres
+#   - Mean pericentre: ~0.002 pc (depends on particle initial h)
+# ============================================================================
+
+# Resolution A (61k)
+CAT_OKA_A_oka_corrected: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_corrected)
+	$(call animate_category,CAT_OKA,A,61k,oka_corrected)
+
+CAT_OKA_A_oka_corrected_run: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_corrected)
+
+CAT_OKA_A_oka_corrected_anim:
+	$(call animate_category,CAT_OKA,A,61k,oka_corrected)
+
+# Resolution B (200k)
+CAT_OKA_B_oka_corrected: check_dim
+	$(call run_category,CAT_OKA,B,200k,oka_corrected)
+	$(call animate_category,CAT_OKA,B,200k,oka_corrected)
+
+CAT_OKA_B_oka_corrected_run: check_dim
+	$(call run_category,CAT_OKA,B,200k,oka_corrected)
+
+CAT_OKA_B_oka_corrected_anim:
+	$(call animate_category,CAT_OKA,B,200k,oka_corrected)
+
+# Resolution C (1M)
+CAT_OKA_C_oka_corrected: check_dim
+	$(call run_category,CAT_OKA,C,1M,oka_corrected)
+	$(call animate_category,CAT_OKA,C,1M,oka_corrected)
+
+CAT_OKA_C_oka_corrected_run: check_dim
+	$(call run_category,CAT_OKA,C,1M,oka_corrected)
+
+CAT_OKA_C_oka_corrected_anim:
+	$(call animate_category,CAT_OKA,C,1M,oka_corrected)
+
+# ============================================================================
 # BATCH TARGETS: All resolutions for a category/scenario
 # ============================================================================
 
@@ -736,6 +782,9 @@ CAT3_all_b6: CAT3_A_b6 CAT3_B_b6 CAT3_C_b6
 
 CAT_OKA_all_oka: CAT_OKA_A_oka CAT_OKA_B_oka CAT_OKA_C_oka
 	@echo "✓ Complete: CAT_OKA all resolutions with Oka et al. orbit"
+
+CAT_OKA_all_oka_corrected: CAT_OKA_A_oka_corrected CAT_OKA_B_oka_corrected CAT_OKA_C_oka_corrected
+	@echo "✓ Complete: CAT_OKA all resolutions with corrected Oka et al. orbit"
 
 # ============================================================================
 # BATCH TARGETS: All categories for a resolution/scenario
@@ -890,6 +939,19 @@ CAT_OKA_C_oka_3d:
 anim3d_all_oka: CAT_OKA_A_oka_3d CAT_OKA_B_oka_3d CAT_OKA_C_oka_3d
 	@echo "✓ All CAT_OKA 3D animations generated!"
 
+# ----- CAT_OKA Corrected 3D animations -----
+CAT_OKA_A_oka_corrected_3d:
+	$(call animate_3d_only,CAT_OKA,A,61k,oka_corrected)
+
+CAT_OKA_B_oka_corrected_3d:
+	$(call animate_3d_only,CAT_OKA,B,200k,oka_corrected)
+
+CAT_OKA_C_oka_corrected_3d:
+	$(call animate_3d_only,CAT_OKA,C,1M,oka_corrected)
+
+anim3d_all_oka_corrected: CAT_OKA_A_oka_corrected_3d CAT_OKA_B_oka_corrected_3d CAT_OKA_C_oka_corrected_3d
+	@echo "✓ All CAT_OKA corrected 3D animations generated!"
+
 # ----- CAT1 3D animations -----
 CAT1_A_b1p5_3d:
 	$(call animate_3d_only,CAT1,A,61k,b1p5)
@@ -990,7 +1052,7 @@ anim3d_all_CAT3: CAT3_A_b1p5_3d CAT3_A_b3_3d CAT3_A_b6_3d \
 	@echo "✓ All CAT3 3D animations generated!"
 
 # ----- Generate all 3D animations -----
-anim3d_all: anim3d_all_oka anim3d_all_CAT1 anim3d_all_CAT2 anim3d_all_CAT3
+anim3d_all: anim3d_all_oka anim3d_all_oka_corrected anim3d_all_CAT1 anim3d_all_CAT2 anim3d_all_CAT3
 	@echo ""
 	@echo "════════════════════════════════════════════════════════════════════════════"
 	@echo "  ✓ All 3D animations generated!"

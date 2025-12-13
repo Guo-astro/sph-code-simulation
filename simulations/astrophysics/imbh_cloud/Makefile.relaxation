@@ -339,19 +339,19 @@ relax_check_quality:
 	fi; \
 	echo "Analyzing: $$FINAL_SNAP"; \
 	python3 -c " \
-import numpy as np; \
-import sys; \
-data = np.loadtxt('$$FINAL_SNAP', delimiter=',', skiprows=61); \
-vel = data[:, 4:7]; \
-v_mag = np.sqrt(np.sum(vel**2, axis=1)); \
-rho = data[:, 11]; \
-r = np.sqrt(np.sum(data[:, 1:4]**2, axis=1)); \
-print(f'  Particles: {len(data)}'); \
-print(f'  Velocity:  max={v_mag.max():.6f}, median={np.median(v_mag):.6f}'); \
-print(f'  Density:   [{rho.min():.3f}, {rho.max():.3f}]'); \
-central = rho[r < 0.1]; \
-if len(central) > 0: \
-    print(f'  Central ρ: {central.mean():.3f} (analytic: 1.43)'); \
-quality = 'GOOD' if v_mag.max() < 0.01 else 'NEEDS MORE STEPS'; \
-print(f'  Quality:   {quality}'); \
-"
+	import numpy as np; \
+	import sys; \
+	data = np.loadtxt('$$FINAL_SNAP', delimiter=',', skiprows=61); \
+	vel = data[:, 4:7]; \
+	v_mag = np.sqrt(np.sum(vel**2, axis=1)); \
+	rho = data[:, 11]; \
+	r = np.sqrt(np.sum(data[:, 1:4]**2, axis=1)); \
+	print(f'  Particles: {len(data)}'); \
+	print(f'  Velocity:  max={v_mag.max():.6f}, median={np.median(v_mag):.6f}'); \
+	print(f'  Density:   [{rho.min():.3f}, {rho.max():.3f}]'); \
+	central = rho[r < 0.1]; \
+	if len(central) > 0: \
+	print(f'  Central ρ: {central.mean():.3f} (analytic: 1.43)'); \
+	quality = 'GOOD' if v_mag.max() < 0.01 else 'NEEDS MORE STEPS'; \
+	print(f'  Quality:   {quality}'); \
+	"

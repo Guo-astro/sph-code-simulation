@@ -1,105 +1,21 @@
 import { jsx, Fragment, jsxs } from "react/jsx-runtime";
-import { r as rootRouteId, i as invariant, t as trimPathLeft, j as joinPaths, d as dummyMatchContext, m as matchContext, u as useRouterState, a as useRouter, b as useForwardedRef, c as useIntersectionObserver, f as functionalUpdate, e as exactPathTest, g as removeTrailingSlash, h as deepEqual, w as warning, k as isModuleNotFoundError, R as RouterCore, E as ErrorComponent, l as json } from "../server.js";
+import { exactPathTest, removeTrailingSlash, deepEqual, preloadWarning, functionalUpdate, BaseRootRoute, BaseRoute, isModuleNotFoundError, RouterCore, rootRouteId } from "@tanstack/router-core";
+import warning from "tiny-warning";
 import * as React from "react";
-import React__default, { createElement, useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React__default, { createElement, useRef, useEffect, useCallback, forwardRef, useState, useImperativeHandle, useMemo } from "react";
+import invariant from "tiny-invariant";
+import { d as dummyMatchContext, m as matchContext, u as useRouterState, a as useRouter, b as useForwardedRef, c as useIntersectionObserver, E as ErrorComponent } from "../server.js";
 import { flushSync } from "react-dom";
-import { Canvas, useThree } from "@react-three/fiber";
-import { PerspectiveCamera, OrbitControls, Stats } from "@react-three/drei";
+import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import * as THREE from "three";
-import { OrbitControls as OrbitControls$1 } from "three/examples/jsm/controls/OrbitControls.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { Schema } from "effect";
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line, ReferenceLine } from "recharts";
 import { SkipBack, ChevronLeft, Pause, Play, ChevronRight, SkipForward, Settings, ChevronDown, RefreshCw, Folder } from "lucide-react";
+import { json } from "@tanstack/router-core/ssr/client";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-const preloadWarning = "Error preloading route! ☝️";
-class BaseRoute {
-  constructor(options) {
-    this.init = (opts) => {
-      this.originalIndex = opts.originalIndex;
-      const options2 = this.options;
-      const isRoot = !options2?.path && !options2?.id;
-      this.parentRoute = this.options.getParentRoute?.();
-      if (isRoot) {
-        this._path = rootRouteId;
-      } else if (!this.parentRoute) {
-        invariant(
-          false,
-          `Child Route instances must pass a 'getParentRoute: () => ParentRoute' option that returns a Route instance.`
-        );
-      }
-      let path2 = isRoot ? rootRouteId : options2?.path;
-      if (path2 && path2 !== "/") {
-        path2 = trimPathLeft(path2);
-      }
-      const customId = options2?.id || path2;
-      let id = isRoot ? rootRouteId : joinPaths([
-        this.parentRoute.id === rootRouteId ? "" : this.parentRoute.id,
-        customId
-      ]);
-      if (path2 === rootRouteId) {
-        path2 = "/";
-      }
-      if (id !== rootRouteId) {
-        id = joinPaths(["/", id]);
-      }
-      const fullPath = id === rootRouteId ? "/" : joinPaths([this.parentRoute.fullPath, path2]);
-      this._path = path2;
-      this._id = id;
-      this._fullPath = fullPath;
-      this._to = fullPath;
-    };
-    this.addChildren = (children) => {
-      return this._addFileChildren(children);
-    };
-    this._addFileChildren = (children) => {
-      if (Array.isArray(children)) {
-        this.children = children;
-      }
-      if (typeof children === "object" && children !== null) {
-        this.children = Object.values(children);
-      }
-      return this;
-    };
-    this._addFileTypes = () => {
-      return this;
-    };
-    this.updateLoader = (options2) => {
-      Object.assign(this.options, options2);
-      return this;
-    };
-    this.update = (options2) => {
-      Object.assign(this.options, options2);
-      return this;
-    };
-    this.lazy = (lazyFn) => {
-      this.lazyFn = lazyFn;
-      return this;
-    };
-    this.options = options || {};
-    this.isRoot = !options?.getParentRoute;
-    if (options?.id && options?.path) {
-      throw new Error(`Route cannot have both an 'id' and a 'path' option.`);
-    }
-  }
-  get to() {
-    return this._to;
-  }
-  get id() {
-    return this._id;
-  }
-  get path() {
-    return this._path;
-  }
-  get fullPath() {
-    return this._fullPath;
-  }
-}
-class BaseRootRoute extends BaseRoute {
-  constructor(options) {
-    super(options);
-  }
-}
 function useMatch(opts) {
   const nearestMatchId = React.useContext(
     opts.from ? dummyMatchContext : matchContext
@@ -1122,7 +1038,7 @@ function NotFound({ children }) {
     ] })
   ] });
 }
-const appCss = "/assets/app-DtwQlxQQ.css";
+const appCss = "/assets/app-dS8jA3co.css";
 const seo = ({
   title,
   description,
@@ -1194,515 +1110,10 @@ function RootDocument({ children }) {
     ] })
   ] });
 }
-const $$splitComponentImporter = () => import("./index-BWIiq-yf.js");
+const $$splitComponentImporter = () => import("./index-Cm4Dx40N.js");
 const Route$5 = createFileRoute("/")({
   component: lazyRouteComponent($$splitComponentImporter, "component")
 });
-let circleTexture = null;
-function createCircleTexture(size = 64) {
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  const gradient = ctx.createRadialGradient(
-    size / 2,
-    size / 2,
-    0,
-    size / 2,
-    size / 2,
-    size / 2
-  );
-  gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
-  gradient.addColorStop(0.3, "rgba(255, 255, 255, 0.8)");
-  gradient.addColorStop(0.7, "rgba(255, 255, 255, 0.3)");
-  gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
-function getCircleTexture() {
-  if (!circleTexture) {
-    circleTexture = createCircleTexture();
-  }
-  return circleTexture;
-}
-const DEFAULT_TEXT_SPRITE_OPTIONS = {
-  color: "#ffffff",
-  fontSize: 72,
-  // Increased from 48
-  fontWeight: "Bold",
-  fontFamily: "Arial, sans-serif",
-  backgroundColor: "",
-  padding: 10,
-  scale: [12, 6, 1],
-  // Increased from [8, 4, 1]
-  canvasSize: 512,
-  renderOrder: 999
-};
-function createTextSprite$1(text, options = {}) {
-  const opts = { ...DEFAULT_TEXT_SPRITE_OPTIONS, ...options };
-  const {
-    color,
-    fontSize,
-    fontWeight,
-    fontFamily,
-    backgroundColor,
-    scale,
-    canvasSize,
-    renderOrder
-  } = opts;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvasSize;
-  canvas.height = canvasSize / 2;
-  const ctx = canvas.getContext("2d");
-  if (backgroundColor) {
-    ctx.fillStyle = backgroundColor;
-    ctx.fillRect(0, 0, canvasSize, canvasSize / 2);
-  }
-  ctx.fillStyle = color;
-  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, canvasSize / 2, canvasSize / 4);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  const material = new THREE.SpriteMaterial({
-    map: texture,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false
-  });
-  const sprite = new THREE.Sprite(material);
-  sprite.scale.set(...scale);
-  sprite.renderOrder = renderOrder;
-  return sprite;
-}
-function createAxisLabel(text, axisColor, position) {
-  const sprite = createTextSprite$1(text, {
-    color: axisColor,
-    fontSize: 72,
-    scale: [12, 6, 1]
-    // Larger scale for axis labels
-  });
-  sprite.position.set(...position);
-  return sprite;
-}
-function createTickLabel(text, position) {
-  const sprite = createTextSprite$1(text, {
-    color: "#aaaaaa",
-    fontSize: 48,
-    scale: [6, 3, 1]
-    // Smaller scale for tick labels
-  });
-  sprite.position.set(...position);
-  return sprite;
-}
-function createAxesWithLabels(options = {}) {
-  const {
-    size = 30,
-    showTickMarks = true,
-    tickInterval = 10,
-    labelUnit = "pc"
-  } = options;
-  const group = new THREE.Group();
-  group.name = "axesWithLabels";
-  const axesHelper = new THREE.AxesHelper(size);
-  group.add(axesHelper);
-  const labelOffset = size + 4;
-  const xLabel = createAxisLabel(`X (${labelUnit})`, "#ff6666", [labelOffset, 0, 0]);
-  group.add(xLabel);
-  const yLabel = createAxisLabel(`Y (${labelUnit})`, "#66ff66", [0, labelOffset, 0]);
-  group.add(yLabel);
-  const zLabel = createAxisLabel(`Z (${labelUnit})`, "#6666ff", [0, 0, labelOffset]);
-  group.add(zLabel);
-  if (showTickMarks) {
-    const tickMaterial = new THREE.LineBasicMaterial({ color: 6710886 });
-    const tickSize = 0.8;
-    for (let i = -Math.floor(size / tickInterval) * tickInterval; i <= size; i += tickInterval) {
-      if (i === 0) continue;
-      const xTickGeom = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(i, -tickSize, 0),
-        new THREE.Vector3(i, tickSize, 0)
-      ]);
-      group.add(new THREE.Line(xTickGeom, tickMaterial));
-      const yTickGeom = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-tickSize, i, 0),
-        new THREE.Vector3(tickSize, i, 0)
-      ]);
-      group.add(new THREE.Line(yTickGeom, tickMaterial));
-      if (Math.abs(i) <= size) {
-        const xTickLabel = createTickLabel(`${i}`, [i, -3, 0]);
-        group.add(xTickLabel);
-        const yTickLabel = createTickLabel(`${i}`, [-3, i, 0]);
-        group.add(yTickLabel);
-      }
-    }
-  }
-  return group;
-}
-const COLOR_MAP_DATA = {
-  viridis: [
-    [0.267, 4e-3, 0.329],
-    [0.282, 0.14, 0.458],
-    [0.253, 0.265, 0.53],
-    [0.206, 0.372, 0.553],
-    [0.163, 0.471, 0.558],
-    [0.127, 0.566, 0.551],
-    [0.134, 0.658, 0.518],
-    [0.266, 0.749, 0.441],
-    [0.477, 0.821, 0.318],
-    [0.741, 0.873, 0.15],
-    [0.993, 0.906, 0.144]
-  ],
-  plasma: [
-    [0.05, 0.03, 0.528],
-    [0.295, 0.012, 0.615],
-    [0.492, 0.012, 0.658],
-    [0.665, 0.138, 0.618],
-    [0.798, 0.28, 0.47],
-    [0.899, 0.396, 0.301],
-    [0.966, 0.53, 0.128],
-    [0.988, 0.68, 0.063],
-    [0.961, 0.85, 0.298],
-    [0.94, 0.975, 0.131]
-  ],
-  inferno: [
-    [1e-3, 0, 0.014],
-    [0.122, 0.047, 0.282],
-    [0.304, 0.063, 0.42],
-    [0.499, 0.086, 0.397],
-    [0.68, 0.144, 0.295],
-    [0.833, 0.253, 0.16],
-    [0.937, 0.405, 0.049],
-    [0.981, 0.588, 0.068],
-    [0.987, 0.772, 0.264],
-    [0.988, 0.998, 0.645]
-  ],
-  turbo: [
-    [0.19, 0.072, 0.232],
-    [0.235, 0.318, 0.86],
-    [0.137, 0.572, 0.996],
-    [0.14, 0.78, 0.82],
-    [0.376, 0.92, 0.512],
-    [0.67, 0.979, 0.28],
-    [0.924, 0.904, 0.145],
-    [0.996, 0.724, 0.132],
-    [0.994, 0.472, 0.122],
-    [0.881, 0.2, 0.102],
-    [0.528, 0.055, 0.052]
-  ],
-  magma: [
-    [1e-3, 0, 0.014],
-    [0.104, 0.047, 0.258],
-    [0.259, 0.05, 0.408],
-    [0.427, 0.079, 0.43],
-    [0.575, 0.134, 0.397],
-    [0.716, 0.215, 0.345],
-    [0.848, 0.343, 0.331],
-    [0.937, 0.517, 0.388],
-    [0.973, 0.699, 0.53],
-    [0.988, 0.998, 0.645]
-  ],
-  coolwarm: [
-    [0.23, 0.299, 0.754],
-    [0.411, 0.484, 0.845],
-    [0.593, 0.669, 0.927],
-    [0.775, 0.817, 0.964],
-    [0.9, 0.9, 0.9],
-    [0.964, 0.775, 0.692],
-    [0.927, 0.593, 0.476],
-    [0.845, 0.411, 0.299],
-    [0.754, 0.23, 0.173]
-  ]
-};
-const hexToRgbCache = /* @__PURE__ */ new Map();
-function hexToRgb$1(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return { r: 1, g: 1, b: 1 };
-  return {
-    r: parseInt(result[1], 16) / 255,
-    g: parseInt(result[2], 16) / 255,
-    b: parseInt(result[3], 16) / 255
-  };
-}
-function hexToRgbCached(hex) {
-  let cached = hexToRgbCache.get(hex);
-  if (!cached) {
-    cached = hexToRgb$1(hex);
-    hexToRgbCache.set(hex, cached);
-  }
-  return cached;
-}
-function sampleColorMap(mapName, t) {
-  const map = COLOR_MAP_DATA[mapName] || COLOR_MAP_DATA.viridis;
-  t = Math.max(0, Math.min(1, t));
-  const idx = t * (map.length - 1);
-  const i = Math.floor(idx);
-  const f = idx - i;
-  if (i >= map.length - 1) {
-    return map[map.length - 1];
-  }
-  return [
-    map[i][0] + f * (map[i + 1][0] - map[i][0]),
-    map[i][1] + f * (map[i + 1][1] - map[i][1]),
-    map[i][2] + f * (map[i + 1][2] - map[i][2])
-  ];
-}
-function interpolateColorHex$1(colors, t) {
-  if (colors.length === 0) return { r: 1, g: 1, b: 1 };
-  if (colors.length === 1) return hexToRgbCached(colors[0]);
-  t = Math.max(0, Math.min(1, t));
-  const index = t * (colors.length - 1);
-  const lower = Math.floor(index);
-  const upper = Math.min(lower + 1, colors.length - 1);
-  const localT = index - lower;
-  const c1 = hexToRgbCached(colors[lower]);
-  const c2 = hexToRgbCached(colors[upper]);
-  return {
-    r: c1.r + (c2.r - c1.r) * localT,
-    g: c1.g + (c2.g - c1.g) * localT,
-    b: c1.b + (c2.b - c1.b) * localT
-  };
-}
-function ParticleCloud({ frame, colorField, colorMap, pointSize, opacity }) {
-  const pointsRef = useRef(null);
-  const geometryRef = useRef(null);
-  const materialRef = useRef(null);
-  const colorsArrayRef = useRef(null);
-  useEffect(() => {
-    if (!frame || !pointsRef.current) return;
-    const count = frame.particleCount;
-    let geometry = geometryRef.current;
-    if (!geometry || geometry.attributes.position && geometry.attributes.position.count !== count) {
-      geometry = new THREE.BufferGeometry();
-      const positions = new THREE.BufferAttribute(frame.positions, 3);
-      positions.setUsage(THREE.DynamicDrawUsage);
-      geometry.setAttribute("position", positions);
-      colorsArrayRef.current = new Float32Array(count * 3);
-      const colors2 = new THREE.BufferAttribute(colorsArrayRef.current, 3);
-      colors2.setUsage(THREE.DynamicDrawUsage);
-      geometry.setAttribute("color", colors2);
-      geometryRef.current = geometry;
-      pointsRef.current.geometry = geometry;
-    } else {
-      const posAttr = geometry.attributes.position;
-      posAttr.array = frame.positions;
-      posAttr.needsUpdate = true;
-    }
-    let fieldData;
-    switch (colorField) {
-      case "density":
-        fieldData = frame.density;
-        break;
-      case "pressure":
-        fieldData = frame.pressure;
-        break;
-      case "energy":
-        fieldData = frame.energy;
-        break;
-      case "velocity":
-        if (!colorsArrayRef.current || colorsArrayRef.current.length !== count * 3) {
-          colorsArrayRef.current = new Float32Array(count * 3);
-        }
-        const velMag = new Float32Array(count);
-        for (let i = 0; i < count; i++) {
-          const vx = frame.velocities[i * 3];
-          const vy = frame.velocities[i * 3 + 1];
-          const vz = frame.velocities[i * 3 + 2];
-          velMag[i] = Math.sqrt(vx * vx + vy * vy + vz * vz);
-        }
-        fieldData = velMag;
-        break;
-      case "machNumber":
-        fieldData = frame.machNumber;
-        break;
-      default:
-        fieldData = frame.density;
-    }
-    let min = colorMap.min ?? Infinity;
-    let max = colorMap.max ?? -Infinity;
-    if (min === Infinity || max === -Infinity) {
-      if (fieldData) {
-        for (let i = 0; i < count; i++) {
-          const val = fieldData[i];
-          if (isFinite(val)) {
-            if (val < min) min = val;
-            if (val > max) max = val;
-          }
-        }
-      }
-    }
-    if (min === max) max = min + 1;
-    const colorAttr = geometry.attributes.color;
-    const colors = colorAttr.array;
-    const logMin = colorMap.logScale && min > 0 ? Math.log10(min) : 0;
-    const logRange = colorMap.logScale && min > 0 ? Math.log10(max) - logMin : 1;
-    const range = max - min;
-    for (let i = 0; i < count; i++) {
-      let val = fieldData ? fieldData[i] : 0;
-      if (!isFinite(val)) val = min;
-      let t;
-      if (colorMap.logScale && min > 0) {
-        t = (Math.log10(val) - logMin) / logRange;
-      } else {
-        t = (val - min) / range;
-      }
-      t = Math.max(0, Math.min(1, t));
-      const color = interpolateColorHex$1(colorMap.colors, t);
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
-    }
-    colorAttr.needsUpdate = true;
-    geometry.computeBoundingSphere();
-  }, [frame, colorField, colorMap]);
-  useEffect(() => {
-    if (materialRef.current) {
-      materialRef.current.size = pointSize;
-      materialRef.current.opacity = opacity;
-      materialRef.current.needsUpdate = true;
-    }
-  }, [pointSize, opacity]);
-  if (!frame) return null;
-  return /* @__PURE__ */ jsxs("points", { ref: pointsRef, children: [
-    /* @__PURE__ */ jsx("bufferGeometry", { ref: geometryRef }),
-    /* @__PURE__ */ jsx(
-      "pointsMaterial",
-      {
-        ref: materialRef,
-        size: pointSize,
-        vertexColors: true,
-        transparent: true,
-        opacity,
-        sizeAttenuation: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        map: getCircleTexture(),
-        alphaTest: 0.01
-      }
-    )
-  ] });
-}
-function AxesHelper({ size = 1 }) {
-  return /* @__PURE__ */ jsx("axesHelper", { args: [size] });
-}
-function GridHelper({ size = 10, divisions = 10 }) {
-  return /* @__PURE__ */ jsx("gridHelper", { args: [size, divisions, "#444444", "#222222"], rotation: [Math.PI / 2, 0, 0] });
-}
-function BoundingBox({
-  min,
-  max
-}) {
-  const geometry = useMemo(() => {
-    const box = new THREE.BoxGeometry(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
-    box.translate((max[0] + min[0]) / 2, (max[1] + min[1]) / 2, (max[2] + min[2]) / 2);
-    return new THREE.EdgesGeometry(box);
-  }, [min, max]);
-  return /* @__PURE__ */ jsx("lineSegments", { geometry, children: /* @__PURE__ */ jsx("lineBasicMaterial", { color: "#666666" }) });
-}
-function CameraController({
-  boundingBox,
-  resetKey
-}) {
-  const { camera } = useThree();
-  useEffect(() => {
-    if (boundingBox) {
-      const center = new THREE.Vector3(
-        (boundingBox.min[0] + boundingBox.max[0]) / 2,
-        (boundingBox.min[1] + boundingBox.max[1]) / 2,
-        (boundingBox.min[2] + boundingBox.max[2]) / 2
-      );
-      const size = new THREE.Vector3(
-        boundingBox.max[0] - boundingBox.min[0],
-        boundingBox.max[1] - boundingBox.min[1],
-        boundingBox.max[2] - boundingBox.min[2]
-      );
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const distance = maxDim * 2;
-      camera.position.set(center.x + distance, center.y + distance * 0.5, center.z + distance);
-      camera.lookAt(center);
-    }
-  }, [boundingBox, camera, resetKey]);
-  return null;
-}
-const defaultColorMap$1 = {
-  name: "Viridis",
-  colors: [
-    "#440154",
-    "#482878",
-    "#3e4989",
-    "#31688e",
-    "#26828e",
-    "#1f9e89",
-    "#35b779",
-    "#6ece58",
-    "#b5de2b",
-    "#fde725"
-  ],
-  min: 0,
-  max: 1,
-  logScale: false
-};
-function ParticleViewer3D({
-  frame,
-  colorField = "density",
-  colorMap = defaultColorMap$1,
-  pointSize = 0.02,
-  opacity = 0.8,
-  showAxes = true,
-  showGrid = false,
-  showBoundingBox = true,
-  boundingBox,
-  showStats = false,
-  className = ""
-}) {
-  const [resetKey, setResetKey] = useState(0);
-  const handleResetCamera = () => {
-    setResetKey((k) => k + 1);
-  };
-  return /* @__PURE__ */ jsxs("div", { className: `relative w-full h-full bg-gray-900 ${className}`, children: [
-    /* @__PURE__ */ jsxs(Canvas, { children: [
-      /* @__PURE__ */ jsx(PerspectiveCamera, { makeDefault: true, fov: 60, near: 1e-3, far: 1e3 }),
-      /* @__PURE__ */ jsx(OrbitControls, { enableDamping: true, dampingFactor: 0.1, rotateSpeed: 0.5 }),
-      /* @__PURE__ */ jsx(CameraController, { boundingBox, resetKey }),
-      /* @__PURE__ */ jsx("ambientLight", { intensity: 0.5 }),
-      /* @__PURE__ */ jsx("directionalLight", { position: [10, 10, 5], intensity: 1 }),
-      showAxes && /* @__PURE__ */ jsx(AxesHelper, { size: boundingBox ? Math.max(...boundingBox.max) * 0.5 : 1 }),
-      showGrid && /* @__PURE__ */ jsx(GridHelper, { size: 10, divisions: 10 }),
-      showBoundingBox && boundingBox && /* @__PURE__ */ jsx(BoundingBox, { min: boundingBox.min, max: boundingBox.max }),
-      /* @__PURE__ */ jsx(
-        ParticleCloud,
-        {
-          frame,
-          colorField,
-          colorMap,
-          pointSize,
-          opacity
-        }
-      ),
-      showStats && /* @__PURE__ */ jsx(Stats, {})
-    ] }),
-    /* @__PURE__ */ jsx("div", { className: "absolute top-2 right-2 flex gap-2", children: /* @__PURE__ */ jsx(
-      "button",
-      {
-        onClick: handleResetCamera,
-        className: "px-3 py-1 bg-gray-700 text-white text-sm rounded hover:bg-gray-600",
-        children: "Reset Camera"
-      }
-    ) }),
-    frame && /* @__PURE__ */ jsxs("div", { className: "absolute bottom-2 left-2 text-white text-xs bg-black/50 px-2 py-1 rounded", children: [
-      "Frame ",
-      frame.frameIndex,
-      " | t = ",
-      frame.time.toFixed(4),
-      " | ",
-      frame.particleCount.toLocaleString(),
-      " particles"
-    ] })
-  ] });
-}
 const DEFAULT_GALACTIC_CONFIG = {
   // Physical distances
   distanceToGC_pc: 60,
@@ -1754,7 +1165,7 @@ const DEFAULT_GALACTIC_CONFIG = {
   galaxyRotationSpeed: 0
   // Static by default
 };
-function createTextSprite(text, options = {}) {
+function createTextSprite$1(text, options = {}) {
   const {
     color = "#ffffff",
     fontSize = 72,
@@ -1793,7 +1204,7 @@ function createTextSprite(text, options = {}) {
   return sprite;
 }
 function createArrow(from, to, color, options = {}) {
-  const { headLength = 1, headWidth = 0.5, shaftRadius = 0.08, opacity = 1 } = options;
+  const { headLength = 1, headWidth = 0.6, shaftRadius = 0.15, opacity = 1 } = options;
   const group = new THREE.Group();
   const direction = to.clone().sub(from).normalize();
   const length = from.distanceTo(to);
@@ -1940,7 +1351,7 @@ function createGalaxyDisk(center, scale = 1, config = {}) {
   const sunDot = new THREE.Mesh(sunDotGeo, sunDotMat);
   sunDot.position.copy(sunPosInGalaxy);
   group.add(sunDot);
-  const sunPosLabel = createTextSprite("☉ (8 kpc)", { color: "#ffff88", fontSize: 18 });
+  const sunPosLabel = createTextSprite$1("☉ (8 kpc)", { color: "#ffff88", fontSize: 18 });
   sunPosLabel.position.copy(sunPosInGalaxy.clone().add(new THREE.Vector3(0, 1.2 * scale, 0)));
   sunPosLabel.scale.set(4, 2, 1);
   group.add(sunPosLabel);
@@ -1965,24 +1376,24 @@ function createGalaxyDisk(center, scale = 1, config = {}) {
   const hvccMarker = new THREE.Mesh(hvccIndicator, hvccMat);
   hvccMarker.position.copy(hvccPosInGalaxy);
   group.add(hvccMarker);
-  const hvccLabel = createTextSprite("HVCC (~60pc from GC)", { color: "#00ff88", fontSize: 16 });
+  const hvccLabel = createTextSprite$1("HVCC (~60pc from GC)", { color: "#00ff88", fontSize: 16 });
   hvccLabel.position.copy(hvccPosInGalaxy.clone().add(new THREE.Vector3(1.5 * scale, 0.5 * scale, 0)));
   hvccLabel.scale.set(5, 2, 1);
   group.add(hvccLabel);
   const legendPos = new THREE.Vector3(diskRadius * 0.7, 0.1, diskRadius * 0.5);
-  const scaleNote = createTextSprite("Scale: Compressed ~300× for visualization", { color: "#888888", fontSize: 12 });
+  const scaleNote = createTextSprite$1("Scale: Compressed ~300× for visualization", { color: "#888888", fontSize: 12 });
   scaleNote.position.copy(legendPos);
   scaleNote.scale.set(5, 2, 1);
   group.add(scaleNote);
-  const distNote1 = createTextSprite("• Sun ↔ GC: 8 kpc (~26.7 display units)", { color: "#ffff88", fontSize: 11 });
+  const distNote1 = createTextSprite$1("• Sun ↔ GC: 8 kpc (~26.7 display units)", { color: "#ffff88", fontSize: 11 });
   distNote1.position.copy(legendPos.clone().add(new THREE.Vector3(0, -1 * scale, 0)));
   distNote1.scale.set(6, 2, 1);
   group.add(distNote1);
-  const distNote2 = createTextSprite("• HVCC ↔ GC: 60 pc (~0.2 display units)", { color: "#00ff88", fontSize: 11 });
+  const distNote2 = createTextSprite$1("• HVCC ↔ GC: 60 pc (~0.2 display units)", { color: "#00ff88", fontSize: 11 });
   distNote2.position.copy(legendPos.clone().add(new THREE.Vector3(0, -2 * scale, 0)));
   distNote2.scale.set(6, 2, 1);
   group.add(distNote2);
-  const galaxyLabel = createTextSprite("Milky Way (schematic)", { color: "#6688aa", fontSize: 20 });
+  const galaxyLabel = createTextSprite$1("Milky Way (schematic)", { color: "#6688aa", fontSize: 20 });
   galaxyLabel.position.set(0, 3 * scale, diskRadius - 5);
   galaxyLabel.scale.set(6, 3, 1);
   group.add(galaxyLabel);
@@ -2053,7 +1464,7 @@ function createAllGalacticMarkers(bhPosition, config = DEFAULT_GALACTIC_CONFIG) 
     });
     galaxyDisk.name = "galaxyDisk";
     group.add(galaxyDisk);
-    const gcLabel = createTextSprite(`GC (~${distanceToGC_pc} pc)`, {
+    const gcLabel = createTextSprite$1(`GC (~${distanceToGC_pc} pc)`, {
       color: "#ffaa44",
       fontSize: 16
     });
@@ -2114,11 +1525,11 @@ function createObserverDirectionIndicator(origin, config, displayDistance = 15) 
   observerMarker.add(new THREE.Mesh(atmoGeo, atmoMat));
   observerMarker.position.copy(losEnd);
   group.add(observerMarker);
-  const observerLabel = createTextSprite("⊕ Observer (Earth)", { color: "#88ccff", fontSize: 20 });
+  const observerLabel = createTextSprite$1("⊕ Observer (Earth)", { color: "#88ccff", fontSize: 20 });
   observerLabel.position.copy(losEnd.clone().add(new THREE.Vector3(0, 2 * scale, 0)));
   observerLabel.scale.set(5, 2.5, 1);
   group.add(observerLabel);
-  const distLabel = createTextSprite("~8 kpc (not to scale)", { color: "#aaddff", fontSize: 14 });
+  const distLabel = createTextSprite$1("~8 kpc (not to scale)", { color: "#aaddff", fontSize: 14 });
   distLabel.position.copy(losEnd.clone().add(new THREE.Vector3(0, 1.2 * scale, 0)));
   distLabel.scale.set(4, 2, 1);
   group.add(distLabel);
@@ -2147,7 +1558,7 @@ function createObserverDirectionIndicator(origin, config, displayDistance = 15) 
     Math.sin(inc / 2) * Math.sin(pa),
     Math.cos(inc / 2)
   ).multiplyScalar(incArcRadius + 2 * scale);
-  const incLabel = createTextSprite(`i = ${config.inclination ?? DEFAULT_GALACTIC_CONFIG.inclination}°`, {
+  const incLabel = createTextSprite$1(`i = ${config.inclination ?? DEFAULT_GALACTIC_CONFIG.inclination}°`, {
     color: "#ffcc66",
     fontSize: 18
   });
@@ -2169,7 +1580,7 @@ function createObserverDirectionIndicator(origin, config, displayDistance = 15) 
     }
   );
   group.add(zAxisArrow);
-  const zLabel = createTextSprite("L (orbital normal)", { color: "#66ffaa", fontSize: 16 });
+  const zLabel = createTextSprite$1("L (orbital normal)", { color: "#66ffaa", fontSize: 16 });
   zLabel.position.copy(zAxisEnd.clone().add(new THREE.Vector3(2 * scale, 0.5 * scale, 0)));
   zLabel.scale.set(4, 2, 1);
   group.add(zLabel);
@@ -2184,7 +1595,7 @@ function createObserverDirectionIndicator(origin, config, displayDistance = 15) 
     center: new THREE.Vector3(0, 0, 0)
   });
   group.add(orbitalPlane);
-  const planeLabel = createTextSprite("Orbital Plane", { color: "#aaffaa", fontSize: 14 });
+  const planeLabel = createTextSprite$1("Orbital Plane", { color: "#aaffaa", fontSize: 14 });
   planeLabel.position.set(orbitalPlaneRadius + 2 * scale, 0, 0);
   planeLabel.scale.set(3.5, 1.8, 1);
   group.add(planeLabel);
@@ -2200,14 +1611,14 @@ function createObserverDirectionIndicator(origin, config, displayDistance = 15) 
     opacity: 0.8
   });
   group.add(vlsrArrow);
-  const vlsrLabel = createTextSprite(`V_LSR = ${lsrVelocity} km/s`, {
+  const vlsrLabel = createTextSprite$1(`V_LSR = ${lsrVelocity} km/s`, {
     color: lsrVelocity < 0 ? "#ff88ff" : "#ffcc88",
     fontSize: 16
   });
   vlsrLabel.position.copy(vlsrEndPoint.clone().add(new THREE.Vector3(1.5 * scale, 0.5 * scale, 0)));
   vlsrLabel.scale.set(4, 2, 1);
   group.add(vlsrLabel);
-  const motionLabel = createTextSprite(
+  const motionLabel = createTextSprite$1(
     lsrVelocity < 0 ? "(approaching)" : "(receding)",
     { color: lsrVelocity < 0 ? "#88ffff" : "#ffddaa", fontSize: 12 }
   );
@@ -2241,7 +1652,7 @@ function createObserverDirectionIndicator(origin, config, displayDistance = 15) 
   const gcMarker = new THREE.Mesh(gcMarkerGeo, gcMarkerMat);
   gcMarker.position.set(0, 0, 0);
   vCircularGroup.add(gcMarker);
-  const gcCenterLabel = createTextSprite("Galactic Center", { color: "#ffcc66", fontSize: 12 });
+  const gcCenterLabel = createTextSprite$1("Galactic Center", { color: "#ffcc66", fontSize: 12 });
   gcCenterLabel.position.set(0, 0.8 * scale, 0);
   gcCenterLabel.scale.set(3.5, 1.8, 1);
   vCircularGroup.add(gcCenterLabel);
@@ -2252,7 +1663,7 @@ function createObserverDirectionIndicator(origin, config, displayDistance = 15) 
   sunMarker.position.copy(sunPosOnOrbit);
   sunMarker.name = "sunOrbitMarker";
   vCircularGroup.add(sunMarker);
-  const sunOrbitLabel = createTextSprite("☉ Sun (8 kpc from GC)", { color: "#ffff88", fontSize: 11 });
+  const sunOrbitLabel = createTextSprite$1("☉ Sun (8 kpc from GC)", { color: "#ffff88", fontSize: 11 });
   sunOrbitLabel.position.copy(sunPosOnOrbit.clone().add(new THREE.Vector3(0, 0.7 * scale, 0)));
   sunOrbitLabel.scale.set(4, 2, 1);
   vCircularGroup.add(sunOrbitLabel);
@@ -2272,14 +1683,14 @@ function createObserverDirectionIndicator(origin, config, displayDistance = 15) 
     }
   );
   vCircularGroup.add(vCircularArrow);
-  const vCircularLabel = createTextSprite("V_circular = 220 km/s", {
+  const vCircularLabel = createTextSprite$1("V_circular = 220 km/s", {
     color: "#66ffaa",
     fontSize: 14
   });
   vCircularLabel.position.copy(vCircularArrowEnd.clone().add(new THREE.Vector3(0, 0.6 * scale, 0.5 * scale)));
   vCircularLabel.scale.set(4, 2, 1);
   vCircularGroup.add(vCircularLabel);
-  const directionLabel = createTextSprite("(Galactic rotation, l = 90°)", {
+  const directionLabel = createTextSprite$1("(Galactic rotation, l = 90°)", {
     color: "#aaffcc",
     fontSize: 10
   });
@@ -2320,7 +1731,7 @@ function createObserverDirectionIndicator(origin, config, displayDistance = 15) 
     animationSpeed: 0.4
     // rad/s for smooth visualization
   };
-  const periodLabel = createTextSprite("Orbital Period T ≈ 220 Myr", {
+  const periodLabel = createTextSprite$1("Orbital Period T ≈ 220 Myr", {
     color: "#88aacc",
     fontSize: 11
   });
@@ -2358,14 +1769,14 @@ function createObserverDirectionIndicator(origin, config, displayDistance = 15) 
   paIndicatorGroup.add(paArrow);
   paIndicatorGroup.position.copy(losEnd.clone().add(losDir.clone().multiplyScalar(-3 * scale)));
   group.add(paIndicatorGroup);
-  const paLabel = createTextSprite(`PA = ${config.positionAngle ?? DEFAULT_GALACTIC_CONFIG.positionAngle}°`, {
+  const paLabel = createTextSprite$1(`PA = ${config.positionAngle ?? DEFAULT_GALACTIC_CONFIG.positionAngle}°`, {
     color: "#ffff88",
     fontSize: 14
   });
   paLabel.position.copy(paIndicatorGroup.position.clone().add(new THREE.Vector3(skyPlaneRadius + 2 * scale, 0, 0)));
   paLabel.scale.set(3.5, 1.8, 1);
   group.add(paLabel);
-  const geometryNote = createTextSprite("Observer Geometry (Oka et al. 2017)", {
+  const geometryNote = createTextSprite$1("Observer Geometry (Oka et al. 2017)", {
     color: "#888888",
     fontSize: 12
   });
@@ -2373,6 +1784,583 @@ function createObserverDirectionIndicator(origin, config, displayDistance = 15) 
   geometryNote.scale.set(5, 2, 1);
   group.add(geometryNote);
   return group;
+}
+let circleTexture = null;
+function createCircleTexture(size = 64) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const gradient = ctx.createRadialGradient(
+    size / 2,
+    size / 2,
+    0,
+    size / 2,
+    size / 2,
+    size / 2
+  );
+  gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+  gradient.addColorStop(0.3, "rgba(255, 255, 255, 0.8)");
+  gradient.addColorStop(0.7, "rgba(255, 255, 255, 0.3)");
+  gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+function getCircleTexture() {
+  if (!circleTexture) {
+    circleTexture = createCircleTexture();
+  }
+  return circleTexture;
+}
+const DEFAULT_TEXT_SPRITE_OPTIONS = {
+  color: "#ffffff",
+  fontSize: 72,
+  // Increased from 48
+  fontWeight: "Bold",
+  fontFamily: "Arial, sans-serif",
+  backgroundColor: "",
+  padding: 10,
+  scale: [12, 6, 1],
+  // Increased from [8, 4, 1]
+  canvasSize: 512,
+  renderOrder: 999
+};
+function createTextSprite(text, options = {}) {
+  const opts = { ...DEFAULT_TEXT_SPRITE_OPTIONS, ...options };
+  const {
+    color,
+    fontSize,
+    fontWeight,
+    fontFamily,
+    backgroundColor,
+    scale,
+    canvasSize,
+    renderOrder
+  } = opts;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasSize;
+  canvas.height = canvasSize / 2;
+  const ctx = canvas.getContext("2d");
+  if (backgroundColor) {
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, canvasSize, canvasSize / 2);
+  }
+  ctx.fillStyle = color;
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, canvasSize / 2, canvasSize / 4);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(...scale);
+  sprite.renderOrder = renderOrder;
+  return sprite;
+}
+function createAxisLabel(text, axisColor, position) {
+  const sprite = createTextSprite(text, {
+    color: axisColor,
+    fontSize: 72,
+    scale: [12, 6, 1]
+    // Larger scale for axis labels
+  });
+  sprite.position.set(...position);
+  return sprite;
+}
+function createTickLabel(text, position) {
+  const sprite = createTextSprite(text, {
+    color: "#aaaaaa",
+    fontSize: 48,
+    scale: [6, 3, 1]
+    // Smaller scale for tick labels
+  });
+  sprite.position.set(...position);
+  return sprite;
+}
+function createAxesWithLabels(options = {}) {
+  const {
+    size = 30,
+    showTickMarks = true,
+    tickInterval = 10,
+    labelUnit = "pc"
+  } = options;
+  const group = new THREE.Group();
+  group.name = "axesWithLabels";
+  const axesHelper = new THREE.AxesHelper(size);
+  group.add(axesHelper);
+  const labelOffset = size + 4;
+  const xLabel = createAxisLabel(`X (${labelUnit})`, "#ff6666", [labelOffset, 0, 0]);
+  group.add(xLabel);
+  const yLabel = createAxisLabel(`Y (${labelUnit})`, "#66ff66", [0, labelOffset, 0]);
+  group.add(yLabel);
+  const zLabel = createAxisLabel(`Z (${labelUnit})`, "#6666ff", [0, 0, labelOffset]);
+  group.add(zLabel);
+  if (showTickMarks) {
+    const tickMaterial = new THREE.LineBasicMaterial({ color: 6710886 });
+    const tickSize = 0.8;
+    for (let i = -Math.floor(size / tickInterval) * tickInterval; i <= size; i += tickInterval) {
+      if (i === 0) continue;
+      const xTickGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(i, -tickSize, 0),
+        new THREE.Vector3(i, tickSize, 0)
+      ]);
+      group.add(new THREE.Line(xTickGeom, tickMaterial));
+      const yTickGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-tickSize, i, 0),
+        new THREE.Vector3(tickSize, i, 0)
+      ]);
+      group.add(new THREE.Line(yTickGeom, tickMaterial));
+      if (Math.abs(i) <= size) {
+        const xTickLabel = createTickLabel(`${i}`, [i, -3, 0]);
+        group.add(xTickLabel);
+        const yTickLabel = createTickLabel(`${i}`, [-3, i, 0]);
+        group.add(yTickLabel);
+      }
+    }
+  }
+  return group;
+}
+const COLOR_MAP_DATA = {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SEQUENTIAL COLORMAPS
+  // ═══════════════════════════════════════════════════════════════════════════
+  /**
+   * Cosmic Dawn - Deep space theme
+   * Purple → Blue → Cyan → Gold → White
+   */
+  cosmicDawn: [
+    [0.102, 0.02, 0.2],
+    // #1a0533
+    [0.176, 0.106, 0.412],
+    // #2d1b69
+    [0.239, 0.31, 0.78],
+    // #3d4fc7
+    [0, 0.706, 0.847],
+    // #00b4d8
+    [0.282, 0.792, 0.894],
+    // #48cae4
+    [0.565, 0.878, 0.937],
+    // #90e0ef
+    [1, 0.82, 0.4],
+    // #ffd166
+    [1, 0.922, 0.6],
+    // #ffeb99
+    [1, 1, 1]
+    // #ffffff
+  ],
+  /**
+   * Nebula Fire - Warm energy theme
+   * Magenta → Pink → Orange → Yellow → White
+   */
+  nebulaFire: [
+    [0.176, 0.039, 0.192],
+    // #2d0a31
+    [0.361, 0.067, 0.345],
+    // #5c1158
+    [0.608, 0.176, 0.498],
+    // #9b2d7f
+    [0.839, 0.259, 0.573],
+    // #d64292
+    [0.957, 0.431, 0.431],
+    // #f46e6e
+    [1, 0.624, 0.263],
+    // #ff9f43
+    [1, 0.788, 0.235],
+    // #ffc93c
+    [1, 0.945, 0.463],
+    // #fff176
+    [1, 1, 1]
+    // #ffffff
+  ],
+  /**
+   * Ocean Depths - Cool pressure theme
+   * Navy → Blue → Cyan → Mint → Cream
+   */
+  oceanDepths: [
+    [0.051, 0.106, 0.165],
+    // #0d1b2a
+    [0.106, 0.227, 0.294],
+    // #1b3a4b
+    [0.078, 0.302, 0.494],
+    // #144d7e
+    [0.118, 0.533, 0.898],
+    // #1e88e5
+    [0.259, 0.647, 0.961],
+    // #42a5f5
+    [0.502, 0.871, 0.918],
+    // #80deea
+    [0.655, 1, 0.922],
+    // #a7ffeb
+    [0.878, 0.969, 0.98],
+    // #e0f7fa
+    [1, 0.992, 0.906]
+    // #fffde7
+  ],
+  /**
+   * Aurora - Vivid multi-hue
+   * Purple → Blue → Cyan → Green → Yellow
+   */
+  aurora: [
+    [0.227, 0.047, 0.639],
+    // #3a0ca3
+    [0.263, 0.38, 0.933],
+    // #4361ee
+    [0.298, 0.788, 0.941],
+    // #4cc9f0
+    [0.024, 0.839, 0.627],
+    // #06d6a0
+    [0.322, 0.718, 0.533],
+    // #52b788
+    [0.6, 0.851, 0.549],
+    // #99d98c
+    [0.851, 0.929, 0.573],
+    // #d9ed92
+    [0.988, 0.965, 0.741],
+    // #fcf6bd
+    [1, 0.953, 0.69]
+    // #fff3b0
+  ],
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCIENTIFIC COLORMAPS (perceptually uniform)
+  // ═══════════════════════════════════════════════════════════════════════════
+  viridis: [
+    [0.267, 4e-3, 0.329],
+    // #440154
+    [0.282, 0.157, 0.471],
+    // #482878
+    [0.243, 0.286, 0.537],
+    // #3e4989
+    [0.192, 0.408, 0.557],
+    // #31688e
+    [0.149, 0.51, 0.557],
+    // #26828e
+    [0.122, 0.62, 0.537],
+    // #1f9e89
+    [0.208, 0.718, 0.475],
+    // #35b779
+    [0.431, 0.808, 0.345],
+    // #6ece58
+    [0.71, 0.871, 0.169],
+    // #b5de2b
+    [0.992, 0.906, 0.145]
+    // #fde725
+  ],
+  plasma: [
+    [0.051, 0.031, 0.529],
+    // #0d0887
+    [0.274, 0.012, 0.624],
+    // #46039f
+    [0.447, 4e-3, 0.659],
+    // #7201a8
+    [0.612, 0.09, 0.62],
+    // #9c179e
+    [0.741, 0.216, 0.525],
+    // #bd3786
+    [0.847, 0.337, 0.42],
+    // #d8576b
+    [0.929, 0.475, 0.325],
+    // #ed7953
+    [0.984, 0.624, 0.227],
+    // #fb9f3a
+    [0.992, 0.792, 0.149],
+    // #fdca26
+    [0.941, 0.976, 0.129]
+    // #f0f921
+  ],
+  turbo: [
+    [0.188, 0.071, 0.231],
+    // #30123b
+    [0.275, 0.384, 0.843],
+    // #4662d7
+    [0.208, 0.682, 0.957],
+    // #35aef4
+    [0.102, 0.894, 0.714],
+    // #1ae4b6
+    [0.447, 0.996, 0.369],
+    // #72fe5e
+    [0.784, 0.937, 0.204],
+    // #c8ef34
+    [0.98, 0.729, 0.224],
+    // #faba39
+    [0.965, 0.42, 0.098],
+    // #f66b19
+    [0.792, 0.165, 0.016],
+    // #ca2a04
+    [0.478, 0.016, 0.012]
+    // #7a0403
+  ],
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DIVERGING COLORMAPS
+  // ═══════════════════════════════════════════════════════════════════════════
+  /**
+   * Velocity - Blue to White to Red-Orange
+   */
+  velocity: [
+    [0, 0.467, 0.714],
+    // #0077b6
+    [0, 0.706, 0.847],
+    // #00b4d8
+    [0.282, 0.792, 0.894],
+    // #48cae4
+    [0.565, 0.878, 0.937],
+    // #90e0ef
+    [0.792, 0.941, 0.973],
+    // #caf0f8
+    [1, 1, 1],
+    // #ffffff
+    [1, 0.8, 0.835],
+    // #ffccd5
+    [1, 0.561, 0.639],
+    // #ff8fa3
+    [1, 0.373, 0.494],
+    // #ff5f7e
+    [0.984, 0.38, 0.027],
+    // #fb6107
+    [0.902, 0.224, 0.275]
+    // #e63946
+  ],
+  /**
+   * Divergent Sunset - Purple to Cream to Gold
+   */
+  divergentSunset: [
+    [0.369, 0.165, 0.518],
+    // #5e2a84
+    [0.545, 0.302, 0.62],
+    // #8b4d9e
+    [0.71, 0.486, 0.753],
+    // #b57cc0
+    [0.847, 0.659, 0.847],
+    // #d8a8d8
+    [0.961, 0.902, 0.91],
+    // #f5e6e8
+    [1, 0.973, 0.863],
+    // #fff8dc
+    [1, 0.875, 0.4],
+    // #ffe066
+    [1, 0.761, 0.2],
+    // #ffc233
+    [1, 0.624, 0.11],
+    // #ff9f1c
+    [1, 0.42, 0.208],
+    // #ff6b35
+    [0.839, 0.157, 0.157]
+    // #d62828
+  ],
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SPECIALIZED COLORMAPS
+  // ═══════════════════════════════════════════════════════════════════════════
+  /**
+   * Density - Optimized for log-scale density
+   */
+  density: [
+    [0.102, 0.102, 0.18],
+    // #1a1a2e
+    [0.086, 0.129, 0.243],
+    // #16213e
+    [0.118, 0.227, 0.373],
+    // #1e3a5f
+    [0.196, 0.51, 0.722],
+    // #3282b8
+    [0, 0.737, 0.831],
+    // #00bcd4
+    [0, 0.898, 1],
+    // #00e5ff
+    [0.463, 1, 0.012],
+    // #76ff03
+    [1, 0.922, 0.231],
+    // #ffeb3b
+    [1, 0.596, 0],
+    // #ff9800
+    [1, 0.341, 0.133],
+    // #ff5722
+    [1, 0.09, 0.267]
+    // #ff1744
+  ],
+  /**
+   * Black Hole - Dramatic accretion disk theme
+   */
+  blackHole: [
+    [0.059, 0.059, 0.137],
+    // #0f0f23
+    [0.11, 0.11, 0.302],
+    // #1c1c4d
+    [0.231, 0.18, 0.353],
+    // #3b2e5a
+    [0.361, 0.29, 0.447],
+    // #5c4a72
+    [1, 0.42, 0.208],
+    // #ff6b35
+    [1, 0.714, 0.153],
+    // #ffb627
+    [1, 0.914, 0.498],
+    // #ffe97f
+    [1, 0.976, 0.769],
+    // #fff9c4
+    [1, 1, 1]
+    // #ffffff
+  ],
+  /**
+   * Ice & Fire - Temperature contrast
+   */
+  iceFire: [
+    [0, 0.161, 0.42],
+    // #00296b
+    [0, 0.247, 0.533],
+    // #003f88
+    [0, 0.314, 0.616],
+    // #00509d
+    [0, 0.467, 0.714],
+    // #0077b6
+    [0, 0.706, 0.847],
+    // #00b4d8
+    [0.565, 0.878, 0.937],
+    // #90e0ef
+    [1, 0.761, 0],
+    // #ffc300
+    [1, 0.584, 0],
+    // #ff9500
+    [1, 0.404, 0],
+    // #ff6700
+    [1, 0.239, 0],
+    // #ff3d00
+    [0.835, 0, 0]
+    // #d50000
+  ],
+  /**
+   * Spectral Bright - Enhanced rainbow
+   */
+  spectralBright: [
+    [0.29, 0.078, 0.549],
+    // #4a148c
+    [0.482, 0.122, 0.635],
+    // #7b1fa2
+    [0.082, 0.396, 0.753],
+    // #1565c0
+    [8e-3, 0.533, 0.82],
+    // #0288d1
+    [0, 0.675, 0.757],
+    // #00acc1
+    [0, 0.537, 0.482],
+    // #00897b
+    [0.263, 0.627, 0.278],
+    // #43a047
+    [0.486, 0.702, 0.259],
+    // #7cb342
+    [0.753, 0.792, 0.2],
+    // #c0ca33
+    [0.992, 0.847, 0.208],
+    // #fdd835
+    [1, 0.702, 0],
+    // #ffb300
+    [0.984, 0.549, 0],
+    // #fb8c00
+    [0.957, 0.318, 0.118]
+    // #f4511e
+  ],
+  /**
+   * Mono Cyan - Clean single-hue
+   */
+  monoCyan: [
+    [0, 0.071, 0.098],
+    // #001219
+    [0, 0.373, 0.451],
+    // #005f73
+    [0.039, 0.576, 0.588],
+    // #0a9396
+    [0.251, 0.788, 0.788],
+    // #40c9c9
+    [0.58, 0.824, 0.741],
+    // #94d2bd
+    [0.914, 0.847, 0.651],
+    // #e9d8a6
+    [1, 1, 1]
+    // #ffffff
+  ],
+  /**
+   * Mono Gold - Warm single-hue
+   */
+  monoGold: [
+    [0.102, 0.102, 0.039],
+    // #1a1a0a
+    [0.239, 0.239, 0],
+    // #3d3d00
+    [0.42, 0.42, 0],
+    // #6b6b00
+    [0.722, 0.525, 0.043],
+    // #b8860b
+    [0.855, 0.647, 0.125],
+    // #daa520
+    [1, 0.843, 0],
+    // #ffd700
+    [1, 0.922, 0.231],
+    // #ffeb3b
+    [1, 0.961, 0.616],
+    // #fff59d
+    [1, 1, 1]
+    // #ffffff
+  ],
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LEGACY COLORMAPS (kept for backward compatibility)
+  // ═══════════════════════════════════════════════════════════════════════════
+  inferno: [
+    [1e-3, 0, 0.014],
+    [0.122, 0.047, 0.282],
+    [0.304, 0.063, 0.42],
+    [0.499, 0.086, 0.397],
+    [0.68, 0.144, 0.295],
+    [0.833, 0.253, 0.16],
+    [0.937, 0.405, 0.049],
+    [0.981, 0.588, 0.068],
+    [0.987, 0.772, 0.264],
+    [0.988, 0.998, 0.645]
+  ],
+  magma: [
+    [1e-3, 0, 0.014],
+    [0.104, 0.047, 0.258],
+    [0.259, 0.05, 0.408],
+    [0.427, 0.079, 0.43],
+    [0.575, 0.134, 0.397],
+    [0.716, 0.215, 0.345],
+    [0.848, 0.343, 0.331],
+    [0.937, 0.517, 0.388],
+    [0.973, 0.699, 0.53],
+    [0.988, 0.998, 0.645]
+  ],
+  coolwarm: [
+    [0.23, 0.299, 0.754],
+    [0.411, 0.484, 0.845],
+    [0.593, 0.669, 0.927],
+    [0.775, 0.817, 0.964],
+    [0.9, 0.9, 0.9],
+    [0.964, 0.775, 0.692],
+    [0.927, 0.593, 0.476],
+    [0.845, 0.411, 0.299],
+    [0.754, 0.23, 0.173]
+  ]
+};
+function sampleColorMap(mapName, t) {
+  const map = COLOR_MAP_DATA[mapName] || COLOR_MAP_DATA.viridis;
+  t = Math.max(0, Math.min(1, t));
+  const idx = t * (map.length - 1);
+  const i = Math.floor(idx);
+  const f = idx - i;
+  if (i >= map.length - 1) {
+    return map[map.length - 1];
+  }
+  return [
+    map[i][0] + f * (map[i + 1][0] - map[i][0]),
+    map[i][1] + f * (map[i + 1][1] - map[i][1]),
+    map[i][2] + f * (map[i + 1][2] - map[i][2])
+  ];
 }
 function computeHyperbolicOrbit(config, numPoints = 200) {
   const { bhPosition, bhMass, cloudInitialPosition, cloudInitialVelocity } = config;
@@ -2451,6 +2439,7 @@ function ParticleViewer3DImperative({
   showTrajectory = true,
   showRadii = true,
   showGalacticMarkers = true,
+  showLabels = true,
   galacticConfig,
   cameraMode = "free",
   onCameraModeChange
@@ -2474,7 +2463,40 @@ function ParticleViewer3DImperative({
   const lastColorFieldRef = useRef(colorField);
   const lastColorMapRef = useRef(colorMapName);
   const lastLogScaleRef = useRef(logScale);
+  const colorFieldRef = useRef(colorField);
+  const colorMapNameRef = useRef(colorMapName);
+  const logScaleRef = useRef(logScale);
+  const showTrajectoryRef = useRef(showTrajectory);
+  const imbhPhysicsRef = useRef(imbhPhysics);
   const globalColorRangeRef = useRef(globalColorRange);
+  const updateParticlesRef = useRef(() => {
+  });
+  const updateTrajectoryRef = useRef(() => {
+  });
+  const computeStatsRef = useRef(() => {
+  });
+  useEffect(() => {
+    colorFieldRef.current = colorField;
+    if (lastColorFieldRef.current !== colorField) {
+      lastColorFieldRef.current = "__force_update__";
+    }
+  }, [colorField]);
+  useEffect(() => {
+    colorMapNameRef.current = colorMapName;
+    lastColorMapRef.current = "__force_update__";
+  }, [colorMapName]);
+  useEffect(() => {
+    logScaleRef.current = logScale;
+    if (lastLogScaleRef.current !== logScale) {
+      lastLogScaleRef.current = !logScale;
+    }
+  }, [logScale]);
+  useEffect(() => {
+    showTrajectoryRef.current = showTrajectory;
+  }, [showTrajectory]);
+  useEffect(() => {
+    imbhPhysicsRef.current = imbhPhysics;
+  }, [imbhPhysics]);
   useEffect(() => {
     globalColorRangeRef.current = globalColorRange;
   }, [globalColorRange]);
@@ -2516,12 +2538,15 @@ function ParticleViewer3DImperative({
     if (!frames || !geometryRef.current) return;
     const frame = frames.get(frameIndex);
     if (!frame) return;
-    const needsUpdate = frameIndex !== lastFrameIndexRef.current || colorField !== lastColorFieldRef.current || colorMapName !== lastColorMapRef.current || logScale !== lastLogScaleRef.current;
+    const currentColorField = colorFieldRef.current;
+    const currentColorMapName = colorMapNameRef.current;
+    const currentLogScale = logScaleRef.current;
+    const needsUpdate = frameIndex !== lastFrameIndexRef.current || currentColorField !== lastColorFieldRef.current || currentColorMapName !== lastColorMapRef.current || currentLogScale !== lastLogScaleRef.current;
     if (!needsUpdate) return;
     lastFrameIndexRef.current = frameIndex;
-    lastColorFieldRef.current = colorField;
-    lastColorMapRef.current = colorMapName;
-    lastLogScaleRef.current = logScale;
+    lastColorFieldRef.current = currentColorField;
+    lastColorMapRef.current = currentColorMapName;
+    lastLogScaleRef.current = currentLogScale;
     const geometry = geometryRef.current;
     const posAttr = geometry.attributes.position;
     geometry.attributes.color;
@@ -2537,7 +2562,7 @@ function ParticleViewer3DImperative({
     let fieldData;
     let vMin, vMax;
     const useGlobalRange = globalColorRangeRef.current && globalColorRangeRef.current[0] !== globalColorRangeRef.current[1];
-    switch (colorField) {
+    switch (currentColorField) {
       case "velocity": {
         fieldData = new Float32Array(frame.particleCount);
         for (let i = 0; i < frame.particleCount; i++) {
@@ -2578,29 +2603,30 @@ function ParticleViewer3DImperative({
         }
     }
     const colors = geometry.attributes.color.array;
-    const logMin = logScale && vMin > 0 ? Math.log10(vMin) : 0;
-    const logRange = logScale && vMin > 0 ? Math.log10(vMax) - logMin : 1;
+    const logMin = currentLogScale && vMin > 0 ? Math.log10(vMin) : 0;
+    const logRange = currentLogScale && vMin > 0 ? Math.log10(vMax) - logMin : 1;
     const range = vMax - vMin || 1;
     for (let i = 0; i < frame.particleCount; i++) {
       let val = fieldData[i];
       if (!isFinite(val)) val = vMin;
       let t;
-      if (logScale && vMin > 0) {
+      if (currentLogScale && vMin > 0) {
         t = (Math.log10(Math.max(val, vMin)) - logMin) / logRange;
       } else {
         t = (val - vMin) / range;
       }
       t = Math.max(0, Math.min(1, t));
-      const [r, g, b] = sampleColorMap(colorMapName, t);
+      const [r, g, b] = sampleColorMap(currentColorMapName, t);
       colors[i * 3] = r;
       colors[i * 3 + 1] = g;
       colors[i * 3 + 2] = b;
     }
     geometry.attributes.color.needsUpdate = true;
     geometry.computeBoundingSphere();
-  }, [framesRef, frameIndexRef, colorField, colorMapName, logScale]);
+  }, [framesRef, frameIndexRef]);
   const updateTrajectory = useCallback(() => {
-    if (!imbhPhysics?.enabled) return;
+    const currentImbhPhysics = imbhPhysicsRef.current;
+    if (!currentImbhPhysics?.enabled) return;
     const frames = framesRef?.current;
     const frameIndex = frameIndexRef?.current ?? 0;
     if (!frames || frames.size === 0) return;
@@ -2626,9 +2652,10 @@ function ParticleViewer3DImperative({
       comY /= totalMass;
       comZ /= totalMass;
     }
+    const currentShowTrajectory = showTrajectoryRef.current;
     if (comMarkerRef.current) {
       comMarkerRef.current.position.set(comX, comY, comZ);
-      comMarkerRef.current.visible = showTrajectory;
+      comMarkerRef.current.visible = currentShowTrajectory;
     }
     const lastIdx = trajectoryPointsRef.current.length > 0 ? trajectoryPointsRef.current[trajectoryPointsRef.current.length - 1] : null;
     const threshold = 0.01;
@@ -2656,7 +2683,16 @@ function ParticleViewer3DImperative({
     if (hillCircleRef.current) {
       hillCircleRef.current.position.set(comX, comY, 0);
     }
-  }, [framesRef, frameIndexRef, imbhPhysics, showTrajectory]);
+  }, [framesRef, frameIndexRef]);
+  useEffect(() => {
+    updateParticlesRef.current = updateParticles;
+  }, [updateParticles]);
+  useEffect(() => {
+    updateTrajectoryRef.current = updateTrajectory;
+  }, [updateTrajectory]);
+  useEffect(() => {
+    computeStatsRef.current = computeStats;
+  }, [computeStats]);
   useEffect(() => {
     if (!containerRef.current) return;
     const container = containerRef.current;
@@ -2673,7 +2709,7 @@ function ParticleViewer3DImperative({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
-    const controls = new OrbitControls$1(camera, renderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.screenSpacePanning = true;
@@ -2882,7 +2918,7 @@ function ParticleViewer3DImperative({
       scene.add(galacticMarkers);
       galacticMarkersGroupRef.current = galacticMarkers;
     }
-    computeStats();
+    computeStatsRef.current();
     if (boundingBox) {
       const center = new THREE.Vector3(
         (boundingBox.min[0] + boundingBox.max[0]) / 2,
@@ -2912,8 +2948,8 @@ function ParticleViewer3DImperative({
         fpsRef.current.lastTime = now;
         onFpsUpdate?.(fpsRef.current.fps);
       }
-      updateParticles();
-      updateTrajectory();
+      updateParticlesRef.current();
+      updateTrajectoryRef.current();
       if (galacticMarkersGroupRef.current) {
         const galaxyDisk = galacticMarkersGroupRef.current.getObjectByName("galaxyDisk");
         if (galaxyDisk) {
@@ -2981,7 +3017,14 @@ function ParticleViewer3DImperative({
     if (galacticMarkersGroupRef.current) {
       galacticMarkersGroupRef.current.visible = showGalacticMarkers;
     }
-  }, [showBlackHole, showTrajectory, showRadii, showGalacticMarkers]);
+    if (sceneRef.current) {
+      sceneRef.current.traverse((object) => {
+        if (object instanceof THREE.Sprite) {
+          object.visible = showLabels;
+        }
+      });
+    }
+  }, [showBlackHole, showTrajectory, showRadii, showGalacticMarkers, showLabels]);
   useEffect(() => {
     if (!sceneRef.current || !imbhPhysics?.enabled || !showGalacticMarkers) return;
     if (galacticMarkersGroupRef.current) {
@@ -3014,7 +3057,7 @@ function ParticleViewer3DImperative({
     galacticMarkersGroupRef.current = galacticMarkers;
   }, [galacticConfig?.showGalaxyDisk, galacticConfig?.showSolarSystem, galacticConfig?.galaxyRotationSpeed, imbhPhysics, showGalacticMarkers]);
   useEffect(() => {
-    computeStats();
+    computeStatsRef.current();
   }, [framesRef.current?.size]);
   useEffect(() => {
     if (!cameraRef.current || !controlsRef.current || !imbhPhysics?.enabled) return;
@@ -3052,276 +3095,1446 @@ function ParticleViewer3DImperative({
   }, [cameraMode, galacticConfig?.inclination, galacticConfig?.positionAngle, imbhPhysics]);
   return /* @__PURE__ */ jsx("div", { ref: containerRef, className: `w-full h-full ${className}` });
 }
+const Vector3Schema = Schema.Tuple(Schema.Number, Schema.Number, Schema.Number);
+const BoundingBoxSchema = Schema.Struct({
+  min: Vector3Schema,
+  max: Vector3Schema
+});
+const PhysicalUnitsSchema = Schema.Struct({
+  mass: Schema.Number,
+  length: Schema.Number,
+  time: Schema.Number,
+  velocity: Schema.Number,
+  density: Schema.Number,
+  energy: Schema.Number,
+  pressure: Schema.Number
+});
+const IMBHPhysicsConfigSchema = Schema.Struct({
+  enabled: Schema.Boolean,
+  bhPosition: Vector3Schema,
+  bhMass: Schema.Number,
+  cloudInitialPosition: Vector3Schema,
+  cloudInitialVelocity: Vector3Schema,
+  cloudMass: Schema.Number,
+  cloudRadius: Schema.Number,
+  tidalRadius: Schema.Number,
+  impactParameter: Schema.Number,
+  pericentre: Schema.Number,
+  eccentricity: Schema.Number,
+  timeUnit: Schema.Number,
+  inclination: Schema.optional(Schema.Number),
+  positionAngle: Schema.optional(Schema.Number),
+  lsrVelocity: Schema.optional(Schema.Number)
+});
+const SPHMethodSchema = Schema.Union(
+  Schema.Literal("GSPH"),
+  Schema.Literal("SSPH"),
+  Schema.Literal("DISPH"),
+  Schema.Literal("GDISPH"),
+  Schema.Literal("SRGSPH"),
+  Schema.String
+);
+const SPHKernelSchema = Schema.Union(
+  Schema.Literal("CubicSpline"),
+  Schema.Literal("WendlandC2"),
+  Schema.Literal("WendlandC4"),
+  Schema.String
+);
+const DimensionsSchema = Schema.Union(
+  Schema.Literal(1),
+  Schema.Literal(2),
+  Schema.Literal(3)
+);
+const FieldOffsetsSchema = Schema.Record({
+  key: Schema.String,
+  value: Schema.Number
+});
+const SimulationMetadataSchema = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  description: Schema.String,
+  method: SPHMethodSchema,
+  kernel: SPHKernelSchema,
+  dimensions: DimensionsSchema,
+  totalFrames: Schema.Number,
+  particleCount: Schema.Number,
+  timeRange: Schema.Tuple(Schema.Number, Schema.Number),
+  boundingBox: BoundingBoxSchema,
+  units: Schema.optional(PhysicalUnitsSchema),
+  imbhPhysics: Schema.optional(IMBHPhysicsConfigSchema),
+  configPath: Schema.optional(Schema.String),
+  dataPath: Schema.String,
+  createdAt: Schema.String
+});
+Schema.Struct({
+  frameIndex: Schema.Number,
+  time: Schema.Number,
+  data: Schema.String,
+  stride: Schema.Number,
+  fieldOffsets: FieldOffsetsSchema,
+  particleCount: Schema.Number
+});
+const FrameStatisticsSchema = Schema.Struct({
+  frameIndex: Schema.Number,
+  time: Schema.Number,
+  totalMass: Schema.Number,
+  totalKineticEnergy: Schema.Number,
+  totalInternalEnergy: Schema.Number,
+  totalEnergy: Schema.Number,
+  momentum: Vector3Schema,
+  centerOfMass: Vector3Schema,
+  densityRange: Schema.Tuple(Schema.Number, Schema.Number),
+  pressureRange: Schema.Tuple(Schema.Number, Schema.Number),
+  temperatureRange: Schema.optional(Schema.Tuple(Schema.Number, Schema.Number)),
+  maxMach: Schema.optional(Schema.Number),
+  particlesInShock: Schema.optional(Schema.Number)
+});
+const SimulationsListResponseSchema = Schema.Struct({
+  simulations: Schema.Array(SimulationMetadataSchema)
+});
+Schema.Struct({
+  frameIndex: Schema.Number,
+  time: Schema.Number,
+  data: Schema.String,
+  stride: Schema.Number,
+  fieldOffsets: FieldOffsetsSchema,
+  particleCount: Schema.Number
+});
+Schema.Struct({
+  frames: Schema.Array(FrameStatisticsSchema)
+});
+const ColorMapSchema = Schema.Struct({
+  name: Schema.String,
+  colors: Schema.Array(Schema.String),
+  min: Schema.Number,
+  max: Schema.Number,
+  logScale: Schema.Boolean
+});
+Schema.Struct({
+  name: Schema.String,
+  colors: Schema.Array(Schema.String),
+  logScale: Schema.Boolean
+});
+Schema.Struct({
+  currentFrame: Schema.Number,
+  isPlaying: Schema.Boolean,
+  playbackSpeed: Schema.Number,
+  colorField: Schema.String,
+  colorMap: ColorMapSchema,
+  pointSize: Schema.Number,
+  showAxes: Schema.Boolean,
+  showBoundingBox: Schema.Boolean,
+  cameraPosition: Vector3Schema,
+  cameraTarget: Vector3Schema
+});
+Schema.decodeUnknownEither(SimulationsListResponseSchema);
+Schema.decodeUnknownEither(SimulationMetadataSchema);
+const COLOR_MAPS = {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SEQUENTIAL COLORMAPS (for continuous data like density, velocity magnitude)
+  // ═══════════════════════════════════════════════════════════════════════════
+  /** 
+   * Cosmic Dawn - Deep space theme, excellent for density
+   * Gradient: Deep purple → Electric blue → Cyan → Gold → White
+   * High contrast on dark backgrounds, avoids muddy mid-tones
+   */
+  cosmicDawn: {
+    name: "Cosmic Dawn",
+    colors: [
+      "#1a0533",
+      // Deep purple-black (visible, not pure black)
+      "#2d1b69",
+      // Rich purple
+      "#3d4fc7",
+      // Royal blue
+      "#00b4d8",
+      // Bright cyan (high visibility)
+      "#48cae4",
+      // Light cyan
+      "#90e0ef",
+      // Pale cyan
+      "#ffd166",
+      // Warm gold
+      "#ffeb99",
+      // Light gold
+      "#ffffff"
+      // Pure white (maximum values)
+    ],
+    logScale: false
+  },
+  /**
+   * Nebula Fire - Warm colormap for energy/temperature
+   * Gradient: Deep magenta → Hot pink → Orange → Yellow → White
+   * Avoids pure red which is hard to see on black
+   */
+  nebulaFire: {
+    name: "Nebula Fire",
+    colors: [
+      "#2d0a31",
+      // Deep magenta-black
+      "#5c1158",
+      // Dark magenta
+      "#9b2d7f",
+      // Bright magenta (visible on dark)
+      "#d64292",
+      // Hot pink
+      "#f46e6e",
+      // Coral (not pure red)
+      "#ff9f43",
+      // Bright orange
+      "#ffc93c",
+      // Golden yellow
+      "#fff176",
+      // Light yellow
+      "#ffffff"
+      // White hot
+    ],
+    logScale: false
+  },
+  /**
+   * Ocean Depths - Cool colormap for pressure/potential
+   * Gradient: Deep teal → Electric blue → Aqua → Mint → Cream
+   * Excellent contrast, no muddy greens
+   */
+  oceanDepths: {
+    name: "Ocean Depths",
+    colors: [
+      "#0d1b2a",
+      // Deep navy (visible, not black)
+      "#1b3a4b",
+      // Dark teal
+      "#144d7e",
+      // Ocean blue
+      "#1e88e5",
+      // Bright blue (high visibility)
+      "#42a5f5",
+      // Sky blue
+      "#80deea",
+      // Cyan
+      "#a7ffeb",
+      // Aqua mint
+      "#e0f7fa",
+      // Pale cyan
+      "#fffde7"
+      // Warm cream
+    ],
+    logScale: false
+  },
+  /**
+   * Aurora - Vivid multi-hue for general purpose
+   * Gradient: Purple → Blue → Teal → Green → Yellow
+   * Perceptually uniform, colorblind-safe
+   */
+  aurora: {
+    name: "Aurora",
+    colors: [
+      "#3a0ca3",
+      // Deep violet
+      "#4361ee",
+      // Electric blue
+      "#4cc9f0",
+      // Bright cyan
+      "#06d6a0",
+      // Teal-green (not pure green)
+      "#52b788",
+      // Forest green
+      "#99d98c",
+      // Light green
+      "#d9ed92",
+      // Yellow-green
+      "#fcf6bd",
+      // Pale yellow
+      "#fff3b0"
+      // Cream
+    ],
+    logScale: false
+  },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCIENTIFIC COLORMAPS (perceptually uniform)
+  // ═══════════════════════════════════════════════════════════════════════════
+  /**
+   * Viridis - Scientific standard, perceptually uniform
+   * Optimized version with brighter endpoints for dark backgrounds
+   */
+  viridis: {
+    name: "Viridis",
+    colors: [
+      "#440154",
+      // Deep purple
+      "#482878",
+      // Purple
+      "#3e4989",
+      // Blue-purple
+      "#31688e",
+      // Steel blue
+      "#26828e",
+      // Teal
+      "#1f9e89",
+      // Teal-green
+      "#35b779",
+      // Green
+      "#6ece58",
+      // Yellow-green
+      "#b5de2b",
+      // Lime
+      "#fde725"
+      // Bright yellow
+    ],
+    logScale: false
+  },
+  /**
+   * Plasma - High-energy scientific colormap
+   * Better for dark backgrounds than inferno
+   */
+  plasma: {
+    name: "Plasma",
+    colors: [
+      "#0d0887",
+      // Deep blue
+      "#46039f",
+      // Purple
+      "#7201a8",
+      // Magenta
+      "#9c179e",
+      // Pink-purple
+      "#bd3786",
+      // Hot pink
+      "#d8576b",
+      // Coral
+      "#ed7953",
+      // Orange
+      "#fb9f3a",
+      // Gold
+      "#fdca26",
+      // Yellow
+      "#f0f921"
+      // Bright yellow
+    ],
+    logScale: false
+  },
+  /**
+   * Turbo - Rainbow without the problems
+   * High-contrast, colorblind-friendly rainbow alternative
+   */
+  turbo: {
+    name: "Turbo",
+    colors: [
+      "#30123b",
+      // Deep indigo
+      "#4662d7",
+      // Blue
+      "#35aef4",
+      // Cyan
+      "#1ae4b6",
+      // Teal
+      "#72fe5e",
+      // Green
+      "#c8ef34",
+      // Yellow-green
+      "#faba39",
+      // Orange
+      "#f66b19",
+      // Red-orange
+      "#ca2a04",
+      // Red (dark enough to see)
+      "#7a0403"
+      // Dark red
+    ],
+    logScale: false
+  },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DIVERGING COLORMAPS (for data with meaningful center point)
+  // ═══════════════════════════════════════════════════════════════════════════
+  /**
+   * Velocity - Blue to White to Red-Orange
+   * For velocity divergence (negative/positive)
+   * Center is bright white for clear midpoint
+   */
+  velocity: {
+    name: "Velocity",
+    colors: [
+      "#0077b6",
+      // Deep blue
+      "#00b4d8",
+      // Bright cyan
+      "#48cae4",
+      // Light cyan
+      "#90e0ef",
+      // Pale cyan
+      "#caf0f8",
+      // Very pale cyan
+      "#ffffff",
+      // White (center)
+      "#ffccd5",
+      // Pale pink
+      "#ff8fa3",
+      // Pink
+      "#ff5f7e",
+      // Coral
+      "#fb6107",
+      // Orange
+      "#e63946"
+      // Warm red
+    ],
+    logScale: false
+  },
+  /**
+   * Divergent Sunset - Purple to Cream to Gold
+   * Alternative diverging colormap, elegant
+   */
+  divergentSunset: {
+    name: "Divergent Sunset",
+    colors: [
+      "#5e2a84",
+      // Deep purple
+      "#8b4d9e",
+      // Purple
+      "#b57cc0",
+      // Light purple
+      "#d8a8d8",
+      // Pale purple
+      "#f5e6e8",
+      // Cream
+      "#fff8dc",
+      // Light cream (center)
+      "#ffe066",
+      // Yellow
+      "#ffc233",
+      // Gold
+      "#ff9f1c",
+      // Orange
+      "#ff6b35",
+      // Red-orange
+      "#d62828"
+      // Deep red
+    ],
+    logScale: false
+  },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SPECIALIZED COLORMAPS
+  // ═══════════════════════════════════════════════════════════════════════════
+  /**
+   * Density - Optimized for log-scale density visualization
+   * Avoids pure black (invisible) and pure red (hard on dark bg)
+   */
+  density: {
+    name: "Density",
+    colors: [
+      "#1a1a2e",
+      // Very dark blue (visible, not black)
+      "#16213e",
+      // Navy
+      "#1e3a5f",
+      // Dark blue
+      "#3282b8",
+      // Medium blue
+      "#00bcd4",
+      // Cyan
+      "#00e5ff",
+      // Bright cyan
+      "#76ff03",
+      // Neon green
+      "#ffeb3b",
+      // Yellow
+      "#ff9800",
+      // Orange
+      "#ff5722",
+      // Deep orange (not red)
+      "#ff1744"
+      // Red-pink (brighter than pure red)
+    ],
+    logScale: true
+  },
+  /**
+   * Black Hole - Dramatic colormap for IMBH simulations
+   * Event horizon to accretion disk aesthetic
+   */
+  blackHole: {
+    name: "Black Hole",
+    colors: [
+      "#0f0f23",
+      // Near-black blue
+      "#1c1c4d",
+      // Dark purple
+      "#3b2e5a",
+      // Purple
+      "#5c4a72",
+      // Dusty purple
+      "#ff6b35",
+      // Orange (accretion disk inner)
+      "#ffb627",
+      // Gold
+      "#ffe97f",
+      // Pale gold
+      "#fff9c4",
+      // Cream
+      "#ffffff"
+      // White (hottest)
+    ],
+    logScale: true
+  },
+  /**
+   * Ice & Fire - Dramatic contrast for temperature
+   * Cool ice tones to hot fire tones
+   */
+  iceFire: {
+    name: "Ice & Fire",
+    colors: [
+      "#00296b",
+      // Deep blue
+      "#003f88",
+      // Royal blue
+      "#00509d",
+      // Bright blue
+      "#0077b6",
+      // Ocean blue
+      "#00b4d8",
+      // Cyan
+      "#90e0ef",
+      // Ice blue
+      "#ffc300",
+      // Gold (transition)
+      "#ff9500",
+      // Orange
+      "#ff6700",
+      // Deep orange
+      "#ff3d00",
+      // Red-orange
+      "#d50000"
+      // Deep red (darker, visible)
+    ],
+    logScale: false
+  },
+  /**
+   * Spectral Bright - Rainbow with enhanced brightness for dark bg
+   * Each color chosen for maximum visibility on near-black
+   */
+  spectralBright: {
+    name: "Spectral Bright",
+    colors: [
+      "#4a148c",
+      // Deep purple
+      "#7b1fa2",
+      // Purple
+      "#1565c0",
+      // Blue
+      "#0288d1",
+      // Light blue
+      "#00acc1",
+      // Cyan
+      "#00897b",
+      // Teal
+      "#43a047",
+      // Green
+      "#7cb342",
+      // Light green
+      "#c0ca33",
+      // Lime
+      "#fdd835",
+      // Yellow
+      "#ffb300",
+      // Amber
+      "#fb8c00",
+      // Orange
+      "#f4511e"
+      // Deep orange
+    ],
+    logScale: false
+  },
+  /**
+   * Mono Cyan - Single-hue gradient for clean scientific viz
+   * High contrast, works well with additive blending
+   */
+  monoCyan: {
+    name: "Mono Cyan",
+    colors: [
+      "#001219",
+      // Near-black teal
+      "#005f73",
+      // Dark teal
+      "#0a9396",
+      // Teal
+      "#40c9c9",
+      // Cyan
+      "#94d2bd",
+      // Pale cyan-green
+      "#e9d8a6",
+      // Cream
+      "#ffffff"
+      // White
+    ],
+    logScale: false
+  },
+  /**
+   * Mono Gold - Warm single-hue for energy visualization
+   * Elegant, high contrast on dark backgrounds
+   */
+  monoGold: {
+    name: "Mono Gold",
+    colors: [
+      "#1a1a0a",
+      // Very dark olive
+      "#3d3d00",
+      // Dark gold
+      "#6b6b00",
+      // Olive
+      "#b8860b",
+      // Dark goldenrod
+      "#daa520",
+      // Goldenrod
+      "#ffd700",
+      // Gold
+      "#ffeb3b",
+      // Yellow
+      "#fff59d",
+      // Pale yellow
+      "#ffffff"
+      // White
+    ],
+    logScale: false
+  }
+};
+const CAMERA_POSITIONS = {
+  xy: { position: new THREE.Vector3(0, 0, 50), up: new THREE.Vector3(0, 1, 0) },
+  // Looking down Z axis at XY plane
+  xz: { position: new THREE.Vector3(0, -50, 0), up: new THREE.Vector3(0, 0, 1) },
+  // Looking from -Y at XZ plane
+  yz: { position: new THREE.Vector3(50, 0, 0), up: new THREE.Vector3(0, 0, 1) }
+  // Looking from +X at YZ plane
+};
 const defaultColorMap = {
-  name: "Viridis",
-  colors: [
-    "#440154",
-    "#482878",
-    "#3e4989",
-    "#31688e",
-    "#26828e",
-    "#1f9e89",
-    "#35b779",
-    "#6ece58",
-    "#b5de2b",
-    "#fde725"
+  name: "Cosmic Dawn",
+  colors: COLOR_MAPS.cosmicDawn?.colors || [
+    "#1a0533",
+    "#2d1b69",
+    "#3d4fc7",
+    "#00b4d8",
+    "#48cae4",
+    "#90e0ef",
+    "#ffd166",
+    "#ffeb99",
+    "#ffffff"
   ],
   min: 0,
   max: 1,
   logScale: false
 };
-function interpolateColorHex(colors, t) {
-  if (colors.length === 0) return "#ffffff";
-  if (colors.length === 1) return colors[0];
-  t = Math.max(0, Math.min(1, t));
-  const index = t * (colors.length - 1);
-  const lower = Math.floor(index);
-  const upper = Math.min(lower + 1, colors.length - 1);
-  const localT = index - lower;
-  const c1 = hexToRgb(colors[lower]);
-  const c2 = hexToRgb(colors[upper]);
-  const r = Math.round(c1.r + (c2.r - c1.r) * localT);
-  const g = Math.round(c1.g + (c2.g - c1.g) * localT);
-  const b = Math.round(c1.b + (c2.b - c1.b) * localT);
-  return `rgb(${r},${g},${b})`;
-}
-function hexToRgb(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return { r: 255, g: 255, b: 255 };
-  return {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  };
-}
-function Projection2D({
-  frame,
+const Projection3DInteractive = forwardRef(({
+  framesRef,
+  frameIndexRef,
   projection,
   colorField = "density",
   colorMap = defaultColorMap,
   width = 400,
   height = 400,
-  showAxes = true,
-  showColorbar = true,
-  className = ""
-}) {
-  const canvasRef = useRef(null);
-  const [axisX, axisY, axisLabel] = useMemo(() => {
-    switch (projection) {
-      case "xy":
-        return [0, 1, ["X", "Y"]];
-      case "xz":
-        return [0, 2, ["X", "Z"]];
-      case "yz":
-        return [1, 2, ["Y", "Z"]];
-      default:
-        return [0, 1, ["X", "Y"]];
+  className = "",
+  showShockSampling = false,
+  shockSamplingParams = { columnRadius: 0.15, sliceThickness: 0.15 },
+  globalColorRange,
+  logScale = false,
+  particleSize = 1.5
+}, ref) => {
+  const containerRef = useRef(null);
+  const rendererRef = useRef(null);
+  const sceneRef = useRef(null);
+  const cameraRef = useRef(null);
+  const controlsRef = useRef(null);
+  const particlesRef = useRef(null);
+  const geometryRef = useRef(null);
+  const materialRef = useRef(null);
+  const shockGroupRef = useRef(null);
+  const lastFrameIndexRef = useRef(-1);
+  const lastColorFieldRef = useRef(colorField);
+  const lastLogScaleRef = useRef(logScale);
+  const animationFrameRef = useRef(null);
+  const updateParticlesRef = useRef(() => {
+  });
+  const computeStatsRef = useRef(() => {
+  });
+  const colorFieldRef = useRef(colorField);
+  const colorMapRef = useRef(colorMap);
+  const logScaleRef = useRef(logScale);
+  const showShockSamplingRef = useRef(showShockSampling);
+  const shockSamplingParamsRef = useRef(shockSamplingParams);
+  const globalColorRangeRef = useRef(globalColorRange);
+  useEffect(() => {
+    colorFieldRef.current = colorField;
+    if (lastColorFieldRef.current !== colorField) {
+      lastColorFieldRef.current = "__force_update__";
     }
+  }, [colorField]);
+  useEffect(() => {
+    colorMapRef.current = colorMap;
+    lastColorFieldRef.current = "__force_update__";
+  }, [colorMap]);
+  useEffect(() => {
+    logScaleRef.current = logScale;
+    if (lastLogScaleRef.current !== logScale) {
+      lastLogScaleRef.current = !logScale;
+    }
+  }, [logScale]);
+  useEffect(() => {
+    showShockSamplingRef.current = showShockSampling;
+  }, [showShockSampling]);
+  useEffect(() => {
+    shockSamplingParamsRef.current = shockSamplingParams;
+  }, [shockSamplingParams]);
+  useEffect(() => {
+    globalColorRangeRef.current = globalColorRange;
+  }, [globalColorRange]);
+  const statsRef = useRef({ density: [0, 1], velocity: [0, 1], pressure: [0, 1], energy: [0, 1] });
+  const [isRotated, setIsRotated] = useState(false);
+  const resetCamera = useCallback(() => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls) return;
+    const config = CAMERA_POSITIONS[projection] || CAMERA_POSITIONS.xy;
+    camera.position.copy(config.position);
+    camera.up.copy(config.up);
+    camera.lookAt(0, 0, 0);
+    controls.target.set(0, 0, 0);
+    controls.update();
+    setIsRotated(false);
   }, [projection]);
-  const { fieldData, bounds, range } = useMemo(() => {
-    if (!frame) {
-      return {
-        fieldData: null,
-        bounds: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
-        range: { min: 0, max: 1 }
-      };
+  useImperativeHandle(ref, () => ({
+    resetCamera
+  }), [resetCamera]);
+  const computeStats = useCallback(() => {
+    const frames = framesRef.current;
+    if (!frames || frames.size === 0) return;
+    const allDensity = [];
+    const allVelocity = [];
+    const allPressure = [];
+    const allEnergy = [];
+    frames.forEach((frame, idx) => {
+      if (idx % 10 !== 0) return;
+      for (let i = 0; i < frame.particleCount; i += 100) {
+        allDensity.push(frame.density[i]);
+        const vx = frame.velocities[i * 3];
+        const vy = frame.velocities[i * 3 + 1];
+        const vz = frame.velocities[i * 3 + 2];
+        allVelocity.push(Math.sqrt(vx * vx + vy * vy + vz * vz));
+        allPressure.push(frame.pressure[i]);
+        allEnergy.push(frame.energy[i]);
+      }
+    });
+    const percentile = (arr, p) => {
+      const sorted = arr.slice().sort((a, b) => a - b);
+      return sorted[Math.floor(sorted.length * p / 100)] || 0;
+    };
+    statsRef.current = {
+      density: [percentile(allDensity, 1), percentile(allDensity, 99)],
+      velocity: [percentile(allVelocity, 1), percentile(allVelocity, 99)],
+      pressure: [percentile(allPressure, 1), percentile(allPressure, 99)],
+      energy: [percentile(allEnergy, 1), percentile(allEnergy, 99)]
+    };
+  }, [framesRef]);
+  const computeCoM2 = useCallback((frame) => {
+    let totalMass = 0;
+    let cx = 0, cy = 0, cz = 0;
+    for (let i = 0; i < frame.particleCount; i++) {
+      const m = frame.mass?.[i] ?? 1;
+      cx += m * frame.positions[i * 3];
+      cy += m * frame.positions[i * 3 + 1];
+      cz += m * frame.positions[i * 3 + 2];
+      totalMass += m;
     }
-    let data;
-    switch (colorField) {
-      case "density":
-        data = frame.density;
-        break;
-      case "pressure":
-        data = frame.pressure;
-        break;
-      case "energy":
-        data = frame.energy;
-        break;
-      case "velocity":
-        data = new Float32Array(frame.particleCount);
+    if (totalMass > 0) {
+      cx /= totalMass;
+      cy /= totalMass;
+      cz /= totalMass;
+    }
+    return new THREE.Vector3(cx, cy, cz);
+  }, []);
+  const updateShockSampling = useCallback((frame) => {
+    if (!shockGroupRef.current || !showShockSamplingRef.current) return;
+    while (shockGroupRef.current.children.length > 0) {
+      const child = shockGroupRef.current.children[0];
+      shockGroupRef.current.remove(child);
+      if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
+        child.geometry?.dispose();
+        if (child.material instanceof THREE.Material) {
+          child.material.dispose();
+        }
+      }
+    }
+    const com = computeCoM2(frame);
+    const { columnRadius, sliceThickness } = shockSamplingParamsRef.current;
+    const comGeom = new THREE.SphereGeometry(0.08, 16, 16);
+    const comMat = new THREE.MeshBasicMaterial({ color: 16777215 });
+    const comMesh = new THREE.Mesh(comGeom, comMat);
+    comMesh.position.copy(com);
+    shockGroupRef.current.add(comMesh);
+    const cylinderGeom = new THREE.CylinderGeometry(columnRadius, columnRadius, 20, 32, 1, true);
+    const cylinderMat = new THREE.MeshBasicMaterial({
+      color: 16739179,
+      transparent: true,
+      opacity: 0.3,
+      side: THREE.DoubleSide,
+      wireframe: true
+    });
+    const cylinder = new THREE.Mesh(cylinderGeom, cylinderMat);
+    cylinder.position.set(com.x, com.y, 0);
+    cylinder.rotation.x = Math.PI / 2;
+    shockGroupRef.current.add(cylinder);
+    const circleGeom = new THREE.RingGeometry(columnRadius - 0.01, columnRadius + 0.01, 64);
+    const circleMat = new THREE.MeshBasicMaterial({ color: 16739179, side: THREE.DoubleSide });
+    const circle = new THREE.Mesh(circleGeom, circleMat);
+    circle.position.copy(com);
+    shockGroupRef.current.add(circle);
+    const sliceGeom = new THREE.BoxGeometry(40, sliceThickness * 2, sliceThickness * 2);
+    const sliceMat = new THREE.MeshBasicMaterial({
+      color: 5164484,
+      transparent: true,
+      opacity: 0.2,
+      side: THREE.DoubleSide
+    });
+    const slice = new THREE.Mesh(sliceGeom, sliceMat);
+    slice.position.copy(com);
+    shockGroupRef.current.add(slice);
+    const sliceEdges = new THREE.EdgesGeometry(sliceGeom);
+    const sliceLineMat = new THREE.LineBasicMaterial({ color: 5164484 });
+    const sliceLine = new THREE.LineSegments(sliceEdges, sliceLineMat);
+    sliceLine.position.copy(com);
+    shockGroupRef.current.add(sliceLine);
+  }, [computeCoM2]);
+  const updateParticles = useCallback(() => {
+    const frameIndex = frameIndexRef.current ?? 0;
+    const frames = framesRef.current;
+    if (!frames || !geometryRef.current) return;
+    const frame = frames.get(frameIndex);
+    if (!frame) return;
+    const currentColorField = colorFieldRef.current;
+    const currentLogScale = logScaleRef.current;
+    const needsUpdate = frameIndex !== lastFrameIndexRef.current || currentColorField !== lastColorFieldRef.current || currentLogScale !== lastLogScaleRef.current;
+    if (!needsUpdate) return;
+    lastFrameIndexRef.current = frameIndex;
+    lastColorFieldRef.current = currentColorField;
+    lastLogScaleRef.current = currentLogScale;
+    const geometry = geometryRef.current;
+    const posAttr = geometry.attributes.position;
+    geometry.attributes.color;
+    if (posAttr.count !== frame.particleCount) {
+      const positions2 = new Float32Array(frame.particleCount * 3);
+      const colors2 = new Float32Array(frame.particleCount * 3);
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions2, 3).setUsage(THREE.DynamicDrawUsage));
+      geometry.setAttribute("color", new THREE.BufferAttribute(colors2, 3).setUsage(THREE.DynamicDrawUsage));
+    }
+    const positions = geometry.attributes.position.array;
+    positions.set(frame.positions);
+    geometry.attributes.position.needsUpdate = true;
+    let fieldData;
+    let vMin, vMax;
+    const useGlobalRange = globalColorRangeRef.current && globalColorRangeRef.current[0] !== globalColorRangeRef.current[1];
+    switch (currentColorField) {
+      case "velocity": {
+        fieldData = new Float32Array(frame.particleCount);
         for (let i = 0; i < frame.particleCount; i++) {
           const vx = frame.velocities[i * 3];
           const vy = frame.velocities[i * 3 + 1];
           const vz = frame.velocities[i * 3 + 2];
-          data[i] = Math.sqrt(vx * vx + vy * vy + vz * vz);
+          fieldData[i] = Math.sqrt(vx * vx + vy * vy + vz * vz);
+        }
+        if (useGlobalRange) {
+          [vMin, vMax] = globalColorRangeRef.current;
+        } else {
+          [vMin, vMax] = statsRef.current.velocity;
         }
         break;
-      case "machNumber":
-        data = frame.machNumber;
+      }
+      case "pressure":
+        fieldData = frame.pressure;
+        if (useGlobalRange) {
+          [vMin, vMax] = globalColorRangeRef.current;
+        } else {
+          [vMin, vMax] = statsRef.current.pressure;
+        }
+        break;
+      case "energy":
+        fieldData = frame.energy;
+        if (useGlobalRange) {
+          [vMin, vMax] = globalColorRangeRef.current;
+        } else {
+          [vMin, vMax] = statsRef.current.energy;
+        }
         break;
       default:
-        data = frame.density;
+        fieldData = frame.density;
+        if (useGlobalRange) {
+          [vMin, vMax] = globalColorRangeRef.current;
+        } else {
+          [vMin, vMax] = statsRef.current.density;
+        }
     }
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-    let minVal = Infinity, maxVal = -Infinity;
+    const colors = geometry.attributes.color.array;
+    const currentColorMap = colorMapRef.current;
+    const colorMapKey = currentColorMap.name || "Cosmic Dawn";
     for (let i = 0; i < frame.particleCount; i++) {
-      const x = frame.positions[i * 3 + axisX];
-      const y = frame.positions[i * 3 + axisY];
-      const val = data ? data[i] : 0;
-      if (isFinite(x)) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
+      let value = fieldData[i];
+      if (currentLogScale && value > 0 && vMin > 0) {
+        const logMin = Math.log10(vMin);
+        const logMax = Math.log10(vMax);
+        value = (Math.log10(value) - logMin) / (logMax - logMin);
+      } else {
+        value = (value - vMin) / (vMax - vMin);
       }
-      if (isFinite(y)) {
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-      if (isFinite(val)) {
-        if (val < minVal) minVal = val;
-        if (val > maxVal) maxVal = val;
-      }
+      value = Math.max(0, Math.min(1, value));
+      const rgb = sampleColorMap(colorMapKey, value);
+      colors[i * 3] = rgb[0];
+      colors[i * 3 + 1] = rgb[1];
+      colors[i * 3 + 2] = rgb[2];
     }
-    const padX = (maxX - minX) * 0.05;
-    const padY = (maxY - minY) * 0.05;
-    minX -= padX;
-    maxX += padX;
-    minY -= padY;
-    maxY += padY;
-    return {
-      fieldData: data,
-      bounds: { minX, maxX, minY, maxY },
-      range: {
-        min: colorMap.min !== void 0 ? colorMap.min : minVal,
-        max: colorMap.max !== void 0 ? colorMap.max : maxVal
+    geometry.attributes.color.needsUpdate = true;
+    if (showShockSamplingRef.current) {
+      updateShockSampling(frame);
+    }
+  }, [framesRef, frameIndexRef, updateShockSampling]);
+  useEffect(() => {
+    updateParticlesRef.current = updateParticles;
+  }, [updateParticles]);
+  useEffect(() => {
+    computeStatsRef.current = computeStats;
+  }, [computeStats]);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(657940, 1);
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1e3);
+    const config = CAMERA_POSITIONS[projection] || CAMERA_POSITIONS.xy;
+    camera.position.copy(config.position);
+    camera.up.copy(config.up);
+    camera.lookAt(0, 0, 0);
+    cameraRef.current = camera;
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+    controls.rotateSpeed = 0.5;
+    controls.zoomSpeed = 1.2;
+    controls.panSpeed = 0.8;
+    controls.minDistance = 5;
+    controls.maxDistance = 200;
+    controls.target.set(0, 0, 0);
+    controlsRef.current = controls;
+    controls.addEventListener("change", () => {
+      const currentPos = camera.position.clone().normalize();
+      const defaultPos = config.position.clone().normalize();
+      const dotProduct = currentPos.dot(defaultPos);
+      setIsRotated(dotProduct < 0.99);
+    });
+    const geometry = new THREE.BufferGeometry();
+    const initialPositions = new Float32Array(1e5 * 3);
+    const initialColors = new Float32Array(1e5 * 3);
+    geometry.setAttribute("position", new THREE.BufferAttribute(initialPositions, 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute("color", new THREE.BufferAttribute(initialColors, 3).setUsage(THREE.DynamicDrawUsage));
+    geometryRef.current = geometry;
+    const texture = getCircleTexture();
+    const material = new THREE.PointsMaterial({
+      size: particleSize * 0.08,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
+      sizeAttenuation: true,
+      map: texture,
+      alphaTest: 0.01,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    materialRef.current = material;
+    const particles = new THREE.Points(geometry, material);
+    scene.add(particles);
+    particlesRef.current = particles;
+    const gridHelper = new THREE.GridHelper(40, 20, 4473924, 2236962);
+    if (projection === "xy") {
+      gridHelper.rotation.x = Math.PI / 2;
+    } else if (projection === "xz") ;
+    else if (projection === "yz") {
+      gridHelper.rotation.z = Math.PI / 2;
+    }
+    scene.add(gridHelper);
+    const axesHelper = new THREE.AxesHelper(10);
+    scene.add(axesHelper);
+    const shockGroup = new THREE.Group();
+    scene.add(shockGroup);
+    shockGroupRef.current = shockGroup;
+    computeStatsRef.current();
+    const animate = () => {
+      animationFrameRef.current = requestAnimationFrame(animate);
+      updateParticlesRef.current();
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      controls.dispose();
+      renderer.dispose();
+      geometry.dispose();
+      material.dispose();
+      if (containerRef.current && renderer.domElement) {
+        containerRef.current.removeChild(renderer.domElement);
       }
     };
-  }, [frame, colorField, colorMap, axisX, axisY]);
-  const draw = useCallback(() => {
+  }, [projection]);
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    if (renderer && camera) {
+      renderer.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    }
+  }, [width, height]);
+  useEffect(() => {
+    const material = materialRef.current;
+    if (material) {
+      material.size = particleSize * 0.08;
+    }
+  }, [particleSize]);
+  return /* @__PURE__ */ jsxs("div", { className: `relative ${className}`, children: [
+    /* @__PURE__ */ jsx(
+      "div",
+      {
+        ref: containerRef,
+        style: { width, height },
+        className: "rounded border border-gray-700 overflow-hidden"
+      }
+    ),
+    /* @__PURE__ */ jsx("div", { className: "absolute top-1 left-1 text-cyan-300 text-sm font-bold bg-black/70 px-2 py-0.5 rounded", children: projection.toUpperCase() }),
+    /* @__PURE__ */ jsx("div", { className: "absolute top-1 right-1 flex gap-1", children: /* @__PURE__ */ jsx(
+      "button",
+      {
+        onClick: resetCamera,
+        className: `
+            px-1.5 py-0.5 text-[10px] rounded transition-all
+            ${isRotated ? "bg-cyan-600 hover:bg-cyan-500 text-white" : "bg-gray-700/80 text-gray-400 hover:bg-gray-600"}
+          `,
+        title: "Reset camera to default view",
+        children: "⟲ Reset"
+      }
+    ) }),
+    /* @__PURE__ */ jsx("div", { className: "absolute bottom-1 left-1 text-gray-500 text-[9px] bg-black/50 px-1 rounded", children: "Drag: rotate | Scroll: zoom | Shift+drag: pan" }),
+    showShockSampling && /* @__PURE__ */ jsxs("div", { className: "absolute bottom-1 right-1 text-[9px] bg-black/70 px-1 rounded", children: [
+      /* @__PURE__ */ jsx("span", { className: "text-red-400", children: "● Z-col" }),
+      /* @__PURE__ */ jsx("span", { className: "mx-1 text-gray-500", children: "|" }),
+      /* @__PURE__ */ jsx("span", { className: "text-teal-400", children: "■ X-slice" })
+    ] })
+  ] });
+});
+Projection3DInteractive.displayName = "Projection3DInteractive";
+const GAMMA = 5 / 3;
+const COLORS = {
+  background: "#0f0f14",
+  panel: "#1a1a24",
+  grid: "#2a2a3a",
+  text: "#e0e0e0",
+  accent: "#00b4d8",
+  density: "#ffd166",
+  // Gold
+  pressure: "#ef476f",
+  // Pink-red
+  temperature: "#06d6a0",
+  // Mint
+  pAdiabatic: "#ffd166",
+  // Gold (dashed)
+  tAdiabatic: "#06d6a0"
+  // Mint (dashed)
+};
+function computeCoM(frame) {
+  let totalMass = 0;
+  let cx = 0, cy = 0, cz = 0;
+  for (let i = 0; i < frame.particleCount; i++) {
+    const m = frame.mass?.[i] ?? 1;
+    const x = frame.positions[i * 3];
+    const y = frame.positions[i * 3 + 1];
+    const z = frame.positions[i * 3 + 2];
+    totalMass += m;
+    cx += m * x;
+    cy += m * y;
+    cz += m * z;
+  }
+  if (totalMass > 0) {
+    cx /= totalMass;
+    cy /= totalMass;
+    cz /= totalMass;
+  }
+  return { x: cx, y: cy, z: cz };
+}
+function computeTemperature(pressure, density) {
+  const n = pressure.length;
+  const temperature = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const rho = density[i];
+    const p = pressure[i];
+    temperature[i] = rho > 0 ? p / rho : 0;
+  }
+  return temperature;
+}
+function extractVerticalProfile(frame, com, temperature, initial, columnRadius = 0.15, nBins = 40) {
+  const positions = [];
+  const density = [];
+  const pressure = [];
+  const temp = [];
+  const pAdiabatic = [];
+  const tAdiabatic = [];
+  const particlesInColumn = [];
+  for (let i = 0; i < frame.particleCount; i++) {
+    const dx = frame.positions[i * 3] - com.x;
+    const dy = frame.positions[i * 3 + 1] - com.y;
+    const rXY = Math.sqrt(dx * dx + dy * dy);
+    if (rXY < columnRadius) {
+      particlesInColumn.push({
+        z: frame.positions[i * 3 + 2] - com.z,
+        dens: frame.density?.[i] ?? 1,
+        pres: frame.pressure?.[i] ?? 1,
+        temp: temperature[i],
+        mass: frame.mass?.[i] ?? 1
+      });
+    }
+  }
+  if (particlesInColumn.length < 10) {
+    return { positions: [], density: [], pressure: [], temperature: [], pAdiabatic: [], tAdiabatic: [] };
+  }
+  const zMin = Math.min(...particlesInColumn.map((p) => p.z));
+  const zMax = Math.max(...particlesInColumn.map((p) => p.z));
+  const binWidth = (zMax - zMin) / nBins;
+  for (let bin = 0; bin < nBins; bin++) {
+    const binStart = zMin + bin * binWidth;
+    const binEnd = binStart + binWidth;
+    const binCenter = (binStart + binEnd) / 2;
+    const inBin = particlesInColumn.filter((p) => p.z >= binStart && p.z < binEnd);
+    if (inBin.length === 0) continue;
+    const totalMass = inBin.reduce((sum, p) => sum + p.mass, 0);
+    const avgDens = inBin.reduce((sum, p) => sum + p.mass * p.dens, 0) / totalMass;
+    const avgPres = inBin.reduce((sum, p) => sum + p.mass * p.pres, 0) / totalMass;
+    const avgTemp = inBin.reduce((sum, p) => sum + p.mass * p.temp, 0) / totalMass;
+    const rhoRatio = avgDens / initial.rho;
+    positions.push(binCenter);
+    density.push(rhoRatio);
+    pressure.push(avgPres / initial.P);
+    temp.push(avgTemp / initial.T);
+    pAdiabatic.push(Math.pow(rhoRatio, GAMMA));
+    tAdiabatic.push(Math.pow(rhoRatio, GAMMA - 1));
+  }
+  return { positions, density, pressure, temperature: temp, pAdiabatic, tAdiabatic };
+}
+function extractHorizontalProfile(frame, com, temperature, initial, sliceThickness = 0.15, nBins = 60) {
+  const positions = [];
+  const density = [];
+  const pressure = [];
+  const temp = [];
+  const pAdiabatic = [];
+  const tAdiabatic = [];
+  const particlesInSlice = [];
+  for (let i = 0; i < frame.particleCount; i++) {
+    const dz = Math.abs(frame.positions[i * 3 + 2] - com.z);
+    const dy = Math.abs(frame.positions[i * 3 + 1] - com.y);
+    if (dz < sliceThickness && dy < sliceThickness) {
+      particlesInSlice.push({
+        x: frame.positions[i * 3] - com.x,
+        dens: frame.density?.[i] ?? 1,
+        pres: frame.pressure?.[i] ?? 1,
+        temp: temperature[i],
+        mass: frame.mass?.[i] ?? 1
+      });
+    }
+  }
+  if (particlesInSlice.length < 10) {
+    return { positions: [], density: [], pressure: [], temperature: [], pAdiabatic: [], tAdiabatic: [] };
+  }
+  const xMin = Math.min(...particlesInSlice.map((p) => p.x));
+  const xMax = Math.max(...particlesInSlice.map((p) => p.x));
+  const binWidth = (xMax - xMin) / nBins;
+  for (let bin = 0; bin < nBins; bin++) {
+    const binStart = xMin + bin * binWidth;
+    const binEnd = binStart + binWidth;
+    const binCenter = (binStart + binEnd) / 2;
+    const inBin = particlesInSlice.filter((p) => p.x >= binStart && p.x < binEnd);
+    if (inBin.length === 0) continue;
+    const totalMass = inBin.reduce((sum, p) => sum + p.mass, 0);
+    const avgDens = inBin.reduce((sum, p) => sum + p.mass * p.dens, 0) / totalMass;
+    const avgPres = inBin.reduce((sum, p) => sum + p.mass * p.pres, 0) / totalMass;
+    const avgTemp = inBin.reduce((sum, p) => sum + p.mass * p.temp, 0) / totalMass;
+    const rhoRatio = avgDens / initial.rho;
+    positions.push(binCenter);
+    density.push(rhoRatio);
+    pressure.push(avgPres / initial.P);
+    temp.push(avgTemp / initial.T);
+    pAdiabatic.push(Math.pow(rhoRatio, GAMMA));
+    tAdiabatic.push(Math.pow(rhoRatio, GAMMA - 1));
+  }
+  return { positions, density, pressure, temperature: temp, pAdiabatic, tAdiabatic };
+}
+function drawProfile(ctx, profile, x, y, width, height, title, xLabel, yRange = [0, 5]) {
+  const margin = { left: 45, right: 10, top: 25, bottom: 30 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  ctx.fillStyle = COLORS.panel;
+  ctx.fillRect(x, y, width, height);
+  ctx.fillStyle = COLORS.text;
+  ctx.font = "bold 11px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(title, x + width / 2, y + 15);
+  if (profile.positions.length === 0) {
+    ctx.fillStyle = "#666";
+    ctx.font = "10px sans-serif";
+    ctx.fillText("No data", x + width / 2, y + height / 2);
+    return;
+  }
+  ctx.strokeStyle = COLORS.grid;
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([2, 2]);
+  for (let i = 0; i <= 4; i++) {
+    const gy = y + margin.top + i / 4 * plotHeight;
+    ctx.beginPath();
+    ctx.moveTo(x + margin.left, gy);
+    ctx.lineTo(x + margin.left + plotWidth, gy);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  const xMin = Math.min(...profile.positions);
+  const xMax = Math.max(...profile.positions);
+  const scaleX = (v) => x + margin.left + (v - xMin) / (xMax - xMin) * plotWidth;
+  const scaleY = (v) => y + margin.top + plotHeight - (v - yRange[0]) / (yRange[1] - yRange[0]) * plotHeight;
+  ctx.strokeStyle = "#666";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(x + margin.left, scaleY(1));
+  ctx.lineTo(x + margin.left + plotWidth, scaleY(1));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  const drawLine = (data, color, dashed = false) => {
+    if (data.length === 0) return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = dashed ? 1.5 : 2;
+    if (dashed) ctx.setLineDash([4, 2]);
+    ctx.beginPath();
+    for (let i = 0; i < data.length; i++) {
+      const px = scaleX(profile.positions[i]);
+      const py = scaleY(Math.max(yRange[0], Math.min(yRange[1], data[i])));
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  };
+  drawLine(profile.pAdiabatic, COLORS.pAdiabatic, true);
+  drawLine(profile.tAdiabatic, COLORS.tAdiabatic, true);
+  drawLine(profile.density, COLORS.density);
+  drawLine(profile.pressure, COLORS.pressure);
+  drawLine(profile.temperature, COLORS.temperature);
+  ctx.strokeStyle = COLORS.accent;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x + margin.left, y + margin.top);
+  ctx.lineTo(x + margin.left, y + height - margin.bottom);
+  ctx.lineTo(x + width - margin.right, y + height - margin.bottom);
+  ctx.stroke();
+  ctx.fillStyle = COLORS.text;
+  ctx.font = "9px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(xLabel, x + width / 2, y + height - 5);
+  ctx.textAlign = "right";
+  ctx.fillText(yRange[1].toFixed(0), x + margin.left - 5, y + margin.top + 5);
+  ctx.fillText(yRange[0].toFixed(0), x + margin.left - 5, y + height - margin.bottom);
+}
+function computeInitialValues(initialFrame, frame) {
+  const refFrame = initialFrame ?? frame;
+  if (!refFrame) return { T: 50, rho: 1e-3, P: 1e-6 };
+  const densities = Array.from(refFrame.density ?? []).filter((v) => v > 0);
+  const pressures = Array.from(refFrame.pressure ?? []).filter((v) => v > 0);
+  densities.sort((a, b) => a - b);
+  pressures.sort((a, b) => a - b);
+  const medianRho = densities[Math.floor(densities.length / 2)] || 1e-3;
+  const medianP = pressures[Math.floor(pressures.length / 2)] || 1e-6;
+  const temp = computeTemperature(
+    new Float32Array([medianP]),
+    new Float32Array([medianRho])
+  );
+  return { T: temp[0], rho: medianRho, P: medianP };
+}
+function computeFrameData(frame, initialValues) {
+  const com = computeCoM(frame);
+  const temperature = computeTemperature(
+    frame.pressure ?? new Float32Array(frame.particleCount),
+    frame.density ?? new Float32Array(frame.particleCount)
+  );
+  const tRatio = new Float32Array(frame.particleCount);
+  for (let i = 0; i < frame.particleCount; i++) {
+    tRatio[i] = temperature[i] / initialValues.T;
+  }
+  const verticalProfile = extractVerticalProfile(frame, com, temperature, initialValues);
+  const horizontalProfile = extractHorizontalProfile(frame, com, temperature, initialValues);
+  return {
+    com,
+    temperature,
+    tRatio,
+    initialValues,
+    verticalProfile,
+    horizontalProfile
+  };
+}
+function ShockDiagnosticsPanelImperative({
+  framesRef,
+  frameIndexRef,
+  initialFrame,
+  width = 500,
+  height = 300,
+  className = ""
+}) {
+  const canvasRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const lastFrameIndexRef = useRef(-1);
+  const initialValuesRef = useRef(null);
+  const draw = useCallback((frame) => {
     const canvas = canvasRef.current;
-    if (!canvas || !frame) return;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    if (!initialValuesRef.current) {
+      initialValuesRef.current = computeInitialValues(initialFrame, frame);
+    }
+    const initialValues = initialValuesRef.current;
+    const computedData = computeFrameData(frame, initialValues);
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     ctx.scale(dpr, dpr);
-    ctx.fillStyle = "#1a1a2e";
+    ctx.fillStyle = COLORS.background;
     ctx.fillRect(0, 0, width, height);
-    const margin = showAxes ? 40 : 10;
-    const plotWidth = width - margin * 2;
-    const plotHeight = height - margin * 2;
-    const scaleX = (val) => margin + (val - bounds.minX) / (bounds.maxX - bounds.minX) * plotWidth;
-    const scaleY = (val) => height - margin - (val - bounds.minY) / (bounds.maxY - bounds.minY) * plotHeight;
-    if (showAxes) {
-      ctx.strokeStyle = "#333";
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      const numGridLines = 5;
-      for (let i = 0; i <= numGridLines; i++) {
-        const x = margin + i / numGridLines * plotWidth;
-        ctx.moveTo(x, margin);
-        ctx.lineTo(x, height - margin);
-      }
-      for (let i = 0; i <= numGridLines; i++) {
-        const y = margin + i / numGridLines * plotHeight;
-        ctx.moveTo(margin, y);
-        ctx.lineTo(width - margin, y);
-      }
-      ctx.stroke();
-    }
-    const { logScale } = colorMap;
-    const { min, max } = range;
+    const chartWidth = (width - 30) / 2;
+    const chartHeight = height - 60;
+    ctx.fillStyle = COLORS.text;
+    ctx.font = "bold 10px monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(
+      `CoM: (${computedData.com.x.toFixed(2)}, ${computedData.com.y.toFixed(2)}, ${computedData.com.z.toFixed(2)}) pc`,
+      10,
+      15
+    );
+    const distImbh = Math.sqrt(
+      computedData.com.x ** 2 + computedData.com.y ** 2 + computedData.com.z ** 2
+    );
+    ctx.fillText(`IMBH→CoM: ${distImbh.toFixed(2)} pc`, 10, 28);
+    let maxTRatio = 0, maxRhoRatio = 0, maxPRatio = 0;
     for (let i = 0; i < frame.particleCount; i++) {
-      const x = frame.positions[i * 3 + axisX];
-      const y = frame.positions[i * 3 + axisY];
-      const val = fieldData ? fieldData[i] : 0;
-      if (!isFinite(x) || !isFinite(y)) continue;
-      let t;
-      if (logScale && min > 0 && val > 0) {
-        t = (Math.log10(val) - Math.log10(min)) / (Math.log10(max) - Math.log10(min));
-      } else {
-        t = (val - min) / (max - min);
+      if (computedData.tRatio[i] > maxTRatio) maxTRatio = computedData.tRatio[i];
+      const rhoRatio = (frame.density?.[i] ?? 0) / initialValues.rho;
+      if (rhoRatio > maxRhoRatio) maxRhoRatio = rhoRatio;
+      const pRatio = (frame.pressure?.[i] ?? 0) / initialValues.P;
+      if (pRatio > maxPRatio) maxPRatio = pRatio;
+    }
+    ctx.textAlign = "right";
+    ctx.font = "9px monospace";
+    ctx.fillStyle = COLORS.temperature;
+    ctx.fillText(`T_max/T₀=${maxTRatio.toFixed(1)}`, width - 10, 15);
+    ctx.fillStyle = COLORS.density;
+    ctx.fillText(`ρ_max/ρ₀=${maxRhoRatio.toFixed(1)}`, width - 10, 26);
+    ctx.fillStyle = COLORS.pressure;
+    ctx.fillText(`P_max/P₀=${maxPRatio.toFixed(1)}`, width - 10, 37);
+    drawProfile(
+      ctx,
+      computedData.verticalProfile,
+      10,
+      45,
+      chartWidth,
+      chartHeight,
+      "VERTICAL SHOCK (Z)",
+      "Z - Z_CoM (pc)",
+      [0, 5]
+    );
+    drawProfile(
+      ctx,
+      computedData.horizontalProfile,
+      20 + chartWidth,
+      45,
+      chartWidth,
+      chartHeight,
+      "HORIZONTAL STRETCH (X)",
+      "X - X_CoM (pc)",
+      [0, 5]
+    );
+    const legendY = height - 12;
+    ctx.font = "8px sans-serif";
+    ctx.textAlign = "left";
+    const legendItems = [
+      { color: COLORS.density, label: "ρ/ρ₀" },
+      { color: COLORS.pressure, label: "P/P₀" },
+      { color: COLORS.temperature, label: "T/T₀" },
+      { color: COLORS.pAdiabatic, label: "P_ad", dashed: true },
+      { color: COLORS.tAdiabatic, label: "T_ad", dashed: true }
+    ];
+    let legendX = 10;
+    for (const item of legendItems) {
+      ctx.fillStyle = item.color;
+      ctx.fillRect(legendX, legendY - 5, item.dashed ? 15 : 12, 2);
+      if (item.dashed) {
+        ctx.fillStyle = COLORS.background;
+        ctx.fillRect(legendX + 4, legendY - 5, 3, 2);
+        ctx.fillRect(legendX + 10, legendY - 5, 2, 2);
       }
-      t = Math.max(0, Math.min(1, isFinite(t) ? t : 0));
-      const color = interpolateColorHex(colorMap.colors, t);
-      const px = scaleX(x);
-      const py = scaleY(y);
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(px, py, 1.5, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = COLORS.text;
+      ctx.fillText(item.label, legendX + (item.dashed ? 18 : 15), legendY);
+      legendX += 55;
     }
-    if (showAxes) {
-      ctx.strokeStyle = "#888";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(margin, height - margin);
-      ctx.lineTo(width - margin, height - margin);
-      ctx.moveTo(margin, height - margin);
-      ctx.lineTo(margin, margin);
-      ctx.stroke();
-      ctx.fillStyle = "#ccc";
-      ctx.font = "12px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(axisLabel[0], width / 2, height - 5);
-      ctx.save();
-      ctx.translate(12, height / 2);
-      ctx.rotate(-Math.PI / 2);
-      ctx.fillText(axisLabel[1], 0, 0);
-      ctx.restore();
-      ctx.font = "10px sans-serif";
-      ctx.fillText(bounds.minX.toFixed(2), margin, height - 25);
-      ctx.fillText(bounds.maxX.toFixed(2), width - margin, height - 25);
-      ctx.textAlign = "right";
-      ctx.fillText(bounds.minY.toFixed(2), margin - 5, height - margin);
-      ctx.fillText(bounds.maxY.toFixed(2), margin - 5, margin + 5);
-    }
-    if (showColorbar) {
-      const barWidth = 15;
-      const barHeight = plotHeight * 0.6;
-      const barX = width - margin + 10;
-      const barY = margin + (plotHeight - barHeight) / 2;
-      for (let i = 0; i < barHeight; i++) {
-        const t = 1 - i / barHeight;
-        ctx.fillStyle = interpolateColorHex(colorMap.colors, t);
-        ctx.fillRect(barX, barY + i, barWidth, 1);
-      }
-      ctx.strokeStyle = "#888";
-      ctx.strokeRect(barX, barY, barWidth, barHeight);
-      ctx.fillStyle = "#ccc";
-      ctx.font = "9px sans-serif";
-      ctx.textAlign = "left";
-      const formatVal = (v) => {
-        if (Math.abs(v) < 1e-3 || Math.abs(v) > 1e4) {
-          return v.toExponential(1);
-        }
-        return v.toFixed(3);
-      };
-      ctx.fillText(formatVal(range.max), barX + barWidth + 3, barY + 8);
-      ctx.fillText(formatVal(range.min), barX + barWidth + 3, barY + barHeight);
-    }
-  }, [
-    frame,
-    fieldData,
-    bounds,
-    range,
-    colorMap,
-    width,
-    height,
-    showAxes,
-    showColorbar,
-    axisX,
-    axisY,
-    axisLabel
-  ]);
+  }, [initialFrame, width, height]);
   useEffect(() => {
-    draw();
-  }, [draw]);
-  return /* @__PURE__ */ jsxs("div", { className: `relative ${className}`, children: [
-    /* @__PURE__ */ jsx(
-      "canvas",
-      {
-        ref: canvasRef,
-        style: { width, height },
-        className: "rounded"
+    const tick = () => {
+      const frames = framesRef.current;
+      const frameIndex = frameIndexRef.current ?? 0;
+      if (frames && frameIndex !== lastFrameIndexRef.current) {
+        const frame = frames.get(frameIndex);
+        if (frame) {
+          draw(frame);
+          lastFrameIndexRef.current = frameIndex;
+        }
       }
-    ),
-    /* @__PURE__ */ jsxs("div", { className: "absolute top-1 left-1 text-white text-xs bg-black/50 px-1 rounded", children: [
-      projection.toUpperCase(),
-      " Projection"
-    ] })
-  ] });
+      animationFrameRef.current = requestAnimationFrame(tick);
+    };
+    animationFrameRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [framesRef, frameIndexRef, draw]);
+  useEffect(() => {
+    initialValuesRef.current = null;
+    const frames = framesRef.current;
+    const frameIndex = frameIndexRef.current ?? 0;
+    if (frames) {
+      const frame = frames.get(frameIndex);
+      if (frame) {
+        draw(frame);
+      }
+    }
+  }, [initialFrame, framesRef, frameIndexRef, draw]);
+  useEffect(() => {
+    const frames = framesRef.current;
+    const frameIndex = frameIndexRef.current ?? 0;
+    if (frames) {
+      const frame = frames.get(frameIndex);
+      if (frame) {
+        draw(frame);
+      }
+    }
+  }, [width, height, framesRef, frameIndexRef, draw]);
+  return /* @__PURE__ */ jsx("div", { className: `relative ${className}`, children: /* @__PURE__ */ jsx(
+    "canvas",
+    {
+      ref: canvasRef,
+      style: { width, height },
+      className: "rounded border border-gray-700"
+    }
+  ) });
 }
 function EnergyChart({
   statistics,
@@ -3338,9 +4551,9 @@ function EnergyChart({
     total: s.totalEnergy
   }));
   const currentTime = currentFrame !== void 0 && statistics[currentFrame] ? statistics[currentFrame].time : void 0;
-  return /* @__PURE__ */ jsxs("div", { className: `bg-gray-800 p-3 rounded ${className}`, children: [
-    /* @__PURE__ */ jsx("h3", { className: "text-sm font-medium text-gray-300 mb-2", children: "Energy Evolution" }),
-    /* @__PURE__ */ jsx(ResponsiveContainer, { width: "100%", height: 200, children: /* @__PURE__ */ jsxs(LineChart, { data, children: [
+  return /* @__PURE__ */ jsxs("div", { className: `bg-gray-800 p-2 rounded h-full flex flex-col ${className}`, children: [
+    /* @__PURE__ */ jsx("h3", { className: "text-xs font-medium text-gray-300 mb-1 shrink-0", children: "Energy Evolution" }),
+    /* @__PURE__ */ jsx(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ jsxs(LineChart, { data, children: [
       /* @__PURE__ */ jsx(CartesianGrid, { strokeDasharray: "3 3", stroke: "#444" }),
       /* @__PURE__ */ jsx(
         XAxis,
@@ -3418,9 +4631,9 @@ function MomentumChart({
     total: Math.sqrt(s.momentum[0] ** 2 + s.momentum[1] ** 2 + s.momentum[2] ** 2)
   }));
   const currentTime = currentFrame !== void 0 && statistics[currentFrame] ? statistics[currentFrame].time : void 0;
-  return /* @__PURE__ */ jsxs("div", { className: `bg-gray-800 p-3 rounded ${className}`, children: [
-    /* @__PURE__ */ jsx("h3", { className: "text-sm font-medium text-gray-300 mb-2", children: "Momentum Evolution" }),
-    /* @__PURE__ */ jsx(ResponsiveContainer, { width: "100%", height: 200, children: /* @__PURE__ */ jsxs(LineChart, { data, children: [
+  return /* @__PURE__ */ jsxs("div", { className: `bg-gray-800 p-2 rounded h-full flex flex-col ${className}`, children: [
+    /* @__PURE__ */ jsx("h3", { className: "text-xs font-medium text-gray-300 mb-1 shrink-0", children: "Momentum Evolution" }),
+    /* @__PURE__ */ jsx(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ jsxs(LineChart, { data, children: [
       /* @__PURE__ */ jsx(CartesianGrid, { strokeDasharray: "3 3", stroke: "#444" }),
       /* @__PURE__ */ jsx(
         XAxis,
@@ -3692,33 +4905,6 @@ function PlaybackControls({
     ] })
   ] }) });
 }
-const COLOR_MAPS = {
-  viridis: {
-    name: "Viridis",
-    colors: ["#440154", "#482878", "#3e4989", "#31688e", "#26828e", "#1f9e89", "#35b779", "#6ece58", "#b5de2b", "#fde725"],
-    logScale: false
-  },
-  plasma: {
-    name: "Plasma",
-    colors: ["#0d0887", "#46039f", "#7201a8", "#9c179e", "#bd3786", "#d8576b", "#ed7953", "#fb9f3a", "#fdca26", "#f0f921"],
-    logScale: false
-  },
-  inferno: {
-    name: "Inferno",
-    colors: ["#000004", "#1b0c41", "#4a0c6b", "#781c6d", "#a52c60", "#cf4446", "#ed6925", "#fb9b06", "#f7d13d", "#fcffa4"],
-    logScale: false
-  },
-  coolwarm: {
-    name: "Cool-Warm",
-    colors: ["#3b4cc0", "#6688ee", "#88bbff", "#b8d4eb", "#dddddd", "#f5c4ad", "#f49a7b", "#d6604d", "#b40426"],
-    logScale: false
-  },
-  density: {
-    name: "Density",
-    colors: ["#000033", "#000066", "#000099", "#0033cc", "#0066ff", "#00ccff", "#66ffcc", "#ccff66", "#ffcc00", "#ff6600", "#ff0000"],
-    logScale: true
-  }
-};
 const DEFAULT_FIELDS = ["density", "pressure", "energy", "velocity", "machNumber"];
 function VisualizationSettings({
   colorField,
@@ -3918,6 +5104,122 @@ function fieldDisplayName(field) {
   };
   return names[field] || field;
 }
+function computeOrbitalParams(cloudPos, cloudVel, bhMass, G = 1) {
+  const r = Math.sqrt(cloudPos[0] ** 2 + cloudPos[1] ** 2 + cloudPos[2] ** 2);
+  const v = Math.sqrt(cloudVel[0] ** 2 + cloudVel[1] ** 2 + cloudVel[2] ** 2);
+  const mu = G * bhMass;
+  const specificEnergy = v * v / 2 - mu / r;
+  const a = -mu / (2 * specificEnergy);
+  const Lx = cloudPos[1] * cloudVel[2] - cloudPos[2] * cloudVel[1];
+  const Ly = cloudPos[2] * cloudVel[0] - cloudPos[0] * cloudVel[2];
+  const Lz = cloudPos[0] * cloudVel[1] - cloudPos[1] * cloudVel[0];
+  const L = Math.sqrt(Lx ** 2 + Ly ** 2 + Lz ** 2);
+  const eccentricity = Math.sqrt(1 + 2 * specificEnergy * L * L / (mu * mu));
+  const pericentre = eccentricity > 1 ? Math.abs(a) * (eccentricity - 1) : Math.abs(a) * (1 - eccentricity);
+  return { pericentre, eccentricity };
+}
+function presetToIMBHConfig(preset) {
+  const imbhParams = preset.imbh_parameters;
+  const externalForce = preset.externalForces?.pointMassBH;
+  if (!imbhParams?.enabled && !externalForce?.enabled) {
+    return null;
+  }
+  const bhMassCodeUnits = externalForce?.mass ?? (imbhParams?.M_BH ? imbhParams.M_BH / 1e3 : 100);
+  const bhPosition = externalForce?.position ?? imbhParams?.BH_initial_position ?? [0, 0, 0];
+  const cloudPos = imbhParams?.cloud_initial_position ?? preset.initialCondition?.transform?.translate ?? [-20, 5.17, 0];
+  const cloudVel = imbhParams?.cloud_initial_velocity ?? preset.initialCondition?.transform?.velocity_boost ?? [10, 0, 0];
+  const cloudMass = preset.physics_summary?.cloud_mass_Msun ? preset.physics_summary.cloud_mass_Msun / 1e3 : 1;
+  const cloudRadius = preset.physics_summary?.cloud_radius_pc ?? 1.13;
+  const tidalRadius = preset.physics_summary?.tidal_radius_pc ?? 5.24;
+  const impactParameter = preset.physics_summary?.impact_parameter_pc ?? Math.abs(cloudPos[1]);
+  const { pericentre, eccentricity } = computeOrbitalParams(cloudPos, cloudVel, bhMassCodeUnits);
+  const timeUnit = 0.978;
+  return {
+    enabled: true,
+    bhPosition,
+    bhMass: bhMassCodeUnits,
+    cloudInitialPosition: cloudPos,
+    cloudInitialVelocity: cloudVel,
+    cloudMass,
+    cloudRadius,
+    tidalRadius,
+    impactParameter,
+    pericentre,
+    eccentricity,
+    timeUnit,
+    // Optional galactic parameters (can be overridden)
+    inclination: 70,
+    positionAngle: 41.6,
+    lsrVelocity: -120
+  };
+}
+const DEFAULT_IMBH_CONFIG = {
+  enabled: true,
+  bhPosition: [0, 0, 0],
+  bhMass: 100,
+  // 10^5 M_sun in code units (1000 M_sun)
+  cloudInitialPosition: [20, -5.17, 0],
+  cloudInitialVelocity: [-10.18, 5.05, 0],
+  cloudMass: 1,
+  // 1000 M_sun in code units
+  cloudRadius: 1.13,
+  tidalRadius: 5.24,
+  impactParameter: 5.17,
+  pericentre: 2.217,
+  eccentricity: 1.4504,
+  timeUnit: 0.978,
+  inclination: 70,
+  positionAngle: 41.6,
+  lsrVelocity: -120
+};
+const PRESET_SCENARIOS = [
+  {
+    id: "Mc1e3_Mbh1e5_b1p5_v10_adiabatic_gsph",
+    name: "Strong Disruption (b=1.5pc, Adiabatic, GSPH)",
+    path: "simulations/astrophysics/imbh_cloud/config/presets/simulation/scenarios/Mc1e3_Mbh1e5_b1p5_v10/adiabatic_61k_gsph.json"
+  },
+  {
+    id: "Mc1e3_Mbh1e5_b1p5_v10_adiabatic_gdisph",
+    name: "Strong Disruption (b=1.5pc, Adiabatic, GDISPH)",
+    path: "simulations/astrophysics/imbh_cloud/config/presets/simulation/scenarios/Mc1e3_Mbh1e5_b1p5_v10/adiabatic_61k_gdisph.json"
+  },
+  {
+    id: "Mc1e3_Mbh1e5_b1p5_v10_radiative_gsph",
+    name: "Strong Disruption (b=1.5pc, Radiative, GSPH)",
+    path: "simulations/astrophysics/imbh_cloud/config/presets/simulation/scenarios/Mc1e3_Mbh1e5_b1p5_v10/radiative_61k_gsph.json"
+  },
+  {
+    id: "Mc1e3_Mbh1e5_b1p5_v10_radiative_gdisph",
+    name: "Strong Disruption (b=1.5pc, Radiative, GDISPH)",
+    path: "simulations/astrophysics/imbh_cloud/config/presets/simulation/scenarios/Mc1e3_Mbh1e5_b1p5_v10/radiative_61k_gdisph.json"
+  },
+  {
+    id: "Mc1e3_Mbh1e5_b3_v10_adiabatic",
+    name: "Moderate Disruption (b=3pc)",
+    path: "simulations/astrophysics/imbh_cloud/config/presets/simulation/scenarios/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph.json"
+  },
+  {
+    id: "Mc1e3_Mbh1e5_b6_v10_adiabatic",
+    name: "Weak Disruption (b=6pc)",
+    path: "simulations/astrophysics/imbh_cloud/config/presets/simulation/scenarios/Mc1e3_Mbh1e5_b6_v10/adiabatic_61k_gsph.json"
+  }
+];
+function ResizeHandle({ direction = "horizontal" }) {
+  return /* @__PURE__ */ jsx(
+    PanelResizeHandle,
+    {
+      className: `
+        ${direction === "horizontal" ? "w-1.5 cursor-col-resize" : "h-1.5 cursor-row-resize"}
+        bg-gray-700 hover:bg-cyan-500 active:bg-cyan-400 transition-colors
+        flex items-center justify-center group
+      `,
+      children: /* @__PURE__ */ jsx("div", { className: `
+        ${direction === "horizontal" ? "w-0.5 h-8" : "h-0.5 w-8"}
+        bg-gray-500 group-hover:bg-cyan-300 rounded-full transition-colors
+      ` })
+    }
+  );
+}
 function computeGlobalColorStats(frames, colorField) {
   if (frames.size === 0) return [0, 1];
   let globalMin = Infinity;
@@ -3988,58 +5290,121 @@ function Dashboard({
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [colorField, setColorField] = useState("density");
-  const [colorMapName, setColorMapName] = useState("viridis");
+  const [colorMapName, setColorMapName] = useState("cosmicDawn");
   const [pointSize, setPointSize] = useState(0.02);
   const [opacity, setOpacity] = useState(0.8);
   const [showAxes, setShowAxes] = useState(true);
   const [showBoundingBox, setShowBoundingBox] = useState(true);
   const [colorRange, setColorRange] = useState([0, 0]);
   const [useLogScale, setUseLogScale] = useState(false);
+  const [projectionColorFields, setProjectionColorFields] = useState({
+    xy: "density",
+    xz: "pressure",
+    yz: "velocity"
+  });
+  const [useMultiColorField, setUseMultiColorField] = useState(false);
   const [showProjections, setShowProjections] = useState(true);
   const [showCharts, setShowCharts] = useState(true);
-  const [useImperativeMode, setUseImperativeMode] = useState(true);
+  const [showShockDiagnostics, setShowShockDiagnostics] = useState(true);
+  const [panelDimensions, setPanelDimensions] = useState({
+    projection: { width: 300, height: 120 },
+    shock: { width: 600, height: 250 }
+  });
+  const projectionPanelRef = useRef(null);
+  const shockPanelRef = useRef(null);
+  const projectionXYRef = useRef(null);
+  const projectionXZRef = useRef(null);
+  const projectionYZRef = useRef(null);
+  const resetAllProjectionCameras = useCallback(() => {
+    projectionXYRef.current?.resetCamera();
+    projectionXZRef.current?.resetCamera();
+    projectionYZRef.current?.resetCamera();
+  }, []);
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (projectionPanelRef.current) {
+        const rect = projectionPanelRef.current.getBoundingClientRect();
+        const availableHeight = rect.height - 40;
+        const projectionHeight = Math.floor(availableHeight / 3);
+        setPanelDimensions((prev) => ({
+          ...prev,
+          projection: {
+            width: Math.floor(rect.width) - 16,
+            height: Math.max(60, projectionHeight)
+            // minimum 60px per projection
+          }
+        }));
+      }
+      if (shockPanelRef.current) {
+        const rect = shockPanelRef.current.getBoundingClientRect();
+        setPanelDimensions((prev) => ({
+          ...prev,
+          shock: { width: Math.floor(rect.width) - 16, height: Math.floor(rect.height) - 60 }
+          // Extra space for description
+        }));
+      }
+    };
+    updateDimensions();
+    window.addEventListener("resize", updateDimensions);
+    const observer = new ResizeObserver(updateDimensions);
+    if (projectionPanelRef.current) observer.observe(projectionPanelRef.current);
+    if (shockPanelRef.current) observer.observe(shockPanelRef.current);
+    return () => {
+      window.removeEventListener("resize", updateDimensions);
+      observer.disconnect();
+    };
+  }, []);
   const [currentFps, setCurrentFps] = useState(0);
   const [showBlackHole, setShowBlackHole] = useState(true);
   const [showTrajectory, setShowTrajectory] = useState(true);
   const [showRadii, setShowRadii] = useState(true);
   const [showGalacticMarkers, setShowGalacticMarkers] = useState(true);
+  const [showLabels, setShowLabels] = useState(true);
   const [showGalaxyDisk, setShowGalaxyDisk] = useState(true);
   const [showSolarSystem, setShowSolarSystem] = useState(true);
   const [animateGalaxy, setAnimateGalaxy] = useState(false);
   const [galaxyAnimationSpeed, setGalaxyAnimationSpeed] = useState(1);
   const [cameraMode, setCameraMode] = useState("free");
+  const [selectedPresetId, setSelectedPresetId] = useState(null);
+  const [loadedPresetConfig, setLoadedPresetConfig] = useState(null);
+  useEffect(() => {
+    if (!selectedPresetId) {
+      setLoadedPresetConfig(null);
+      return;
+    }
+    const preset = PRESET_SCENARIOS.find((p) => p.id === selectedPresetId);
+    if (!preset) return;
+    const loadPreset = async () => {
+      try {
+        const response = await fetch(`http://localhost:3001/api/preset?path=${encodeURIComponent(preset.path)}`);
+        if (response.ok) {
+          const presetData = await response.json();
+          const config = presetToIMBHConfig(presetData);
+          if (config) {
+            console.log("[Dashboard] Loaded preset config:", preset.name, config);
+            setLoadedPresetConfig(config);
+          }
+        } else {
+          console.warn("[Dashboard] Failed to load preset from API, using default");
+        }
+      } catch (error2) {
+        console.warn("[Dashboard] Error loading preset:", error2);
+      }
+    };
+    loadPreset();
+  }, [selectedPresetId]);
   const imbhPhysics = useMemo(() => {
+    if (loadedPresetConfig) {
+      console.log("[Dashboard] Using IMBH physics from loaded preset");
+      return loadedPresetConfig;
+    }
     if (simulation?.imbhPhysics) {
       console.log("[Dashboard] Using IMBH physics from simulation config:", simulation.imbhPhysics);
       return simulation.imbhPhysics;
     }
-    console.log("[Dashboard] Using default IMBH physics (CAT_OKA/A_61k/oka.json preset values)");
-    return {
-      enabled: true,
-      // Enable by default for visualizing galactic markers
-      bhPosition: [0, 0, 0],
-      bhMass: 100,
-      // 10^5 M_sun in code units (1000 M_sun)
-      cloudInitialPosition: [20, -5.17, 0],
-      // From preset
-      cloudInitialVelocity: [-10.18, 5.05, 0],
-      // From preset (km/s)
-      cloudMass: 1,
-      // 1000 M_sun in code units
-      cloudRadius: 1.13,
-      // From preset (pc)
-      tidalRadius: 5.24,
-      // From preset (pc)
-      impactParameter: 5.17,
-      // From preset (pc)
-      pericentre: 2.217,
-      // From preset (pc)
-      eccentricity: 1.4504,
-      // From preset (hyperbolic)
-      timeUnit: 0.978
-      // Myr
-    };
-  }, [simulation]);
+    console.log("[Dashboard] Using default IMBH physics");
+    return DEFAULT_IMBH_CONFIG;
+  }, [loadedPresetConfig, simulation]);
   const framesRef = useRef(frames);
   const frameIndexRef = useRef(currentFrameIndex);
   const isPlayingRef = useRef(false);
@@ -4058,7 +5423,7 @@ function Dashboard({
   }, [frames, colorField]);
   const currentFrame = frames.get(currentFrameIndex) || null;
   const colorMap = useMemo(() => {
-    const baseMap = COLOR_MAPS[colorMapName] || COLOR_MAPS.viridis;
+    const baseMap = COLOR_MAPS[colorMapName] || COLOR_MAPS.cosmicDawn;
     let min = colorRange[0];
     let max = colorRange[1];
     if (min === 0 && max === 0) {
@@ -4110,6 +5475,7 @@ function Dashboard({
         } else {
           if (framesRef.current.has(nextFrame)) {
             frameIndexRef.current = nextFrame;
+            setCurrentFrameIndex(nextFrame);
             lastTime = timestamp;
           }
         }
@@ -4128,16 +5494,12 @@ function Dashboard({
     setCurrentFrameIndex(frameIndexRef.current);
   }, []);
   const handlePlayPauseChange = useCallback((playing) => {
-    if (useImperativeMode) {
-      if (playing) {
-        startImperativePlayback();
-      } else {
-        stopImperativePlayback();
-      }
+    if (playing) {
+      startImperativePlayback();
     } else {
-      setIsPlaying(playing);
+      stopImperativePlayback();
     }
-  }, [useImperativeMode, startImperativePlayback, stopImperativePlayback]);
+  }, [startImperativePlayback, stopImperativePlayback]);
   useEffect(() => {
     return () => {
       if (animationFrameIdRef.current !== null) {
@@ -4178,18 +5540,17 @@ function Dashboard({
         /* @__PURE__ */ jsx(
           "button",
           {
-            onClick: () => setUseImperativeMode(!useImperativeMode),
-            className: `px-2 py-1 text-xs rounded ${useImperativeMode ? "bg-green-600 text-white" : "bg-gray-700 text-gray-400"}`,
-            title: useImperativeMode ? "High-performance mode (120+ FPS)" : "Standard React mode",
-            children: useImperativeMode ? "🚀 Fast" : "⚛️ React"
+            onClick: () => setShowProjections(!showProjections),
+            className: `px-2 py-1 text-xs rounded ${showProjections ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"}`,
+            children: "2D Views"
           }
         ),
         /* @__PURE__ */ jsx(
           "button",
           {
-            onClick: () => setShowProjections(!showProjections),
-            className: `px-2 py-1 text-xs rounded ${showProjections ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"}`,
-            children: "2D Views"
+            onClick: () => setShowShockDiagnostics(!showShockDiagnostics),
+            className: `px-2 py-1 text-xs rounded ${showShockDiagnostics ? "bg-orange-600 text-white" : "bg-gray-700 text-gray-400"}`,
+            children: "Shock"
           }
         ),
         /* @__PURE__ */ jsx(
@@ -4225,8 +5586,64 @@ function Dashboard({
             onLogScaleChange: setUseLogScale
           }
         ),
-        useImperativeMode && /* @__PURE__ */ jsxs("div", { className: "mt-2 bg-gray-800 rounded p-3", children: [
+        /* @__PURE__ */ jsxs("div", { className: "mt-2 bg-gray-800 rounded p-3", children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between mb-2", children: [
+            /* @__PURE__ */ jsx("h3", { className: "text-sm font-medium text-gray-300", children: "2D Projections" }),
+            /* @__PURE__ */ jsxs("label", { className: "flex items-center gap-1 cursor-pointer", children: [
+              /* @__PURE__ */ jsx(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: useMultiColorField,
+                  onChange: (e) => setUseMultiColorField(e.target.checked),
+                  className: "rounded"
+                }
+              ),
+              /* @__PURE__ */ jsx("span", { className: "text-xs text-gray-400", children: "Multi-field" })
+            ] })
+          ] }),
+          useMultiColorField && /* @__PURE__ */ jsx("div", { className: "space-y-2 text-xs", children: ["xy", "xz", "yz"].map((proj) => /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxs("span", { className: "text-gray-400 w-8 uppercase font-mono", children: [
+              proj,
+              ":"
+            ] }),
+            /* @__PURE__ */ jsxs(
+              "select",
+              {
+                value: projectionColorFields[proj],
+                onChange: (e) => setProjectionColorFields((prev) => ({
+                  ...prev,
+                  [proj]: e.target.value
+                })),
+                className: "flex-1 bg-gray-700 text-gray-200 rounded px-1 py-0.5 border border-gray-600",
+                children: [
+                  /* @__PURE__ */ jsx("option", { value: "density", children: "Density" }),
+                  /* @__PURE__ */ jsx("option", { value: "pressure", children: "Pressure" }),
+                  /* @__PURE__ */ jsx("option", { value: "velocity", children: "Velocity" }),
+                  /* @__PURE__ */ jsx("option", { value: "energy", children: "Energy" }),
+                  /* @__PURE__ */ jsx("option", { value: "machNumber", children: "Mach #" })
+                ]
+              }
+            )
+          ] }, proj)) })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "mt-2 bg-gray-800 rounded p-3", children: [
           /* @__PURE__ */ jsx("h3", { className: "text-sm font-medium text-gray-300 mb-2", children: "IMBH Physics" }),
+          /* @__PURE__ */ jsxs("div", { className: "mb-3", children: [
+            /* @__PURE__ */ jsx("label", { className: "block text-xs text-gray-400 mb-1", children: "Preset Config" }),
+            /* @__PURE__ */ jsxs(
+              "select",
+              {
+                value: selectedPresetId ?? "",
+                onChange: (e) => setSelectedPresetId(e.target.value || null),
+                className: "w-full bg-gray-700 text-gray-200 text-xs rounded px-2 py-1 border border-gray-600",
+                children: [
+                  /* @__PURE__ */ jsx("option", { value: "", children: "Default (from simulation)" }),
+                  PRESET_SCENARIOS.map((preset) => /* @__PURE__ */ jsx("option", { value: preset.id, children: preset.name }, preset.id))
+                ]
+              }
+            )
+          ] }),
           /* @__PURE__ */ jsxs("div", { className: "space-y-2 text-xs", children: [
             /* @__PURE__ */ jsxs("label", { className: "flex items-center gap-2 cursor-pointer", children: [
               /* @__PURE__ */ jsx(
@@ -4275,6 +5692,18 @@ function Dashboard({
                 }
               ),
               /* @__PURE__ */ jsx("span", { className: "text-gray-300", children: "Show Galactic Markers" })
+            ] }),
+            /* @__PURE__ */ jsxs("label", { className: "flex items-center gap-2 cursor-pointer", title: "Show text labels on all markers and arrows", children: [
+              /* @__PURE__ */ jsx(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: showLabels,
+                  onChange: (e) => setShowLabels(e.target.checked),
+                  className: "rounded"
+                }
+              ),
+              /* @__PURE__ */ jsx("span", { className: "text-gray-300", children: "Show Labels" })
             ] }),
             /* @__PURE__ */ jsxs("label", { className: "flex items-center gap-2 cursor-pointer", title: "Show schematic Milky Way disk with Sun at 8 kpc from GC", children: [
               /* @__PURE__ */ jsx(
@@ -4416,17 +5845,17 @@ function Dashboard({
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "flex-1 flex flex-col overflow-hidden", children: [
-        /* @__PURE__ */ jsxs("div", { className: "flex-1 flex overflow-hidden", children: [
-          /* @__PURE__ */ jsxs("div", { className: `flex-1 ${showProjections ? "" : "w-full"} relative`, children: [
-            isLoading && !currentFrame ? /* @__PURE__ */ jsx("div", { className: "flex items-center justify-center h-full bg-gray-900 text-gray-400", children: /* @__PURE__ */ jsxs("div", { className: "text-center", children: [
+      /* @__PURE__ */ jsx("div", { className: "flex-1 overflow-hidden", children: /* @__PURE__ */ jsxs(PanelGroup, { direction: "vertical", className: "h-full", children: [
+        /* @__PURE__ */ jsx(Panel, { defaultSize: 50, minSize: 25, children: /* @__PURE__ */ jsxs(PanelGroup, { direction: "horizontal", className: "h-full", children: [
+          /* @__PURE__ */ jsx(Panel, { defaultSize: 50, minSize: 25, children: /* @__PURE__ */ jsxs("div", { className: "h-full relative bg-gray-900", children: [
+            isLoading && !currentFrame ? /* @__PURE__ */ jsx("div", { className: "flex items-center justify-center h-full text-gray-400", children: /* @__PURE__ */ jsxs("div", { className: "text-center", children: [
               /* @__PURE__ */ jsx("div", { className: "animate-spin text-2xl mb-2", children: "⏳" }),
               /* @__PURE__ */ jsxs("div", { children: [
                 "Loading frame ",
                 currentFrameIndex,
                 "..."
               ] })
-            ] }) }) : useImperativeMode ? /* @__PURE__ */ jsx(
+            ] }) }) : /* @__PURE__ */ jsx(
               ParticleViewer3DImperative,
               {
                 framesRef,
@@ -4439,7 +5868,7 @@ function Dashboard({
                 showAxes,
                 showBoundingBox,
                 boundingBox: simulation.boundingBox,
-                className: "h-full",
+                className: "h-full w-full",
                 onFpsUpdate: setCurrentFps,
                 globalColorRange: globalColorStats,
                 imbhPhysics,
@@ -4447,10 +5876,10 @@ function Dashboard({
                 showTrajectory,
                 showRadii,
                 showGalacticMarkers,
+                showLabels,
                 cameraMode,
                 galacticConfig: {
                   distanceToGC: 60,
-                  // ~60 pc from Galactic Center
                   galacticLongitude: -0.398,
                   galacticLatitude: -0.224,
                   inclination: simulation?.imbhPhysics?.inclination ?? 70,
@@ -4458,87 +5887,143 @@ function Dashboard({
                   lsrVelocity: simulation?.imbhPhysics?.lsrVelocity ?? -120,
                   showGalaxyDisk,
                   showSolarSystem,
-                  // Physical rotation: Sun orbits GC at V_circ = 220 km/s, period ~220 Myr
-                  // For visualization: 2π rad / (220 Myr) ≈ 2.86e-17 rad/s (too slow to see)
-                  // We use a visual speed: 0.1 rad/s = ~63 seconds per revolution
-                  // Speed multiplier adjusts this: higher = faster animation
                   galaxyRotationSpeed: animateGalaxy ? 0.1 * galaxyAnimationSpeed : 0
                 }
               }
-            ) : /* @__PURE__ */ jsx(
-              ParticleViewer3D,
-              {
-                frame: currentFrame,
-                colorField,
-                colorMap,
-                pointSize,
-                opacity,
-                showAxes,
-                showBoundingBox,
-                boundingBox: simulation.boundingBox,
-                className: "h-full"
-              }
             ),
-            useImperativeMode && /* @__PURE__ */ jsxs("div", { className: "absolute bottom-2 right-2 text-green-400 text-xs font-mono bg-black/50 px-2 py-1 rounded", children: [
+            /* @__PURE__ */ jsxs("div", { className: "absolute bottom-2 right-2 text-green-400 text-xs font-mono bg-black/50 px-2 py-1 rounded", children: [
               "FPS: ",
               currentFps
-            ] })
-          ] }),
-          showProjections && /* @__PURE__ */ jsxs("div", { className: "w-64 shrink-0 flex flex-col gap-1 p-1 overflow-y-auto border-l border-gray-700", children: [
-            /* @__PURE__ */ jsx(
-              Projection2D,
-              {
-                frame: currentFrame,
-                projection: "xy",
-                colorField,
-                colorMap,
-                width: 240,
-                height: 150
-              }
-            ),
-            /* @__PURE__ */ jsx(
-              Projection2D,
-              {
-                frame: currentFrame,
-                projection: "xz",
-                colorField,
-                colorMap,
-                width: 240,
-                height: 150
-              }
-            ),
-            /* @__PURE__ */ jsx(
-              Projection2D,
-              {
-                frame: currentFrame,
-                projection: "yz",
-                colorField,
-                colorMap,
-                width: 240,
-                height: 150
-              }
-            )
+            ] }),
+            /* @__PURE__ */ jsx("div", { className: "absolute top-2 left-2 text-cyan-400 text-xs font-bold bg-black/60 px-2 py-1 rounded", children: "3D VIEW" })
+          ] }) }),
+          showProjections && /* @__PURE__ */ jsxs(Fragment, { children: [
+            /* @__PURE__ */ jsx(ResizeHandle, { direction: "horizontal" }),
+            /* @__PURE__ */ jsx(Panel, { defaultSize: 50, minSize: 25, children: /* @__PURE__ */ jsxs("div", { ref: projectionPanelRef, className: "h-full bg-gray-900 p-2 flex flex-col overflow-hidden", children: [
+              /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between mb-1 shrink-0", children: [
+                /* @__PURE__ */ jsx("div", { className: "text-cyan-400 text-xs font-bold", children: "3D PROJECTIONS" }),
+                /* @__PURE__ */ jsx(
+                  "button",
+                  {
+                    onClick: resetAllProjectionCameras,
+                    className: "px-1.5 py-0.5 text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors",
+                    title: "Reset all cameras to default view",
+                    children: "⟲ Reset All"
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxs("div", { className: "flex-1 flex flex-col gap-1 min-h-0 overflow-hidden", children: [
+                /* @__PURE__ */ jsx("div", { className: "flex-1 min-h-0 overflow-hidden", children: /* @__PURE__ */ jsx(
+                  Projection3DInteractive,
+                  {
+                    ref: projectionXYRef,
+                    framesRef,
+                    frameIndexRef,
+                    projection: "xy",
+                    colorField: useMultiColorField ? projectionColorFields.xy : colorField,
+                    colorMap,
+                    width: panelDimensions.projection.width,
+                    height: panelDimensions.projection.height,
+                    showShockSampling: showShockDiagnostics,
+                    shockSamplingParams: { columnRadius: 0.15, sliceThickness: 0.15 },
+                    globalColorRange: globalColorStats,
+                    logScale: useLogScale,
+                    particleSize: pointSize * 100
+                  }
+                ) }),
+                /* @__PURE__ */ jsx("div", { className: "flex-1 min-h-0 overflow-hidden", children: /* @__PURE__ */ jsx(
+                  Projection3DInteractive,
+                  {
+                    ref: projectionXZRef,
+                    framesRef,
+                    frameIndexRef,
+                    projection: "xz",
+                    colorField: useMultiColorField ? projectionColorFields.xz : colorField,
+                    colorMap,
+                    width: panelDimensions.projection.width,
+                    height: panelDimensions.projection.height,
+                    showShockSampling: showShockDiagnostics,
+                    shockSamplingParams: { columnRadius: 0.15, sliceThickness: 0.15 },
+                    globalColorRange: globalColorStats,
+                    logScale: useLogScale,
+                    particleSize: pointSize * 100
+                  }
+                ) }),
+                /* @__PURE__ */ jsx("div", { className: "flex-1 min-h-0 overflow-hidden", children: /* @__PURE__ */ jsx(
+                  Projection3DInteractive,
+                  {
+                    ref: projectionYZRef,
+                    framesRef,
+                    frameIndexRef,
+                    projection: "yz",
+                    colorField: useMultiColorField ? projectionColorFields.yz : colorField,
+                    colorMap,
+                    width: panelDimensions.projection.width,
+                    height: panelDimensions.projection.height,
+                    showShockSampling: showShockDiagnostics,
+                    shockSamplingParams: { columnRadius: 0.15, sliceThickness: 0.15 },
+                    globalColorRange: globalColorStats,
+                    logScale: useLogScale,
+                    particleSize: pointSize * 100
+                  }
+                ) })
+              ] })
+            ] }) })
           ] })
-        ] }),
-        showCharts && statistics.length > 0 && /* @__PURE__ */ jsxs("div", { className: "h-40 shrink-0 border-t border-gray-700 flex gap-2 p-1 overflow-x-auto", children: [
-          /* @__PURE__ */ jsx(
-            EnergyChart,
-            {
-              statistics,
-              currentFrame: currentFrameIndex,
-              className: "flex-1 min-w-[250px]"
-            }
-          ),
-          /* @__PURE__ */ jsx(
-            MomentumChart,
-            {
-              statistics,
-              currentFrame: currentFrameIndex,
-              className: "flex-1 min-w-[250px]"
-            }
-          )
+        ] }) }),
+        (showShockDiagnostics || showCharts) && /* @__PURE__ */ jsxs(Fragment, { children: [
+          /* @__PURE__ */ jsx(ResizeHandle, { direction: "vertical" }),
+          /* @__PURE__ */ jsx(Panel, { defaultSize: 50, minSize: 25, children: /* @__PURE__ */ jsxs(PanelGroup, { direction: "horizontal", className: "h-full", children: [
+            showShockDiagnostics && /* @__PURE__ */ jsx(Panel, { defaultSize: showCharts ? 50 : 100, minSize: 25, children: /* @__PURE__ */ jsxs("div", { ref: shockPanelRef, className: "h-full bg-gray-900 p-2 overflow-hidden flex flex-col", children: [
+              /* @__PURE__ */ jsxs("div", { className: "shrink-0 mb-1", children: [
+                /* @__PURE__ */ jsx("div", { className: "text-cyan-400 text-xs font-bold", children: "SHOCK DIAGNOSTICS" }),
+                /* @__PURE__ */ jsxs("div", { className: "text-gray-500 text-[10px] leading-tight mt-0.5", children: [
+                  /* @__PURE__ */ jsx("span", { className: "text-red-400", children: "●" }),
+                  " Z-profile: cylinder r<0.15 pc around CoM (vertical compression)",
+                  /* @__PURE__ */ jsx("span", { className: "mx-1", children: "|" }),
+                  /* @__PURE__ */ jsx("span", { className: "text-teal-400", children: "━" }),
+                  " X-profile: slice |y|,|z|<0.15 pc (tidal stretching)"
+                ] })
+              ] }),
+              /* @__PURE__ */ jsx("div", { className: "flex-1 min-h-0", children: /* @__PURE__ */ jsx(
+                ShockDiagnosticsPanelImperative,
+                {
+                  framesRef,
+                  frameIndexRef,
+                  initialFrame: frames.get(0) ?? null,
+                  width: panelDimensions.shock.width,
+                  height: panelDimensions.shock.height,
+                  className: "w-full"
+                }
+              ) })
+            ] }) }),
+            showCharts && statistics.length > 0 && /* @__PURE__ */ jsxs(Fragment, { children: [
+              showShockDiagnostics && /* @__PURE__ */ jsx(ResizeHandle, { direction: "horizontal" }),
+              /* @__PURE__ */ jsx(Panel, { defaultSize: showShockDiagnostics ? 50 : 100, minSize: 25, children: /* @__PURE__ */ jsxs("div", { className: "h-full bg-gray-900 p-2 flex flex-col gap-2 overflow-hidden", children: [
+                /* @__PURE__ */ jsx("div", { className: "text-cyan-400 text-xs font-bold", children: "ENERGY & MOMENTUM" }),
+                /* @__PURE__ */ jsxs("div", { className: "flex-1 flex flex-col gap-2 min-h-0", children: [
+                  /* @__PURE__ */ jsx("div", { className: "flex-1 min-h-0", children: /* @__PURE__ */ jsx(
+                    EnergyChart,
+                    {
+                      statistics,
+                      currentFrame: currentFrameIndex,
+                      className: "h-full"
+                    }
+                  ) }),
+                  /* @__PURE__ */ jsx("div", { className: "flex-1 min-h-0", children: /* @__PURE__ */ jsx(
+                    MomentumChart,
+                    {
+                      statistics,
+                      currentFrame: currentFrameIndex,
+                      className: "h-full"
+                    }
+                  ) })
+                ] })
+              ] }) })
+            ] })
+          ] }) })
         ] })
-      ] })
+      ] }) })
     ] }),
     /* @__PURE__ */ jsx("div", { className: "shrink-0 border-t border-gray-700", children: /* @__PURE__ */ jsx(
       PlaybackControls,
@@ -4549,7 +6034,7 @@ function Dashboard({
         onFrameChange: handleFrameChange,
         onPlayPauseChange: handlePlayPauseChange,
         isFrameReady: (frame) => frames.has(frame),
-        imperativeMode: useImperativeMode,
+        imperativeMode: true,
         frameIndexRef,
         playbackSpeedRef
       }
@@ -4942,9 +6427,9 @@ async function findSimulationsServer() {
   const simulations = [];
   const startTime = Date.now();
   const categoryDirs = ["CAT1", "CAT2", "CAT3", "CAT_OKA"];
-  const imbhResultsDir = path2.join(dataRoot, "sample", "imbh_cloud", "results");
+  const imbhResultsDir = path2.join(dataRoot, "simulations", "astrophysics", "imbh_cloud", "results");
   if (fs2.existsSync(imbhResultsDir)) {
-    console.log("📁 Scanning sample/imbh_cloud/results/ categories...");
+    console.log("📁 Scanning simulations/astrophysics/imbh_cloud/results/ categories...");
     for (const catName of categoryDirs) {
       const catDir = path2.join(imbhResultsDir, catName);
       if (!fs2.existsSync(catDir)) {
@@ -5019,15 +6504,15 @@ const Route$2 = createFileRoute("/api/simulations/$simId")({
           const simPath = decodeURIComponent(simId).replace(/\|/g, "/");
           const pathParts = simPath.split("/");
           const possiblePaths = [
-            path.join(dataRoot, "sample", simPath, "viz_data"),
-            path.join(dataRoot, "sample", simPath, "results", "viz_data"),
+            path.join(dataRoot, "simulations", "astrophysics", simPath, "viz_data"),
+            path.join(dataRoot, "simulations", "astrophysics", simPath, "results", "viz_data"),
             path.join(dataRoot, "lane_emden", "results", simPath, "viz_data"),
             path.join(dataRoot, simPath, "viz_data")
           ];
           if (pathParts.length >= 3) {
             const [testName, ...rest] = pathParts;
             possiblePaths.unshift(
-              path.join(dataRoot, "sample", testName, "results", ...rest, "viz_data")
+              path.join(dataRoot, "simulations", "astrophysics", testName, "results", ...rest, "viz_data")
             );
           }
           let dataPath = null;
@@ -5108,15 +6593,15 @@ const Route$1 = createFileRoute("/api/simulations/$simId/frames/$frameId")({
           console.log(`   Data root: ${dataRoot}`);
           const pathParts = simPath.split("/");
           const possiblePaths = [
-            path2.join(dataRoot, "sample", simPath, "viz_data"),
-            path2.join(dataRoot, "sample", simPath, "results", "viz_data"),
+            path2.join(dataRoot, "simulations", "astrophysics", simPath, "viz_data"),
+            path2.join(dataRoot, "simulations", "astrophysics", simPath, "results", "viz_data"),
             path2.join(dataRoot, "lane_emden", "results", simPath, "viz_data"),
             path2.join(dataRoot, simPath, "viz_data")
           ];
           if (pathParts.length >= 3) {
             const [testName, ...rest] = pathParts;
             possiblePaths.unshift(
-              path2.join(dataRoot, "sample", testName, "results", ...rest, "viz_data")
+              path2.join(dataRoot, "simulations", "astrophysics", testName, "results", ...rest, "viz_data")
             );
           }
           console.log(`   Possible paths:`);

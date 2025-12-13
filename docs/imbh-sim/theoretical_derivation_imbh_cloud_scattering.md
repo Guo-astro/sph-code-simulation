@@ -2323,6 +2323,235 @@ $$\tau_\mathrm{AD} = \frac{L}{v_\mathrm{AD}} = \frac{L \gamma_\mathrm{AD} \rho_i
 
 ---
 
+## 9. Corrected Oka et al. (2017) Orbital Analysis
+
+### 9.1 Discovery of Initial Condition Mismatch
+
+A detailed analysis of the Oka et al. (2017) Methods section revealed that the original CAT_OKA configuration used **incorrect initial conditions**. This section documents the correction.
+
+**Oka et al. (2017) exact parameters (from Methods section):**
+
+| Parameter | Paper Value | Original Config | Status |
+|-----------|-------------|-----------------|--------|
+| Initial position $(X_0, Y_0)$ | (9.8, -0.65) pc | (20.0, -5.17) pc | **WRONG** |
+| Initial velocity $(v_X, v_Y)$ | (-8.19, 0.4) km/s | (-10.18, 5.05) km/s | **WRONG** |
+| Cloud dispersion $\sigma_r$ | 0.2 pc | 1.13 pc | Different |
+| Velocity dispersion | 1.43 km/s | N/A | Missing |
+| BH mass | $10^5\,M_\odot$ | $10^5\,M_\odot$ | Correct |
+| Inclination | 70° | 70° | Correct |
+| Position angle | 41.6° | 41.6° | Correct |
+| $V_\mathrm{LSR}$ | -120 km/s | -120 km/s | Correct |
+
+### 9.2 Physical Understanding of Oka's N-body Simulation
+
+The key insight is that Oka et al. used **test particles with velocity dispersion**, not a single trajectory:
+
+**Mean orbital parameters:**
+$$r_0 = \sqrt{9.8^2 + 0.65^2} = 9.82\,\text{pc}$$
+$$v_0 = \sqrt{8.19^2 + 0.4^2} = 8.20\,\text{km/s}$$
+
+**Angular momentum (mean):**
+$$h_\mathrm{mean} = X_0 v_Y - Y_0 v_X = 9.8 \times 0.4 - (-0.65) \times (-8.19) = 3.92 - 5.32 = -1.40\,\text{pc}\cdot\text{km/s}$$
+
+This extremely small angular momentum implies a **nearly radial mean orbit** with pericentre:
+$$r_\mathrm{peri,mean} = \frac{h^2}{GM_\mathrm{BH}(1+e)} \approx 0.002\,\text{pc}$$
+
+**However**, the cloud has velocity dispersion $\sigma_v = 1.43\,\text{km/s}$ and radial dispersion $\sigma_r = 0.2\,\text{pc}$. Individual particles have angular momentum spread:
+$$\delta h \sim r_0 \sigma_v + \sigma_r v_0 \sim 9.8 \times 1.43 + 0.2 \times 8.2 \sim 15.7\,\text{pc}\cdot\text{km/s}$$
+
+This means particles span a range of pericentres:
+
+| Particle $h$ (pc·km/s) | Eccentricity $e$ | Pericentre $r_\mathrm{peri}$ (pc) |
+|------------------------|------------------|-----------------------------------|
+| 1.4 (mean) | 0.9999 | 0.002 |
+| 5 | 0.9985 | 0.03 |
+| 10 | 0.9940 | 0.11 |
+| 15 | 0.9863 | 0.25 |
+| 20 | 0.9756 | 0.45 |
+
+**Physical interpretation:** The surviving HCN clump in Oka's simulation consists of particles with **larger angular momentum** that had pericentres of 0.2-0.5 pc, while particles with low angular momentum plunged closer to the BH and were strongly accelerated (forming the high-velocity tails in the p-v diagram).
+
+### 9.3 Implications for SPH Simulation
+
+For our SPH simulation with cloud radius $R = 1.13\,\text{pc}$ (vs Oka's $\sigma_r = 0.2\,\text{pc}$):
+
+1. **Larger angular momentum spread**: $\delta h_\mathrm{SPH} \sim r_0 \sigma_v + R \times v_0 \sim 23\,\text{pc}\cdot\text{km/s}$
+
+2. **Different dynamics**: Our larger cloud will experience:
+   - More extreme tidal stretching
+   - Wider range of particle pericentres
+   - Potentially different fragmentation behavior
+
+3. **Recommended approach**:
+   - Use Oka's exact initial conditions for the cloud center-of-mass
+   - Generate new IC with smaller cloud ($\sigma_r = 0.2\,\text{pc}$) for accurate reproduction
+   - Or scale orbital parameters to match tidal strength ratio
+
+### 9.4 Corrected Configuration
+
+A corrected configuration file `oka_corrected.json` has been created with:
+```json
+{
+  "initialCondition": {
+    "transform": {
+      "translate": [9.8, -0.65, 0.0],
+      "velocity_boost": [-8.19, 0.4, 0.0]
+    }
+  }
+}
+```
+
+---
+
+## 10. Plan for Radio Observation Reproduction (Figures 2 & 3)
+
+### 10.1 Overview: What Needs to be Reproduced
+
+**Figure 2 (p-v diagrams):**
+- HCN J=3-2 and J=4-3 emission contours (observed data)
+- SPH particle positions overlaid as dots
+- Three slit orientations with different position angles
+
+**Figure 3 (continuum spectrum):**
+- Radio/X-ray spectrum of CO-0.40-0.22*
+- This is **continuum emission from accretion**, NOT molecular lines
+- Cannot be reproduced from pure hydrodynamic simulation (requires RIAF model)
+
+### 10.2 Three-Level Approach for p-v Diagram
+
+#### Level 1: Particle Projection (What Oka Did)
+
+**Method:** Simply project SPH particle positions to (position, velocity) space.
+
+**Implementation:**
+```python
+# Transform to observer frame
+R = rotation_matrix(inclination=70°, PA=41.6°)
+pos_obs = R @ positions
+vel_obs = R @ velocities
+
+# Line-of-sight velocity
+v_LOS = vel_obs[:, 2] + V_LSR  # V_LSR = -120 km/s
+
+# Position along slit (for given PA)
+pos_slit = pos_obs[:, 0] * cos(slit_PA) + pos_obs[:, 1] * sin(slit_PA)
+
+# Plot (pos_slit, v_LOS) weighted by density
+```
+
+**Pros:** Simple, fast, matches Oka's methodology
+**Cons:** No actual emission physics, no optical depth
+
+#### Level 2: LTE Emission with KI2000 Equilibrium
+
+**Method:** Use KI2000 equilibrium tables for molecular abundances, apply LTE radiative transfer.
+
+**Molecular abundances from KI2000:**
+- $X(\mathrm{CO})$ as function of $(n, N_H)$ - available in extracted data
+- $X(\mathrm{H}_2)$ as function of $(n, N_H)$ - available in extracted data
+- $X(\mathrm{HCN})$ - NOT in KI2000, need prescription
+
+**HCN abundance prescription:**
+$$X(\mathrm{HCN}) = X_0 \times \min\left(1, \frac{n}{n_\mathrm{crit}}\right)^{0.5}$$
+
+where $X_0 \sim 10^{-8}$ and $n_\mathrm{crit} = 3 \times 10^6\,\text{cm}^{-3}$.
+
+**LTE emission:**
+$$I_\nu \propto N_\mathrm{mol} \times A_{ul} \times \frac{g_u \exp(-E_u/kT)}{Q(T)}$$
+
+**Implementation in sph-viz frontend:**
+1. Compute temperature from internal energy: $T = (\gamma-1) u \mu m_H / k_B$
+2. Look up CO abundance from KI2000 tables
+3. Apply HCN prescription based on density
+4. Weight particles by emissivity and sum to p-v grid
+5. Convolve with beam
+
+#### Level 3: Full Non-LTE Radiative Transfer
+
+**Method:** Export SPH data to RADMC-3D, run full line RT.
+
+**Steps:**
+1. Interpolate SPH particles to regular grid
+2. Export density, temperature, velocity fields
+3. Add molecular abundances (CO, HCN)
+4. Run RADMC-3D with LVG excitation
+5. Generate synthetic datacube
+6. Extract p-v diagrams along slits
+7. Convolve with ALMA beam
+
+**Advantages:** Handles optical depth, non-LTE effects, proper beam convolution
+
+### 10.3 Timescale Diagnostics for Equilibrium Validation
+
+To verify that KI2000 equilibrium is applicable, we need to compare relevant timescales at each SPH particle location.
+
+**Key timescales to compute:**
+
+| Timescale | Formula | Equilibrium Criterion |
+|-----------|---------|----------------------|
+| Dynamical | $\tau_\mathrm{dyn} = \sqrt{R^3/(GM)}$ | - |
+| Cooling | $\tau_\mathrm{cool} = u / \dot{u}_\mathrm{cool}$ | $\tau_\mathrm{cool} \ll \tau_\mathrm{dyn}$ |
+| Heating | $\tau_\mathrm{heat} = u / \dot{u}_\mathrm{heat}$ | $\tau_\mathrm{heat} \ll \tau_\mathrm{dyn}$ |
+| Chemical | $\tau_\mathrm{chem} \sim (k_\mathrm{form} n)^{-1}$ | $\tau_\mathrm{chem} \ll \tau_\mathrm{dyn}$ |
+| Tidal | $\tau_\mathrm{tidal} = r / v_\mathrm{peri}$ | - |
+
+**Frontend diagnostic plots needed:**
+1. **Histogram of $\tau_\mathrm{cool}/\tau_\mathrm{dyn}$** - should be $\ll 1$ for thermal equilibrium
+2. **Histogram of $\tau_\mathrm{chem}/\tau_\mathrm{dyn}$** - should be $\ll 1$ for chemical equilibrium
+3. **Spatial map of equilibrium validity** - color particles by whether they satisfy equilibrium
+
+### 10.4 Interactive p-v Diagram Implementation
+
+**Frontend requirements:**
+
+1. **Observer geometry controls:**
+   - Inclination slider: 0° to 90° (default 70°)
+   - Position angle slider: 0° to 360° (default 41.6°)
+   - V_LSR slider: -200 to 0 km/s (default -120)
+   - Slit position offset
+   - Slit width
+
+2. **Real-time p-v computation:**
+   - Transform particle coordinates on GPU (Three.js)
+   - Compute v_LOS for all particles
+   - Bin to 2D histogram
+   - Apply density weighting
+
+3. **Visualization options:**
+   - Contour levels
+   - Color map selection
+   - Log/linear scale
+   - Overlay observed data (if available)
+   - Best-fit finder (minimize residuals)
+
+### 10.5 Equilibrium Chemistry with KI2000
+
+**Available KI2000 data (extracted):**
+
+| File | Contents |
+|------|----------|
+| `f1a_temperature_N19.txt` | T(n) for $N_H = 10^{19}$ |
+| `f1a_temperature_N20.txt` | T(n) for $N_H = 10^{20}$ |
+| `f1b_x_H2_N19/N20.txt` | $X(\mathrm{H}_2)(n)$ |
+| `f1b_x_CO_N19/N20.txt` | $X(\mathrm{CO})(n)$ |
+| `f1b_x_e_N19/N20.txt` | $X(e^-)(n)$ |
+
+**Interpolation approach:**
+1. For each SPH particle with density $n$ and column density $N_H$:
+2. Interpolate between $N_H = 10^{19}$ and $10^{20}$ curves
+3. Get equilibrium $T$, $X(\mathrm{H}_2)$, $X(\mathrm{CO})$
+4. Compare with actual SPH temperature to assess equilibrium
+
+**When equilibrium is valid:**
+- Use KI2000 abundances directly
+- Post-process with simple LTE RT
+
+**When equilibrium fails:**
+- Need time-dependent chemistry (expensive)
+- Or use kinematic approach (ignore chemistry)
+
+---
+
 ## References
 
 1. Oka, T., et al. (2017). "Millimetre-wave Emission from an Intermediate-Mass Black Hole Candidate in the Milky Way." Nature Astronomy.

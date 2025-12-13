@@ -34,17 +34,17 @@ export const Route = createFileRoute('/api/simulations/$simId')({
           // The actual path is simulations/astrophysics/imbh_cloud/results/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph/viz_data
           const pathParts = simPath.split('/')
           const possiblePaths = [
-            path.join(dataRoot, 'sample', simPath, 'viz_data'),
-            path.join(dataRoot, 'sample', simPath, 'results', 'viz_data'),
+            path.join(dataRoot, 'simulations', 'astrophysics', simPath, 'viz_data'),
+            path.join(dataRoot, 'simulations', 'astrophysics', simPath, 'results', 'viz_data'),
             path.join(dataRoot, 'lane_emden', 'results', simPath, 'viz_data'),
             path.join(dataRoot, simPath, 'viz_data'),
           ]
           
-          // Handle nested structure: testName/scenario/method -> simulations/category/testName/results/scenario/method
+          // Handle nested structure: testName/scenario/method -> simulations/astrophysics/testName/results/scenario/method
           if (pathParts.length >= 3) {
             const [testName, ...rest] = pathParts
             possiblePaths.unshift(
-              path.join(dataRoot, 'sample', testName, 'results', ...rest, 'viz_data')
+              path.join(dataRoot, 'simulations', 'astrophysics', testName, 'results', ...rest, 'viz_data')
             )
           }
 
