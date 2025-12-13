@@ -1194,76 +1194,13 @@ void Solver::initialize()
                 std::cout << "  Continuing from snapshot time: " << m_sim->get_time() << std::endl;
             }
             
-            // Apply cloud initial position/velocity shift if configured
+            // NOTE: Cloud initial position/velocity transform is NOT applied on resume.
+            // The particles already have their evolved positions and velocities from the
+            // snapshot. The transform is only applied when creating fresh initial conditions.
             if(m_has_cloud_initial_conditions) {
-                std::cout << "\n=== Applying Cloud Initial Conditions ===" << std::endl;
-                
-                // Calculate current cloud center of mass
-                vec_t cloud_com_pos(0.0);
-                vec_t cloud_com_vel(0.0);
-                real total_mass = 0.0;
-                
-                const size_t particle_num = m_sim->get_particle_num();
-                auto& particles = m_sim->get_particles();
-                
-                for(size_t i = 0; i < particle_num; ++i) {
-                    total_mass += particles[i].mass;
-                    cloud_com_pos += particles[i].pos * particles[i].mass;
-                    cloud_com_vel += particles[i].vel * particles[i].mass;
-                }
-                cloud_com_pos /= total_mass;
-                cloud_com_vel /= total_mass;
-                
-                // Calculate required shift
-                vec_t pos_shift = m_cloud_initial_position - cloud_com_pos;
-                vec_t vel_shift = m_cloud_initial_velocity - cloud_com_vel;
-                
-                // Convert code units to physical units for display
-                real cloud_com_pos_pc[DIM], target_pos_pc[DIM];
-                for(int d = 0; d < DIM; ++d) {
-                    cloud_com_pos_pc[d] = m_units.to_physical_length(cloud_com_pos[d]) / UnitSystem::PC_TO_CM;
-                    target_pos_pc[d] = m_units.to_physical_length(m_cloud_initial_position[d]) / UnitSystem::PC_TO_CM;
-                }
-                real cloud_com_vel_kms[DIM], target_vel_kms[DIM], shift_pc[DIM];
-                for(int d = 0; d < DIM; ++d) {
-                    cloud_com_vel_kms[d] = m_units.to_physical_velocity(cloud_com_vel[d]) / UnitSystem::KM_TO_CM;
-                    target_vel_kms[d] = m_units.to_physical_velocity(m_cloud_initial_velocity[d]) / UnitSystem::KM_TO_CM;
-                    shift_pc[d] = m_units.to_physical_length(pos_shift[d]) / UnitSystem::PC_TO_CM;
-                }
-                
-                std::cout << "  Current cloud COM position: [" << cloud_com_pos_pc[0];
-                for(int d = 1; d < DIM; ++d) std::cout << ", " << cloud_com_pos_pc[d];
-                std::cout << "] pc" << std::endl;
-                
-                std::cout << "  Target cloud position: [" << target_pos_pc[0];
-                for(int d = 1; d < DIM; ++d) std::cout << ", " << target_pos_pc[d];
-                std::cout << "] pc" << std::endl;
-                
-                std::cout << "  Current cloud COM velocity: [" << cloud_com_vel_kms[0];
-                for(int d = 1; d < DIM; ++d) std::cout << ", " << cloud_com_vel_kms[d];
-                std::cout << "] km/s" << std::endl;
-                
-                std::cout << "  Target cloud velocity: [" << target_vel_kms[0];
-                for(int d = 1; d < DIM; ++d) std::cout << ", " << m_cloud_initial_velocity[d];
-                std::cout << "] km/s" << std::endl;
-                
-                // Apply shift to all particles
-                for(size_t i = 0; i < particle_num; ++i) {
-                    particles[i].pos += pos_shift;
-                    particles[i].vel += vel_shift;
-                }
-                
-                std::cout << "✓ Cloud shifted by: [" << shift_pc[0];
-                for(int d = 1; d < DIM; ++d) std::cout << ", " << shift_pc[d];
-                std::cout << "] pc" << std::endl;
-                
-                real vel_shift_kms[DIM];
-                for(int d = 0; d < DIM; ++d) {
-                    vel_shift_kms[d] = m_units.to_physical_velocity(vel_shift[d]) / UnitSystem::KM_TO_CM;
-                }
-                std::cout << "✓ Cloud velocity adjusted by: [" << vel_shift_kms[0];
-                for(int d = 1; d < DIM; ++d) std::cout << ", " << vel_shift_kms[d];
-                std::cout << "] km/s" << std::endl;
+                std::cout << "\n=== Cloud Initial Conditions (NOT applied on resume) ===" << std::endl;
+                std::cout << "  On resume, particle positions/velocities are taken from snapshot." << std::endl;
+                std::cout << "  initialCondition.transform is IGNORED on resume." << std::endl;
                 std::cout << "=========================================\n" << std::endl;
             }
             
@@ -1292,24 +1229,24 @@ void Solver::initialize()
                 m_sample_parameters["R"] = snapshot_data.R;
                 m_sample_parameters["M_total"] = snapshot_data.M_total;
                 std::cout << "  - Restored Lane-Emden parameters from snapshot" << std::endl;
-                
-                // For resume, find the highest existing snapshot number and continue from there
-                // This handles cases where output frequency changed between runs
-                int max_existing = 0;
-                for(int i = 0; i < 10000; ++i) {
-                    std::ostringstream ss;
-                    ss << m_output_dir << "/snapshot_" << std::setfill('0') << std::setw(4) << i << ".csv";
-                    std::ifstream test(ss.str());
-                    if(test.good()) {
-                        max_existing = i;
-                    } else {
-                        break;  // Stop at first missing snapshot
-                    }
-                }
-                m_snapshot_counter = max_existing + 1;
-                std::cout << "  - Snapshot counter set to: " << m_snapshot_counter << " (next: snapshot_" 
-                          << std::setfill('0') << std::setw(4) << m_snapshot_counter << ".csv)" << std::endl;
             }
+            
+            // For ALL resumes, find the highest existing snapshot number and continue from there
+            // This handles cases where output frequency changed between runs and avoids overwriting
+            int max_existing = 0;
+            for(int i = 0; i < 10000; ++i) {
+                std::ostringstream ss;
+                ss << m_output_dir << "/snapshot_" << std::setfill('0') << std::setw(4) << i << ".csv";
+                std::ifstream test(ss.str());
+                if(test.good()) {
+                    max_existing = i;
+                } else {
+                    break;  // Stop at first missing snapshot
+                }
+            }
+            m_snapshot_counter = max_existing + 1;
+            std::cout << "  - Snapshot counter set to: " << m_snapshot_counter << " (next: snapshot_" 
+                      << std::setfill('0') << std::setw(4) << m_snapshot_counter << ".csv)" << std::endl;
         } else {
             std::cerr << "Warning: Failed to load snapshot, starting from scratch" << std::endl;
         }

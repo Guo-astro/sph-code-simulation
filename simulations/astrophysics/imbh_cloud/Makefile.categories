@@ -25,11 +25,24 @@
 # USAGE
 # ============================================================================
 #
-# Single simulation:
+# Single simulation (run + animation):
 #   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT1_A_b3
 #   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT2_B_b3
 #   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT3_C_b3
 #   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT_OKA_A_oka
+#
+# Simulation only (no animation):
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT1_A_b3_run
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT_OKA_A_oka_corrected_run
+#
+# Restart from checkpoint (continue interrupted simulation):
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT_OKA_A_oka_corrected_restart_run
+#
+# Visualization only (after simulation completed):
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT1_A_b3_anim
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT_OKA_A_oka_corrected_anim
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT_OKA_A_oka_3d
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.categories anim3d_all_oka
 #
 # All resolutions for a category/scenario:
 #   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT1_all_b3
@@ -88,6 +101,7 @@ FPS ?= 15
         CAT_OKA_A_oka_3d CAT_OKA_B_oka_3d CAT_OKA_C_oka_3d \
         CAT_OKA_A_oka_corrected_3d CAT_OKA_B_oka_corrected_3d CAT_OKA_C_oka_corrected_3d \
         anim3d_all_oka_corrected \
+        CAT_OKA_A_oka_corrected_restart CAT_OKA_A_oka_corrected_restart_run \
         CAT1_A_b1p5_3d CAT1_A_b3_3d CAT1_A_b6_3d \
         CAT1_B_b1p5_3d CAT1_B_b3_3d CAT1_B_b6_3d \
         CAT1_C_b1p5_3d CAT1_C_b3_3d CAT1_C_b6_3d \
@@ -748,6 +762,22 @@ CAT_OKA_C_oka_corrected_run: check_dim
 
 CAT_OKA_C_oka_corrected_anim:
 	$(call animate_category,CAT_OKA,C,1M,oka_corrected)
+
+# ============================================================================
+# CAT_OKA: RESTART FROM CHECKPOINT
+# ============================================================================
+# Restart simulation from snapshot_0086.csv (t=0.86 code units)
+# Use this to continue an interrupted simulation without losing progress.
+# Output continues to the same directory, new snapshots numbered from where it left off.
+# ============================================================================
+
+# Resolution A (61k) - Restart
+CAT_OKA_A_oka_corrected_restart: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_corrected_restart)
+	$(call animate_category,CAT_OKA,A,61k,oka_corrected)
+
+CAT_OKA_A_oka_corrected_restart_run: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_corrected_restart)
 
 # ============================================================================
 # BATCH TARGETS: All resolutions for a category/scenario

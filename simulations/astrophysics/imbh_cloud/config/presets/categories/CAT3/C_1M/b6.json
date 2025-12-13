@@ -11,7 +11,7 @@
   },
   "physics_summary": {
     "cloud_mass_Msun": 1000,
-    "cloud_radius_pc": 1.13,
+    "cloud_radius_pc": 1.0,
     "bh_mass_Msun": 100000,
     "impact_parameter_pc": 6.0,
     "approach_velocity_kms": 10.0,

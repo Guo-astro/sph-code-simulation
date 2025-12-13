@@ -57,18 +57,6 @@ temp/
 /*.png
 /*.gif
 
-# Auto-generated active config files (copied from presets by Makefiles)
-sample/shock_tube/shock_tube.json
-sample/shock_tube_2d/shock_tube_2d.json
-sample/sedov/sedov.json
-sample/khi/khi.json
-sample/gresho_chan_vortex/gresho_chan_vortex.json
-sample/hydrostatic/hydrostatic.json
-sample/evrard/evrard.json
-sample/pairing_instability/pairing_instability.json
-sample/vacuum/vacuum.json
-sample/strong_shock/strong_shock.json
-sample/pressure_equilibrium/pressure_equilibrium.json
 
 # Legacy config (parameters.json in root)
 parameters.json

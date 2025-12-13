@@ -25,6 +25,7 @@ from matplotlib.colors import LogNorm, Normalize, LinearSegmentedColormap
 from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.patheffects as path_effects
+from scipy.integrate import odeint
 import argparse
 from pathlib import Path
 import glob
@@ -150,9 +151,46 @@ VELOCITY_TO_CGS = 1e5
 TEMP_CONVERSION = MU * M_H / K_B * VELOCITY_TO_CGS**2
 
 # IMBH parameters for analytical estimates
-M_IMBH = 1000.0  # M_sun in code units
+M_IMBH = 100.0  # code units (= 10^5 Msun since 1 code mass = 1000 Msun)
 R_PERI = 3.0  # pc (perihelion distance)
 G_CODE = 1.0  # Gravitational constant in code units
+
+
+def compute_analytic_orbit(M_BH, x0, y0, vx0, vy0, t_array, G=1.0):
+    """
+    Compute analytic Keplerian orbit for a point mass around IMBH.
+    
+    Parameters
+    ----------
+    M_BH : float
+        Black hole mass in code units
+    x0, y0 : float
+        Initial position in pc
+    vx0, vy0 : float
+        Initial velocity in km/s (code units)
+    t_array : array
+        Time array in code units
+    G : float
+        Gravitational constant (default 1.0 for code units)
+    
+    Returns
+    -------
+    x_orbit, y_orbit : arrays
+        Orbit positions at each time
+    """
+    def orbit_eqn(state, t):
+        x, y, vx, vy = state
+        r = np.sqrt(x**2 + y**2)
+        if r < 0.01:  # softening
+            r = 0.01
+        ax = -G * M_BH * x / r**3
+        ay = -G * M_BH * y / r**3
+        return [vx, vy, ax, ay]
+    
+    state0 = [x0, y0, vx0, vy0]
+    solution = odeint(orbit_eqn, state0, t_array)
+    
+    return solution[:, 0], solution[:, 1]
 
 
 # =============================================================================
@@ -449,8 +487,27 @@ def style_dark_axis(ax, xlabel='', ylabel='', title='', is_3d=False):
 # =============================================================================
 
 def create_single_mode_animation(results_dir, output_file, mode='density', 
-                                  xlim=None, ylim=None, fps=15):
-    """Create single panel animation with high-contrast visualization."""
+                                  xlim=None, ylim=None, fps=15, use_com_frame=True):
+    """
+    Create single panel animation with high-contrast visualization.
+    
+    Parameters
+    ----------
+    results_dir : str
+        Directory containing snapshot CSV files
+    output_file : str
+        Output GIF filename
+    mode : str
+        Visualization mode: 'density', 'temperature', 'mach', 'shock'
+    xlim, ylim : tuple or None
+        Axis limits. If use_com_frame=True, these are relative to CoM.
+        Default (-3, 3) for CoM frame, auto-calculated for lab frame.
+    fps : int
+        Frames per second for animation
+    use_com_frame : bool
+        If True, center viewport on cloud's center of mass (cloud stays centered,
+        IMBH marker moves). If False, use lab frame (IMBH at origin).
+    """
     
     snapshot_files = sorted(glob.glob(f"{results_dir}/snapshot_*.csv"))
     if not snapshot_files:
@@ -458,25 +515,36 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
         return False
     
     print(f"Found {len(snapshot_files)} snapshots")
+    print(f"Using {'CoM frame (cloud centered)' if use_com_frame else 'Lab frame (IMBH at origin)'}")
     
     first = load_snapshot(snapshot_files[0])
     if first is None:
         return False
     
-    if xlim is None:
-        pad = 1.0
-        xlim = (first['pos_x'].min() - pad, first['pos_x'].max() + pad)
-    if ylim is None:
-        pad = 1.0
-        ylim = (first['pos_y'].min() - pad, first['pos_y'].max() + pad)
+    # Set default axis limits
+    if use_com_frame:
+        # CoM frame: cloud stays centered, use fixed viewport around origin
+        if xlim is None:
+            xlim = (-3, 3)
+        if ylim is None:
+            ylim = (-3, 3)
+    else:
+        # Lab frame: viewport based on initial cloud position
+        if xlim is None:
+            pad = 1.0
+            xlim = (first['pos_x'].min() - pad, first['pos_x'].max() + pad)
+        if ylim is None:
+            pad = 1.0
+            ylim = (first['pos_y'].min() - pad, first['pos_y'].max() + pad)
     
     fig, ax = plt.subplots(figsize=(14, 12), facecolor=DARK_BG)
     ax.set_facecolor(DARK_BG)
     
     if mode == 'density':
         cmap = CUSTOM_CMAPS['density']
-        norm = LogNorm(vmin=1e-2, vmax=1e2)
-        cbar_label = 'Log Density (code units)'
+        # Use LINEAR scale for density (not log)
+        norm = Normalize(vmin=0, vmax=2.0)
+        cbar_label = 'Density (code units: 1000 M☉/pc³)'
         title_prefix = 'Gas Density'
     elif mode == 'temperature':
         cmap = CUSTOM_CMAPS['temperature']
@@ -495,8 +563,9 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
         title_prefix = 'Shock Structure'
     else:
         cmap = CUSTOM_CMAPS['density']
-        norm = LogNorm(vmin=1e-2, vmax=1e2)
-        cbar_label = 'Log Density'
+        # Use LINEAR scale for density (not log)
+        norm = Normalize(vmin=0, vmax=2.0)
+        cbar_label = 'Density (code units)'
         title_prefix = 'Gas'
     
     scatter = ax.scatter([], [], s=10, c=[], cmap=cmap, norm=norm, 
@@ -507,11 +576,48 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
     cbar.ax.tick_params(colors=TEXT_COLOR, labelsize=11)
     cbar.outline.set_edgecolor(GRID_COLOR)
     
-    # IMBH with glow
+    # IMBH with glow - store references for updating position in CoM frame
+    imbh_glow_markers = []
     for s, alpha in [(300, 0.03), (250, 0.06), (200, 0.1), (150, 0.2)]:
-        ax.scatter([0], [0], s=s, c=ACCENT_COLOR, alpha=alpha, edgecolors='none', zorder=100)
-    ax.scatter([0], [0], s=120, c='white', marker='*', 
+        sc = ax.scatter([0], [0], s=s, c=ACCENT_COLOR, alpha=alpha, edgecolors='none', zorder=100)
+        imbh_glow_markers.append(sc)
+    imbh_star = ax.scatter([0], [0], s=120, c='white', marker='*', 
                edgecolors=ACCENT_COLOR, linewidths=2, zorder=101)
+    imbh_glow_markers.append(imbh_star)
+    
+    # Compute and plot analytic orbit trajectory (lab frame)
+    # Get initial CoM position and velocity from first snapshot
+    total_mass_init = np.sum(first['mass'])
+    com_x0 = np.sum(first['pos_x'] * first['mass']) / total_mass_init
+    com_y0 = np.sum(first['pos_y'] * first['mass']) / total_mass_init
+    com_vx0 = np.sum(first['vel_x'] * first['mass']) / total_mass_init
+    com_vy0 = np.sum(first['vel_y'] * first['mass']) / total_mass_init
+    
+    # Compute orbit for visualization (extended time range)
+    t_max_code = len(snapshot_files) * 0.025 * 1.2  # 20% longer than simulation
+    t_orbit = np.linspace(0, t_max_code, 500)
+    
+    try:
+        x_orbit, y_orbit = compute_analytic_orbit(
+            M_IMBH, com_x0, com_y0, com_vx0, com_vy0, t_orbit, G=G_CODE)
+        
+        # Plot the full analytic trajectory
+        if not use_com_frame:
+            orbit_line, = ax.plot(x_orbit, y_orbit, '--', color=COLORS['analytic'], 
+                                  linewidth=1.5, alpha=0.6, label='Analytic orbit', zorder=5)
+        else:
+            # In CoM frame, orbit is relative to cloud center (just show as line from origin)
+            orbit_line = None
+        
+        # Current position marker on orbit (will be updated)
+        orbit_marker = ax.scatter([com_x0], [com_y0], s=80, c=COLORS['analytic'], 
+                                   marker='o', edgecolors='white', linewidths=1.5, 
+                                   zorder=102, label='Analytic CoM')
+    except Exception as e:
+        print(f"Warning: Could not compute analytic orbit: {e}")
+        orbit_line = None
+        orbit_marker = None
+        x_orbit, y_orbit = None, None
     
     time_text = ax.text(0.02, 0.98, '', transform=ax.transAxes, fontsize=16,
                        fontweight='bold', va='top', color=TEXT_COLOR,
@@ -524,15 +630,21 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
     
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
-    ax.set_xlabel('X (pc)', fontsize=14, color=TEXT_COLOR, fontweight='bold')
-    ax.set_ylabel('Y (pc)', fontsize=14, color=TEXT_COLOR, fontweight='bold')
+    # Update axis labels based on frame
+    if use_com_frame:
+        ax.set_xlabel('X - X_CoM (pc)', fontsize=14, color=TEXT_COLOR, fontweight='bold')
+        ax.set_ylabel('Y - Y_CoM (pc)', fontsize=14, color=TEXT_COLOR, fontweight='bold')
+    else:
+        ax.set_xlabel('X (pc)', fontsize=14, color=TEXT_COLOR, fontweight='bold')
+        ax.set_ylabel('Y (pc)', fontsize=14, color=TEXT_COLOR, fontweight='bold')
     ax.tick_params(colors=TEXT_COLOR, labelsize=11)
     ax.set_aspect('equal')
     for spine in ax.spines.values():
         spine.set_color(GRID_COLOR)
     ax.grid(True, alpha=0.15, color=GRID_COLOR)
     
-    ax.set_title(f'{title_prefix} - IMBH Tidal Disruption', 
+    frame_label = '(CoM Frame)' if use_com_frame else '(Lab Frame)'
+    ax.set_title(f'{title_prefix} - IMBH Tidal Disruption {frame_label}', 
                 fontsize=18, fontweight='bold', color=TEXT_COLOR, pad=15)
     
     def update(frame_idx):
@@ -553,7 +665,40 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
         else:
             color_data = snapshot['dens']
         
-        scatter.set_offsets(np.column_stack([snapshot['pos_x'], snapshot['pos_y']]))
+        # Transform to CoM frame if requested
+        if use_com_frame:
+            # Compute center of mass
+            total_mass = np.sum(snapshot['mass'])
+            com_x = np.sum(snapshot['pos_x'] * snapshot['mass']) / total_mass
+            com_y = np.sum(snapshot['pos_y'] * snapshot['mass']) / total_mass
+            
+            # Transform particle positions to CoM frame
+            pos_x_plot = snapshot['pos_x'] - com_x
+            pos_y_plot = snapshot['pos_y'] - com_y
+            
+            # IMBH position in CoM frame (IMBH is at origin in lab frame)
+            imbh_x = -com_x
+            imbh_y = -com_y
+            
+            # Update IMBH marker positions
+            for marker in imbh_glow_markers:
+                marker.set_offsets([[imbh_x, imbh_y]])
+            
+            # Update orbit marker (in CoM frame, analytic orbit marker is at origin)
+            if orbit_marker is not None:
+                orbit_marker.set_offsets([[0, 0]])
+        else:
+            # Lab frame: use raw positions, IMBH stays at origin
+            pos_x_plot = snapshot['pos_x']
+            pos_y_plot = snapshot['pos_y']
+            
+            # Update analytic orbit marker position in lab frame
+            if orbit_marker is not None and x_orbit is not None:
+                # Find closest time index in orbit array
+                orbit_idx = min(int(time_code / t_max_code * len(t_orbit)), len(t_orbit) - 1)
+                orbit_marker.set_offsets([[x_orbit[orbit_idx], y_orbit[orbit_idx]]])
+        
+        scatter.set_offsets(np.column_stack([pos_x_plot, pos_y_plot]))
         scatter.set_array(color_data)
         
         time_code = frame_idx * 0.025
@@ -1077,8 +1222,11 @@ Examples:
   # Full tidal disruption animation with energy panel
   python animate_single_run.py results/ -o tidal.gif --mode tidal
   
-  # Single density animation  
+  # Single density animation (CoM frame - cloud stays centered, default)
   python animate_single_run.py results/ -o density.gif --mode density
+  
+  # Single density animation in lab frame (IMBH at origin)
+  python animate_single_run.py results/ -o density.gif --mode density --lab-frame
 
 Energy Evolution Explanation:
   The energy panel shows how energy is exchanged during the encounter:
@@ -1089,6 +1237,11 @@ Energy Evolution Explanation:
   • TOTAL (white): Should be conserved - check for numerical errors
   
   Gray dashed line shows analytical prediction for total energy conservation.
+  
+Frame of Reference:
+  By default, single-mode animations (density, temperature, mach, shock) use
+  the Center of Mass (CoM) frame where the cloud stays centered in the viewport
+  and the IMBH marker moves. Use --lab-frame to keep IMBH at origin instead.
         """
     )
     
@@ -1100,13 +1253,18 @@ Energy Evolution Explanation:
                        choices=['tidal', 'density', 'temperature', 'mach', 'shock'],
                        help='Visualization mode')
     parser.add_argument('--fps', type=int, default=15, help='Frames per second')
-    parser.add_argument('--xlim', type=float, nargs=2, default=None)
-    parser.add_argument('--ylim', type=float, nargs=2, default=None)
+    parser.add_argument('--xlim', type=float, nargs=2, default=None,
+                       help='X-axis limits (default: auto)')
+    parser.add_argument('--ylim', type=float, nargs=2, default=None,
+                       help='Y-axis limits (default: auto)')
+    parser.add_argument('--lab-frame', action='store_true',
+                       help='Use lab frame (IMBH at origin) instead of CoM frame for single-mode animations')
     
     args = parser.parse_args()
     
     xlim = tuple(args.xlim) if args.xlim else None
     ylim = tuple(args.ylim) if args.ylim else None
+    use_com_frame = not args.lab_frame
     
     print("=" * 65)
     print("IMBH Tidal Disruption - High Contrast with Energy Evolution")
@@ -1114,6 +1272,8 @@ Energy Evolution Explanation:
     print(f"Results: {args.results_dir}")
     print(f"Output:  {args.output}")
     print(f"Mode:    {args.mode}")
+    if args.mode != 'tidal':
+        print(f"Frame:   {'Lab frame (IMBH at origin)' if args.lab_frame else 'CoM frame (cloud centered)'}")
     print("=" * 65)
     
     if args.mode == 'tidal':
@@ -1122,7 +1282,7 @@ Energy Evolution Explanation:
     else:
         success = create_single_mode_animation(
             args.results_dir, args.output, mode=args.mode,
-            xlim=xlim, ylim=ylim, fps=args.fps)
+            xlim=xlim, ylim=ylim, fps=args.fps, use_com_frame=use_com_frame)
     
     if success:
         print("\n" + "=" * 65)

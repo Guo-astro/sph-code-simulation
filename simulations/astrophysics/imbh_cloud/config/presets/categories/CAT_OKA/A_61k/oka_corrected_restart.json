@@ -1,13 +1,13 @@
 {
-  "name": "CAT_OKA_A_oka_corrected",
-  "description": "Oka et al. (2017) EXACT parameters - corrected initial conditions",
+  "name": "CAT_OKA_A_oka_corrected_restart",
+  "description": "RESTART: Continue oka_corrected simulation from snapshot_0086 (t=0.86)",
   "category_info": {
     "category": "CAT_OKA",
     "category_name": "Oka et al. (2017) Exact - CORRECTED",
     "resolution": "A",
     "resolution_name": "61k (Low)",
-    "scenario": "oka_exact",
-    "note": "Uses exact ICs from Oka paper Methods section"
+    "scenario": "oka_exact_restart",
+    "note": "Continuation from snapshot_0086.csv (t=0.86 code units)"
   },
   "physics_summary": {
     "cloud_mass_Msun": 1000,
@@ -25,7 +25,7 @@
     "thermal_physics": "radiative_inoue_inutsuka",
     "self_gravity": "enhanced_accuracy",
     "particles": 61000,
-    "note": "Mean orbit is nearly radial; velocity dispersion gives particles a range of pericentres. WARNING: Our SPH cloud (R=1.13pc) is larger than Oka's (sigma=0.2pc), so dynamics will differ."
+    "note": "RESTART: Same physics as oka_corrected, continuing from t=0.86"
   },
   "oka_paper_parameters": {
     "source": "Oka et al. (2017) Nature Astronomy, Methods section",
@@ -41,8 +41,7 @@
     "position_angle_deg": 41.6,
     "V_LSR_kms": -120,
     "time_step_yr": 4600,
-    "best_fit_snapshot_yr": 720000,
-    "note": "MODIFIED: initial_position_XY changed from [9.8, -0.65] to [9.8, -2]"
+    "best_fit_snapshot_yr": 720000
   },
   "units": {
     "type": "IMBH_ENCOUNTER",
@@ -76,22 +75,10 @@
   "G": 1.0,
   "theta": 0.3,
   "gravitySofteningType": "wendland_c4",
-  "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/IC/61k/snapshot_0000.csv",
-  "resetTimeOnResume": true,
+  "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/CAT_OKA/A_61k/oka_corrected/snapshot_0086.csv",
+  "resetTimeOnResume": false,
   "initialCondition": {
-    "transform": {
-      "translate": [
-        9.8,
-        -2,
-        0.0
-      ],
-      "velocity_boost": [
-        -8.19,
-        0.4,
-        0.0
-      ]
-    },
-    "comment": "MODIFIED Oka (2017) ICs: Cloud at (9.8, -2, 0) pc with velocity (-8.19, 0.4, 0) km/s. Nearly radial orbit; velocity dispersion gives range of particle pericentres. Y coordinate changed from -0.65 to -2."
+    "comment": "RESTART: Initial conditions are loaded from snapshot_0086.csv. Transform is ignored when resuming."
   },
   "imbh_parameters": {
     "enabled": true,
