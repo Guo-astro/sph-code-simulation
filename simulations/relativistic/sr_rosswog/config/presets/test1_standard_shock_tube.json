@@ -1,0 +1,54 @@
+{
+  "_comment": "Rosswog (2010) Test 1: Standard Relativistic Shock Tube (Marti & Mueller)",
+  "_reference": "arXiv:0907.4890v3, Section 3.1.1, Fig. 3",
+  "_initial_left": "(N, v, P) = (10, 0, 40/3)",
+  "_initial_right": "(N, v, P) = (1, 0, 10^-6)",
+  "_gamma_max": "~1.4 (mildly relativistic)",
+  "sample": "sr_sod",
+  "testType": "rosswog_test1",
+  "outputDirectory": "simulations/relativistic/sr_rosswog/results/test1_standard_shock_tube",
+  "startTime": 0.0,
+  "endTime": 0.35,
+  "outputTime": 0.007,
+  "energyTime": 0.01,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "SPHType": "srgsph",
+  "use2ndOrderSRGSPH": true,
+  "riemannSolver": "exact",
+  "cSpeed": 1.0,
+  "cShock": 3.0,
+  "cContactDiscontinuity": 1.0,
+  "etaSmoothingLength": 1.0,
+  "gamma": 1.666666667,
+  "kernel": "gaussian",
+  "iterativeSmoothingLength": true,
+  "neighborNumber": 50,
+  "N": 1500,
+  "N_L": 10.0,
+  "P_L": 13.333333333,
+  "v_L": 0.0,
+  "N_R": 1.0,
+  "P_R": 1e-6,
+  "v_R": 0.0,
+  "useGhostParticles": true,
+  "ghostLayers": 6,
+  "periodic": false,
+  "rangeMax": [0.5],
+  "rangeMin": [-0.5],
+  "avAlpha": 0.0,
+  "useBalsaraSwitch": false,
+  "cflSound": 0.3,
+  "cflForce": 0.25
+}

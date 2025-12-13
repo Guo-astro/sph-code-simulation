@@ -1,0 +1,193 @@
+# ==============================================================================
+# Makefile.sr_rosswog - Rosswog (2010) SR-SPH Benchmark Tests
+# ==============================================================================
+# Reference: Rosswog, S. (2010) "Conservative, special-relativistic smoothed 
+#            particle hydrodynamics", arXiv:0907.4890v3
+#
+# Usage examples:
+# ---------------
+#
+# Single Test Execution:
+#   make -f simulations/relativistic/sr_rosswog/Makefile.sr_rosswog sr_rosswog_test1_run
+#   make -f simulations/relativistic/sr_rosswog/Makefile.sr_rosswog sr_rosswog_test2_run
+#
+# All 1D Tests:
+#   make -f simulations/relativistic/sr_rosswog/Makefile.sr_rosswog sr_rosswog_1d_all
+#
+# Clean:
+#   make -f simulations/relativistic/sr_rosswog/Makefile.sr_rosswog sr_rosswog_clean
+#
+# ==============================================================================
+
+# Path configuration
+TEST_DIR := simulations/relativistic/sr_rosswog
+PRESET_DIR := $(TEST_DIR)/config/presets
+RESULTS_DIR := $(TEST_DIR)/results
+SCRIPTS_DIR := $(TEST_DIR)/scripts
+
+.PHONY: sr_rosswog_help sr_rosswog_clean \
+        sr_rosswog_test1_run sr_rosswog_test2_run sr_rosswog_test3_run \
+        sr_rosswog_test4_run sr_rosswog_test5_run sr_rosswog_test6_run \
+        sr_rosswog_test7_run sr_rosswog_1d_all
+
+# ==============================================================================
+# Help Target
+# ==============================================================================
+
+sr_rosswog_help:
+	@echo "========================================"
+	@echo " Rosswog (2010) SR-SPH Benchmark Tests"
+	@echo "========================================"
+	@echo ""
+	@echo "Reference: arXiv:0907.4890v3"
+	@echo ""
+	@echo "Available Tests:"
+	@echo "  Test 1: Standard relativistic shock tube (Marti & Mueller)"
+	@echo "  Test 2: Strong blast (Norman blast wave)"
+	@echo "  Test 3: Sinusoidally perturbed shock tube"
+	@echo "  Test 4: Ultra-relativistic wall shock (γ=50,000)"
+	@echo "  Test 5: Relativistic sine wave advection"
+	@echo "  Test 6: Relativistic square wave advection"
+	@echo "  Test 7: Relativistic simple wave"
+	@echo ""
+	@echo "Individual Test Targets:"
+	@echo "  sr_rosswog_test1_run  - Run Test 1 (standard shock tube)"
+	@echo "  sr_rosswog_test2_run  - Run Test 2 (strong blast)"
+	@echo "  sr_rosswog_test3_run  - Run Test 3 (perturbed shock tube)"
+	@echo "  sr_rosswog_test4_run  - Run Test 4 (wall shock, γ=50,000)"
+	@echo "  sr_rosswog_test5_run  - Run Test 5 (sine advection)"
+	@echo "  sr_rosswog_test6_run  - Run Test 6 (square advection)"
+	@echo "  sr_rosswog_test7_run  - Run Test 7 (simple wave)"
+	@echo ""
+	@echo "Batch Targets:"
+	@echo "  sr_rosswog_1d_all     - Run all 1D tests (1-7)"
+	@echo "  sr_rosswog_clean      - Clean all results"
+	@echo ""
+	@echo "Example:"
+	@echo "  make -f $(TEST_DIR)/Makefile.sr_rosswog sr_rosswog_test1_run"
+
+# ==============================================================================
+# Individual Test Targets
+# ==============================================================================
+
+sr_rosswog_test1_run: build/sph
+	@echo "========================================"
+	@echo "📊 Running Test 1: Standard Shock Tube"
+	@echo "   (N,v,P)_L = (10, 0, 40/3)"
+	@echo "   (N,v,P)_R = (1, 0, 10^-6)"
+	@echo "========================================"
+	@mkdir -p $(RESULTS_DIR)/test1_standard_shock_tube
+	./build/sph $(PRESET_DIR)/test1_standard_shock_tube.json
+	@echo "✓ Test 1 complete!"
+
+sr_rosswog_test2_run: build/sph
+	@echo "========================================"
+	@echo "📊 Running Test 2: Strong Blast"
+	@echo "   (N,v,P)_L = (1, 0, 1000)"
+	@echo "   (N,v,P)_R = (1, 0, 0.01)"
+	@echo "   γ_shell = 3.6, γ_shock = 6.0"
+	@echo "========================================"
+	@mkdir -p $(RESULTS_DIR)/test2_strong_blast
+	./build/sph $(PRESET_DIR)/test2_strong_blast.json
+	@echo "✓ Test 2 complete!"
+
+sr_rosswog_test3_run: build/sph
+	@echo "========================================"
+	@echo "📊 Running Test 3: Perturbed Shock Tube"
+	@echo "   (N,v,P)_L = (5, 0, 50)"
+	@echo "   (N,v,P)_R = (2+0.3*sin(50x), 0, 5)"
+	@echo "========================================"
+	@mkdir -p $(RESULTS_DIR)/test3_perturbed_shock_tube
+	./build/sph $(PRESET_DIR)/test3_perturbed_shock_tube.json
+	@echo "✓ Test 3 complete!"
+
+sr_rosswog_test4_run: build/sph
+	@echo "========================================"
+	@echo "📊 Running Test 4: Ultra-Relativistic Wall Shock"
+	@echo "   (N,v,u) = (1, 0.9999999998, 10^-5)"
+	@echo "   γ = 50,000 (EXTREME!)"
+	@echo "========================================"
+	@mkdir -p $(RESULTS_DIR)/test4_wall_shock
+	./build/sph $(PRESET_DIR)/test4_wall_shock.json
+	@echo "✓ Test 4 complete!"
+
+sr_rosswog_test5_run: build/sph
+	@echo "========================================"
+	@echo "📊 Running Test 5: Sine Wave Advection"
+	@echo "   N(x) = 1 + 0.5*sin(2πx)"
+	@echo "   v = 0.997, γ ≈ 12.92"
+	@echo "   100 box crossings"
+	@echo "========================================"
+	@mkdir -p $(RESULTS_DIR)/test5_sine_advection
+	./build/sph $(PRESET_DIR)/test5_sine_advection.json
+	@echo "✓ Test 5 complete!"
+
+sr_rosswog_test6_run: build/sph
+	@echo "========================================"
+	@echo "📊 Running Test 6: Square Wave Advection"
+	@echo "   N_low = 1.0, N_high = 1.1"
+	@echo "   v = 0.997, γ ≈ 12.92"
+	@echo "   10 box crossings"
+	@echo "========================================"
+	@mkdir -p $(RESULTS_DIR)/test6_square_advection
+	./build/sph $(PRESET_DIR)/test6_square_advection.json
+	@echo "✓ Test 6 complete!"
+
+sr_rosswog_test7_run: build/sph
+	@echo "========================================"
+	@echo "📊 Running Test 7: Relativistic Simple Wave"
+	@echo "   v_max = 0.7, c_s,0 = 0.3"
+	@echo "   Radiation-dominated fluid (γ=4/3)"
+	@echo "========================================"
+	@mkdir -p $(RESULTS_DIR)/test7_simple_wave
+	./build/sph $(PRESET_DIR)/test7_simple_wave.json
+	@echo "✓ Test 7 complete!"
+
+# ==============================================================================
+# Batch Targets
+# ==============================================================================
+
+sr_rosswog_1d_all: build/sph
+	@echo "========================================"
+	@echo "📊 Running ALL Rosswog 1D Tests (1-7)"
+	@echo "========================================"
+	@echo ""
+	@echo "[1/7] Test 1: Standard Shock Tube"
+	@$(MAKE) -f $(TEST_DIR)/Makefile.sr_rosswog sr_rosswog_test1_run
+	@echo ""
+	@echo "[2/7] Test 2: Strong Blast"
+	@$(MAKE) -f $(TEST_DIR)/Makefile.sr_rosswog sr_rosswog_test2_run
+	@echo ""
+	@echo "[3/7] Test 3: Perturbed Shock Tube"
+	@$(MAKE) -f $(TEST_DIR)/Makefile.sr_rosswog sr_rosswog_test3_run
+	@echo ""
+	@echo "[4/7] Test 4: Wall Shock (γ=50,000)"
+	@$(MAKE) -f $(TEST_DIR)/Makefile.sr_rosswog sr_rosswog_test4_run
+	@echo ""
+	@echo "[5/7] Test 5: Sine Advection"
+	@$(MAKE) -f $(TEST_DIR)/Makefile.sr_rosswog sr_rosswog_test5_run
+	@echo ""
+	@echo "[6/7] Test 6: Square Advection"
+	@$(MAKE) -f $(TEST_DIR)/Makefile.sr_rosswog sr_rosswog_test6_run
+	@echo ""
+	@echo "[7/7] Test 7: Simple Wave"
+	@$(MAKE) -f $(TEST_DIR)/Makefile.sr_rosswog sr_rosswog_test7_run
+	@echo ""
+	@echo "========================================"
+	@echo "✓ All Rosswog 1D Tests Complete!"
+	@echo "========================================"
+
+# ==============================================================================
+# Clean Target
+# ==============================================================================
+
+sr_rosswog_clean:
+	@echo "🧹 Cleaning Rosswog test results..."
+	rm -rf $(RESULTS_DIR)/test1_standard_shock_tube
+	rm -rf $(RESULTS_DIR)/test2_strong_blast
+	rm -rf $(RESULTS_DIR)/test3_perturbed_shock_tube
+	rm -rf $(RESULTS_DIR)/test4_wall_shock
+	rm -rf $(RESULTS_DIR)/test5_sine_advection
+	rm -rf $(RESULTS_DIR)/test6_square_advection
+	rm -rf $(RESULTS_DIR)/test7_simple_wave
+	@echo "✓ Clean complete!"

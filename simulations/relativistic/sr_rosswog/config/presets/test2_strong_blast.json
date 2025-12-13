@@ -1,0 +1,55 @@
+{
+  "_comment": "Rosswog (2010) Test 2: Strong Blast (Norman blast wave)",
+  "_reference": "arXiv:0907.4890v3, Section 3.1.2, Fig. 6",
+  "_initial_left": "(N, v, P) = (1, 0, 1000)",
+  "_initial_right": "(N, v, P) = (1, 0, 0.01)",
+  "_gamma_shell": "3.6 (v_shell = 0.96)",
+  "_gamma_shock": "6.0 (v_shock = 0.986)",
+  "sample": "sr_sod",
+  "testType": "strong_blast",
+  "outputDirectory": "simulations/relativistic/sr_rosswog/results/test2_strong_blast",
+  "startTime": 0.0,
+  "endTime": 0.16,
+  "outputTime": 0.004,
+  "energyTime": 0.01,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "SPHType": "srgsph",
+  "use2ndOrderSRGSPH": true,
+  "riemannSolver": "exact",
+  "cSpeed": 1.0,
+  "cShock": 3.0,
+  "cContactDiscontinuity": 1.0,
+  "etaSmoothingLength": 1.0,
+  "gamma": 1.666666667,
+  "kernel": "gaussian",
+  "iterativeSmoothingLength": true,
+  "neighborNumber": 50,
+  "N": 900,
+  "N_L": 1.0,
+  "P_L": 1000.0,
+  "v_L": 0.0,
+  "N_R": 1.0,
+  "P_R": 0.01,
+  "v_R": 0.0,
+  "useGhostParticles": true,
+  "ghostLayers": 6,
+  "periodic": false,
+  "rangeMax": [0.5],
+  "rangeMin": [-0.5],
+  "avAlpha": 0.0,
+  "useBalsaraSwitch": false,
+  "cflSound": 0.3,
+  "cflForce": 0.25
+}

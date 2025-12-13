@@ -1,0 +1,230 @@
+\hyphenation{Post-Script Sprin-ger}
+\begin{thebibliography}{10}
+\expandafter\ifx\csname url\endcsname\relax
+  \def\url#1{\texttt{#1}}\fi
+\expandafter\ifx\csname urlprefix\endcsname\relax\def\urlprefix{URL }\fi
+
+\bibitem{anile89}
+A.~M. {Anile}, {Relativistic fluids and magneto-fluids}, Cambridge Monographs
+  on Mathematical Physics, Cambridge University Press, 1989.
+
+\bibitem{anile83}
+A.~M. {Anile}, J.~C. {Miller}, S.~{Motta}, {Formation and damping of
+  relativistic strong shocks}, Physics of Fluids 26 (1983) 1450--1460.
+
+\bibitem{anninos03}
+P.~{Anninos}, P.~C. {Fragile}, {Nonoscillatory Central Difference and
+  Artificial Viscosity Schemes for Relativistic Hydrodynamics}, ApJS 144 (2003)
+  243--257.
+
+\bibitem{balsara95}
+D.~Balsara, von neumann stability analysis of smooth particle
+  hydrodynamics--suggestions for optimal algorithms, J. Comput. Phys. 121
+  (1995) 357.
+
+\bibitem{benz90a}
+W.~Benz, Smooth particle hydrodynamics: A review, in: J.~Buchler (ed.),
+  Numerical Modeling of Stellar Pulsations, Kluwer Academic Publishers,
+  Dordrecht, 1990, p. 269.
+
+\bibitem{celotti01}
+A.~{Celotti}, G.~{Ghisellini}, M.~{Chiaberge}, {Large-scale jets in active
+  galactic nuclei: multiwavelength mapping}, MNRAS 321 (2001) L1--L5.
+
+\bibitem{cha03}
+S.-H. {Cha}, A.~P. {Whitworth}, {Implementations and tests of Godunov-type
+  particle hydrodynamics}, MNRAS 340 (2003) 73--90.
+
+\bibitem{chow97}
+J.~E. Chow, J.~Monaghan, Ultrarelativistic sph, J. Computat. Phys. 134 (1997)
+  296.
+
+\bibitem{cullen10}
+L.~{Cullen}, W.~{Dehnen}, {Inviscid SPH}, ArXiv e-prints.
+
+\bibitem{delZanna02}
+L.~{Del Zanna}, N.~{Bucciantini}, {An efficient shock-capturing central-type
+  scheme for multidimensional relativistic flows. I. Hydrodynamics}, A\&A 390
+  (2002) 1177--1186.
+
+\bibitem{dolag05}
+K.~{Dolag}, F.~{Vazza}, G.~{Brunetti}, G.~{Tormen}, {Turbulent gas motions in
+  galaxy cluster simulations: the role of smoothed particle hydrodynamics
+  viscosity}, MNRAS 364 (2005) 753--772.
+
+\bibitem{dolezal95}
+A.~{Dolezal}, S.~S.~M. {Wong}, {}, J. Comp. Phys. 120 (1995) 266.
+
+\bibitem{donat98}
+R.~{Donat}, {A Flux-Split Algorithm Applied to Relativistic Flows}, Journal of
+  Computational Physics 146 (1998) 58--81.
+
+\bibitem{dubal91}
+M.~R. {Dubal}, {Numerical simulations of special relativistic, magnetic gas
+  flows}, Computer Physics Communications 64 (1991) 221--234.
+
+\bibitem{eltgroth71}
+P.~G. {Eltgroth}, {Similarity Analysis for Relativistic Flow in One Dimension},
+  Physics of Fluids 14 (1971) 2631--2635.
+
+\bibitem{falle96}
+S.~A.~E.~G. {Falle}, S.~S. {Komissarov}, {An upwind numerical scheme for
+  relativistic hydrodynamics with a general equation of state}, MNRAS 278
+  (1996) 586--602.
+
+\bibitem{fock64}
+V.~Fock, Theory of Space, Time and Gravitation, Pergamon, Oxford, 1964.
+
+\bibitem{gallant94}
+Y.~A. {Gallant}, J.~{Arons}, {Structure of relativistic shocks in pulsar winds:
+  A model of the wisps in the Crab Nebula}, ApJ 435 (1994) 230--260.
+
+\bibitem{gingold77}
+R.~A. {Gingold}, J.~J. {Monaghan}, {Smoothed particle hydrodynamics - Theory
+  and application to non-spherical stars}, MNRAS 181 (1977) 375--389.
+
+\bibitem{inutsuka02}
+S.-I. {Inutsuka}, {Reformulation of Smoothed Particle Hydrodynamics with
+  Riemann Solver}, Journal of Computational Physics 179 (2002) 238--267.
+
+\bibitem{kheyfets90}
+A.~{Kheyfets}, W.~A. {Miller}, W.~H. {Zurek}, {Covariant smoothed particle
+  hydrodynamics on a curved background}, Physical Review D 41 (1990) 451--454.
+
+\bibitem{laguna93a}
+P.~{Laguna}, W.~A. {Miller}, W.~H. {Zurek}, {Smoothed particle hydrodynamics
+  near a black hole}, ApJ 404 (1993) 678--685.
+
+\bibitem{liang77}
+E.~P.~T. {Liang}, {Relativistic simple waves - Shock damping and entropy
+  production}, ApJ 211 (1977) 361--376.
+
+\bibitem{lucy77}
+L.~Lucy, A numerical approach to the testing of the fission hypothesis, The
+  Astronomical Journal 82 (1977) 1013.
+
+\bibitem{mann91}
+P.~Mann, A relativistic smoothed particle hydrodynamics method tested with the
+  shock tube, Computer Physics Communications.
+
+\bibitem{mann93}
+P.~Mann, Smoothed particle hydrodynamics applied to relativistic spherical
+  collapse, Journal of Computational Physics 107 (1993) 188--198.
+
+\bibitem{marquina92}
+A.~{Marquina}, J.~M. {Marti}, J.~M. {Ibanez}, J.~A. {Miralles}, R.~{Donat},
+  {Ultrarelativistic hydrodynamics - High-resolution shock-capturing methods},
+  A \& A 258 (1992) 566--571.
+
+\bibitem{marti91}
+J.~Marti, J.~Ibanez, J.~Miralles, Phys. Rev. D 43 (1991) 3794.
+
+\bibitem{marti96}
+J.~Marti, E.~M\"uller, J. Comp. Phys. 123 (1996) 1.
+
+\bibitem{marti03}
+J.~M. {Marti}, E.~{M{\"u}ller}, {Numerical Hydrodynamics in Special
+  Relativity}, Living Reviews in Relativity 6 (2003) 7.
+
+\bibitem{monaghan85a}
+J.~Monaghan, J.~Lattanzio, A refined particle method for astrophysical
+  problems, A\&A 149 (1985) 135.
+
+\bibitem{monaghan92}
+J.~J. Monaghan, Smoothed particle hydrodynamics, Ann. Rev. Astron. Astrophys.
+  30 (1992) 543.
+
+\bibitem{monaghan97}
+J.~J. {Monaghan}, {SPH and Riemann Solvers}, Journal of Computational Physics
+  136 (1997) 298--307.
+
+\bibitem{monaghan02}
+J.~J. {Monaghan}, {SPH compressible turbulence}, MNRAS 335 (2002) 843--852.
+
+\bibitem{monaghan05}
+J.~J. {Monaghan}, {Smoothed particle hydrodynamics}, Reports on Progress in
+  Physics 68 (2005) 1703--1759.
+
+\bibitem{monaghan01}
+J.~J. {Monaghan}, D.~J. {Price}, {Variational principles for relativistic
+  smoothed particle hydrodynamics}, MNRAS 328 (2001) 381--392.
+
+\bibitem{morris97}
+J.~Morris, J.~Monaghan, A switch to reduce sph viscosity, J. Comp. Phys. 136
+  (1997) 41.
+
+\bibitem{muir03}
+S.~{Muir}, J.~{Monaghan}, {3D Relativistic SPH}, ArXiv Astrophysics e-prints.
+
+\bibitem{nelson94}
+R.~Nelson, J.~Papaloizou, Variable smoothing lengths and energy conservation in
+  smooth particle hydrodynamics, MNRAS 270 (1994) 1.
+
+\bibitem{norman86}
+M.~L. Norman, K.-H. Winkler, Why ultrarelativistic numerical hydrodynamics is
+  difficult, in: K.-H. Winkler, M.~L. Norman (eds.), Astrophysical Radiation
+  Hydrodynamics, Reidel, Berlin, 1986.
+
+\bibitem{piran05}
+T.~Piran, The physics of gamma-ray bursts, Reviews of Modern Physics 76 (2005)
+  1143.
+
+\bibitem{press92}
+W.~H. Press, B.~P. Flannery, S.~A. Teukolsky, W.~T. Vetterling, {N}umerical
+  {R}ecipes, Cambridge University Press, New York, 1992.
+
+\bibitem{price04c}
+D.~Price, Magnetic fields in astrophysics, Ph.D. thesis, University of
+  Cambridge, arXiv:astro-ph/0507472 (2004).
+
+\bibitem{read10}
+J.~I. {Read}, T.~{Hayfield}, O.~{Agertz}, {Resolving mixing in smoothed
+  particle hydrodynamics}, MNRAS (2010) 767--+.
+
+\bibitem{rosswog09b}
+S.~Rosswog, Astrophysical smooth particle hydrodynamics, New Astronomy Reviews
+  53 (2009) 78--104.
+
+\bibitem{rosswog10a}
+S.~{Rosswog}, {Relativistic smooth particle hydrodynamics on a given background
+  spacetime}, Classical and Quantum Gravity 27~(11) (2010) 114108--+.
+
+\bibitem{rosswog10d}
+S.~{Rosswog}, {Special-relativistic Smoothed Particle Hydrodynamics: a
+  benchmark suite}, eprint arXiv:1005.1679 (2010)
+
+\bibitem{rosswog00}
+S.~{Rosswog}, M.~B. {Davies}, F.-K. {Thielemann}, T.~{Piran}, {Merging neutron
+  stars: asymmetric systems}, A\&A 360 (2000) 171--184.
+
+\bibitem{rosswog07c}
+S.~Rosswog, D.~Price, Magma: a magnetohydrodynamics code for merger
+  applications, MNRAS 379 (2007) 915 -- 931.
+
+\bibitem{siegler00b}
+S.~Siegler, Entwicklung und untersuchung eines smoothed particle hydrodynamics
+  verfahrens f\"ur relativistische str\"omungen, Ph.D. thesis,
+  Eberhard-Karls-Universit\"at T\"ubingen (2000).
+
+\bibitem{siegler00a}
+S.~{Siegler}, H.~{Riffert}, {Smoothed Particle Hydrodynamics Simulations of
+  Ultrarelativistic Shocks with Artificial Viscosity}, ApJ 531 (2000)
+  1053--1066.
+
+\bibitem{springel02}
+V.~{Springel}, L.~{Hernquist}, {Cosmological smoothed particle hydrodynamics
+  simulations: the entropy equation}, MNRAS 333 (2002) 649--664.
+
+\bibitem{taub48}
+A.~H. {Taub}, {Relativistic Rankine-Hugoniot Equations}, Physical Review 74
+  (1948) 328--334.
+
+\bibitem{valcke10}
+S.~{Valcke}, S.~{De Rijcke}, E.~{Roediger}, H.~{Dejonghe}, {Kelvin-Helmholtz
+  instabilities in Smoothed Particle Hydrodynamics}, ArXiv e-prints.
+
+\bibitem{wen97}
+L.~{Wen}, A.~{Panaitescu}, P.~{Laguna}, {A Shock-patching Code for
+  Ultrarelativistic Fluid Flows}, ApJ 486 (1997) 919--+.
+
+\end{thebibliography}

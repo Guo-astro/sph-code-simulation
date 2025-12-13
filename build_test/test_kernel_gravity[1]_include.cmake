@@ -1,0 +1,5 @@
+if(EXISTS "/Users/guo/Downloads/sphcode/build_test/test_kernel_gravity[1]_tests.cmake")
+  include("/Users/guo/Downloads/sphcode/build_test/test_kernel_gravity[1]_tests.cmake")
+else()
+  add_test(test_kernel_gravity_NOT_BUILT test_kernel_gravity_NOT_BUILT)
+endif()

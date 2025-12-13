@@ -73,23 +73,6 @@ bool exact_riemann_solver(
 );
 
 /**
- * HLLC Riemann solver (approximate but robust fallback)
- *
- * Uses same Kitajima notation as exact_riemann_solver.
- */
-void hllc_riemann_solver(
-    const RiemannState& left,
-    const RiemannState& right,
-    real v_t_L,
-    real v_t_R,
-    real gamma_c,
-    real c,
-    real& P_star,
-    real& v_x_star,
-    real& v_t_star
-);
-
-/**
  * Report Riemann solver statistics (for debugging)
  */
 void report_riemann_solver_stats();

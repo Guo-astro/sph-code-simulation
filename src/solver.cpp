@@ -319,6 +319,13 @@ void Solver::read_parameterfile(const char * filename)
             if(auto opt = input.get_child_optional("M_total")) {
                 m_sample_parameters["M_total"] = input.get<real>("M_total");
             }
+        } else if (sample_type == "sr_tangent_velocity") {
+            m_sample = Sample::SRTangentVelocity;
+            m_sample_parameters["N"] = input.get<int>("N", 1600);
+            m_sample_parameters["vt_left"] = input.get<real>("vt_left", real(0.9));
+            m_sample_parameters["vt_right"] = input.get<real>("vt_right", real(0.9));
+            m_sample_parameters["useGhostParticles"] = input.get<bool>("useGhostParticles", true);
+            m_sample_parameters["ghostLayers"] = input.get<int>("ghostLayers", 6);
         } else if (sample_type == "ns_merger_2d") {
             m_sample = Sample::NSMerger2D;
             m_sample_parameters["R_star"] = input.get<real>("ns_merger.star1.radius", real(1.2));
@@ -1194,14 +1201,43 @@ void Solver::initialize()
                 std::cout << "  Continuing from snapshot time: " << m_sim->get_time() << std::endl;
             }
             
-            // NOTE: Cloud initial position/velocity transform is NOT applied on resume.
-            // The particles already have their evolved positions and velocities from the
-            // snapshot. The transform is only applied when creating fresh initial conditions.
-            if(m_has_cloud_initial_conditions) {
-                std::cout << "\n=== Cloud Initial Conditions (NOT applied on resume) ===" << std::endl;
-                std::cout << "  On resume, particle positions/velocities are taken from snapshot." << std::endl;
-                std::cout << "  initialCondition.transform is IGNORED on resume." << std::endl;
-                std::cout << "=========================================\n" << std::endl;
+            // Apply cloud initial position/velocity transform for IC files
+            // If resetTimeOnResume is true, we're loading a fresh IC (relaxed cloud at origin)
+            // and need to translate it to the correct position with the correct velocity.
+            // If resetTimeOnResume is false, we're resuming an evolved simulation and
+            // particles already have their correct positions.
+            if(m_has_cloud_initial_conditions && m_reset_time_on_resume) {
+                std::cout << "\n=== Applying Cloud Initial Conditions ===" << std::endl;
+                std::cout << "  Translating particles from IC to cloud_initial_position" << std::endl;
+                std::cout << "  Adding velocity boost from cloud_initial_velocity" << std::endl;
+                
+                auto& particles = m_sim->get_particles();
+                const int num_p = m_sim->get_particle_num();
+                
+                for(int i = 0; i < num_p; ++i) {
+                    // Apply position offset
+                    for(int d = 0; d < DIM; ++d) {
+                        particles[i].pos[d] += m_cloud_initial_position[d];
+                    }
+                    // Apply velocity boost
+                    for(int d = 0; d < DIM; ++d) {
+                        particles[i].vel[d] += m_cloud_initial_velocity[d];
+                    }
+                }
+                
+                std::cout << "  ✓ Applied transform to " << num_p << " particles" << std::endl;
+                std::cout << "  Cloud center: [" << m_cloud_initial_position[0];
+                for(int d = 1; d < DIM; ++d) std::cout << ", " << m_cloud_initial_position[d];
+                std::cout << "] pc" << std::endl;
+                std::cout << "  Cloud velocity: [" << m_cloud_initial_velocity[0];
+                for(int d = 1; d < DIM; ++d) std::cout << ", " << m_cloud_initial_velocity[d];
+                std::cout << "] km/s" << std::endl;
+                std::cout << "==========================================\n" << std::endl;
+            } else if(m_has_cloud_initial_conditions) {
+                std::cout << "\n=== Cloud Initial Conditions (NOT applied) ===" << std::endl;
+                std::cout << "  resetTimeOnResume=false: continuing evolved simulation" << std::endl;
+                std::cout << "  Particle positions/velocities taken from snapshot as-is" << std::endl;
+                std::cout << "================================================\n" << std::endl;
             }
             
             // JSON Config is SSOT: All parameters come from JSON, not snapshot metadata

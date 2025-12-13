@@ -4,6 +4,7 @@
   "_initial_left": "(P, n, v^x, v^t) = (1000, 1.0, 0, 0.9)",
   "_initial_right": "(P, n, v^x, v^t) = (0.01, 1.0, 0, 0.9)",
   "_note": "High resolution on left side to resolve rarefaction wave",
+  "sample": "sr_tangent_velocity",
   "outputDirectory": "simulations/relativistic/sr_sod/results/tangent_vt09_vt09_hires",
   "startTime": 0.0,
   "endTime": 0.25,

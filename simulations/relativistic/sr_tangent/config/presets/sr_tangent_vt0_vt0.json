@@ -1,0 +1,48 @@
+{
+  "_comment": "Tangent velocity test v^t_L=0, v^t_R=0 (no tangent velocity - reference case)",
+  "_reference": "Strong blast without tangent velocity for comparison",
+  "_initial_left": "(P, n, v^x, v^t) = (1000, 1.0, 0, 0)",
+  "_initial_right": "(P, n, v^x, v^t) = (0.01, 1.0, 0, 0)",
+  "sample": "sr_tangent_velocity",
+  "outputDirectory": "simulations/relativistic/sr_tangent/results/tangent_vt0_vt0",
+  "startTime": 0.0,
+  "endTime": 0.25,
+  "outputTime": 0.005,
+  "energyTime": 0.01,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "SPHType": "srgsph",
+  "use2ndOrderSRGSPH": true,
+  "riemannSolver": "exact",
+  "cSpeed": 1.0,
+  "cShock": 3.0,
+  "cContactDiscontinuity": 1.0,
+  "etaSmoothingLength": 1.0,
+  "gamma": 1.666666667,
+  "kernel": "gaussian",
+  "iterativeSmoothingLength": true,
+  "neighborNumber": 50,
+  "N": 1600,
+  "vt_left": 0.0,
+  "vt_right": 0.0,
+  "useGhostParticles": true,
+  "ghostLayers": 6,
+  "periodic": false,
+  "rangeMax": [0.5],
+  "rangeMin": [-0.5],
+  "avAlpha": 0.0,
+  "useBalsaraSwitch": false,
+  "cflSound": 0.3,
+  "cflForce": 0.25
+}

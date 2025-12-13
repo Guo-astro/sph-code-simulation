@@ -1,0 +1,286 @@
+# ============================================================================
+# SR-GSPH TANGENT VELOCITY TEST MAKEFILE
+# ============================================================================
+#
+# PURPOSE:
+#   Test the SR exact Riemann solver against tabulated solutions from:
+#   - Pons et al. (2000): Tables with v^t ∈ {0, 0.9, 0.99}
+#   - Rezzolla et al. (2003): 14 test cases with various wave patterns
+#
+# USAGE:
+#   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_help
+#   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_test_python
+#   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_test_all
+#   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_clean
+#
+# TEST CATEGORIES:
+#   pons2000    - 9 tests from Pons et al. (2000) Table 1
+#   rezzolla    - 14 tests from Rezzolla et al. (2003) Table 1
+#   all         - All 23 test cases
+#
+# OUTPUT:
+#   Results: simulations/relativistic/sr_tangent/results/
+#   Plots:   simulations/relativistic/sr_tangent/results/plots/
+#
+# ============================================================================
+
+# Paths
+SR_TANGENT_DIR := simulations/relativistic/sr_tangent
+SR_TANGENT_CONFIG := $(SR_TANGENT_DIR)/config
+PRESET_DIR := $(SR_TANGENT_CONFIG)/presets
+SR_TANGENT_RESULTS := $(SR_TANGENT_DIR)/results
+SR_TANGENT_SCRIPTS := $(SR_TANGENT_DIR)/scripts
+SR_TANGENT_TESTS := $(SR_TANGENT_DIR)/tests
+
+# Python executable - prefer local venv, fallback to system python
+VENV_PYTHON := $(wildcard $(CURDIR)/.venv/bin/python)
+PYTHON := $(if $(VENV_PYTHON),$(VENV_PYTHON),python3)
+
+# ============================================================================
+# PHONY TARGETS
+# ============================================================================
+
+.PHONY: sr_tangent_help \
+        sr_tangent_test_python sr_tangent_test_pons sr_tangent_test_rezzolla \
+        sr_tangent_test_cpp sr_tangent_test_all sr_tangent_generate_cpp \
+        sr_tangent_plot_pressure sr_tangent_plot_velocity sr_tangent_plot_density \
+        sr_tangent_plot_wave_pattern sr_tangent_plot_tangent_effect \
+        sr_tangent_plot_rezzolla_sweep sr_tangent_plot_all \
+        sr_tangent_clean sr_tangent_info
+
+# ============================================================================
+# HELP
+# ============================================================================
+
+sr_tangent_help:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  SR-GSPH TANGENT VELOCITY TESTS"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Test the SR exact Riemann solver against tabulated solutions from:"
+	@echo "    • Pons et al. (2000): 9 tests with v^t ∈ {0, 0.9, 0.99}"
+	@echo "    • Rezzolla et al. (2003): 14 tests with various wave patterns"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                           │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make sr_tangent_test_python  # Test using Python srrp reference      │"
+	@echo "│  make sr_tangent_test_all     # Run all tests (Python + C++)          │"
+	@echo "│  make sr_tangent_clean        # Remove all results                    │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  PYTHON REFERENCE TESTS (srrp package)                                 │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make sr_tangent_test_python  # Run all Python reference tests        │"
+	@echo "│  make sr_tangent_test_pons    # Run Pons2000 tests only               │"
+	@echo "│  make sr_tangent_test_rezzolla # Run Rezzolla2003 tests only          │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  C++ SOLVER TESTS                                                      │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make sr_tangent_test_cpp     # Test C++ solver (requires build)      │"
+	@echo "│  make sr_tangent_generate_cpp # Generate C++ test code only           │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  VISUALIZATION / PLOTS                                                 │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make sr_tangent_plot_all          # Generate all plots               │"
+	@echo "│  make sr_tangent_plot_pressure     # P* (contact pressure)            │"
+	@echo "│  make sr_tangent_plot_velocity     # v^x* (contact velocity)          │"
+	@echo "│  make sr_tangent_plot_density      # ρ'_L, ρ'_R (post-wave density)   │"
+	@echo "│  make sr_tangent_plot_wave_pattern # Wave pattern distribution        │"
+	@echo "│  make sr_tangent_plot_tangent_effect # v^t effect on P*               │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  TEST CASES                                                            │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  Pons et al. (2000) Table 1:                                           │"
+	@echo "│    • P1/P2/P3: v^t_L = v^t_R = 0 (non-relativistic tangent)           │"
+	@echo "│    • P4/P5/P6: v^t_L = v^t_R = 0.9                                     │"
+	@echo "│    • P7/P8/P9: v^t_L = v^t_R = 0.99 (ultra-relativistic)              │"
+	@echo "│                                                                        │"
+	@echo "│  Rezzolla et al. (2003) Table 1:                                       │"
+	@echo "│    • R1-R4: SR (Shock-Rarefaction) wave patterns                      │"
+	@echo "│    • R5-R10: 2S (Two-Shock) wave patterns                             │"
+	@echo "│    • R11-R14: 2R (Two-Rarefaction) wave patterns                      │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Results: $(SR_TANGENT_RESULTS)/"
+	@echo ""
+
+# ============================================================================
+# INFORMATION
+# ============================================================================
+
+sr_tangent_info:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  SR-GSPH Tangent Velocity Test Configuration"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Test Directory:  $(SR_TANGENT_DIR)"
+	@echo "  Scripts:         $(SR_TANGENT_SCRIPTS)"
+	@echo "  Results:         $(SR_TANGENT_RESULTS)"
+	@echo "  Python:          $(PYTHON)"
+	@echo ""
+	@echo "  Test cases:"
+	@$(PYTHON) -c "from sr_tangent_test_cases import get_all_tests; print(f'    Total: {len(get_all_tests())} tests')" \
+		2>/dev/null || echo "    ⚠️  Cannot import test_cases (check PYTHONPATH)"
+	@echo ""
+
+# ============================================================================
+# PYTHON REFERENCE TESTS
+# ============================================================================
+
+sr_tangent_test_python:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running Python Reference Tests (All Cases)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo ""
+	@mkdir -p $(SR_TANGENT_RESULTS)
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) test_riemann_pons2000.py
+	@echo ""
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) test_riemann_rezzolla2003.py
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  ✓ All Python reference tests complete!"
+	@echo "════════════════════════════════════════════════════════════════"
+
+sr_tangent_test_pons:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running Pons et al. (2000) Tests"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo ""
+	@mkdir -p $(SR_TANGENT_RESULTS)
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) test_riemann_pons2000.py
+	@echo ""
+	@echo "✓ Pons2000 tests complete!"
+
+sr_tangent_test_rezzolla:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running Rezzolla et al. (2003) Tests"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo ""
+	@mkdir -p $(SR_TANGENT_RESULTS)
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) test_riemann_rezzolla2003.py
+	@echo ""
+	@echo "✓ Rezzolla2003 tests complete!"
+
+# ============================================================================
+# C++ SOLVER TESTS
+# ============================================================================
+
+sr_tangent_generate_cpp:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating C++ Test Code"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_TANGENT_TESTS)
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) test_cpp_riemann_solver.py --generate-only
+	@echo ""
+	@echo "✓ Generated: $(SR_TANGENT_TESTS)/test_riemann_tangent.cpp"
+
+sr_tangent_test_cpp: build/sph
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running C++ Riemann Solver Tests"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_TANGENT_RESULTS)
+	@mkdir -p $(SR_TANGENT_TESTS)
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) test_cpp_riemann_solver.py
+	@echo ""
+	@echo "✓ C++ tests complete!"
+
+# Make sr_tangent_test_all not require build/sph - C++ tests are optional
+sr_tangent_test_all: sr_tangent_test_python
+	@echo ""
+	@if [ -f build/sph ]; then \
+		$(MAKE) -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_test_cpp; \
+	else \
+		echo "  ⚠️  Skipping C++ tests (build/sph not found)"; \
+		echo "  To enable: cd build && cmake .. && make -j8"; \
+	fi
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  ✅ All Tangent Velocity Tests Complete!"
+	@echo "════════════════════════════════════════════════════════════════"
+
+# ============================================================================
+# VISUALIZATION / PLOTTING TARGETS
+# ============================================================================
+
+sr_tangent_plot_pressure:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Plotting P* (Contact Pressure) Comparison"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_TANGENT_RESULTS)/plots
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) plot_test_cases.py --plot pressure
+
+sr_tangent_plot_velocity:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Plotting v^x* (Contact Velocity) Comparison"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_TANGENT_RESULTS)/plots
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) plot_test_cases.py --plot velocity
+
+sr_tangent_plot_density:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Plotting ρ'_L, ρ'_R (Post-Wave Densities)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_TANGENT_RESULTS)/plots
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) plot_test_cases.py --plot density
+
+sr_tangent_plot_wave_pattern:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Plotting Wave Pattern Distribution"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_TANGENT_RESULTS)/plots
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) plot_test_cases.py --plot wave_pattern
+
+sr_tangent_plot_tangent_effect:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Plotting Effect of Tangential Velocity on P*"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_TANGENT_RESULTS)/plots
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) plot_test_cases.py --plot tangent_effect
+
+sr_tangent_plot_rezzolla_sweep:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Plotting Rezzolla v^t Sweep (Pattern Transitions)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_TANGENT_RESULTS)/plots
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) plot_test_cases.py --plot rezzolla_sweep
+
+sr_tangent_plot_all:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating All Visualization Plots"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(SR_TANGENT_RESULTS)/plots
+	@cd $(SR_TANGENT_SCRIPTS) && $(PYTHON) plot_test_cases.py --plot all
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  ✓ All plots generated in $(SR_TANGENT_RESULTS)/plots/"
+	@echo "════════════════════════════════════════════════════════════════"
+
+# ============================================================================
+# CLEANUP
+# ============================================================================
+
+sr_tangent_clean:
+	@echo "Cleaning sr_tangent test results..."
+	@rm -rf $(SR_TANGENT_RESULTS)
+	@rm -rf $(SR_TANGENT_TESTS)/*.o $(SR_TANGENT_TESTS)/test_riemann_tangent
+	@echo "✓ Cleaned!"

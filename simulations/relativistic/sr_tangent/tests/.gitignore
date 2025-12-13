@@ -1,0 +1,4 @@
+# Test artifacts - generated binaries
+*.o
+test_riemann_tangent
+test_riemann_tangent.cpp
