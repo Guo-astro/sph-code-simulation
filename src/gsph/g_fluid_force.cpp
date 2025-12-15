@@ -5,6 +5,9 @@
 #include "bhtree.hpp"
 #include "kernel/kernel_function.hpp"
 #include "gsph/g_fluid_force.hpp"
+#include "thermal/inoue_inutsuka_cooling.hpp"
+
+#include <iostream>  // For debug output
 
 #ifdef EXHAUSTIVE_SEARCH
 #include "exhaustive_search.hpp"
@@ -20,6 +23,22 @@ namespace sph
             sph::FluidForce::initialize(param);
             m_is_2nd_order = param->gsph.is_2nd_order;
             m_gamma = param->physics.gamma;
+
+            // Initialize ISM cooling if enabled - Inoue & Inutsuka (2008)
+            // Analytic fit to Koyama & Inutsuka (2000) cooling rates
+            m_enable_cooling = param->thermal.enable_cooling;
+            if (m_enable_cooling) {
+                m_cooling = std::make_shared<thermal::InoueInutsukaCooling>(m_gamma);
+                m_density_to_n_H = param->thermal.density_to_n_H;
+                m_u_to_cgs = param->thermal.u_to_cgs;
+                m_t_to_cgs = param->thermal.t_to_cgs;
+
+                std::cout << "[COOLING] Inoue & Inutsuka (2008) ISM cooling initialized (GSPH)" << std::endl;
+                std::cout << "  density_to_n_H = " << m_density_to_n_H << " cm^-3 per code" << std::endl;
+                std::cout << "  u_to_cgs = " << m_u_to_cgs << " erg/g per code" << std::endl;
+                std::cout << "  t_to_cgs = " << m_t_to_cgs << " s per code" << std::endl;
+                std::cout << "  Expected equilibrium: WNM (n~0.5) T~6000K, CNM (n~30) T~100K" << std::endl;
+            }
 
             // Select Riemann solver based on configuration
             if (param->gsph.riemann_solver == RiemannSolverType::ITERATIVE)
@@ -165,6 +184,31 @@ namespace sph
 
                     acc -= f;
                     dene -= inner_product(f, v_ij - v_i);
+                }
+
+                // Apply ISM cooling/heating if enabled - Inoue & Inutsuka (2008)
+                // Uses proper unit conversion and implicit subcycling for stiff cooling
+                if (m_enable_cooling && p_i.dens > 0 && p_i.ene > 0) {
+                    // Call the analytic cooling function with unit conversion
+                    // cooling_rate_sph() handles:
+                    //   1. Convert code units to CGS
+                    //   2. Get temperature from energy using correct thermodynamics
+                    //   3. Find equilibrium temperature from analytic formula
+                    //   4. Apply implicit relaxation (stable for stiff cooling)
+                    //   5. Convert back to code units
+                    const real du_dt_cooling = m_cooling->cooling_rate_sph(
+                        p_i.dens,           // Code density
+                        p_i.ene,            // Code specific internal energy
+                        dt,                 // Code timestep
+                        m_density_to_n_H,   // Conversion: code density -> n_H [cm^-3]
+                        m_u_to_cgs,         // Conversion: code energy -> erg/g
+                        m_t_to_cgs          // Conversion: code time -> seconds
+                    );
+
+                    // Apply cooling rate (with safety check)
+                    if (std::isfinite(du_dt_cooling)) {
+                        dene += du_dt_cooling;
+                    }
                 }
 
                 p_i.acc = acc;

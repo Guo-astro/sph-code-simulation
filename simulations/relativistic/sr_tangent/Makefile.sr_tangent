@@ -3,23 +3,43 @@
 # ============================================================================
 #
 # PURPOSE:
-#   Test the SR exact Riemann solver against tabulated solutions from:
+#   Test SR exact Riemann solver with tangent velocity effects from:
 #   - Pons et al. (2000): Tables with v^t ∈ {0, 0.9, 0.99}
 #   - Rezzolla et al. (2003): 14 test cases with various wave patterns
+#   - Kitajima et al. (2025): Strong blast with tangential velocity
 #
 # USAGE:
+#   # Show help
 #   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_help
+#
+#   # Run simulation with tangent velocity
+#   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_run VT=099
+#   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_run VT=09
+#   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_run VT=0
+#
+#   # Run Python reference tests
 #   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_test_python
+#
+#   # Run all tests
 #   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_test_all
+#
+#   # Generate plots
+#   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_plot_all
+#
+#   # Clean results
 #   make -f simulations/relativistic/sr_tangent/Makefile.sr_tangent sr_tangent_clean
 #
-# TEST CATEGORIES:
-#   pons2000    - 9 tests from Pons et al. (2000) Table 1
-#   rezzolla    - 14 tests from Rezzolla et al. (2003) Table 1
-#   all         - All 23 test cases
+# PARAMETERS:
+#   VT - Tangent velocity configuration: 0, 09, 099 (default: 099)
+#
+# CONFIG FILES (SSOT):
+#   simulations/relativistic/sr_tangent/config/presets/
+#   ├── sr_tangent_vt0_vt0.json      # v^t_L = v^t_R = 0 (reference)
+#   ├── sr_tangent_vt09_vt09.json    # v^t_L = v^t_R = 0.9
+#   └── sr_tangent_vt099_vt099.json  # v^t_L = v^t_R = 0.99 (ultra-hard)
 #
 # OUTPUT:
-#   Results: simulations/relativistic/sr_tangent/results/
+#   Results: simulations/relativistic/sr_tangent/results/tangent_vt<VT>_vt<VT>/
 #   Plots:   simulations/relativistic/sr_tangent/results/plots/
 #
 # ============================================================================
@@ -32,21 +52,31 @@ SR_TANGENT_RESULTS := $(SR_TANGENT_DIR)/results
 SR_TANGENT_SCRIPTS := $(SR_TANGENT_DIR)/scripts
 SR_TANGENT_TESTS := $(SR_TANGENT_DIR)/tests
 
+# Default parameters
+VT ?= 099
+
 # Python executable - prefer local venv, fallback to system python
 VENV_PYTHON := $(wildcard $(CURDIR)/.venv/bin/python)
 PYTHON := $(if $(VENV_PYTHON),$(VENV_PYTHON),python3)
+
+# Derived paths based on VT parameter
+SCENARIO_CONFIG := $(PRESET_DIR)/sr_tangent_vt$(VT)_vt$(VT).json
+ONESHOT_RESULTS := $(SR_TANGENT_RESULTS)/tangent_vt$(VT)_vt$(VT)
 
 # ============================================================================
 # PHONY TARGETS
 # ============================================================================
 
-.PHONY: sr_tangent_help \
+.PHONY: sr_tangent_help sr_tangent_info \
+        sr_tangent_check_dim sr_tangent_check_config \
+        sr_tangent_run sr_tangent_viz sr_tangent_oneshot \
         sr_tangent_test_python sr_tangent_test_pons sr_tangent_test_rezzolla \
         sr_tangent_test_cpp sr_tangent_test_all sr_tangent_generate_cpp \
         sr_tangent_plot_pressure sr_tangent_plot_velocity sr_tangent_plot_density \
         sr_tangent_plot_wave_pattern sr_tangent_plot_tangent_effect \
         sr_tangent_plot_rezzolla_sweep sr_tangent_plot_all \
-        sr_tangent_clean sr_tangent_info
+        sr_tangent_clean sr_tangent_clean_vt sr_tangent_clean_all \
+        sr_tangent_vt0 sr_tangent_vt09 sr_tangent_vt099
 
 # ============================================================================
 # HELP
@@ -57,31 +87,44 @@ sr_tangent_help:
 	@echo "  SR-GSPH TANGENT VELOCITY TESTS"
 	@echo "══════════════════════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "  Test the SR exact Riemann solver against tabulated solutions from:"
+	@echo "  Test SR exact Riemann solver with tangent velocity effects from:"
 	@echo "    • Pons et al. (2000): 9 tests with v^t ∈ {0, 0.9, 0.99}"
 	@echo "    • Rezzolla et al. (2003): 14 tests with various wave patterns"
+	@echo "    • Kitajima et al. (2025): Strong blast with tangential velocity"
 	@echo ""
 	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
 	@echo "│  QUICK START                                                           │"
 	@echo "├─────────────────────────────────────────────────────────────────────────┤"
-	@echo "│  make sr_tangent_test_python  # Test using Python srrp reference      │"
-	@echo "│  make sr_tangent_test_all     # Run all tests (Python + C++)          │"
-	@echo "│  make sr_tangent_clean        # Remove all results                    │"
+	@echo "│  make sr_tangent_vt099         # Run v^t=0.99 simulation (ultra-hard) │"
+	@echo "│  make sr_tangent_vt09          # Run v^t=0.9 simulation              │"
+	@echo "│  make sr_tangent_vt0           # Run v^t=0 simulation (reference)    │"
+	@echo "│  make sr_tangent_test_python   # Run all Python reference tests      │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SIMULATION TARGETS                                                    │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make sr_tangent_run VT=099    # Run ultra-relativistic (v^t=0.99)   │"
+	@echo "│  make sr_tangent_run VT=09     # Run moderate (v^t=0.9)              │"
+	@echo "│  make sr_tangent_run VT=0      # Run reference (v^t=0)               │"
+	@echo "│  make sr_tangent_oneshot VT=099 # Full workflow: run + viz           │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  VT OPTIONS (Tangent Velocity)                                         │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  0      Reference case: v^t_L = v^t_R = 0 (no tangent velocity)       │"
+	@echo "│  09     Moderate:       v^t_L = v^t_R = 0.9 (relativistic)            │"
+	@echo "│  099    Ultra-hard:     v^t_L = v^t_R = 0.99 (ultra-relativistic)     │"
 	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
 	@echo "│  PYTHON REFERENCE TESTS (srrp package)                                 │"
 	@echo "├─────────────────────────────────────────────────────────────────────────┤"
-	@echo "│  make sr_tangent_test_python  # Run all Python reference tests        │"
-	@echo "│  make sr_tangent_test_pons    # Run Pons2000 tests only               │"
+	@echo "│  make sr_tangent_test_python   # Run all Python reference tests       │"
+	@echo "│  make sr_tangent_test_pons     # Run Pons2000 tests only              │"
 	@echo "│  make sr_tangent_test_rezzolla # Run Rezzolla2003 tests only          │"
-	@echo "└─────────────────────────────────────────────────────────────────────────┘"
-	@echo ""
-	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
-	@echo "│  C++ SOLVER TESTS                                                      │"
-	@echo "├─────────────────────────────────────────────────────────────────────────┤"
-	@echo "│  make sr_tangent_test_cpp     # Test C++ solver (requires build)      │"
-	@echo "│  make sr_tangent_generate_cpp # Generate C++ test code only           │"
+	@echo "│  make sr_tangent_test_all      # Run all tests (Python + C++)         │"
 	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
@@ -93,6 +136,7 @@ sr_tangent_help:
 	@echo "│  make sr_tangent_plot_density      # ρ'_L, ρ'_R (post-wave density)   │"
 	@echo "│  make sr_tangent_plot_wave_pattern # Wave pattern distribution        │"
 	@echo "│  make sr_tangent_plot_tangent_effect # v^t effect on P*               │"
+	@echo "│  make sr_tangent_viz VT=099        # Visualize simulation results     │"
 	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
@@ -109,7 +153,15 @@ sr_tangent_help:
 	@echo "│    • R11-R14: 2R (Two-Rarefaction) wave patterns                      │"
 	@echo "└─────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
-	@echo "  Results: $(SR_TANGENT_RESULTS)/"
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  CLEANUP                                                               │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make sr_tangent_clean_vt VT=099  # Clean specific VT results         │"
+	@echo "│  make sr_tangent_clean_all        # Clean all results                 │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Config files:  $(PRESET_DIR)/"
+	@echo "  Results:       $(SR_TANGENT_RESULTS)/"
 	@echo ""
 
 # ============================================================================
@@ -126,10 +178,111 @@ sr_tangent_info:
 	@echo "  Results:         $(SR_TANGENT_RESULTS)"
 	@echo "  Python:          $(PYTHON)"
 	@echo ""
-	@echo "  Test cases:"
-	@$(PYTHON) -c "from sr_tangent_test_cases import get_all_tests; print(f'    Total: {len(get_all_tests())} tests')" \
-		2>/dev/null || echo "    ⚠️  Cannot import test_cases (check PYTHONPATH)"
+	@echo "  Current VT:      $(VT)"
+	@echo "  Config:          $(SCENARIO_CONFIG)"
+	@echo "  Output:          $(ONESHOT_RESULTS)"
 	@echo ""
+	@echo "  Available presets:"
+	@ls -1 $(PRESET_DIR)/*.json 2>/dev/null | xargs -I {} basename {} .json || echo "    (none)"
+	@echo ""
+
+# ============================================================================
+# VALIDATION CHECKS
+# ============================================================================
+
+sr_tangent_check_dim:
+	@if grep -q "DIM=1" build/CMakeCache.txt 2>/dev/null || \
+	   grep -q "DIM:STRING=1" build/CMakeCache.txt 2>/dev/null || \
+	   grep -q "SPH_DIM=1" build/CMakeCache.txt 2>/dev/null || \
+	   grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
+		echo "✓ DIM=1 confirmed"; \
+	else \
+		echo "❌ ERROR: This test requires DIM=1"; \
+		echo "   To rebuild: cd build && cmake -DSPH_DIM=1 .. && make -j8"; \
+		exit 1; \
+	fi
+
+sr_tangent_check_config:
+	@if [ ! -f "$(SCENARIO_CONFIG)" ]; then \
+		echo "❌ ERROR: Config not found: $(SCENARIO_CONFIG)"; \
+		echo ""; \
+		echo "Available configs:"; \
+		ls -1 $(PRESET_DIR)/*.json 2>/dev/null | xargs -I {} basename {} .json || echo "  (none)"; \
+		exit 1; \
+	fi
+	@echo "✓ Config validated: $(SCENARIO_CONFIG)"
+
+# ============================================================================
+# SIMULATION TARGETS
+# ============================================================================
+
+sr_tangent_run: build/sph sr_tangent_check_dim sr_tangent_check_config
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Running SR Tangent Velocity Simulation: VT=$(VT)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  v^t_L = v^t_R = 0.$(VT)"
+	@echo "  Config:  $(SCENARIO_CONFIG)"
+	@echo "  Output:  $(ONESHOT_RESULTS)"
+	@echo ""
+	@echo "  Initial conditions (Kitajima et al. 2025):"
+	@echo "    Left:  (P, n, v^x, v^t) = (1000, 1.0, 0, 0.$(VT))"
+	@echo "    Right: (P, n, v^x, v^t) = (0.01, 1.0, 0, 0.$(VT))"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(ONESHOT_RESULTS)
+	@echo "Starting at $$(date '+%Y-%m-%d %H:%M:%S')..."
+	./build/sph $(SCENARIO_CONFIG) 2>&1 | tee $(ONESHOT_RESULTS)/run.log || \
+		(echo "❌ Simulation failed! Check $(ONESHOT_RESULTS)/run.log"; exit 1)
+	@echo ""
+	@echo "Completed at $$(date '+%Y-%m-%d %H:%M:%S')"
+	@if [ -f "$(ONESHOT_RESULTS)/energy.dat" ]; then \
+		echo "✓ Simulation complete!"; \
+		SNAPSHOT_COUNT=$$(ls -1 $(ONESHOT_RESULTS)/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' '); \
+		echo "  Snapshots: $$SNAPSHOT_COUNT"; \
+	else \
+		echo "❌ Energy file not found - simulation may have failed"; \
+		exit 1; \
+	fi
+
+sr_tangent_viz:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Visualizing: VT=$(VT)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@if [ ! -d "$(ONESHOT_RESULTS)" ]; then \
+		echo "❌ No results found: $(ONESHOT_RESULTS)"; \
+		echo "   Run simulation first:"; \
+		echo "   make sr_tangent_run VT=$(VT)"; \
+		exit 1; \
+	fi
+	@echo "  Results: $(ONESHOT_RESULTS)"
+	@echo "  Snapshots: $$(ls -1 $(ONESHOT_RESULTS)/snapshot_*.csv 2>/dev/null | wc -l | tr -d ' ')"
+	@echo ""
+	@echo "✓ Results available for visualization"
+	@echo "  View CSV files in: $(ONESHOT_RESULTS)/"
+
+sr_tangent_oneshot: sr_tangent_run sr_tangent_viz
+	@echo ""
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ SR TANGENT VELOCITY TEST COMPLETE: VT=$(VT)"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Config:   $(SCENARIO_CONFIG)"
+	@echo "  Results:  $(ONESHOT_RESULTS)/"
+	@echo ""
+
+# ============================================================================
+# CONVENIENCE TARGETS
+# ============================================================================
+
+sr_tangent_vt0: VT := 0
+sr_tangent_vt0: sr_tangent_oneshot
+
+sr_tangent_vt09: VT := 09
+sr_tangent_vt09: sr_tangent_oneshot
+
+sr_tangent_vt099: VT := 099
+sr_tangent_vt099: sr_tangent_oneshot
 
 # ============================================================================
 # PYTHON REFERENCE TESTS
@@ -197,7 +350,6 @@ sr_tangent_test_cpp: build/sph
 	@echo ""
 	@echo "✓ C++ tests complete!"
 
-# Make sr_tangent_test_all not require build/sph - C++ tests are optional
 sr_tangent_test_all: sr_tangent_test_python
 	@echo ""
 	@if [ -f build/sph ]; then \
@@ -279,8 +431,15 @@ sr_tangent_plot_all:
 # CLEANUP
 # ============================================================================
 
-sr_tangent_clean:
-	@echo "Cleaning sr_tangent test results..."
+sr_tangent_clean_vt:
+	@echo "Cleaning VT=$(VT) results..."
+	@rm -rf $(ONESHOT_RESULTS)
+	@echo "✓ Cleaned $(ONESHOT_RESULTS)"
+
+sr_tangent_clean_all:
+	@echo "Cleaning all sr_tangent test results..."
 	@rm -rf $(SR_TANGENT_RESULTS)
 	@rm -rf $(SR_TANGENT_TESTS)/*.o $(SR_TANGENT_TESTS)/test_riemann_tangent
-	@echo "✓ Cleaned!"
+	@echo "✓ Cleaned all!"
+
+sr_tangent_clean: sr_tangent_clean_all

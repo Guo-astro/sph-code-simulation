@@ -5,7 +5,7 @@
   "_c_s_0": "0.3 (sound speed in unperturbed state)",
   "_eos": "Radiation-dominated: P = k(s)*ρ^(4/3)",
   "_note": "Pulse steepens → shock forms (t≈1) → wave dissipates",
-  "sample": "sr_simple_wave",
+  "sample": "sr_rosswog",
   "testType": "simple_wave",
   "outputDirectory": "simulations/relativistic/sr_rosswog/results/test7_simple_wave",
   "startTime": 0.0,

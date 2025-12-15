@@ -6,6 +6,7 @@
   "_gamma_max": "~1.4 (mildly relativistic)",
   "sample": "sr_sod",
   "testType": "rosswog_test1",
+  "testType": "rosswog_test1",
   "outputDirectory": "simulations/relativistic/sr_rosswog/results/test1_standard_shock_tube",
   "startTime": 0.0,
   "endTime": 0.35,

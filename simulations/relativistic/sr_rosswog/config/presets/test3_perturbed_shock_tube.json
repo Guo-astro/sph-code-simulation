@@ -4,7 +4,7 @@
   "_initial_left": "(N, v, P) = (5, 0, 50)",
   "_initial_right": "(N, v, P) = (2 + 0.3*sin(50x), 0, 5)",
   "_note": "Tests transport of smooth structures across discontinuities",
-  "sample": "sr_perturbed_shock",
+  "sample": "sr_rosswog",
   "testType": "perturbed_shock_tube",
   "outputDirectory": "simulations/relativistic/sr_rosswog/results/test3_perturbed_shock_tube",
   "startTime": 0.0,

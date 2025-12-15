@@ -145,10 +145,18 @@ MASS_UNIT = 1000.0  # M_sun
 
 GAMMA = 5.0 / 3.0
 MU = 2.3
-M_H = 1.67e-24
-K_B = 1.38e-16
-VELOCITY_TO_CGS = 1e5
+M_H = 1.67e-24  # g
+K_B = 1.38e-16  # erg/K
+VELOCITY_TO_CGS = 1e5  # km/s -> cm/s
 TEMP_CONVERSION = MU * M_H / K_B * VELOCITY_TO_CGS**2
+
+# Density unit conversion: code units (1000 M_sun/pc^3) -> number density (cm^-3)
+# 1000 M_sun = 1.9885e36 g
+# 1 pc^3 = (3.0857e18 cm)^3 = 2.938e55 cm^3
+# Code density unit = 1.9885e36 / 2.938e55 = 6.77e-20 g/cm^3
+# Number density = rho / (mu * m_H) = 6.77e-20 / (2.3 * 1.67e-24) = 1.76e4 cm^-3 per code unit
+DENSITY_CODE_TO_CGS = 1.9885e36 / 2.938e55  # g/cm^3 per code unit
+DENSITY_TO_NUMBER = DENSITY_CODE_TO_CGS / (MU * M_H)  # cm^-3 per code unit (~1.76e4)
 
 # IMBH parameters for analytical estimates
 M_IMBH = 100.0  # code units (= 10^5 Msun since 1 code mass = 1000 Msun)
@@ -191,6 +199,85 @@ def compute_analytic_orbit(M_BH, x0, y0, vx0, vy0, t_array, G=1.0):
     solution = odeint(orbit_eqn, state0, t_array)
     
     return solution[:, 0], solution[:, 1]
+
+
+# =============================================================================
+# ACCRETION TRACKING
+# =============================================================================
+
+def track_accreted_particles(snapshot_files):
+    """
+    Track particles that get accreted by the BH across all snapshots.
+
+    Returns a dictionary mapping frame_idx -> list of (x, y, z, time) tuples
+    representing particles that were accreted by that frame.
+
+    Parameters
+    ----------
+    snapshot_files : list of str
+        Sorted list of snapshot file paths
+
+    Returns
+    -------
+    dict
+        accreted_positions[frame_idx] = [(x, y, z, t_accreted), ...]
+        cumulative_accreted[frame_idx] = [(x, y, z, t_accreted), ...] (all accreted up to frame)
+    """
+    print("  Tracking accreted particles...")
+
+    prev_ids = None
+    prev_data = None
+    accreted_at_frame = {}  # particles accreted at each specific frame
+    cumulative_accreted = {}  # all particles accreted up to each frame
+    all_accreted = []  # running list
+
+    for i, filepath in enumerate(snapshot_files):
+        try:
+            with open(filepath, 'r') as f:
+                skip_lines = 0
+                for line in f:
+                    if line.startswith('#'):
+                        skip_lines += 1
+                    else:
+                        break
+
+            data = np.genfromtxt(filepath, delimiter=',', skip_header=skip_lines, names=True)
+            current_ids = set(data['id'].astype(int))
+
+            # Get time from frame index (approximate)
+            time_code = i * 0.01  # Assumes 0.01 output interval
+
+            if prev_ids is not None:
+                # Find particles that disappeared (accreted)
+                accreted_ids = prev_ids - current_ids
+
+                if accreted_ids:
+                    accreted_this_frame = []
+                    for pid in accreted_ids:
+                        # Find this particle in previous data
+                        idx = np.where(prev_data['id'].astype(int) == pid)[0]
+                        if len(idx) > 0:
+                            idx = idx[0]
+                            x = prev_data['pos_x'][idx]
+                            y = prev_data['pos_y'][idx]
+                            z = prev_data['pos_z'][idx]
+                            accreted_this_frame.append((x, y, z, time_code))
+
+                    accreted_at_frame[i] = accreted_this_frame
+                    all_accreted.extend(accreted_this_frame)
+
+            cumulative_accreted[i] = list(all_accreted)
+            prev_ids = current_ids
+            prev_data = data
+
+        except Exception as e:
+            print(f"    Warning: Error processing {filepath}: {e}")
+            cumulative_accreted[i] = list(all_accreted)
+
+    total_accreted = len(all_accreted)
+    print(f"  Found {total_accreted} accreted particles across {len(snapshot_files)} snapshots")
+
+    return accreted_at_frame, cumulative_accreted
 
 
 # =============================================================================
@@ -486,11 +573,12 @@ def style_dark_axis(ax, xlabel='', ylabel='', title='', is_3d=False):
 # SINGLE MODE ANIMATION
 # =============================================================================
 
-def create_single_mode_animation(results_dir, output_file, mode='density', 
-                                  xlim=None, ylim=None, fps=15, use_com_frame=True):
+def create_single_mode_animation(results_dir, output_file, mode='density',
+                                  xlim=None, ylim=None, fps=15, use_com_frame=True,
+                                  show_accreted=True):
     """
     Create single panel animation with high-contrast visualization.
-    
+
     Parameters
     ----------
     results_dir : str
@@ -507,15 +595,23 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
     use_com_frame : bool
         If True, center viewport on cloud's center of mass (cloud stays centered,
         IMBH marker moves). If False, use lab frame (IMBH at origin).
+    show_accreted : bool
+        If True, show accreted particles as red X markers at their last positions.
     """
-    
+
     snapshot_files = sorted(glob.glob(f"{results_dir}/snapshot_*.csv"))
     if not snapshot_files:
         print(f"Error: No snapshots found in {results_dir}")
         return False
-    
+
     print(f"Found {len(snapshot_files)} snapshots")
     print(f"Using {'CoM frame (cloud centered)' if use_com_frame else 'Lab frame (IMBH at origin)'}")
+
+    # Track accreted particles if requested
+    accreted_at_frame = {}
+    cumulative_accreted = {}
+    if show_accreted:
+        accreted_at_frame, cumulative_accreted = track_accreted_particles(snapshot_files)
     
     first = load_snapshot(snapshot_files[0])
     if first is None:
@@ -542,9 +638,11 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
     
     if mode == 'density':
         cmap = CUSTOM_CMAPS['density']
-        # Use LINEAR scale for density (not log)
-        norm = Normalize(vmin=0, vmax=2.0)
-        cbar_label = 'Density (code units: 1000 M☉/pc³)'
+        # Use LOG scale for number density in cm^-3
+        # Initial cloud ~1 code unit -> ~1.76e4 cm^-3
+        # Compressed regions ~2-10x -> ~3.5e4 to 1.76e5 cm^-3
+        norm = LogNorm(vmin=1e3, vmax=1e6)
+        cbar_label = 'Number Density (cm⁻³)'
         title_prefix = 'Gas Density'
     elif mode == 'temperature':
         cmap = CUSTOM_CMAPS['temperature']
@@ -563,14 +661,19 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
         title_prefix = 'Shock Structure'
     else:
         cmap = CUSTOM_CMAPS['density']
-        # Use LINEAR scale for density (not log)
-        norm = Normalize(vmin=0, vmax=2.0)
-        cbar_label = 'Density (code units)'
+        # Use LOG scale for number density in cm^-3
+        norm = LogNorm(vmin=1e3, vmax=1e6)
+        cbar_label = 'Number Density (cm⁻³)'
         title_prefix = 'Gas'
     
-    scatter = ax.scatter([], [], s=10, c=[], cmap=cmap, norm=norm, 
+    scatter = ax.scatter([], [], s=10, c=[], cmap=cmap, norm=norm,
                         alpha=0.9, edgecolors='none')
-    
+
+    # Scatter plot for accreted particles (red X markers)
+    scatter_accreted = ax.scatter([], [], s=60, c='#ff0000', marker='x',
+                                   alpha=0.8, linewidths=2, zorder=99,
+                                   label='Accreted')
+
     cbar = fig.colorbar(scatter, ax=ax, shrink=0.8, pad=0.02)
     cbar.set_label(cbar_label, fontsize=14, color=TEXT_COLOR, fontweight='bold')
     cbar.ax.tick_params(colors=TEXT_COLOR, labelsize=11)
@@ -653,7 +756,8 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
             return scatter,
         
         if mode == 'density':
-            color_data = snapshot['dens']
+            # Convert code units to number density (cm^-3)
+            color_data = snapshot['dens'] * DENSITY_TO_NUMBER
         elif mode == 'temperature':
             color_data = compute_temperature(snapshot['pres'], snapshot['dens'])
         elif mode == 'mach':
@@ -663,27 +767,28 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
         elif mode == 'shock':
             _, color_data = detect_shocks(snapshot['dens'], snapshot['pres'])
         else:
-            color_data = snapshot['dens']
+            # Default: convert code units to number density (cm^-3)
+            color_data = snapshot['dens'] * DENSITY_TO_NUMBER
         
+        # Compute center of mass (needed for both frames when tracking accretion)
+        total_mass = np.sum(snapshot['mass'])
+        com_x = np.sum(snapshot['pos_x'] * snapshot['mass']) / total_mass
+        com_y = np.sum(snapshot['pos_y'] * snapshot['mass']) / total_mass
+
         # Transform to CoM frame if requested
         if use_com_frame:
-            # Compute center of mass
-            total_mass = np.sum(snapshot['mass'])
-            com_x = np.sum(snapshot['pos_x'] * snapshot['mass']) / total_mass
-            com_y = np.sum(snapshot['pos_y'] * snapshot['mass']) / total_mass
-            
             # Transform particle positions to CoM frame
             pos_x_plot = snapshot['pos_x'] - com_x
             pos_y_plot = snapshot['pos_y'] - com_y
-            
+
             # IMBH position in CoM frame (IMBH is at origin in lab frame)
             imbh_x = -com_x
             imbh_y = -com_y
-            
+
             # Update IMBH marker positions
             for marker in imbh_glow_markers:
                 marker.set_offsets([[imbh_x, imbh_y]])
-            
+
             # Update orbit marker (in CoM frame, analytic orbit marker is at origin)
             if orbit_marker is not None:
                 orbit_marker.set_offsets([[0, 0]])
@@ -691,16 +796,36 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
             # Lab frame: use raw positions, IMBH stays at origin
             pos_x_plot = snapshot['pos_x']
             pos_y_plot = snapshot['pos_y']
-            
+
             # Update analytic orbit marker position in lab frame
             if orbit_marker is not None and x_orbit is not None:
                 # Find closest time index in orbit array
-                orbit_idx = min(int(time_code / t_max_code * len(t_orbit)), len(t_orbit) - 1)
+                time_code_temp = frame_idx * 0.025
+                orbit_idx = min(int(time_code_temp / t_max_code * len(t_orbit)), len(t_orbit) - 1)
                 orbit_marker.set_offsets([[x_orbit[orbit_idx], y_orbit[orbit_idx]]])
         
         scatter.set_offsets(np.column_stack([pos_x_plot, pos_y_plot]))
         scatter.set_array(color_data)
-        
+
+        # Update accreted particles display
+        if show_accreted and frame_idx in cumulative_accreted:
+            accreted_list = cumulative_accreted[frame_idx]
+            if accreted_list:
+                acc_x = np.array([p[0] for p in accreted_list])
+                acc_y = np.array([p[1] for p in accreted_list])
+                if use_com_frame:
+                    # Transform to CoM frame
+                    acc_x_plot = acc_x - com_x
+                    acc_y_plot = acc_y - com_y
+                else:
+                    acc_x_plot = acc_x
+                    acc_y_plot = acc_y
+                scatter_accreted.set_offsets(np.column_stack([acc_x_plot, acc_y_plot]))
+            else:
+                scatter_accreted.set_offsets(np.empty((0, 2)))
+        else:
+            scatter_accreted.set_offsets(np.empty((0, 2)))
+
         time_code = frame_idx * 0.025
         time_myr = time_code * TIME_UNIT
         
@@ -711,16 +836,23 @@ def create_single_mode_animation(results_dir, output_file, mode='density',
         
         time_text.set_text(f't = {time_myr:.3f} Myr')
         
+        # Convert density to number density for display
+        n_max = snapshot["dens"].max() * DENSITY_TO_NUMBER
+
+        # Count accreted particles
+        n_accreted = len(cumulative_accreted.get(frame_idx, [])) if show_accreted else 0
+
         physics_info = (f'N = {len(snapshot["dens"]):,}\n'
-                       f'ρ_max = {snapshot["dens"].max():.1e}\n'
+                       f'Accreted = {n_accreted}\n'
+                       f'n_max = {n_max:.1e} cm⁻³\n'
                        f'T_max = {temp.max():.1e} K\n'
                        f'M_int_max = {mach.max():.1f}')
         physics_text.set_text(physics_info)
         
         if frame_idx % 20 == 0:
-            print(f"  Frame {frame_idx+1}/{len(snapshot_files)}: t={time_myr:.3f} Myr")
-        
-        return scatter, time_text, physics_text
+            print(f"  Frame {frame_idx+1}/{len(snapshot_files)}: t={time_myr:.3f} Myr, accreted={n_accreted}")
+
+        return scatter, scatter_accreted, time_text, physics_text
     
     print(f"Creating {mode} animation...")
     anim = FuncAnimation(fig, update, frames=len(snapshot_files), 
@@ -819,11 +951,11 @@ def create_tidal_disruption_animation(results_dir, output_file, xlim=None, ylim=
     # =========================================================================
     
     scatter_dens_xy = ax_dens_xy.scatter([], [], s=8, c=[], cmap=CUSTOM_CMAPS['density'],
-                                         norm=LogNorm(vmin=1e-2, vmax=1e2),
+                                         norm=LogNorm(vmin=1e3, vmax=1e6),
                                          alpha=0.9, edgecolors='none')
-    
+
     cbar_dens = fig.colorbar(scatter_dens_xy, ax=ax_dens_xy, shrink=0.85, pad=0.02)
-    cbar_dens.set_label('Density', fontsize=11, color=TEXT_COLOR, fontweight='bold')
+    cbar_dens.set_label('n (cm⁻³)', fontsize=11, color=TEXT_COLOR, fontweight='bold')
     cbar_dens.ax.tick_params(colors=TEXT_COLOR, labelsize=9)
     cbar_dens.outline.set_edgecolor(GRID_COLOR)
     
@@ -902,11 +1034,11 @@ def create_tidal_disruption_animation(results_dir, output_file, xlim=None, ylim=
     # =========================================================================
     
     scatter_dens_xz = ax_dens_xz.scatter([], [], s=8, c=[], cmap=CUSTOM_CMAPS['density'],
-                                          norm=LogNorm(vmin=1e-2, vmax=1e2),
+                                          norm=LogNorm(vmin=1e3, vmax=1e6),
                                           alpha=0.9, edgecolors='none')
-    
+
     cbar_xz = fig.colorbar(scatter_dens_xz, ax=ax_dens_xz, shrink=0.85, pad=0.02)
-    cbar_xz.set_label('Density', fontsize=11, color=TEXT_COLOR, fontweight='bold')
+    cbar_xz.set_label('n (cm⁻³)', fontsize=11, color=TEXT_COLOR, fontweight='bold')
     cbar_xz.ax.tick_params(colors=TEXT_COLOR, labelsize=9)
     cbar_xz.outline.set_edgecolor(GRID_COLOR)
     
@@ -1050,18 +1182,21 @@ def create_tidal_disruption_animation(results_dir, output_file, xlim=None, ylim=
         for sc in imbh_glow_dens_xz:
             sc.set_offsets([[imbh_x_com, imbh_z_com]])
 
+        # Convert density to number density (cm^-3)
+        n_density = snapshot['dens'] * DENSITY_TO_NUMBER
+
         # Update scatter plots - NOW IN CoM FRAME!
         scatter_dens_xy.set_offsets(np.column_stack([pos_x_com, pos_y_com]))
-        scatter_dens_xy.set_array(snapshot['dens'])
-        
+        scatter_dens_xy.set_array(n_density)
+
         scatter_temp.set_offsets(np.column_stack([pos_x_com, pos_y_com]))
         scatter_temp.set_array(temperature)
-        
+
         scatter_mach.set_offsets(np.column_stack([pos_x_com, pos_y_com]))
         scatter_mach.set_array(mach)
-        
+
         scatter_dens_xz.set_offsets(np.column_stack([pos_x_com, pos_z_com]))
-        scatter_dens_xz.set_array(snapshot['dens'])
+        scatter_dens_xz.set_array(n_density)
         
         time_text.set_text(f't = {time_myr:.3f} Myr')
         
@@ -1166,7 +1301,7 @@ def create_tidal_disruption_animation(results_dir, output_file, xlim=None, ylim=
             f"║ Frame {frame_idx+1:>4}/{len(snapshot_files):<4}                  ║\n"
             f"╠═══════════════════════════════════╣\n"
             f"║ N_particles: {len(snapshot['dens']):>8,}           ║\n"
-            f"║ ρ_max:    {snapshot['dens'].max():>10.2e}         ║\n"
+            f"║ n_max:    {n_density.max():>10.2e} cm⁻³   ║\n"
             f"║ T_max:    {temperature.max():>10.2e} K       ║\n"
             f"║ M_max:    {mach.max():>10.2f}           ║\n"
             f"╠═══════════════════════════════════╣\n"
@@ -1259,13 +1394,18 @@ Frame of Reference:
                        help='Y-axis limits (default: auto)')
     parser.add_argument('--lab-frame', action='store_true',
                        help='Use lab frame (IMBH at origin) instead of CoM frame for single-mode animations')
-    
+    parser.add_argument('--show-accreted', action='store_true', default=True,
+                       help='Show accreted particles as red X markers (default: True)')
+    parser.add_argument('--no-accreted', action='store_true',
+                       help='Hide accreted particles')
+
     args = parser.parse_args()
     
     xlim = tuple(args.xlim) if args.xlim else None
     ylim = tuple(args.ylim) if args.ylim else None
     use_com_frame = not args.lab_frame
-    
+    show_accreted = not args.no_accreted
+
     print("=" * 65)
     print("IMBH Tidal Disruption - High Contrast with Energy Evolution")
     print("=" * 65)
@@ -1282,7 +1422,8 @@ Frame of Reference:
     else:
         success = create_single_mode_animation(
             args.results_dir, args.output, mode=args.mode,
-            xlim=xlim, ylim=ylim, fps=args.fps, use_com_frame=use_com_frame)
+            xlim=xlim, ylim=ylim, fps=args.fps, use_com_frame=use_com_frame,
+            show_accreted=show_accreted)
     
     if success:
         print("\n" + "=" * 65)

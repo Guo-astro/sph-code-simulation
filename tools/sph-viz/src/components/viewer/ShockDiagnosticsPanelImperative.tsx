@@ -247,6 +247,29 @@ function extractHorizontalProfile(
 }
 
 /**
+ * Compute auto-fit Y range from profile data
+ */
+function computeAutoYRange(profile: ProfileData): [number, number] {
+  if (profile.positions.length === 0) return [0, 5]
+
+  // Find max across all series
+  const allValues = [
+    ...profile.density,
+    ...profile.pressure,
+    ...profile.temperature,
+    ...profile.pAdiabatic,
+    ...profile.tAdiabatic,
+  ].filter(v => isFinite(v) && v > 0)
+
+  if (allValues.length === 0) return [0, 5]
+
+  const maxVal = Math.max(...allValues)
+  // Round up to nice number with 20% headroom
+  const yMax = Math.ceil(maxVal * 1.2)
+  return [0, Math.max(yMax, 2)]  // At least 0-2 range
+}
+
+/**
  * Draw a 1D profile chart
  */
 function drawProfile(
@@ -258,8 +281,10 @@ function drawProfile(
   height: number,
   title: string,
   xLabel: string,
-  yRange: [number, number] = [0, 5]
+  yRange?: [number, number]  // Optional - auto-fit if not provided
 ) {
+  // Auto-fit Y range if not provided
+  const effectiveYRange = yRange ?? computeAutoYRange(profile)
   const margin = { left: 45, right: 10, top: 25, bottom: 30 }
   const plotWidth = width - margin.left - margin.right
   const plotHeight = height - margin.top - margin.bottom
@@ -299,7 +324,7 @@ function drawProfile(
   const xMin = Math.min(...profile.positions)
   const xMax = Math.max(...profile.positions)
   const scaleX = (v: number) => x + margin.left + ((v - xMin) / (xMax - xMin)) * plotWidth
-  const scaleY = (v: number) => y + margin.top + plotHeight - ((v - yRange[0]) / (yRange[1] - yRange[0])) * plotHeight
+  const scaleY = (v: number) => y + margin.top + plotHeight - ((v - effectiveYRange[0]) / (effectiveYRange[1] - effectiveYRange[0])) * plotHeight
   
   // Reference line at 1.0
   ctx.strokeStyle = '#666'
@@ -320,7 +345,7 @@ function drawProfile(
     ctx.beginPath()
     for (let i = 0; i < data.length; i++) {
       const px = scaleX(profile.positions[i])
-      const py = scaleY(Math.max(yRange[0], Math.min(yRange[1], data[i])))
+      const py = scaleY(Math.max(effectiveYRange[0], Math.min(effectiveYRange[1], data[i])))
       if (i === 0) ctx.moveTo(px, py)
       else ctx.lineTo(px, py)
     }
@@ -353,8 +378,8 @@ function drawProfile(
   ctx.fillText(xLabel, x + width / 2, y + height - 5)
   
   ctx.textAlign = 'right'
-  ctx.fillText(yRange[1].toFixed(0), x + margin.left - 5, y + margin.top + 5)
-  ctx.fillText(yRange[0].toFixed(0), x + margin.left - 5, y + height - margin.bottom)
+  ctx.fillText(effectiveYRange[1].toFixed(0), x + margin.left - 5, y + margin.top + 5)
+  ctx.fillText(effectiveYRange[0].toFixed(0), x + margin.left - 5, y + height - margin.bottom)
 }
 
 /**
@@ -497,14 +522,14 @@ export function ShockDiagnosticsPanelImperative({
     ctx.fillStyle = COLORS.pressure
     ctx.fillText(`P_max/P₀=${maxPRatio.toFixed(1)}`, width - 10, 37)
 
-    // Draw profiles
+    // Draw profiles with auto-fit Y range
     drawProfile(
       ctx,
       computedData.verticalProfile,
       10, 45, chartWidth, chartHeight,
       'VERTICAL SHOCK (Z)',
-      'Z - Z_CoM (pc)',
-      [0, 5]
+      'Z - Z_CoM (pc)'
+      // yRange omitted - auto-fit
     )
 
     drawProfile(
@@ -512,8 +537,8 @@ export function ShockDiagnosticsPanelImperative({
       computedData.horizontalProfile,
       20 + chartWidth, 45, chartWidth, chartHeight,
       'HORIZONTAL STRETCH (X)',
-      'X - X_CoM (pc)',
-      [0, 5]
+      'X - X_CoM (pc)'
+      // yRange omitted - auto-fit
     )
 
     // Legend

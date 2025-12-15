@@ -326,6 +326,16 @@ void Solver::read_parameterfile(const char * filename)
             m_sample_parameters["vt_right"] = input.get<real>("vt_right", real(0.9));
             m_sample_parameters["useGhostParticles"] = input.get<bool>("useGhostParticles", true);
             m_sample_parameters["ghostLayers"] = input.get<int>("ghostLayers", 6);
+        } else if (sample_type == "sr_rosswog") {
+            m_sample = Sample::SRRosswog;
+            // Rosswog (2010) arXiv:0907.4890 benchmark tests
+            // testType: perturbed_shock_tube (test3), sine_advection (test5), 
+            //           square_advection (test6), simple_wave (test7)
+            m_sample_parameters["testType"] = input.get<std::string>("testType", "perturbed_shock_tube");
+            m_sample_parameters["N"] = input.get<int>("N", 500);
+            m_sample_parameters["gamma"] = input.get<real>("gamma", real(5.0 / 3.0));
+            m_sample_parameters["advectionVelocity"] = input.get<real>("advectionVelocity", real(0.997));
+            m_sample_parameters["vMax"] = input.get<real>("vMax", real(0.7));
         } else if (sample_type == "ns_merger_2d") {
             m_sample = Sample::NSMerger2D;
             m_sample_parameters["R_star"] = input.get<real>("ns_merger.star1.radius", real(1.2));
@@ -715,15 +725,31 @@ void Solver::read_parameterfile(const char * filename)
     
     // Relaxation (for Lane-Emden)
     
-    // Thermal (ISM Cooling/Heating)
+    // Thermal (ISM Cooling/Heating) - Koyama & Inutsuka (2000)
     m_param->thermal.enable_cooling = input.get<bool>("enableCooling", false);
     if (m_param->thermal.enable_cooling) {
         m_param->thermal.N_H_column = input.get<real>("columnDensity", 1.0e19);
         m_param->thermal.relaxation_time = input.get<real>("thermalRelaxationTime", 0.1);
-        m_param->thermal.density_to_n_H = input.get<real>("densityToNumberDensity", 1.0);
-        WRITE_LOG << "ISM Cooling enabled";
+
+        // Unit conversion factors for cooling physics
+        // Default values for Galactic unit system:
+        //   Length = 1 pc, Mass = 1000 M_sun, Velocity = 1 km/s
+        //   Time = L/V = 0.978 Myr = 3.086e13 s
+        //   Density unit = 1000 M_sun / pc^3 = 6.77e-20 g/cm^3
+        //   n_H = rho / m_n where m_n = 1.27 * m_p = 2.12e-24 g
+        //   => density_to_n_H = 6.77e-20 / 2.12e-24 = 31.9 cm^-3 per code density
+        //   u_to_cgs = v^2 = (1 km/s)^2 = 1e10 erg/g
+        //   t_to_cgs = 0.978 Myr = 3.086e13 s
+        m_param->thermal.density_to_n_H = input.get<real>("densityToNumberDensity", 31.9);
+        m_param->thermal.u_to_cgs = input.get<real>("energyToCGS", 1.0e10);
+        m_param->thermal.t_to_cgs = input.get<real>("timeToCGS", 3.086e13);
+
+        WRITE_LOG << "ISM Cooling enabled (Koyama & Inutsuka 2000)";
         WRITE_LOG << "* Column density N_H = " << m_param->thermal.N_H_column << " cm^-2";
-        WRITE_LOG << "* Thermal relaxation = " << m_param->thermal.relaxation_time;
+        WRITE_LOG << "* Unit conversions:";
+        WRITE_LOG << "    density_to_n_H = " << m_param->thermal.density_to_n_H << " cm^-3 per code density";
+        WRITE_LOG << "    u_to_cgs = " << m_param->thermal.u_to_cgs << " erg/g per code energy";
+        WRITE_LOG << "    t_to_cgs = " << m_param->thermal.t_to_cgs << " s per code time";
     }
 
     m_use_relaxation = input.get<bool>("useRelaxation", false);
@@ -881,11 +907,22 @@ void Solver::read_parameterfile(const char * filename)
             }
         }
         
-        // Read softening (in pc, convert to code units)
-        real softening_pc = input.get<real>("imbh_parameters.softening_epsilon", 0.01);
+        // Read softening epsilon (in pc, convert to code units)
+        // Default: 0.001 pc (~200 AU) - prevents singularity near BH
+        real softening_pc = input.get<real>("imbh_parameters.softening_epsilon", 0.001);
         real softening_cgs = softening_pc * UnitSystem::PC_TO_CM;  // pc → cm
         real softening_code = m_units.from_physical_length(softening_cgs);  // cm → code units
-        
+
+        // Read sink radius (in pc, convert to code units)
+        // Default: 0.005 pc (~1000 AU) - accretion boundary
+        // Particles inside r_sink that are bound and moving inward are removed.
+        real sink_radius_pc = input.get<real>("imbh_parameters.sink_radius", 0.005);
+        real sink_radius_cgs = sink_radius_pc * UnitSystem::PC_TO_CM;  // pc → cm
+        real sink_radius_code = m_units.from_physical_length(sink_radius_cgs);  // cm → code units
+
+        // Read sink enable flag (default: true for fixed BH simulations)
+        bool enable_sink = input.get<bool>("imbh_parameters.enable_sink", true);
+
         // Construct position and velocity vectors
         vec_t pos_vec, vel_vec;
 #if DIM == 2
@@ -895,18 +932,20 @@ void Solver::read_parameterfile(const char * filename)
         pos_vec = vec_t(bh_pos[0], bh_pos[1], bh_pos[2]);
         vel_vec = vec_t(bh_vel[0], bh_vel[1], bh_vel[2]);
 #endif
-        
+
         // Create and initialize external BH module
         m_external_bh = std::make_shared<external_forces::PointMassBlackHole>();
-        
+
         external_forces::PointMassBHParams bh_params;
         bh_params.mass = M_BH_code;
         bh_params.position = pos_vec;
         bh_params.velocity = vel_vec;
         bh_params.softening_length = softening_code;
+        bh_params.sink_radius = sink_radius_code;
+        bh_params.enable_sink = enable_sink;
         bh_params.G_constant = m_param->gravity.constant;
         bh_params.is_moving = is_moving;
-        
+
         m_external_bh->initialize(bh_params);
         
         // Store external BH parameters in SPHParameters for energy calculations
@@ -927,8 +966,10 @@ void Solver::read_parameterfile(const char * filename)
         std::cout << "] km/s = [" << bh_vel[0];
         for(size_t i = 1; i < bh_vel.size(); ++i) std::cout << ", " << bh_vel[i];
         std::cout << "] code" << std::endl;
-        std::cout << "  Softening: " << softening_pc << " pc = " << softening_code << " code" << std::endl;
-        std::cout << "  Is moving: " << (is_moving ? "yes" : "no") << std::endl;
+        std::cout << "  Softening epsilon: " << softening_pc << " pc = " << softening_code << " code" << std::endl;
+        std::cout << "  Sink radius: " << sink_radius_pc << " pc = " << sink_radius_code << " code" << std::endl;
+        std::cout << "  Sink accretion: " << (enable_sink ? "enabled" : "disabled") << std::endl;
+        std::cout << "  Is moving: " << (is_moving ? "yes (WARNING: fixed BH recommended)" : "no (fixed at origin)") << std::endl;
         std::cout << "=========================================\n" << std::endl;
         
         // Read cloud initial conditions (for shifting particles after snapshot load)
@@ -2224,11 +2265,18 @@ void Solver::integrate()
     // Apply external BH force if enabled
     if(m_use_external_bh) {
         m_external_bh->calculation(m_sim);
-        // Update BH position if it's moving
+
+        // Apply sink accretion (remove particles that fall into the BH)
+        // This is called AFTER force calculation to use updated velocities
+        // Particles inside r_sink that are bound and moving inward are removed.
+        // BH mass remains fixed (fixed-potential approximation).
+        m_external_bh->apply_sink_accretion(m_sim);
+
+        // Update BH position if it's moving (typically fixed at origin)
         const real dt = m_sim->get_dt();
         m_external_bh->update_position(dt);
     }
-    
+
     correct();
 }
 
@@ -2663,6 +2711,7 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::Sedov, sedov);
         MAKE_SAMPLE(Sample::SRSod, sr_sod);
         MAKE_SAMPLE(Sample::SRTangentVelocity, sr_tangent_velocity);
+        MAKE_SAMPLE(Sample::SRRosswog, sr_rosswog);
         MAKE_SAMPLE(Sample::NSMerger2D, ns_merger_2d);
         MAKE_SAMPLE(Sample::BNSCocoon1D, bns_cocoon_1d);
         MAKE_SAMPLE(Sample::BNSCocoon2D, bns_cocoon_2d);

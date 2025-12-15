@@ -129,6 +129,16 @@ export interface SimulationMetadata {
   units?: PhysicalUnits
   /** IMBH physics parameters - optional */
   imbhPhysics?: IMBHPhysicsConfig
+  /** Pre-computed P-V diagram ranges - optional */
+  pvDiagram?: {
+    positionRange: [number, number]
+    velocityRange: [number, number]
+    velocityStats?: {
+      vx: [number, number]
+      vy: [number, number]
+      vz: [number, number]
+    }
+  }
   /** Path to config file - optional */
   configPath?: string
   /** Path to simulation data */

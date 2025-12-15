@@ -98,20 +98,24 @@
     "M_BH": 100000.0,
     "BH_initial_position": [0.0, 0.0, 0.0],
     "BH_initial_velocity": [0.0, 0.0, 0.0],
-    "softening_epsilon": 0.05,
-    "cloud_initial_position": [9.8, -2, 0.0],
+    "softening_epsilon": 0.001,
+    "sink_radius": 0.005,
+    "enable_sink": true,
+    "cloud_initial_position": [9.8, -3.5, 0.0],
     "cloud_initial_velocity": [-8.19, 0.4, 0.0],
     "inclination": 70.0,
     "positionAngle": 41.6,
-    "lsrVelocity": -120
+    "lsrVelocity": -120,
+    "comment": "Fixed BH at origin with Plummer softening (eps=0.001pc) and sink accretion (r_sink=0.005pc)"
   },
   "externalForces": {
     "pointMassBH": {
       "enabled": true,
       "mass": 100.0,
       "position": [0.0, 0.0, 0.0],
-      "softening": 0.05,
-      "comment": "IMBH at origin: M_BH = 100 code = 1e5 Msun"
+      "softening": 0.001,
+      "sink_radius": 0.005,
+      "comment": "IMBH at origin: M_BH = 100 code = 1e5 Msun. Fixed BH with sink accretion."
     }
   },
   "thermal": {

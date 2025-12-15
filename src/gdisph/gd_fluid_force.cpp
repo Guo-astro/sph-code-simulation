@@ -24,13 +24,21 @@ void FluidForce::initialize(std::shared_ptr<SPHParameters> param)
     sph::FluidForce::initialize(param);
     m_is_2nd_order = param->gsph.is_2nd_order;
     m_gamma = param->physics.gamma;
-    
-    // Initialize ISM cooling if enabled (Inoue & Inutsuka 2008)
+
+    // Initialize ISM cooling if enabled - Inoue & Inutsuka (2008)
+    // Analytic fit to Koyama & Inutsuka (2000) cooling rates
     m_enable_cooling = param->thermal.enable_cooling;
     if (m_enable_cooling) {
         m_cooling = std::make_shared<thermal::InoueInutsukaCooling>(m_gamma);
-        m_thermal_relax_time = param->thermal.relaxation_time;
         m_density_to_n_H = param->thermal.density_to_n_H;
+        m_u_to_cgs = param->thermal.u_to_cgs;
+        m_t_to_cgs = param->thermal.t_to_cgs;
+
+        std::cout << "[COOLING] Inoue & Inutsuka (2008) ISM cooling initialized (GDISPH)" << std::endl;
+        std::cout << "  density_to_n_H = " << m_density_to_n_H << " cm^-3 per code" << std::endl;
+        std::cout << "  u_to_cgs = " << m_u_to_cgs << " erg/g per code" << std::endl;
+        std::cout << "  t_to_cgs = " << m_t_to_cgs << " s per code" << std::endl;
+        std::cout << "  Expected equilibrium: WNM (n~0.5) T~6000K, CNM (n~30) T~100K" << std::endl;
     }
 
     hll_solver();
@@ -197,79 +205,33 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
                   + dene_ac;
         }
         
-        // Apply ISM cooling/heating if enabled
-        if (m_enable_cooling && p_i.dens > 0 && p_i.pres > 0) {
-            // Convert code density to number density [cm^-3]
-            // Since code uses n_H directly as density (densityToNumberDensity = 1.0)
-            const real n_H = p_i.dens * m_density_to_n_H;
-            
-            // Check if density is in valid range for cooling table
-            if (n_H >= 0.1 && n_H <= 1000.0) {
-                // Get equilibrium temperature from cooling curve [K]
-                const real T_eq = m_cooling->equilibrium_temperature(n_H);
-                
-                // Get current temperature from pressure and density
-                // In our code units: P = n_H * T, so T = P / n_H
-                const real T_current = p_i.pres / p_i.dens;
-                
-                // Check for valid temperature
-                if (T_eq > 0 && T_current > 0 && std::isfinite(T_eq) && std::isfinite(T_current)) {
-                    // Get equilibrium internal energy
-                    // u = P / [(gamma-1) * rho] = T / (gamma-1) in our units
-                    const real u_eq = T_eq / (m_gamma - 1.0);
-                    const real u_current = p_i.ene;
-                    
-                    // Simple thermal relaxation
-                    const real du_dt = (u_eq - u_current) / m_thermal_relax_time;
-                    
-                    // Apply cooling (with safety check)
-                    if (std::isfinite(du_dt)) {
-                        dene += du_dt;
-                    }
-                }
+        // Apply ISM cooling/heating if enabled - Inoue & Inutsuka (2008)
+        // Uses proper unit conversion and implicit subcycling for stiff cooling
+        if (m_enable_cooling && p_i.dens > 0 && p_i.ene > 0) {
+            // Call the analytic cooling function with unit conversion
+            // cooling_rate_sph() handles:
+            //   1. Convert code units to CGS
+            //   2. Get temperature from energy using correct thermodynamics
+            //   3. Find equilibrium temperature from analytic formula
+            //   4. Apply implicit relaxation (stable for stiff cooling)
+            //   5. Convert back to code units
+            const real du_dt_cooling = m_cooling->cooling_rate_sph(
+                p_i.dens,           // Code density
+                p_i.ene,            // Code specific internal energy
+                dt,                 // Code timestep
+                m_density_to_n_H,   // Conversion: code density -> n_H [cm^-3]
+                m_u_to_cgs,         // Conversion: code energy -> erg/g
+                m_t_to_cgs          // Conversion: code time -> seconds
+            );
+
+            // Apply cooling rate (with safety check)
+            if (std::isfinite(du_dt_cooling)) {
+                dene += du_dt_cooling;
             }
         }
 
         p_i.acc = acc;
         p_i.dene = dene;
-        
-        // DEBUG: Write cooling info to file for first particle
-        static int call_count = 0;
-        static bool debug_file_open = false;
-        static FILE* debug_file = nullptr;
-        
-        if (!debug_file_open) {
-            debug_file = fopen("simulations/astrophysics/cooling_heating/results/cnm_relaxation/cooling_debug.txt", "w");
-            if (debug_file) {
-                fprintf(debug_file, "# Cooling debug output\n");
-                fprintf(debug_file, "# call  i  dene_total  dene_hydro  dene_cooling  n_H  T_current  T_eq  u_current  u_eq\n");
-                debug_file_open = true;
-            }
-        }
-        
-        if (i == 0 && call_count < 500 && debug_file) {
-            real dene_cooling = 0.0;
-            real dene_hydro = dene;
-            
-            if (m_enable_cooling && p_i.dens > 0 && p_i.pres > 0) {
-                real n_H = p_i.dens * m_density_to_n_H;
-                if (n_H >= 0.1 && n_H <= 1000.0) {
-                    real T_eq = m_cooling->equilibrium_temperature(n_H);
-                    real T_current = p_i.pres / p_i.dens;
-                    if (T_eq > 0 && T_current > 0 && std::isfinite(T_eq) && std::isfinite(T_current)) {
-                        real u_eq = T_eq / (m_gamma - 1.0);
-                        real u_current = p_i.ene;
-                        dene_cooling = (u_eq - u_current) / m_thermal_relax_time;
-                        dene_hydro = dene - dene_cooling;
-                        
-                        fprintf(debug_file, "%d  %d  %.6e  %.6e  %.6e  %.3f  %.3f  %.3f  %.6e  %.6e\n",
-                                call_count, i, dene, dene_hydro, dene_cooling, 
-                                n_H, T_current, T_eq, u_current, u_eq);
-                    }
-                }
-            }
-            call_count++;
-        }
     }
 }
 

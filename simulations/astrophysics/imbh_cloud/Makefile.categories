@@ -4,6 +4,23 @@
 #
 # Systematic simulation categories for IMBH-molecular cloud tidal disruption.
 #
+# Physics Model: Fixed Black Hole with Sink Accretion
+# ──────────────────────────────────────────────────────────────────────────────
+# The IMBH is implemented as a fixed point mass at the origin with:
+#   - Plummer softening: a = -G M_BH r / (r² + eps²)^(3/2)
+#   - Sink accretion: particles inside r_sink that are bound and moving
+#     inward are removed from the simulation
+#   - BH mass remains fixed (fixed-potential approximation)
+#
+# Default parameters (can be overridden in JSON config):
+#   M_BH = 10^5 M_sun           BH mass
+#   eps  = 0.001 pc (~200 AU)   Softening length
+#   r_sink = 0.005 pc (~1000 AU) Sink/accretion radius
+#
+# Time stepping includes both CFL and gravity constraints:
+#   dt = min(C_CFL * h/v_sig, eta * sqrt(h/|a|))
+# ──────────────────────────────────────────────────────────────────────────────
+#
 # Categories:
 #   CAT1    - Adiabatic (no cooling)      : Pure gas dynamics baseline
 #   CAT2    - Radiative (Inoue-Inutsuka)  : ISM thermal physics
@@ -20,6 +37,17 @@
 #   b3   - b=3.0 pc (partial disruption, b/r_t=0.83)
 #   b6   - b=6.0 pc (weak interaction,   b/r_t=1.65)
 #   oka  - Oka et al. orbit (b=5.17 pc, pericentre=2.22 pc, e=1.45)
+#
+# Scripts (in scripts/ directory):
+#   diag_conservation.py      - Conservation diagnostics (E, P, L with sink accretion)
+#   viz_gradh_comparison.py   - Grad-h method comparison plots/animation
+#   animate_single_run.py     - Main IMBH tidal disruption animation
+#   animate_3d_view.py        - 3D perspective animation with orbit overlay
+#   animate_shock_diagnostics.py - Shock diagnostic panels animation
+#   visualize_relaxation.py   - Relaxation IC visualization
+#   visualize_hydrostatic.py  - Hydrostatic equilibrium test visualization
+#   generate_category_configs.py - Generate simulation config files
+#   generate_oka_compact_ic.py   - Generate compact Gaussian IC for Oka scenario
 #
 # ============================================================================
 # USAGE
@@ -87,10 +115,16 @@ FPS ?= 15
         CAT3_C_b1p5 CAT3_C_b3 CAT3_C_b6 \
         CAT_OKA_A_oka CAT_OKA_B_oka CAT_OKA_C_oka \
         CAT_OKA_A_oka_corrected CAT_OKA_B_oka_corrected CAT_OKA_C_oka_corrected \
+        CAT_OKA_A_oka_y3 CAT_OKA_B_oka_y3 CAT_OKA_C_oka_y3 \
+        CAT_OKA_A_oka_y2p5 CAT_OKA_B_oka_y2p5 CAT_OKA_C_oka_y2p5 \
+        CAT_OKA_A_oka_y2 CAT_OKA_B_oka_y2 CAT_OKA_C_oka_y2 \
+        CAT_OKA_A_oka_y0p65 CAT_OKA_B_oka_y0p65 CAT_OKA_C_oka_y0p65 \
         CAT1_all_b1p5 CAT1_all_b3 CAT1_all_b6 \
         CAT2_all_b1p5 CAT2_all_b3 CAT2_all_b6 \
         CAT3_all_b1p5 CAT3_all_b3 CAT3_all_b6 \
-        CAT_OKA_all_oka CAT_OKA_all_oka_corrected \
+        CAT_OKA_all_oka CAT_OKA_all_oka_corrected CAT_OKA_all_oka_y3 CAT_OKA_all_oka_y2p5 CAT_OKA_all_oka_y2 CAT_OKA_all_oka_y0p65 \
+        CAT_OKA_A_all_variants CAT_OKA_A_all_variants_run CAT_OKA_A_all_variants_anim \
+        CAT_OKA_A_all_variants_3d CAT_OKA_A_all_variants_diag \
         all_A_b1p5 all_A_b3 all_A_b6 \
         all_B_b1p5 all_B_b3 all_B_b6 \
         all_C_b1p5 all_C_b3 all_C_b6 \
@@ -101,7 +135,16 @@ FPS ?= 15
         CAT_OKA_A_oka_3d CAT_OKA_B_oka_3d CAT_OKA_C_oka_3d \
         CAT_OKA_A_oka_corrected_3d CAT_OKA_B_oka_corrected_3d CAT_OKA_C_oka_corrected_3d \
         anim3d_all_oka_corrected \
+        CAT_OKA_A_oka_y3_3d CAT_OKA_B_oka_y3_3d CAT_OKA_C_oka_y3_3d \
+        anim3d_all_oka_y3 \
+        CAT_OKA_A_oka_y2p5_3d CAT_OKA_B_oka_y2p5_3d CAT_OKA_C_oka_y2p5_3d \
+        anim3d_all_oka_y2p5 \
+        CAT_OKA_A_oka_y2_3d CAT_OKA_B_oka_y2_3d CAT_OKA_C_oka_y2_3d \
+        anim3d_all_oka_y2 \
+        CAT_OKA_A_oka_y0p65_3d CAT_OKA_B_oka_y0p65_3d CAT_OKA_C_oka_y0p65_3d \
+        anim3d_all_oka_y0p65 \
         CAT_OKA_A_oka_corrected_restart CAT_OKA_A_oka_corrected_restart_run \
+        CAT_OKA_A_oka_compact CAT_OKA_A_oka_compact_run CAT_OKA_A_oka_compact_anim CAT_OKA_A_oka_compact_3d \
         CAT1_A_b1p5_3d CAT1_A_b3_3d CAT1_A_b6_3d \
         CAT1_B_b1p5_3d CAT1_B_b3_3d CAT1_B_b6_3d \
         CAT1_C_b1p5_3d CAT1_C_b3_3d CAT1_C_b6_3d \
@@ -218,11 +261,47 @@ cat_help:
 	@echo "│  Animation-Only Commands:                                                    │"
 	@echo "│  ──────────────────────────────────────────────────────────────────────────  │"
 	@echo "│  # Generate all 4 animations for existing results:                           │"
-	@echo "│  make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT1_A_b3_anim                │"
+	@echo "│  make -f ... CAT1_A_b3_anim                                                  │"
 	@echo "│                                                                              │"
 	@echo "│  # Generate 3D animation only (with analytic orbit from config):             │"
-	@echo "│  make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT_OKA_A_oka_3d              │"
-	@echo "│  make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT1_A_b3_3d                  │"
+	@echo "│  make -f ... CAT_OKA_A_oka_3d                                                │"
+	@echo "│                                                                              │"
+	@echo "│  NOTE: Animations now show accreted particles as red X markers               │"
+	@echo "│        (particles removed by BH sink accretion)                              │"
+	@echo "└──────────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌──────────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  CONSERVATION DIAGNOSTICS                                                    │"
+	@echo "├──────────────────────────────────────────────────────────────────────────────┤"
+	@echo "│                                                                              │"
+	@echo "│  Verify physics conservation accounting for sink accretion:                  │"
+	@echo "│  ──────────────────────────────────────────────────────────────────────────  │"
+	@echo "│  - Energy:           E_tot = E_kin + E_therm + E_pot + E_BH + E_accreted     │"
+	@echo "│  - Linear Momentum:  P_tot = P_gas + P_accreted                              │"
+	@echo "│  - Angular Momentum: L_tot = L_gas + L_accreted (about BH)                   │"
+	@echo "│  - Mass:             M_tot = M_gas + M_accreted (should be constant)         │"
+	@echo "│                                                                              │"
+	@echo "│  Diagnostic Commands:                                                        │"
+	@echo "│  ──────────────────────────────────────────────────────────────────────────  │"
+	@echo "│  # Specific targets:                                                         │"
+	@echo "│  make -f ... CAT_OKA_A_oka_y0p65_diag                                        │"
+	@echo "│  make -f ... CAT_OKA_A_oka_corrected_diag                                    │"
+	@echo "│                                                                              │"
+	@echo "│  # Generic target (specify CAT, RES, SCENARIO):                              │"
+	@echo "│  make -f ... diag CAT=CAT_OKA RES=A SCENARIO=oka_y0p65                       │"
+	@echo "│                                                                              │"
+	@echo "│  Output Files:                                                               │"
+	@echo "│  ──────────────────────────────────────────────────────────────────────────  │"
+	@echo "│  conservation_diagnostics.csv  - Time series of all conserved quantities    │"
+	@echo "│  conservation_plots.png        - Multi-panel diagnostic plots               │"
+	@echo "└──────────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌──────────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  3D ANIMATION COMMANDS                                                       │"
+	@echo "├──────────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  # Generate 3D animation only (with analytic orbit from config):             │"
+	@echo "│  make -f ... CAT_OKA_A_oka_3d                                                │"
+	@echo "│  make -f ... CAT1_A_b3_3d                                                    │"
 	@echo "│                                                                              │"
 	@echo "│  # Generic 3D animation with parameters:                                     │"
 	@echo "│  make -f simulations/astrophysics/imbh_cloud/Makefile.categories anim3d CAT=CAT1 RES=A SCENARIO=b3│"
@@ -280,6 +359,133 @@ check_dim: build/sph
 generate_configs:
 	@echo "Generating all category configurations..."
 	python $(SCRIPTS_DIR)/generate_category_configs.py
+
+# ============================================================================
+# CONSERVATION DIAGNOSTICS
+# ============================================================================
+# Verify energy, momentum, and angular momentum conservation accounting for
+# sink accretion (particles removed by the BH).
+#
+# Usage:
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.categories diag CAT=CAT_OKA RES=A SCENARIO=oka_corrected
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.categories CAT_OKA_A_oka_corrected_diag
+# ============================================================================
+
+.PHONY: diag \
+        CAT_OKA_A_oka_corrected_diag CAT_OKA_B_oka_corrected_diag CAT_OKA_C_oka_corrected_diag \
+        CAT_OKA_A_oka_y0p65_diag CAT_OKA_B_oka_y0p65_diag CAT_OKA_C_oka_y0p65_diag \
+        CAT_OKA_A_oka_y2_diag CAT_OKA_B_oka_y2_diag CAT_OKA_C_oka_y2_diag \
+        CAT_OKA_A_oka_y2p5_diag CAT_OKA_B_oka_y2p5_diag CAT_OKA_C_oka_y2p5_diag \
+        CAT_OKA_A_oka_y3_diag CAT_OKA_B_oka_y3_diag CAT_OKA_C_oka_y3_diag \
+        diag_all_oka_y0p65 diag_all_oka_corrected diag_all_oka_y2 diag_all_oka_y3
+
+# Generic diagnostics target
+diag:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Conservation Diagnostics: $(CAT)_$(RES)_$(SCENARIO)"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Checking: Energy, Momentum, Angular Momentum (with sink accretion)"
+	@echo ""
+	python $(SCRIPTS_DIR)/diag_conservation.py $(RESULTS_DIR)/$(CAT)/$(RES)_$(RES_PARTICLES)/$(SCENARIO) \
+		--output-dir $(RESULTS_DIR)/$(CAT)/$(RES)_$(RES_PARTICLES)/$(SCENARIO) \
+		--bh-mass 100.0
+	@echo ""
+	@echo "  Results:"
+	@echo "    CSV:   $(RESULTS_DIR)/$(CAT)/$(RES)_$(RES_PARTICLES)/$(SCENARIO)/conservation_diagnostics.csv"
+	@echo "    Plot:  $(RESULTS_DIR)/$(CAT)/$(RES)_$(RES_PARTICLES)/$(SCENARIO)/conservation_plots.png"
+	@echo ""
+
+# ============================================================================
+# DIAGNOSTIC TEMPLATE
+# ============================================================================
+# Template for running conservation diagnostics on simulation results
+# Usage: $(call run_diag,CAT_OKA,A,61k,oka_y0p65)
+
+define run_diag
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Conservation Diagnostics: $(1)_$(2)_$(4)"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Checking: Energy, Momentum, Angular Momentum (with sink accretion)"
+	@echo "  Results:  $(RESULTS_DIR)/$(1)/$(2)_$(3)/$(4)/"
+	@echo ""
+	python $(SCRIPTS_DIR)/diag_conservation.py $(RESULTS_DIR)/$(1)/$(2)_$(3)/$(4) \
+		--output-dir $(RESULTS_DIR)/$(1)/$(2)_$(3)/$(4) \
+		--bh-mass 100.0
+	@echo ""
+	@echo "  Output:"
+	@echo "    CSV:   $(RESULTS_DIR)/$(1)/$(2)_$(3)/$(4)/conservation_diagnostics.csv"
+	@echo "    Plot:  $(RESULTS_DIR)/$(1)/$(2)_$(3)/$(4)/conservation_plots.png"
+	@echo ""
+endef
+
+# ============================================================================
+# SPECIFIC DIAGNOSTIC TARGETS
+# ============================================================================
+
+# ----- CAT_OKA oka_corrected diagnostics -----
+CAT_OKA_A_oka_corrected_diag:
+	$(call run_diag,CAT_OKA,A,61k,oka_corrected)
+
+CAT_OKA_B_oka_corrected_diag:
+	$(call run_diag,CAT_OKA,B,200k,oka_corrected)
+
+CAT_OKA_C_oka_corrected_diag:
+	$(call run_diag,CAT_OKA,C,1M,oka_corrected)
+
+# ----- CAT_OKA oka_y0p65 diagnostics (original Oka paper Y=-0.65) -----
+CAT_OKA_A_oka_y0p65_diag:
+	$(call run_diag,CAT_OKA,A,61k,oka_y0p65)
+
+CAT_OKA_B_oka_y0p65_diag:
+	$(call run_diag,CAT_OKA,B,200k,oka_y0p65)
+
+CAT_OKA_C_oka_y0p65_diag:
+	$(call run_diag,CAT_OKA,C,1M,oka_y0p65)
+
+# ----- CAT_OKA oka_y2 diagnostics -----
+CAT_OKA_A_oka_y2_diag:
+	$(call run_diag,CAT_OKA,A,61k,oka_y2)
+
+CAT_OKA_B_oka_y2_diag:
+	$(call run_diag,CAT_OKA,B,200k,oka_y2)
+
+CAT_OKA_C_oka_y2_diag:
+	$(call run_diag,CAT_OKA,C,1M,oka_y2)
+
+# ----- CAT_OKA oka_y2p5 diagnostics -----
+CAT_OKA_A_oka_y2p5_diag:
+	$(call run_diag,CAT_OKA,A,61k,oka_y2p5)
+
+CAT_OKA_B_oka_y2p5_diag:
+	$(call run_diag,CAT_OKA,B,200k,oka_y2p5)
+
+CAT_OKA_C_oka_y2p5_diag:
+	$(call run_diag,CAT_OKA,C,1M,oka_y2p5)
+
+# ----- CAT_OKA oka_y3 diagnostics -----
+CAT_OKA_A_oka_y3_diag:
+	$(call run_diag,CAT_OKA,A,61k,oka_y3)
+
+CAT_OKA_B_oka_y3_diag:
+	$(call run_diag,CAT_OKA,B,200k,oka_y3)
+
+CAT_OKA_C_oka_y3_diag:
+	$(call run_diag,CAT_OKA,C,1M,oka_y3)
+
+# ----- Batch diagnostic targets -----
+diag_all_oka_y0p65: CAT_OKA_A_oka_y0p65_diag CAT_OKA_B_oka_y0p65_diag CAT_OKA_C_oka_y0p65_diag
+	@echo "✓ All CAT_OKA oka_y0p65 conservation diagnostics complete"
+
+diag_all_oka_corrected: CAT_OKA_A_oka_corrected_diag CAT_OKA_B_oka_corrected_diag CAT_OKA_C_oka_corrected_diag
+	@echo "✓ All CAT_OKA oka_corrected conservation diagnostics complete"
+
+diag_all_oka_y2: CAT_OKA_A_oka_y2_diag CAT_OKA_B_oka_y2_diag CAT_OKA_C_oka_y2_diag
+	@echo "✓ All CAT_OKA oka_y2 conservation diagnostics complete"
+
+diag_all_oka_y3: CAT_OKA_A_oka_y3_diag CAT_OKA_B_oka_y3_diag CAT_OKA_C_oka_y3_diag
+	@echo "✓ All CAT_OKA oka_y3 conservation diagnostics complete"
 
 # ============================================================================
 # GENERIC RUN TEMPLATE
@@ -685,6 +891,13 @@ CAT3_C_b6_anim:
 #   - Approach velocity: 9.35 km/s
 #   - Pericentre: 2.22 pc
 #   - Eccentricity: 1.45 (hyperbolic orbit)
+#
+# Fixed BH parameters:
+#   - BH mass: 10^5 M_sun (fixed, does not change on accretion)
+#   - BH position: (0, 0, 0) pc (fixed at origin)
+#   - Softening epsilon: 0.001 pc (~200 AU)
+#   - Sink radius: 0.005 pc (~1000 AU)
+#   - Sink accretion: enabled (removes bound, inward-moving particles)
 # ============================================================================
 
 # Resolution A (61k)
@@ -764,6 +977,168 @@ CAT_OKA_C_oka_corrected_anim:
 	$(call animate_category,CAT_OKA,C,1M,oka_corrected)
 
 # ============================================================================
+# CAT_OKA: OKA Y=-3.0 VARIANT
+# ============================================================================
+# Same as oka_corrected but with cloud_initial_position Y=-3.0 instead of -3.5
+# Testing sensitivity to initial Y position
+# ============================================================================
+
+# Resolution A (61k)
+CAT_OKA_A_oka_y3: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_y3)
+	$(call animate_category,CAT_OKA,A,61k,oka_y3)
+
+CAT_OKA_A_oka_y3_run: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_y3)
+
+CAT_OKA_A_oka_y3_anim:
+	$(call animate_category,CAT_OKA,A,61k,oka_y3)
+
+# Resolution B (200k)
+CAT_OKA_B_oka_y3: check_dim
+	$(call run_category,CAT_OKA,B,200k,oka_y3)
+	$(call animate_category,CAT_OKA,B,200k,oka_y3)
+
+CAT_OKA_B_oka_y3_run: check_dim
+	$(call run_category,CAT_OKA,B,200k,oka_y3)
+
+CAT_OKA_B_oka_y3_anim:
+	$(call animate_category,CAT_OKA,B,200k,oka_y3)
+
+# Resolution C (1M)
+CAT_OKA_C_oka_y3: check_dim
+	$(call run_category,CAT_OKA,C,1M,oka_y3)
+	$(call animate_category,CAT_OKA,C,1M,oka_y3)
+
+CAT_OKA_C_oka_y3_run: check_dim
+	$(call run_category,CAT_OKA,C,1M,oka_y3)
+
+CAT_OKA_C_oka_y3_anim:
+	$(call animate_category,CAT_OKA,C,1M,oka_y3)
+
+# ============================================================================
+# CAT_OKA: OKA Y=-2.5 VARIANT
+# ============================================================================
+# Same as oka_corrected but with cloud_initial_position Y=-2.5
+# Testing sensitivity to initial Y position
+# ============================================================================
+
+# Resolution A (61k)
+CAT_OKA_A_oka_y2p5: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_y2p5)
+	$(call animate_category,CAT_OKA,A,61k,oka_y2p5)
+
+CAT_OKA_A_oka_y2p5_run: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_y2p5)
+
+CAT_OKA_A_oka_y2p5_anim:
+	$(call animate_category,CAT_OKA,A,61k,oka_y2p5)
+
+# Resolution B (200k)
+CAT_OKA_B_oka_y2p5: check_dim
+	$(call run_category,CAT_OKA,B,200k,oka_y2p5)
+	$(call animate_category,CAT_OKA,B,200k,oka_y2p5)
+
+CAT_OKA_B_oka_y2p5_run: check_dim
+	$(call run_category,CAT_OKA,B,200k,oka_y2p5)
+
+CAT_OKA_B_oka_y2p5_anim:
+	$(call animate_category,CAT_OKA,B,200k,oka_y2p5)
+
+# Resolution C (1M)
+CAT_OKA_C_oka_y2p5: check_dim
+	$(call run_category,CAT_OKA,C,1M,oka_y2p5)
+	$(call animate_category,CAT_OKA,C,1M,oka_y2p5)
+
+CAT_OKA_C_oka_y2p5_run: check_dim
+	$(call run_category,CAT_OKA,C,1M,oka_y2p5)
+
+CAT_OKA_C_oka_y2p5_anim:
+	$(call animate_category,CAT_OKA,C,1M,oka_y2p5)
+
+# ============================================================================
+# CAT_OKA: OKA Y=-2.0 VARIANT
+# ============================================================================
+# Same as oka_corrected but with cloud_initial_position Y=-2.0
+# This matches the oka_paper_parameters initial_position_XY value
+# Testing sensitivity to initial Y position
+# ============================================================================
+
+# Resolution A (61k)
+CAT_OKA_A_oka_y2: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_y2)
+	$(call animate_category,CAT_OKA,A,61k,oka_y2)
+
+CAT_OKA_A_oka_y2_run: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_y2)
+
+CAT_OKA_A_oka_y2_anim:
+	$(call animate_category,CAT_OKA,A,61k,oka_y2)
+
+# Resolution B (200k)
+CAT_OKA_B_oka_y2: check_dim
+	$(call run_category,CAT_OKA,B,200k,oka_y2)
+	$(call animate_category,CAT_OKA,B,200k,oka_y2)
+
+CAT_OKA_B_oka_y2_run: check_dim
+	$(call run_category,CAT_OKA,B,200k,oka_y2)
+
+CAT_OKA_B_oka_y2_anim:
+	$(call animate_category,CAT_OKA,B,200k,oka_y2)
+
+# Resolution C (1M)
+CAT_OKA_C_oka_y2: check_dim
+	$(call run_category,CAT_OKA,C,1M,oka_y2)
+	$(call animate_category,CAT_OKA,C,1M,oka_y2)
+
+CAT_OKA_C_oka_y2_run: check_dim
+	$(call run_category,CAT_OKA,C,1M,oka_y2)
+
+CAT_OKA_C_oka_y2_anim:
+	$(call animate_category,CAT_OKA,C,1M,oka_y2)
+
+# ============================================================================
+# CAT_OKA: OKA Y=-0.65 VARIANT (ORIGINAL PAPER VALUE)
+# ============================================================================
+# Original Oka et al. (2017) parameters with Y=-0.65 (exact paper value)
+# This is the closest approach trajectory - nearly radial plunge
+# Should trigger BH sink accretion for particles passing close to origin
+# ============================================================================
+
+# Resolution A (61k)
+CAT_OKA_A_oka_y0p65: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_y0p65)
+	$(call animate_category,CAT_OKA,A,61k,oka_y0p65)
+
+CAT_OKA_A_oka_y0p65_run: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_y0p65)
+
+CAT_OKA_A_oka_y0p65_anim:
+	$(call animate_category,CAT_OKA,A,61k,oka_y0p65)
+
+# Resolution B (200k)
+CAT_OKA_B_oka_y0p65: check_dim
+	$(call run_category,CAT_OKA,B,200k,oka_y0p65)
+	$(call animate_category,CAT_OKA,B,200k,oka_y0p65)
+
+CAT_OKA_B_oka_y0p65_run: check_dim
+	$(call run_category,CAT_OKA,B,200k,oka_y0p65)
+
+CAT_OKA_B_oka_y0p65_anim:
+	$(call animate_category,CAT_OKA,B,200k,oka_y0p65)
+
+# Resolution C (1M)
+CAT_OKA_C_oka_y0p65: check_dim
+	$(call run_category,CAT_OKA,C,1M,oka_y0p65)
+	$(call animate_category,CAT_OKA,C,1M,oka_y0p65)
+
+CAT_OKA_C_oka_y0p65_run: check_dim
+	$(call run_category,CAT_OKA,C,1M,oka_y0p65)
+
+CAT_OKA_C_oka_y0p65_anim:
+	$(call animate_category,CAT_OKA,C,1M,oka_y0p65)
+
+# ============================================================================
 # CAT_OKA: RESTART FROM CHECKPOINT
 # ============================================================================
 # Restart simulation from snapshot_0086.csv (t=0.86 code units)
@@ -778,6 +1153,35 @@ CAT_OKA_A_oka_corrected_restart: check_dim
 
 CAT_OKA_A_oka_corrected_restart_run: check_dim
 	$(call run_category,CAT_OKA,A,61k,oka_corrected_restart)
+
+# ============================================================================
+# CAT_OKA: COMPACT GAUSSIAN CLOUD (sigma=0.2pc - Exact Oka reproduction)
+# ============================================================================
+#
+# Uses Gaussian IC generated by: scripts/generate_oka_compact_ic.py
+# This cloud exactly matches Oka et al. (2017) parameters:
+#   - Gaussian radial dispersion: σ = 0.2 pc
+#   - Isotropic velocity dispersion: 1.43 km/s
+#   - Total mass: 1000 M☉
+#   - 10k particles for SPH resolution
+#
+# Generate IC first:
+#   python simulations/astrophysics/imbh_cloud/scripts/generate_oka_compact_ic.py
+# ============================================================================
+
+# Resolution A (10k - matched to compact cloud)
+CAT_OKA_A_oka_compact: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_compact)
+	$(call animate_category,CAT_OKA,A,61k,oka_compact)
+
+CAT_OKA_A_oka_compact_run: check_dim
+	$(call run_category,CAT_OKA,A,61k,oka_compact)
+
+CAT_OKA_A_oka_compact_anim:
+	$(call animate_category,CAT_OKA,A,61k,oka_compact)
+
+CAT_OKA_A_oka_compact_3d:
+	$(call animate_3d_only,CAT_OKA,A,61k,oka_compact)
 
 # ============================================================================
 # BATCH TARGETS: All resolutions for a category/scenario
@@ -815,6 +1219,71 @@ CAT_OKA_all_oka: CAT_OKA_A_oka CAT_OKA_B_oka CAT_OKA_C_oka
 
 CAT_OKA_all_oka_corrected: CAT_OKA_A_oka_corrected CAT_OKA_B_oka_corrected CAT_OKA_C_oka_corrected
 	@echo "✓ Complete: CAT_OKA all resolutions with corrected Oka et al. orbit"
+
+CAT_OKA_all_oka_y3: CAT_OKA_A_oka_y3 CAT_OKA_B_oka_y3 CAT_OKA_C_oka_y3
+	@echo "✓ Complete: CAT_OKA all resolutions with Y=-3.0 variant"
+
+CAT_OKA_all_oka_y2p5: CAT_OKA_A_oka_y2p5 CAT_OKA_B_oka_y2p5 CAT_OKA_C_oka_y2p5
+	@echo "✓ Complete: CAT_OKA all resolutions with Y=-2.5 variant"
+
+CAT_OKA_all_oka_y2: CAT_OKA_A_oka_y2 CAT_OKA_B_oka_y2 CAT_OKA_C_oka_y2
+	@echo "✓ Complete: CAT_OKA all resolutions with Y=-2.0 variant"
+
+CAT_OKA_all_oka_y0p65: CAT_OKA_A_oka_y0p65 CAT_OKA_B_oka_y0p65 CAT_OKA_C_oka_y0p65
+	@echo "✓ Complete: CAT_OKA all resolutions with Y=-0.65 variant (original paper)"
+
+# ============================================================================
+# BATCH TARGETS: All OKA variants at a single resolution
+# ============================================================================
+# Run all oka variants (oka, oka_corrected, oka_y0p65, oka_y2, oka_y2p5, oka_y3)
+# Useful for parameter studies at fixed resolution
+
+# All oka variants at Resolution A (61k) - run only
+CAT_OKA_A_all_variants_run: CAT_OKA_A_oka_run CAT_OKA_A_oka_corrected_run \
+                            CAT_OKA_A_oka_y0p65_run CAT_OKA_A_oka_y2_run \
+                            CAT_OKA_A_oka_y2p5_run CAT_OKA_A_oka_y3_run
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✓ All CAT_OKA variants at Resolution A complete (simulations only)"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Completed simulations:"
+	@echo "    - oka          (original)"
+	@echo "    - oka_corrected (units fixed)"
+	@echo "    - oka_y0p65    (Y=-0.65, original paper value)"
+	@echo "    - oka_y2       (Y=-2.0)"
+	@echo "    - oka_y2p5     (Y=-2.5)"
+	@echo "    - oka_y3       (Y=-3.0)"
+	@echo ""
+
+# All oka variants at Resolution A (61k) - animate only
+CAT_OKA_A_all_variants_anim: CAT_OKA_A_oka_anim CAT_OKA_A_oka_corrected_anim \
+                             CAT_OKA_A_oka_y0p65_anim CAT_OKA_A_oka_y2_anim \
+                             CAT_OKA_A_oka_y2p5_anim CAT_OKA_A_oka_y3_anim
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✓ All CAT_OKA variant animations at Resolution A complete"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+
+# All oka variants at Resolution A (61k) - run + animate
+CAT_OKA_A_all_variants: CAT_OKA_A_oka CAT_OKA_A_oka_corrected \
+                        CAT_OKA_A_oka_y0p65 CAT_OKA_A_oka_y2 \
+                        CAT_OKA_A_oka_y2p5 CAT_OKA_A_oka_y3
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ✓ All CAT_OKA variants at Resolution A complete (run + animate)"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+
+# All oka variants at Resolution A - 3D animations only
+CAT_OKA_A_all_variants_3d: CAT_OKA_A_oka_3d CAT_OKA_A_oka_corrected_3d \
+                           CAT_OKA_A_oka_y0p65_3d CAT_OKA_A_oka_y2_3d \
+                           CAT_OKA_A_oka_y2p5_3d CAT_OKA_A_oka_y3_3d
+	@echo "✓ All CAT_OKA variant 3D animations at Resolution A complete"
+
+# All oka variants at Resolution A - diagnostics only
+CAT_OKA_A_all_variants_diag: CAT_OKA_A_oka_corrected_diag \
+                             CAT_OKA_A_oka_y0p65_diag CAT_OKA_A_oka_y2_diag \
+                             CAT_OKA_A_oka_y2p5_diag CAT_OKA_A_oka_y3_diag
+	@echo "✓ All CAT_OKA variant conservation diagnostics at Resolution A complete"
 
 # ============================================================================
 # BATCH TARGETS: All categories for a resolution/scenario
@@ -982,6 +1451,58 @@ CAT_OKA_C_oka_corrected_3d:
 anim3d_all_oka_corrected: CAT_OKA_A_oka_corrected_3d CAT_OKA_B_oka_corrected_3d CAT_OKA_C_oka_corrected_3d
 	@echo "✓ All CAT_OKA corrected 3D animations generated!"
 
+# ----- CAT_OKA Y=-3.0 3D animations -----
+CAT_OKA_A_oka_y3_3d:
+	$(call animate_3d_only,CAT_OKA,A,61k,oka_y3)
+
+CAT_OKA_B_oka_y3_3d:
+	$(call animate_3d_only,CAT_OKA,B,200k,oka_y3)
+
+CAT_OKA_C_oka_y3_3d:
+	$(call animate_3d_only,CAT_OKA,C,1M,oka_y3)
+
+anim3d_all_oka_y3: CAT_OKA_A_oka_y3_3d CAT_OKA_B_oka_y3_3d CAT_OKA_C_oka_y3_3d
+	@echo "✓ All CAT_OKA Y=-3.0 3D animations generated!"
+
+# ----- CAT_OKA Y=-2.5 3D animations -----
+CAT_OKA_A_oka_y2p5_3d:
+	$(call animate_3d_only,CAT_OKA,A,61k,oka_y2p5)
+
+CAT_OKA_B_oka_y2p5_3d:
+	$(call animate_3d_only,CAT_OKA,B,200k,oka_y2p5)
+
+CAT_OKA_C_oka_y2p5_3d:
+	$(call animate_3d_only,CAT_OKA,C,1M,oka_y2p5)
+
+anim3d_all_oka_y2p5: CAT_OKA_A_oka_y2p5_3d CAT_OKA_B_oka_y2p5_3d CAT_OKA_C_oka_y2p5_3d
+	@echo "✓ All CAT_OKA Y=-2.5 3D animations generated!"
+
+# ----- CAT_OKA Y=-2.0 3D animations -----
+CAT_OKA_A_oka_y2_3d:
+	$(call animate_3d_only,CAT_OKA,A,61k,oka_y2)
+
+CAT_OKA_B_oka_y2_3d:
+	$(call animate_3d_only,CAT_OKA,B,200k,oka_y2)
+
+CAT_OKA_C_oka_y2_3d:
+	$(call animate_3d_only,CAT_OKA,C,1M,oka_y2)
+
+anim3d_all_oka_y2: CAT_OKA_A_oka_y2_3d CAT_OKA_B_oka_y2_3d CAT_OKA_C_oka_y2_3d
+	@echo "✓ All CAT_OKA Y=-2.0 3D animations generated!"
+
+# ----- CAT_OKA Y=-0.65 (original paper) 3D animations -----
+CAT_OKA_A_oka_y0p65_3d:
+	$(call animate_3d_only,CAT_OKA,A,61k,oka_y0p65)
+
+CAT_OKA_B_oka_y0p65_3d:
+	$(call animate_3d_only,CAT_OKA,B,200k,oka_y0p65)
+
+CAT_OKA_C_oka_y0p65_3d:
+	$(call animate_3d_only,CAT_OKA,C,1M,oka_y0p65)
+
+anim3d_all_oka_y0p65: CAT_OKA_A_oka_y0p65_3d CAT_OKA_B_oka_y0p65_3d CAT_OKA_C_oka_y0p65_3d
+	@echo "✓ All CAT_OKA Y=-0.65 (original paper) 3D animations generated!"
+
 # ----- CAT1 3D animations -----
 CAT1_A_b1p5_3d:
 	$(call animate_3d_only,CAT1,A,61k,b1p5)
@@ -1082,7 +1603,7 @@ anim3d_all_CAT3: CAT3_A_b1p5_3d CAT3_A_b3_3d CAT3_A_b6_3d \
 	@echo "✓ All CAT3 3D animations generated!"
 
 # ----- Generate all 3D animations -----
-anim3d_all: anim3d_all_oka anim3d_all_oka_corrected anim3d_all_CAT1 anim3d_all_CAT2 anim3d_all_CAT3
+anim3d_all: anim3d_all_oka anim3d_all_oka_corrected anim3d_all_oka_y3 anim3d_all_oka_y2p5 anim3d_all_oka_y2 anim3d_all_oka_y0p65 anim3d_all_CAT1 anim3d_all_CAT2 anim3d_all_CAT3
 	@echo ""
 	@echo "════════════════════════════════════════════════════════════════════════════"
 	@echo "  ✓ All 3D animations generated!"

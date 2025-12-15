@@ -209,15 +209,15 @@ def compute_bounding_box(data: np.ndarray, columns: List[str]) -> Dict:
         x_idx = columns.index('x')
         y_idx = columns.index('y')
         z_idx = columns.index('z') if 'z' in columns else None
-        
+
         min_x, max_x = float(data[:, x_idx].min()), float(data[:, x_idx].max())
         min_y, max_y = float(data[:, y_idx].min()), float(data[:, y_idx].max())
-        
+
         if z_idx is not None:
             min_z, max_z = float(data[:, z_idx].min()), float(data[:, z_idx].max())
         else:
             min_z, max_z = 0.0, 0.0
-        
+
         return {
             'min': [min_x, min_y, min_z],
             'max': [max_x, max_y, max_z]
@@ -226,6 +226,63 @@ def compute_bounding_box(data: np.ndarray, columns: List[str]) -> Dict:
         return {
             'min': [-1.0, -1.0, -1.0],
             'max': [1.0, 1.0, 1.0]
+        }
+
+
+def compute_pv_ranges(data: np.ndarray, columns: List[str], v_lsr: float = 0.0) -> Dict:
+    """
+    Compute position and velocity ranges for P-V diagram.
+
+    Args:
+        data: Particle data array
+        columns: Column names
+        v_lsr: LSR velocity offset (km/s)
+
+    Returns:
+        Dictionary with positionRange and velocityRange
+    """
+    try:
+        x_idx = columns.index('x')
+        y_idx = columns.index('y')
+        vx_idx = columns.index('vx')
+        vy_idx = columns.index('vy')
+        vz_idx = columns.index('vz') if 'vz' in columns else None
+
+        # Position range (use XY plane extent)
+        x = data[:, x_idx]
+        y = data[:, y_idx]
+        pos_extent = max(np.abs(x).max(), np.abs(y).max())
+
+        # Velocity range (use all velocity components + V_LSR offset)
+        vx = data[:, vx_idx]
+        vy = data[:, vy_idx]
+        if vz_idx is not None:
+            vz = data[:, vz_idx]
+        else:
+            vz = np.zeros_like(vx)
+
+        # Line-of-sight velocity (z-component + V_LSR)
+        v_los_min = float(vz.min()) + v_lsr
+        v_los_max = float(vz.max()) + v_lsr
+
+        # Add 15% margin
+        pos_margin = pos_extent * 0.15
+        vel_margin = (v_los_max - v_los_min) * 0.15 or 10.0
+
+        return {
+            'positionRange': [float(-pos_extent - pos_margin), float(pos_extent + pos_margin)],
+            'velocityRange': [float(v_los_min - vel_margin), float(v_los_max + vel_margin)],
+            'velocityStats': {
+                'vx': [float(vx.min()), float(vx.max())],
+                'vy': [float(vy.min()), float(vy.max())],
+                'vz': [float(vz.min()), float(vz.max())],
+            }
+        }
+    except (ValueError, IndexError):
+        return {
+            'positionRange': [-5.0, 5.0],
+            'velocityRange': [-150.0, 50.0],
+            'velocityStats': None
         }
 
 
@@ -309,9 +366,10 @@ def export_simulation(
     if first_data is None:
         print("Failed to load first snapshot")
         return False
-    
+
     n_particles = first_data.shape[0]
     bounding_box = compute_bounding_box(first_data, first_columns)
+    pv_ranges = compute_pv_ranges(first_data, first_columns, v_lsr=-120.0)  # Default V_LSR
     
     # Detect simulation properties
     sph_method = detect_sph_method(sim_dir)
@@ -338,6 +396,13 @@ def export_simulation(
             max(bounding_box['max'][j], frame_bbox['max'][j])
             for j in range(3)
         ]
+
+        # Update P-V ranges (global min/max across all frames)
+        frame_pv = compute_pv_ranges(data, columns, v_lsr=-120.0)
+        pv_ranges['positionRange'][0] = min(pv_ranges['positionRange'][0], frame_pv['positionRange'][0])
+        pv_ranges['positionRange'][1] = max(pv_ranges['positionRange'][1], frame_pv['positionRange'][1])
+        pv_ranges['velocityRange'][0] = min(pv_ranges['velocityRange'][0], frame_pv['velocityRange'][0])
+        pv_ranges['velocityRange'][1] = max(pv_ranges['velocityRange'][1], frame_pv['velocityRange'][1])
         
         # Export binary frame
         binary_data = create_binary_frame(data, columns, output_fields)
@@ -369,6 +434,7 @@ def export_simulation(
         'particleCount': n_particles,
         'timeRange': [times[0] if times else 0, times[-1] if times else 0],
         'boundingBox': bounding_box,
+        'pvDiagram': pv_ranges,  # Pre-computed P-V diagram ranges
         'stride': len(output_fields),
         'fieldOffsets': field_offsets,
         'createdAt': str(np.datetime64('now')),

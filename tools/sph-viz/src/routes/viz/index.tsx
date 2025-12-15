@@ -11,11 +11,11 @@ export const Route = createFileRoute('/viz/')({
   component: VisualizationPage,
   loader: async () => {
     try {
-      // This runs on server during SSR
-      const response = await fetch('http://localhost:3000/api/simulations')
-      const data = await response.json()
-      console.log('[Loader] Fetched simulations:', data.simulations?.length || 0)
-      return { simulations: data.simulations || [] }
+      // Direct server-side import - no HTTP round-trip needed during SSR
+      const { findSimulationsServer } = await import('~/lib/server/findSimulations')
+      const simulations = await findSimulationsServer()
+      console.log('[Loader] Found simulations:', simulations.length)
+      return { simulations }
     } catch (err) {
       console.error('[Loader] Failed:', err)
       return { simulations: [] }

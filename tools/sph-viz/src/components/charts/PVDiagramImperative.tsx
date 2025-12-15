@@ -85,6 +85,55 @@ function transformToObserver(
 }
 
 /**
+ * Auto-compute position and velocity ranges from particle data
+ */
+function computeDataRanges(
+  frame: ParsedFrame,
+  observer: ObserverGeometry
+): { posRange: [number, number]; velRange: [number, number] } {
+  const R = computeRotationMatrix(observer.inclination, observer.positionAngle)
+  const slitAngle = observer.slitPA * Math.PI / 180
+  const cosSlit = Math.cos(slitAngle)
+  const sinSlit = Math.sin(slitAngle)
+
+  let minPos = Infinity, maxPos = -Infinity
+  let minVel = Infinity, maxVel = -Infinity
+
+  for (let i = 0; i < frame.particleCount; i++) {
+    const x = frame.positions[i * 3]
+    const y = frame.positions[i * 3 + 1]
+    const z = frame.positions[i * 3 + 2]
+    const vx = frame.velocities[i * 3]
+    const vy = frame.velocities[i * 3 + 1]
+    const vz = frame.velocities[i * 3 + 2]
+    const density = frame.density[i]
+
+    if (!isFinite(density) || density <= 0) continue
+
+    const { posObs, velObs } = transformToObserver([x, y, z], [vx, vy, vz], R)
+    const posSlit = posObs[0] * cosSlit + posObs[1] * sinSlit
+    const perpDist = Math.abs(-posObs[0] * sinSlit + posObs[1] * cosSlit - observer.slitOffset)
+    if (perpDist > observer.slitWidth / 2) continue
+
+    const vLOS = velObs[2] + observer.vLSR
+
+    if (posSlit < minPos) minPos = posSlit
+    if (posSlit > maxPos) maxPos = posSlit
+    if (vLOS < minVel) minVel = vLOS
+    if (vLOS > maxVel) maxVel = vLOS
+  }
+
+  // Add 10% padding
+  const posMargin = (maxPos - minPos) * 0.1 || 1
+  const velMargin = (maxVel - minVel) * 0.1 || 10
+
+  return {
+    posRange: [minPos - posMargin, maxPos + posMargin],
+    velRange: [minVel - velMargin, maxVel + velMargin],
+  }
+}
+
+/**
  * Compute P-V diagram from particle data
  */
 function computePVDiagram(
@@ -203,15 +252,23 @@ export function PVDiagramImperative({
   const isDraggingRef = useRef<boolean>(false)
   const dragStartRef = useRef<{ x: number; y: number; inc: number; pa: number } | null>(null)
 
-  // Store prop refs internally to avoid stale closures
-  const internalFramesRef = useRef(framesRef)
-  const internalFrameIndexRef = useRef(frameIndexRef)
+  // Track frames size to detect when data loads
+  const [framesLoaded, setFramesLoaded] = useState(false)
 
-  // Keep internal refs synced with props
+  // Detect when frames are loaded
   useEffect(() => {
-    internalFramesRef.current = framesRef
-    internalFrameIndexRef.current = frameIndexRef
-  }, [framesRef, frameIndexRef])
+    const checkFrames = () => {
+      const frames = framesRef?.current
+      if (frames && frames.size > 0 && !framesLoaded) {
+        setFramesLoaded(true)
+        // Force immediate update
+        lastUpdateTimeRef.current = 0
+      }
+    }
+    checkFrames()
+    const intervalId = setInterval(checkFrames, 100)
+    return () => clearInterval(intervalId)
+  }, [framesRef, framesLoaded])
 
   // Expose observer state for UI
   const [observer, setObserver] = useState<ObserverGeometry>({ ...DEFAULT_OBSERVER, ...initialObserver })
@@ -254,15 +311,17 @@ export function PVDiagramImperative({
       ctx.textAlign = 'center'
 
       // Check why there's no data
-      const framesRefCurrent = internalFramesRef.current?.current
-      const frameIdx = internalFrameIndexRef.current?.current ?? 0
+      const frames = framesRef?.current
+      const frameIdx = frameIndexRef?.current ?? 0
 
-      if (!framesRefCurrent || framesRefCurrent.size === 0) {
+      if (!frames || frames.size === 0) {
         ctx.fillText('Waiting for frames...', width / 2, height / 2)
-      } else if (!framesRefCurrent.get(frameIdx)) {
+        ctx.font = `${9 * dpr}px system-ui`
+        ctx.fillText(`(frames: ${frames?.size ?? 0})`, width / 2, height / 2 + 20 * dpr)
+      } else if (!frames.get(frameIdx)) {
         ctx.fillText(`Frame ${frameIdx} not loaded`, width / 2, height / 2)
       } else {
-        ctx.fillText('Computing...', width / 2, height / 2)
+        ctx.fillText('Computing P-V...', width / 2, height / 2)
       }
       return
     }
@@ -364,32 +423,34 @@ export function PVDiagramImperative({
     ctx.textAlign = 'right'
     ctx.fillText('Drag to change viewing angle', width - 10 * dpr, 15 * dpr)
 
-  }, [posRange, velRange, getColor])
+  }, [framesRef, frameIndexRef, posRange, velRange, getColor])
 
   // Compute P-V diagram from current frame
   const updatePVDiagram = useCallback(() => {
-    // Access internal refs to get latest values (avoid stale closures)
-    const framesRefCurrent = internalFramesRef.current?.current
-    const frameIndexRefCurrent = internalFrameIndexRef.current?.current ?? 0
+    // Access refs directly (refs are stable, so this is safe in callbacks)
+    const frames = framesRef?.current
+    const frameIdx = frameIndexRef?.current ?? 0
 
     // Check if frames map exists and has data
-    if (!framesRefCurrent || framesRefCurrent.size === 0) {
+    if (!frames || frames.size === 0) {
+      renderPVDiagram() // Render "waiting" message
       return
     }
 
-    const frame = framesRefCurrent.get(frameIndexRefCurrent)
+    const frame = frames.get(frameIdx)
     if (!frame || !frame.positions || frame.particleCount === 0) {
+      renderPVDiagram() // Render status message
       return
     }
 
     // Throttle computation (but always compute on observer change)
     const now = performance.now()
     const observerChanged = lastUpdateTimeRef.current === 0
-    if (!observerChanged && now - lastUpdateTimeRef.current < 100 && frameIndex === lastFrameIndexRef.current) {
+    if (!observerChanged && now - lastUpdateTimeRef.current < 100 && frameIdx === lastFrameIndexRef.current) {
       return
     }
     lastUpdateTimeRef.current = now
-    lastFrameIndexRef.current = frameIndex
+    lastFrameIndexRef.current = frameIdx
 
     // Compute P-V diagram
     pvDataRef.current = computePVDiagram(
@@ -403,7 +464,7 @@ export function PVDiagramImperative({
 
     // Render
     renderPVDiagram()
-  }, [posRange, velRange, numPosBins, numVelBins, renderPVDiagram])
+  }, [framesRef, frameIndexRef, posRange, velRange, numPosBins, numVelBins, renderPVDiagram])
 
   // Animation loop
   useEffect(() => {
@@ -494,6 +555,16 @@ export function PVDiagramImperative({
     }
   }, [])
 
+  // Handle slider change with immediate recompute
+  const handleSliderChange = useCallback((field: keyof ObserverGeometry, value: number) => {
+    setObserver(prev => {
+      const updated = { ...prev, [field]: value }
+      observerRef.current = updated  // Immediately update ref
+      lastUpdateTimeRef.current = 0  // Force recompute
+      return updated
+    })
+  }, [])
+
   return (
     <div className={`flex flex-col ${className}`}>
       <canvas
@@ -501,46 +572,49 @@ export function PVDiagramImperative({
         className="w-full flex-1 rounded"
         style={{ minHeight: '250px' }}
       />
-      {/* Observer controls */}
-      <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-        <label className="flex flex-col">
-          <span className="text-gray-400">Inclination</span>
+      {/* Observer controls - larger touch targets */}
+      <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+        <label className="flex flex-col gap-1">
+          <span className="text-gray-400 font-medium">Inclination</span>
           <input
             type="range"
             min="0"
             max="90"
             step="1"
             value={observer.inclination}
-            onChange={(e) => setObserver(prev => ({ ...prev, inclination: parseFloat(e.target.value) }))}
-            className="w-full"
+            onChange={(e) => handleSliderChange('inclination', parseFloat(e.target.value))}
+            className="w-full h-6 cursor-pointer accent-cyan-500"
+            style={{ WebkitAppearance: 'none', appearance: 'none', background: '#374151', borderRadius: '4px' }}
           />
-          <span className="text-gray-500">{observer.inclination.toFixed(0)}°</span>
+          <span className="text-cyan-400 font-mono text-center">{observer.inclination.toFixed(0)}°</span>
         </label>
-        <label className="flex flex-col">
-          <span className="text-gray-400">Position Angle</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-gray-400 font-medium">Position Angle</span>
           <input
             type="range"
             min="0"
             max="360"
             step="1"
             value={observer.positionAngle}
-            onChange={(e) => setObserver(prev => ({ ...prev, positionAngle: parseFloat(e.target.value) }))}
-            className="w-full"
+            onChange={(e) => handleSliderChange('positionAngle', parseFloat(e.target.value))}
+            className="w-full h-6 cursor-pointer accent-cyan-500"
+            style={{ WebkitAppearance: 'none', appearance: 'none', background: '#374151', borderRadius: '4px' }}
           />
-          <span className="text-gray-500">{observer.positionAngle.toFixed(1)}°</span>
+          <span className="text-cyan-400 font-mono text-center">{observer.positionAngle.toFixed(1)}°</span>
         </label>
-        <label className="flex flex-col">
-          <span className="text-gray-400">V_LSR</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-gray-400 font-medium">V_LSR</span>
           <input
             type="range"
             min="-200"
             max="0"
             step="5"
             value={observer.vLSR}
-            onChange={(e) => setObserver(prev => ({ ...prev, vLSR: parseFloat(e.target.value) }))}
-            className="w-full"
+            onChange={(e) => handleSliderChange('vLSR', parseFloat(e.target.value))}
+            className="w-full h-6 cursor-pointer accent-cyan-500"
+            style={{ WebkitAppearance: 'none', appearance: 'none', background: '#374151', borderRadius: '4px' }}
           />
-          <span className="text-gray-500">{observer.vLSR.toFixed(0)} km/s</span>
+          <span className="text-cyan-400 font-mono text-center">{observer.vLSR.toFixed(0)} km/s</span>
         </label>
       </div>
     </div>

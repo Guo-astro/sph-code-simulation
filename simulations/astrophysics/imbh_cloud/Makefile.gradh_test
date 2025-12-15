@@ -306,7 +306,7 @@ gradh_viz:
 	@echo "  Generating Grad-h Comparison Plots"
 	@echo "════════════════════════════════════════════════════════════════"
 	@mkdir -p $(PLOTS_DIR)
-	@python3 $(SCRIPTS_DIR)/gradh_viz.py $(RESULTS_DIR) $(PLOTS_DIR)
+	@python3 $(SCRIPTS_DIR)/viz_gradh_comparison.py $(RESULTS_DIR) $(PLOTS_DIR) --mode plots
 	@echo ""
 	@echo "  ✓ Comparison plots generated: $(PLOTS_DIR)/"
 
@@ -316,7 +316,7 @@ gradh_animate:
 	@echo "  Generating Grad-h Comparison Animation"
 	@echo "════════════════════════════════════════════════════════════════"
 	@mkdir -p $(ANIM_DIR)
-	@python3 $(SCRIPTS_DIR)/gradh_animate.py $(RESULTS_DIR) $(ANIM_DIR)
+	@python3 $(SCRIPTS_DIR)/viz_gradh_comparison.py $(RESULTS_DIR) $(ANIM_DIR) --mode animate
 	@echo ""
 	@echo "  ✓ Animation generated: $(ANIM_DIR)/"
 

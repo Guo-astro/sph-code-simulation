@@ -35,8 +35,6 @@ export const Route = createFileRoute('/api/simulations/$simId/frames/$frameId')(
           const acceptHeader = request.headers.get('Accept') || ''
           const wantBinary = formatParam === 'binary' || acceptHeader.includes('application/octet-stream')
 
-          console.log(`📥 Frame request: simId=${simId}, frameId=${frameId}, format=${wantBinary ? 'binary' : 'json'}`)
-
           if (isNaN(frameIndex)) {
             if (wantBinary) {
               return new Response('Invalid frame ID', { status: 400 })
@@ -46,8 +44,6 @@ export const Route = createFileRoute('/api/simulations/$simId/frames/$frameId')(
           
           // Decode simulation path - handle nested paths
           const simPath = decodeURIComponent(simId).replace(/\|/g, '/')
-          console.log(`   Decoded simPath: ${simPath}`)
-          console.log(`   Data root: ${dataRoot}`)
           
           // Try different possible locations
           // For nested structure like imbh_cloud/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph
@@ -68,14 +64,9 @@ export const Route = createFileRoute('/api/simulations/$simId/frames/$frameId')(
             )
           }
           
-          console.log(`   Possible paths:`)
-          possiblePaths.forEach((p, i) => console.log(`     ${i}: ${p}`))
-
           let dataPath: string | null = null
           for (const p of possiblePaths) {
-            const exists = fs.existsSync(p)
-            console.log(`   Checking: ${p} => ${exists}`)
-            if (exists) {
+            if (fs.existsSync(p)) {
               dataPath = p
               break
             }

@@ -5,7 +5,7 @@
   "_N_low": "1.0",
   "_N_high": "1.1",
   "_note": "More challenging than sine - steep flanks",
-  "sample": "sr_advection_square",
+  "sample": "sr_rosswog",
   "testType": "square_advection",
   "outputDirectory": "simulations/relativistic/sr_rosswog/results/test6_square_advection",
   "startTime": 0.0,

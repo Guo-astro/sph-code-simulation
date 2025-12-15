@@ -126,6 +126,8 @@ struct SPHParameters {
         real N_H_column;          // Column density [cm^-2] (1e19 or 1e20)
         real relaxation_time;     // Thermal relaxation timescale [code time units]
         real density_to_n_H;      // Conversion factor: code density -> n_H [cm^-3]
+        real u_to_cgs;            // Conversion factor: code energy -> erg/g
+        real t_to_cgs;            // Conversion factor: code time -> seconds
     } thermal;
 
     struct ExternalBH {

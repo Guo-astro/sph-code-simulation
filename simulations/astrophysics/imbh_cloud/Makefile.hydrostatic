@@ -787,3 +787,136 @@ gradh_compare_clean:
 	rm -rf $(GRADH_ANIM_DIR)
 	@echo "✓ Cleaned"
 	@echo ""
+
+# ============================================================================
+# ISM COOLING HYDROSTATIC TEST (Inoue & Inutsuka 2008)
+# ============================================================================
+#
+# PURPOSE:
+#   Test 3D Lane-Emden cloud hydrostatic equilibrium with Inoue & Inutsuka (2008)
+#   ISM cooling function. Validates cooling implementation before IMBH-cloud sims.
+#
+# USAGE:
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.hydrostatic cooling_help
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.hydrostatic cooling_cloud
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.hydrostatic cooling_cloud_viz
+#   make -f simulations/astrophysics/imbh_cloud/Makefile.hydrostatic cooling_clean
+#
+# ============================================================================
+
+# Cooling test paths
+COOLING_CONFIG_DIR := $(CONFIG_DIR)/cooling
+COOLING_RESULTS_BASE := $(RESULTS_DIR)/cooling
+COOLING_ANIM_DIR := $(ANIM_DIR)/cooling
+
+# Phony targets for cooling tests
+.PHONY: cooling_help cooling_check_dim_3d \
+        cooling_cloud cooling_cloud_run cooling_cloud_viz cooling_clean
+
+# ============================================================================
+# COOLING TESTS - HELP
+# ============================================================================
+
+cooling_help:
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  ISM COOLING HYDROSTATIC TEST - Inoue & Inutsuka (2008)"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Test 3D Lane-Emden cloud with ISM cooling/heating physics."
+	@echo ""
+	@echo "  Physics: Net cooling ρL = n(-Γ + nΛ) with analytic Λ(T)/Γ fitting"
+	@echo "  Reference: Inoue & Inutsuka (2008), ApJ - Two-Fluid MHD Simulations"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  3D CLOUD COOLING TEST                                                  │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make cooling_cloud        # Lane-Emden cloud with I&I cooling         │"
+	@echo "│  make cooling_cloud_viz    # Visualize results only                     │"
+	@echo "│  make cooling_clean        # Clean cooling test results                 │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  EQUILIBRIUM PHASES (Inoue & Inutsuka 2008)                             │"
+	@echo "├─────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  WNM: n ~ 0.57 cm^-3, T ~ 6000 K, P/k ~ 3500 K cm^-3                    │"
+	@echo "│  CNM: n ~ 30 cm^-3,   T ~ 100 K,  P/k ~ 3000 K cm^-3                    │"
+	@echo "│  Expected: Core → CNM, Envelope → WNM                                   │"
+	@echo "└─────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Prerequisites: DIM=3 build + IC from relaxation Makefile"
+	@echo ""
+	@echo "  Config:   $(COOLING_CONFIG_DIR)/cloud_cooling_61k.json"
+	@echo "  Results:  $(COOLING_RESULTS_BASE)/cloud_61k/"
+	@echo ""
+
+# ============================================================================
+# DIMENSION CHECK
+# ============================================================================
+
+cooling_check_dim_3d:
+	@if ! grep -q "DIM=3" build/CMakeCache.txt 2>/dev/null && \
+	   ! grep -q "DIM:STRING=3" build/CMakeCache.txt 2>/dev/null; then \
+		echo "❌ ERROR: 3D cloud cooling test requires DIM=3"; \
+		echo "   To rebuild: cd build && cmake -DDIM=3 .. && make -j"; \
+		exit 1; \
+	fi
+	@echo "✓ DIM=3 confirmed"
+
+# ============================================================================
+# 3D CLOUD COOLING TEST
+# ============================================================================
+
+cooling_cloud: cooling_check_dim_3d cooling_cloud_run cooling_cloud_viz
+	@echo ""
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo "  ✅ CLOUD COOLING TEST COMPLETE"
+	@echo "══════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Test: Lane-Emden cloud with Inoue-Inutsuka cooling"
+	@echo "  Expected: Core → CNM, Envelope → WNM"
+	@echo "  Results:  $(COOLING_RESULTS_BASE)/cloud_61k/"
+	@echo ""
+
+cooling_cloud_run:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════"
+	@echo "  Running 3D Cloud Cooling Test (61k particles)"
+	@echo "════════════════════════════════════════════════════════════════════════"
+	@# Check for IC file
+	@IC_PATH=$$(grep -o '"resumeFromSnapshot"[[:space:]]*:[[:space:]]*"[^"]*"' \
+		$(COOLING_CONFIG_DIR)/cloud_cooling_61k.json 2>/dev/null | \
+		sed 's/.*"resumeFromSnapshot"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/'); \
+	if [ ! -f "$$IC_PATH" ]; then \
+		echo "❌ IC not found: $$IC_PATH"; \
+		echo "   Generate IC first with relaxation Makefile"; \
+		exit 1; \
+	fi
+	@mkdir -p $(COOLING_RESULTS_BASE)/cloud_61k
+	@if [ -f "$(COOLING_CONFIG_DIR)/cloud_cooling_61k.json" ]; then \
+		./build/sph $(COOLING_CONFIG_DIR)/cloud_cooling_61k.json 2>&1 | \
+			tee $(COOLING_RESULTS_BASE)/cloud_61k/run.log; \
+	else \
+		echo "❌ Config not found: $(COOLING_CONFIG_DIR)/cloud_cooling_61k.json"; \
+		exit 1; \
+	fi
+
+cooling_cloud_viz:
+	@echo "Generating 3D cloud cooling visualization..."
+	@mkdir -p $(COOLING_ANIM_DIR)/cloud_61k
+	@if [ -f "$(SCRIPTS_DIR)/visualize_hydrostatic.py" ]; then \
+		python3 $(SCRIPTS_DIR)/visualize_hydrostatic.py \
+			$(COOLING_RESULTS_BASE)/cloud_61k \
+			$(COOLING_ANIM_DIR)/cloud_61k || \
+			echo "⚠️  Visualization script failed"; \
+	else \
+		python3 $(SCRIPTS_DIR)/visualize_relaxation.py \
+			$(COOLING_RESULTS_BASE)/cloud_61k \
+			$(COOLING_ANIM_DIR)/cloud_61k || \
+			echo "⚠️  Visualization failed"; \
+	fi
+
+cooling_clean:
+	@echo "Cleaning all cooling test results..."
+	rm -rf $(COOLING_RESULTS_BASE)
+	rm -rf $(COOLING_ANIM_DIR)
+	@echo "✓ Cleaned"

@@ -21,6 +21,7 @@ target_sources(sph
         shock_tube.cpp
         shock_tube_2d.cpp
         sinusoidal_perturbation.cpp
+        sr_rosswog.cpp
         sr_sod.cpp
         sr_tangent_velocity.cpp
         strong_shock.cpp

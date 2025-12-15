@@ -120,6 +120,62 @@ void Solver::make_sr_sod()
         N_right = N;
         WRITE_LOG << "Test type: ULTRA-RELATIVISTIC SHOCK (Section 3.2), v_left=" << v_left << "c";
 
+    } else if (test_type == "rosswog_test1") {
+        // Rosswog (2010) Test 1: Standard Relativistic Shock Tube (Marti & Mueller)
+        // Same as blast_wave but labeled for Rosswog paper reference
+        // Left:  (N, v, P) = (10, 0, 40/3) 
+        // Right: (N, v, P) = (1, 0, 10^-6)
+        P_left = 40.0 / 3.0;  // 40/3 ≈ 13.333
+        n_left = 10.0;
+        v_left = 0.0;
+        P_right = 1.0e-6;
+        n_right = 1.0;
+        v_right = 0.0;
+
+        // N_L:N_R = 10:1 (proportional to initial density)
+        N_left = (N > 0) ? static_cast<int>(N * 10.0 / 11.0) : 1500;
+        N_right = (N > 0) ? static_cast<int>(N * 1.0 / 11.0) : 150;
+        WRITE_LOG << "Test type: ROSSWOG TEST 1 (Standard Shock Tube, arXiv:0907.4890)";
+
+    } else if (test_type == "rosswog_test2") {
+        // Rosswog (2010) Test 2: Strong Blast Wave
+        // Same as strong_blast - γ_shell ≈ 3.6
+        // Left:  (N, v, P) = (1, 0, 1000)
+        // Right: (N, v, P) = (1, 0, 0.01)
+        P_left = 1000.0;
+        n_left = 1.0;
+        v_left = 0.0;
+        P_right = 0.01;
+        n_right = 1.0;
+        v_right = 0.0;
+
+        // Equal particle numbers (same initial density)
+        N_left = N;
+        N_right = N;
+        WRITE_LOG << "Test type: ROSSWOG TEST 2 (Strong Blast Wave, arXiv:0907.4890)";
+
+    } else if (test_type == "rosswog_test4") {
+        // Rosswog (2010) Test 4: Wall Shock
+        // Extremely ultra-relativistic: γ ≈ 50,000 (v = 0.9999999998)
+        // Left:  Uniform cold gas with v = -0.9999999998 (impacting wall at x=0)
+        // Right: Solid wall (reflective boundary condition at x=0)
+        // NOTE: This requires γ_eos = 4/3, different from standard γ=5/3
+        P_left = 0.01;  // Very cold gas
+        n_left = 1.0;
+        v_left = -0.9999999998;  // γ ≈ 50,000 moving towards wall
+        
+        // Right side is effectively a wall - we use very high density stationary matter
+        // to simulate reflective boundary
+        P_right = 0.01;
+        n_right = 1.0e6;  // "Wall" - extremely dense stationary matter
+        v_right = 0.0;
+
+        // Only left-side particles matter; right side is the "wall"
+        N_left = N * 2;  // Double to fill left domain
+        N_right = 10;    // Just a few particles to represent wall
+        WRITE_LOG << "Test type: ROSSWOG TEST 4 (Wall Shock γ≈50,000, arXiv:0907.4890)";
+        WRITE_LOG << "WARNING: This test requires γ_eos = 4/3 (radiation-dominated EOS)";
+
     } else {
         THROW_ERROR("Unknown test type: " + test_type);
     }

@@ -236,7 +236,7 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
 
   // Update shock sampling visualization
   const updateShockSampling = useCallback((frame: ParsedFrame) => {
-    if (!shockGroupRef.current || !showShockSamplingRef.current) return
+    if (!shockGroupRef.current) return
 
     // Clear existing objects
     while (shockGroupRef.current.children.length > 0) {
@@ -252,13 +252,33 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
 
     const com = computeCoM(frame)
     const { columnRadius, sliceThickness } = shockSamplingParamsRef.current
-    
-    // CoM marker (white sphere)
-    const comGeom = new THREE.SphereGeometry(0.08, 16, 16)
-    const comMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
-    const comMesh = new THREE.Mesh(comGeom, comMat)
-    comMesh.position.copy(com)
-    shockGroupRef.current.add(comMesh)
+
+    // CoM marker (cyan cross - ALWAYS visible)
+    // Horizontal cross bar
+    const crossSize = 0.15
+    const crossThickness = 0.03
+    const crossMat = new THREE.MeshBasicMaterial({ color: 0x00ffff })
+
+    // X bar
+    const xBarGeom = new THREE.BoxGeometry(crossSize * 2, crossThickness, crossThickness)
+    const xBar = new THREE.Mesh(xBarGeom, crossMat)
+    xBar.position.copy(com)
+    shockGroupRef.current.add(xBar)
+
+    // Y bar
+    const yBarGeom = new THREE.BoxGeometry(crossThickness, crossSize * 2, crossThickness)
+    const yBar = new THREE.Mesh(yBarGeom, crossMat)
+    yBar.position.copy(com)
+    shockGroupRef.current.add(yBar)
+
+    // Z bar
+    const zBarGeom = new THREE.BoxGeometry(crossThickness, crossThickness, crossSize * 2)
+    const zBar = new THREE.Mesh(zBarGeom, crossMat)
+    zBar.position.copy(com)
+    shockGroupRef.current.add(zBar)
+
+    // Only show shock sampling regions if enabled
+    if (!showShockSamplingRef.current) return
     
     // Z-profile cylinder (red, dashed)
     const cylinderGeom = new THREE.CylinderGeometry(columnRadius, columnRadius, 20, 32, 1, true)
@@ -414,10 +434,8 @@ export const Projection3DInteractive = forwardRef<Projection3DInteractiveHandle,
     }
     ;(geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true
 
-    // Update shock sampling visualization
-    if (showShockSamplingRef.current) {
-      updateShockSampling(frame)
-    }
+    // Update CoM marker and shock sampling visualization (CoM is always shown)
+    updateShockSampling(frame)
   }, [framesRef, frameIndexRef, updateShockSampling])
 
   // Keep function refs in sync

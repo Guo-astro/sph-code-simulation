@@ -4,7 +4,7 @@
   "_initial": "N(x) = 1 + 0.5*sin(2πx), v = 0.997, γ ≈ 12.92",
   "_note": "Tests perfect advection of smooth features, no dissipation needed",
   "_result": "100 box crossings with no amplitude/phase change",
-  "sample": "sr_advection_sine",
+  "sample": "sr_rosswog",
   "testType": "sine_advection",
   "outputDirectory": "simulations/relativistic/sr_rosswog/results/test5_sine_advection",
   "startTime": 0.0,

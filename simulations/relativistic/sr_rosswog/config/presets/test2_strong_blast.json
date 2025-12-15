@@ -6,6 +6,7 @@
   "_gamma_shell": "3.6 (v_shell = 0.96)",
   "_gamma_shock": "6.0 (v_shock = 0.986)",
   "sample": "sr_sod",
+  "testType": "rosswog_test2",
   "testType": "strong_blast",
   "outputDirectory": "simulations/relativistic/sr_rosswog/results/test2_strong_blast",
   "startTime": 0.0,

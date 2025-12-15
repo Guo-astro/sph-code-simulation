@@ -780,192 +780,83 @@ export function Dashboard({
           )}
         </div>
 
-        {/* Main viewer area - Scrollable layout with minimum heights */}
+        {/* Main viewer area - Optimized 2-row layout */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          <PanelGroup direction="vertical" className="min-h-[800px]">
-            {/* Top Row: 3D Viewer + 2D Projections (50/50) */}
-            <Panel defaultSize={50} minSize={30}>
-              <PanelGroup direction="horizontal" className="h-full min-h-[350px]">
-                {/* 3D Viewer Panel (50%) */}
-                <Panel defaultSize={50} minSize={25}>
-                  <div className="h-full relative bg-gray-900">
-                    {isLoading && !currentFrame ? (
-                      <div className="flex items-center justify-center h-full text-gray-400">
-                        <div className="text-center">
-                          <div className="animate-spin text-2xl mb-2">⏳</div>
-                          <div>Loading frame {currentFrameIndex}...</div>
-                        </div>
-                      </div>
-                    ) : (
-                      <ParticleViewer3DImperative
-                        framesRef={framesRef}
-                        frameIndexRef={frameIndexRef}
-                        colorField={colorField}
-                        colorMapName={colorMapName}
-                        pointSize={pointSize * 100}
-                        opacity={opacity}
-                        logScale={useLogScale}
-                        showAxes={showAxes}
-                        showBoundingBox={showBoundingBox}
-                        boundingBox={simulation.boundingBox}
-                        className="h-full w-full"
-                        onFpsUpdate={setCurrentFps}
-                        globalColorRange={globalColorStats}
-                        imbhPhysics={imbhPhysics}
-                        showBlackHole={showBlackHole}
-                        showTrajectory={showTrajectory}
-                        showRadii={showRadii}
-                        showGalacticMarkers={showGalacticMarkers}
-                        showLabels={showLabels}
-                        cameraMode={cameraMode}
-                        galacticConfig={{
-                          distanceToGC: 60,
-                          galacticLongitude: -0.398,
-                          galacticLatitude: -0.224,
-                          inclination: simulation?.imbhPhysics?.inclination ?? 70,
-                          positionAngle: simulation?.imbhPhysics?.positionAngle ?? 41.6,
-                          lsrVelocity: simulation?.imbhPhysics?.lsrVelocity ?? -120,
-                          showGalaxyDisk,
-                          showSolarSystem,
-                          galaxyRotationSpeed: animateGalaxy ? 0.1 * galaxyAnimationSpeed : 0,
-                        }}
-                      />
-                    )}
-                    {/* FPS overlay */}
-                    <div className="absolute bottom-2 right-2 text-green-400 text-xs font-mono bg-black/50 px-2 py-1 rounded">
-                      FPS: {currentFps}
-                    </div>
-                    {/* Panel label */}
-                    <div className="absolute top-2 left-2 text-cyan-400 text-xs font-bold bg-black/60 px-2 py-1 rounded">
-                      3D VIEW
+          <PanelGroup direction="vertical" className="min-h-[900px]">
+            {/* Row 1: 3D Viewer (full width, dominant) */}
+            <Panel defaultSize={55} minSize={35}>
+              <div className="h-full min-h-[400px] relative bg-gray-900">
+                {isLoading && !currentFrame ? (
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    <div className="text-center">
+                      <div className="animate-spin text-2xl mb-2">⏳</div>
+                      <div>Loading frame {currentFrameIndex}...</div>
                     </div>
                   </div>
-                </Panel>
-
-                {/* Interactive 3D Projections Panel (50%) */}
-                {showProjections && (
-                  <>
-                    <ResizeHandle direction="horizontal" />
-                    <Panel defaultSize={50} minSize={25}>
-                      <div ref={projectionPanelRef} className="h-full bg-gray-900 p-2 flex flex-col overflow-hidden">
-                        {/* Panel label with reset all button */}
-                        <div className="flex items-center justify-between mb-1 shrink-0">
-                          <div className="text-cyan-400 text-xs font-bold">3D PROJECTIONS</div>
-                          <button
-                            onClick={resetAllProjectionCameras}
-                            className="px-1.5 py-0.5 text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
-                            title="Reset all cameras to default view"
-                          >
-                            ⟲ Reset All
-                          </button>
-                        </div>
-                        {/* Use flex-1 for equal distribution, overflow-hidden to prevent overlap */}
-                        <div className="flex-1 flex flex-col gap-1 min-h-0 overflow-hidden">
-                          <div className="flex-1 min-h-0 overflow-hidden">
-                            <Projection3DInteractive
-                              ref={projectionXYRef}
-                              framesRef={framesRef}
-                              frameIndexRef={frameIndexRef}
-                              projection="xy"
-                              colorField={useMultiColorField ? projectionColorFields.xy : colorField}
-                              colorMap={colorMap}
-                              width={panelDimensions.projection.width}
-                              height={panelDimensions.projection.height}
-                              showShockSampling={showShockDiagnostics}
-                              shockSamplingParams={{ columnRadius: 0.15, sliceThickness: 0.15 }}
-                              globalColorRange={globalColorStats}
-                              logScale={useLogScale}
-                              particleSize={pointSize * 100}
-                            />
-                          </div>
-                          <div className="flex-1 min-h-0 overflow-hidden">
-                            <Projection3DInteractive
-                              ref={projectionXZRef}
-                              framesRef={framesRef}
-                              frameIndexRef={frameIndexRef}
-                              projection="xz"
-                              colorField={useMultiColorField ? projectionColorFields.xz : colorField}
-                              colorMap={colorMap}
-                              width={panelDimensions.projection.width}
-                              height={panelDimensions.projection.height}
-                              showShockSampling={showShockDiagnostics}
-                              shockSamplingParams={{ columnRadius: 0.15, sliceThickness: 0.15 }}
-                              globalColorRange={globalColorStats}
-                              logScale={useLogScale}
-                              particleSize={pointSize * 100}
-                            />
-                          </div>
-                          <div className="flex-1 min-h-0 overflow-hidden">
-                            <Projection3DInteractive
-                              ref={projectionYZRef}
-                              framesRef={framesRef}
-                              frameIndexRef={frameIndexRef}
-                              projection="yz"
-                              colorField={useMultiColorField ? projectionColorFields.yz : colorField}
-                              colorMap={colorMap}
-                              width={panelDimensions.projection.width}
-                              height={panelDimensions.projection.height}
-                              showShockSampling={showShockDiagnostics}
-                              shockSamplingParams={{ columnRadius: 0.15, sliceThickness: 0.15 }}
-                              globalColorRange={globalColorStats}
-                              logScale={useLogScale}
-                              particleSize={pointSize * 100}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </Panel>
-                  </>
+                ) : (
+                  <ParticleViewer3DImperative
+                    framesRef={framesRef}
+                    frameIndexRef={frameIndexRef}
+                    colorField={colorField}
+                    colorMapName={colorMapName}
+                    pointSize={pointSize * 100}
+                    opacity={opacity}
+                    logScale={useLogScale}
+                    showAxes={showAxes}
+                    showBoundingBox={showBoundingBox}
+                    boundingBox={simulation.boundingBox}
+                    className="h-full w-full"
+                    onFpsUpdate={setCurrentFps}
+                    globalColorRange={globalColorStats}
+                    imbhPhysics={imbhPhysics}
+                    showBlackHole={showBlackHole}
+                    showTrajectory={showTrajectory}
+                    showRadii={showRadii}
+                    showGalacticMarkers={showGalacticMarkers}
+                    showLabels={showLabels}
+                    cameraMode={cameraMode}
+                    galacticConfig={{
+                      distanceToGC: 60,
+                      galacticLongitude: -0.398,
+                      galacticLatitude: -0.224,
+                      inclination: simulation?.imbhPhysics?.inclination ?? 70,
+                      positionAngle: simulation?.imbhPhysics?.positionAngle ?? 41.6,
+                      lsrVelocity: simulation?.imbhPhysics?.lsrVelocity ?? -120,
+                      showGalaxyDisk,
+                      showSolarSystem,
+                      galaxyRotationSpeed: animateGalaxy ? 0.1 * galaxyAnimationSpeed : 0,
+                    }}
+                  />
                 )}
-              </PanelGroup>
+                {/* FPS overlay */}
+                <div className="absolute bottom-2 right-2 text-green-400 text-xs font-mono bg-black/50 px-2 py-1 rounded">
+                  FPS: {currentFps}
+                </div>
+                {/* Panel label */}
+                <div className="absolute top-2 left-2 text-cyan-400 text-xs font-bold bg-black/60 px-2 py-1 rounded">
+                  3D VIEW
+                </div>
+              </div>
             </Panel>
 
-            {/* Bottom Row: Shock + P-V Diagram + Charts/Timescales */}
-            {(showShockDiagnostics || showPVDiagram || showCharts || showTimescales) && (
+            {/* Row 2: Analysis panels (P-V, 2D Projections, Diagnostics) */}
+            {(showProjections || showPVDiagram || showShockDiagnostics || showCharts || showTimescales) && (
               <>
                 <ResizeHandle direction="vertical" />
-                <Panel defaultSize={50} minSize={30}>
+                <Panel defaultSize={45} minSize={30}>
                   <PanelGroup direction="horizontal" className="h-full min-h-[350px]">
-                    {/* Shock Diagnostics Panel */}
-                    {showShockDiagnostics && (
-                      <Panel defaultSize={33} minSize={20}>
-                        <div ref={shockPanelRef} className="h-full bg-gray-900 p-2 overflow-hidden flex flex-col">
-                          {/* Panel label and description */}
-                          <div className="shrink-0 mb-1">
-                            <div className="text-cyan-400 text-xs font-bold">SHOCK DIAGNOSTICS</div>
-                            <div className="text-gray-500 text-[10px] leading-tight mt-0.5">
-                              <span className="text-red-400">●</span> Z-profile: cylinder r&lt;0.15 pc around CoM
-                              <span className="mx-1">|</span>
-                              <span className="text-teal-400">━</span> X-profile: slice |y|,|z|&lt;0.15 pc
-                            </div>
-                          </div>
-                          <div className="flex-1 min-h-0">
-                            <ShockDiagnosticsPanelImperative
-                              framesRef={framesRef}
-                              frameIndexRef={frameIndexRef}
-                              initialFrame={frames.get(0) ?? null}
-                              width={panelDimensions.shock.width}
-                              height={panelDimensions.shock.height}
-                              className="w-full"
-                            />
-                          </div>
-                        </div>
-                      </Panel>
-                    )}
-
-                    {/* P-V Diagram Panel */}
+                    {/* P-V Diagram Panel - Square aspect ratio */}
                     {showPVDiagram && (
-                      <>
-                        {showShockDiagnostics && <ResizeHandle direction="horizontal" />}
-                        <Panel defaultSize={34} minSize={25}>
-                          <div className="h-full bg-gray-900 p-2 overflow-hidden flex flex-col">
-                            <div className="shrink-0 mb-1">
-                              <div className="text-purple-400 text-xs font-bold">P-V DIAGRAM</div>
-                              <div className="text-gray-500 text-[10px]">
-                                Drag to change viewing angle • Compare with Oka et al. HCN observations
-                              </div>
+                      <Panel defaultSize={30} minSize={20}>
+                        <div className="h-full bg-gray-900 p-2 overflow-hidden flex flex-col">
+                          <div className="shrink-0 mb-1">
+                            <div className="text-purple-400 text-xs font-bold">P-V DIAGRAM</div>
+                            <div className="text-gray-500 text-[10px]">
+                              Drag to rotate • i={simulation?.imbhPhysics?.inclination ?? 70}° PA={simulation?.imbhPhysics?.positionAngle ?? 41.6}°
                             </div>
-                            <div className="flex-1 min-h-0">
+                          </div>
+                          <div className="flex-1 min-h-0 flex items-center justify-center">
+                            <div className="w-full h-full max-w-[400px] aspect-square">
                               <PVDiagramImperative
                                 framesRef={framesRef}
                                 frameIndexRef={frameIndexRef}
@@ -974,9 +865,110 @@ export function Dashboard({
                                   positionAngle: simulation?.imbhPhysics?.positionAngle ?? 41.6,
                                   vLSR: simulation?.imbhPhysics?.lsrVelocity ?? -120,
                                 }}
-                                posRange={[-5, 5]}
-                                velRange={[-180, -60]}
-                                className="h-full"
+                                posRange={simulation?.pvDiagram?.positionRange ?? [-5, 5]}
+                                velRange={simulation?.pvDiagram?.velocityRange ?? [-180, -60]}
+                                className="h-full w-full"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </Panel>
+                    )}
+
+                    {/* 2D Projections Panel */}
+                    {showProjections && (
+                      <>
+                        {showPVDiagram && <ResizeHandle direction="horizontal" />}
+                        <Panel defaultSize={25} minSize={15}>
+                          <div ref={projectionPanelRef} className="h-full bg-gray-900 p-2 flex flex-col overflow-hidden">
+                            <div className="flex items-center justify-between mb-1 shrink-0">
+                              <div className="text-cyan-400 text-xs font-bold">2D PROJECTIONS</div>
+                              <button
+                                onClick={resetAllProjectionCameras}
+                                className="px-1 py-0.5 text-[9px] bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
+                                title="Reset cameras"
+                              >
+                                ⟲
+                              </button>
+                            </div>
+                            <div className="flex-1 flex flex-col gap-1 min-h-0 overflow-hidden">
+                              <div className="flex-1 min-h-0">
+                                <Projection3DInteractive
+                                  ref={projectionXYRef}
+                                  framesRef={framesRef}
+                                  frameIndexRef={frameIndexRef}
+                                  projection="xy"
+                                  colorField={useMultiColorField ? projectionColorFields.xy : colorField}
+                                  colorMap={colorMap}
+                                  width={panelDimensions.projection.width}
+                                  height={panelDimensions.projection.height}
+                                  showShockSampling={showShockDiagnostics}
+                                  shockSamplingParams={{ columnRadius: 0.15, sliceThickness: 0.15 }}
+                                  globalColorRange={globalColorStats}
+                                  logScale={useLogScale}
+                                  particleSize={pointSize * 100}
+                                />
+                              </div>
+                              <div className="flex-1 min-h-0">
+                                <Projection3DInteractive
+                                  ref={projectionXZRef}
+                                  framesRef={framesRef}
+                                  frameIndexRef={frameIndexRef}
+                                  projection="xz"
+                                  colorField={useMultiColorField ? projectionColorFields.xz : colorField}
+                                  colorMap={colorMap}
+                                  width={panelDimensions.projection.width}
+                                  height={panelDimensions.projection.height}
+                                  showShockSampling={showShockDiagnostics}
+                                  shockSamplingParams={{ columnRadius: 0.15, sliceThickness: 0.15 }}
+                                  globalColorRange={globalColorStats}
+                                  logScale={useLogScale}
+                                  particleSize={pointSize * 100}
+                                />
+                              </div>
+                              <div className="flex-1 min-h-0">
+                                <Projection3DInteractive
+                                  ref={projectionYZRef}
+                                  framesRef={framesRef}
+                                  frameIndexRef={frameIndexRef}
+                                  projection="yz"
+                                  colorField={useMultiColorField ? projectionColorFields.yz : colorField}
+                                  colorMap={colorMap}
+                                  width={panelDimensions.projection.width}
+                                  height={panelDimensions.projection.height}
+                                  showShockSampling={showShockDiagnostics}
+                                  shockSamplingParams={{ columnRadius: 0.15, sliceThickness: 0.15 }}
+                                  globalColorRange={globalColorStats}
+                                  logScale={useLogScale}
+                                  particleSize={pointSize * 100}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </Panel>
+                      </>
+                    )}
+
+                    {/* Shock Diagnostics Panel */}
+                    {showShockDiagnostics && (
+                      <>
+                        {(showPVDiagram || showProjections) && <ResizeHandle direction="horizontal" />}
+                        <Panel defaultSize={25} minSize={15}>
+                          <div ref={shockPanelRef} className="h-full bg-gray-900 p-2 overflow-hidden flex flex-col">
+                            <div className="shrink-0 mb-1">
+                              <div className="text-orange-400 text-xs font-bold">SHOCK PROFILES</div>
+                              <div className="text-gray-500 text-[9px]">
+                                <span className="text-red-400">●</span> Z <span className="text-teal-400">━</span> X
+                              </div>
+                            </div>
+                            <div className="flex-1 min-h-0">
+                              <ShockDiagnosticsPanelImperative
+                                framesRef={framesRef}
+                                frameIndexRef={frameIndexRef}
+                                initialFrame={frames.get(0) ?? null}
+                                width={panelDimensions.shock.width}
+                                height={panelDimensions.shock.height}
+                                className="w-full h-full"
                               />
                             </div>
                           </div>
@@ -987,22 +979,15 @@ export function Dashboard({
                     {/* Charts + Timescales Panel */}
                     {(showCharts || showTimescales) && (
                       <>
-                        {(showShockDiagnostics || showPVDiagram) && <ResizeHandle direction="horizontal" />}
-                        <Panel defaultSize={33} minSize={20}>
-                          <div className="h-full bg-gray-900 p-2 flex flex-col gap-2 overflow-hidden">
+                        {(showPVDiagram || showProjections || showShockDiagnostics) && <ResizeHandle direction="horizontal" />}
+                        <Panel defaultSize={20} minSize={15}>
+                          <div className="h-full bg-gray-900 p-2 flex flex-col gap-1 overflow-hidden">
                             {/* Charts Section */}
                             {showCharts && statistics.length > 0 && (
-                              <div className={`flex flex-col gap-1 ${showTimescales ? 'flex-[2]' : 'flex-1'} min-h-0`}>
-                                <div className="text-cyan-400 text-xs font-bold shrink-0">ENERGY & MOMENTUM</div>
+                              <div className={`flex flex-col gap-1 ${showTimescales ? 'flex-1' : 'flex-1'} min-h-0`}>
+                                <div className="text-cyan-400 text-[10px] font-bold shrink-0">ENERGY</div>
                                 <div className="flex-1 min-h-0">
                                   <EnergyChart
-                                    statistics={statistics}
-                                    currentFrame={currentFrameIndex}
-                                    className="h-full"
-                                  />
-                                </div>
-                                <div className="flex-1 min-h-0">
-                                  <MomentumChart
                                     statistics={statistics}
                                     currentFrame={currentFrameIndex}
                                     className="h-full"
@@ -1014,7 +999,7 @@ export function Dashboard({
                             {/* Timescale Diagnostics Section */}
                             {showTimescales && (
                               <div className="flex-1 min-h-0 flex flex-col">
-                                <div className="text-green-400 text-xs font-bold shrink-0 mb-1">TIMESCALE DIAGNOSTICS</div>
+                                <div className="text-green-400 text-[10px] font-bold shrink-0">EQUILIBRIUM</div>
                                 <div className="flex-1 min-h-0">
                                   <TimescaleDiagnostics
                                     frameRef={currentFrameRef}

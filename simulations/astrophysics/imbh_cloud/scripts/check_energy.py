@@ -1,5 +1,25 @@
 #!/usr/bin/env python3
-"""Quick check of energy.dat values vs expectations"""
+"""
+DEPRECATED: Use diag_conservation.py instead.
+
+This script has been superseded by diag_conservation.py which provides:
+- Full energy conservation tracking (including BH potential)
+- Momentum and angular momentum conservation
+- Proper accounting for sink-accreted particles
+- CSV output and multi-panel plots
+
+Usage of the new script:
+    python3 diag_conservation.py <results_dir> --bh-mass 100.0
+
+Original description:
+Quick check of energy.dat values vs expectations
+"""
+import warnings
+warnings.warn(
+    "check_energy.py is deprecated. Use diag_conservation.py instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import numpy as np
 

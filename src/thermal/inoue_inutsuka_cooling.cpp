@@ -153,16 +153,21 @@ bool InoueInutsukaCooling::is_thermally_unstable(real n_H, real T) const
 
 real InoueInutsukaCooling::cooling_timescale(real n_H, real T) const
 {
-    // t_cool = k_B T / (m_n |L| (γ-1))
-    // where L is the net cooling rate per H nucleus [erg s^-1]
-    
+    // Derive cooling timescale:
+    // L = net cooling rate per H nucleus [erg/s]
+    // u = k_B T / ((γ-1) m_n) [erg/g]
+    // du/dt = -L/m_n [erg/g/s] (since ρ = n_H * m_n)
+    // t_cool = u / |du/dt| = k_B T / ((γ-1) |L|)
+    //
+    // Note: The m_n cancels out!
+
     const real L = std::abs(net_cooling_rate(n_H, T));
-    
+
     if (L < 1e-40) {
         return 1e30;  // Near equilibrium
     }
-    
-    return constants::k_B * T / (constants::m_n * L * m_gamma_m1);
+
+    return constants::k_B * T / (m_gamma_m1 * L);
 }
 
 real InoueInutsukaCooling::cooling_rate_sph(

@@ -47,6 +47,7 @@ enum struct Sample {
     Sedov,
     SRSod,
     SRTangentVelocity,
+    SRRosswog,           // Rosswog (2010) SR-SPH benchmark tests
     NSMerger2D,
     BNSCocoon1D,
     BNSCocoon2D,
@@ -128,6 +129,7 @@ class Solver {
     void make_sedov();
     void make_sr_sod();
     void make_sr_tangent_velocity();
+    void make_sr_rosswog();
     void make_ns_merger_2d();
     void make_bns_cocoon_1d();
     void make_bns_cocoon_2d();
