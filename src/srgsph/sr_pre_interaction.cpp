@@ -30,8 +30,15 @@ void PreInteraction::initialize(std::shared_ptr<SPHParameters> param)
 }
 
 /**
- * Compute particle volume V_p(x_i) = [�_j W(x_i - x_j, h)]^(-1)
+ * Compute particle volume V_p(x_i) = [Σ_j W(x_i - x_j, h)]^(-1)
+ * and grad-h correction factor Ω_i
  * Based on Python lines 99-118
+ *
+ * The grad-h correction accounts for variable smoothing length:
+ *   Ω_i = 1 / (1 + (h_i / (D * N_i)) * dN/dh)
+ *
+ * Since N = ν * Σ_j W, we have dN/dh = ν * Σ_j dW/dh, so:
+ *   Ω_i = 1 / (1 + h * Σ_j dW/dh / (D * Σ_j W))
  */
 real PreInteraction::compute_volume(
     const SPHParticle & p_i,
@@ -40,10 +47,12 @@ real PreInteraction::compute_volume(
     const int n_neighbor,
     const Periodic * periodic,
     const KernelFunction * kernel,
-    const real h
+    const real h,
+    real & gradh_out
 )
 {
     real sum_W = 0.0;
+    real sum_dW_dh = 0.0;
 
     for (int n = 0; n < n_neighbor; ++n) {
         const int j = neighbor_list[n];
@@ -53,11 +62,18 @@ real PreInteraction::compute_volume(
         const real r = std::abs(r_ij);
 
         sum_W += kernel->w(r, h);
+        sum_dW_dh += kernel->dhw(r, h);
     }
 
     if (sum_W < 1e-15) {
+        gradh_out = 1.0;
         return 1.0; // Safety fallback
     }
+
+    // Grad-h correction factor: Ω = 1 / (1 + h * Σ dW/dh / (D * Σ W))
+    // This corrects for variable smoothing length in the kernel gradient
+    const real dh_term = h * sum_dW_dh / (DIM * sum_W);
+    gradh_out = 1.0 / (1.0 + dh_term);
 
     return 1.0 / sum_W;
 }
@@ -223,14 +239,21 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
         // Ghost particles: only compute h, skip density/primitive updates
         // Their other properties are set by update_ghost_particles() mirroring
-        if (p_i.is_ghost) continue;
+        // Set gradh = 1.0 so force terms don't vanish at boundaries
+        if (p_i.is_ghost) {
+            p_i.gradh = 1.0;
+            continue;
+        }
 
-        // Compute particle volume V_p (used for number density)
+        // Compute particle volume V_p (used for number density) and grad-h correction
         // V_p = [Σ_j W(r, h)]^(-1)
+        // Ω = 1 / (1 + h * Σ dW/dh / (D * Σ W))
+        real gradh_i;
         const real Vp = compute_volume(p_i, particles, neighbor_list,
-                                       n_neighbor_tmp, periodic, kernel, p_i.sml);
+                                       n_neighbor_tmp, periodic, kernel, p_i.sml, gradh_i);
+        p_i.gradh = gradh_i;
 
-        // Number density: N = � / V_p  (line 204 in Python)
+        // Number density: N = ν / V_p  (line 204 in Python)
         const real N_new = p_i.nu / Vp;
 
         // First timestep: recompute conserved variables from primitives using correct N
@@ -269,23 +292,26 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
             // Normal timestep: recover primitives from conserved variables
             p_i.N = N_new;
 
-            // Use version with FIXED v_t for 1D tangent velocity tests
-            // This ensures the v_t constraint is properly respected in gamma calculation
-            const auto prim = PrimitiveRecovery::conserved_to_primitive_fixed_vt(
-                p_i.S, p_i.vel_t, p_i.e, p_i.N, m_gamma, m_c_speed);
+            // IMPORTANT: In 1D SRGSPH, the tangent MOMENTUM S_t = γHv_t is conserved
+            // (dS_t/dt = 0 because there's no force in the tangent direction).
+            // The tangent VELOCITY v_t should be recovered from the conserved S_t.
+            //
+            // Use version with CONSERVED S_t (not fixed v_t) for correct physics.
+            // v_t will be computed from: v_t = S_t / (γH)
+            const auto prim = PrimitiveRecovery::conserved_to_primitive_with_tangent(
+                p_i.S, p_i.S_t, p_i.e, p_i.N, m_gamma, m_c_speed);
 
             // Store primitive variables in particle
             p_i.vel = prim.vel;
-            // vel_t stays constant, not updated from primitive recovery
+            p_i.vel_t = prim.vel_t;  // v_t is recovered from conserved S_t
             p_i.dens = prim.density;         // Rest-frame density n
             p_i.pres = prim.pressure;
             p_i.sound = prim.sound_speed;
             p_i.gamma_lor = prim.gamma_lor;
             p_i.enthalpy = prim.enthalpy;
-            
-            // Update S_t to be consistent with CONSTANT v_t and current γ, H
-            // This is needed because γH changes through shock dynamics
-            p_i.S_t = p_i.gamma_lor * p_i.enthalpy * p_i.vel_t;
+
+            // S_t remains constant (conserved quantity, no force in tangent direction)
+            // Don't update S_t here - it's a conserved variable!
         }
 
         // Compute gradients for MUSCL reconstruction (if 2nd order)

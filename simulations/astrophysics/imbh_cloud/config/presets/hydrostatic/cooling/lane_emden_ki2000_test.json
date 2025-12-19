@@ -1,0 +1,42 @@
+{
+  "name": "lane_emden_ki2000_test",
+  "description": "Lane-Emden density + K&I 2000 temperatures (NOT hydrostatic)",
+  "comment": "Test IC for tidal disruption - cloud will adjust but tidal forces dominate",
+
+  "sample": "lane_emden_ki2000",
+  "N": 30,
+
+  "R_cloud_pc": 1.0,
+  "M_cloud_Msun": 1000.0,
+  "N_H_cm2": 1.0e19,
+  "use_glass": true,
+
+  "outputDirectory": "simulations/astrophysics/imbh_cloud/results/lane_emden_ki2000_test",
+  "outputFormat": "csv",
+  "enableEnergyFile": true,
+
+  "SPHType": "gdisph",
+  "kernel": "wendland",
+  "neighborNumber": 50,
+  "use2ndOrderGSPH": false,
+  "riemannSolver": "hll",
+
+  "useGravity": true,
+  "G": 1.0,
+  "theta": 0.5,
+
+  "periodic": false,
+
+  "cflSound": 0.3,
+  "cflForce": 0.125,
+
+  "startTime": 0.0,
+  "endTime": 10.0,
+  "outputTime": 0.5,
+
+  "gamma": 1.666666667,
+
+  "maxTreeLevel": 20,
+  "leafParticleNumber": 1,
+  "iterativeSmoothingLength": true
+}

@@ -2,414 +2,331 @@
 
 ## Executive Summary
 
-This document provides first-principles derivations for simulating the tidal deformation and shock formation during intermediate-mass black hole (IMBH) molecular cloud scattering, as observed in CO-0.40-0.22 (Oka et al. 2017).
+This document provides first-principles derivations for simulating tidal deformation and shock formation during intermediate-mass black hole (IMBH) molecular cloud scattering, as observed in CO-0.40-0.22 (Oka et al. 2017).
 
 **Key Conclusions:**
 1. **MHD effects: NOT required** — super-Alfvénic flow ($M_A \sim 250$)
-2. **Two-fluid approximation: NOT required** — ambipolar diffusion timescale $\gg$ dynamical timescale
-3. **Shock formation: YES** — Mach number $\mathcal{M} \sim 10$–15 during tidal compression
-4. **Chemistry: Use equilibrium** — chemical timescales $\lesssim$ dynamical timescale
+2. **Two-fluid approximation: NOT required** — $\tau_\mathrm{AD} \gg \tau_\mathrm{dyn}$
+3. **Shock formation: YES** — Mach number $\mathcal{M} \sim 10$–15
+4. **Scientific goal:** Test whether IMBH hypothesis survives rigorous hydrodynamical treatment
 
-**Minimum Simulation Requirements:**
-- Single-fluid hydrodynamics with self-gravity and IMBH point mass
+**Minimum Requirements:**
+- Single-fluid SPH with self-gravity and IMBH point mass
 - Shock-capturing artificial viscosity
 - $N \geq 10^6$ particles for $\beta \approx 3$
 
 ---
 
-## 1. Physical Parameters from Observations
+## 1. Observational Constraints
 
-### 1.1 IMBH Properties (Oka et al. 2017)
+### 1.1 System Parameters
 
-| Parameter | Value | Symbol |
-|-----------|-------|--------|
-| Black hole mass | $10^5\,M_\odot$ | $M_\mathrm{BH}$ |
-| Distance from Galactic center | $\sim 60$ pc | — |
-| Point source size upper limit | $< 0.022$ pc | — |
+| Parameter | IMBH | Cloud (CO-0.40-0.22) |
+|-----------|------|----------------------|
+| Mass | $10^5\,M_\odot$ | 40 $M_\odot$ (HCN), 1000 $M_\odot$ (model) |
+| Size | $< 0.022$ pc | 0.3 pc (dense), 5 pc (total) |
+| Velocity | — | 100 km/s width, $\sigma_v = 22$ km/s |
+| Density | — | $10^{6.5}$ cm$^{-3}$ (dense clump) |
+| Temperature | — | 60 K |
+| Distance from GC | ~60 pc | — |
 
-### 1.2 Molecular Cloud Properties (CO-0.40-0.22)
+### 1.2 Mass Derivation from Radio Observations
 
-| Parameter | Value | Symbol |
-|-----------|-------|--------|
-| Cloud size | $\sim 5$ pc | $R_\mathrm{cloud}$ |
-| Dense clump size | $\sim 0.3$ pc | $r_\mathrm{clump}$ |
-| Velocity width | $\sim 100$ km/s | $\Delta v$ |
-| Velocity dispersion | 22 km/s | $\sigma_v$ |
-| Dense clump mass | $\sim 40\,M_\odot$ | $M_\mathrm{clump}$ |
-| Virial mass | $\sim 4100\,M_\odot$ | $M_\mathrm{vir}$ |
-| Temperature | 60 K | $T$ |
-| Number density (dense) | $10^{6.5}$ cm$^{-3}$ | $n_\mathrm{dense}$ |
+**Dense clump mass from HCN J=3-2 (Non-LTE):**
 
-### 1.3 Cloud Mass Estimates
+Critical density: $n_\mathrm{crit} = A_{ul}/\gamma_{ul} \approx 3 \times 10^6$ cm$^{-3}$
 
-| Estimate | Value | Method | Use |
-|----------|-------|--------|-----|
-| Dense clump (HCN) | 40 $M_\odot$ | Non-LTE excitation | Dense core only |
-| Virial mass | 4100 $M_\odot$ | $5\sigma_v^2 R/G$ | Upper limit |
-| Tidal mass | 800 $M_\odot$ | $M_\mathrm{BH}(r/r_\mathrm{peri})^3$ | Consistency check |
-| **N-body model** | **1000 $M_\odot$** | Best fit to P-V | **Recommended** |
+Column density from integrated intensity:
+$$N(\mathrm{HCN}) = \frac{8\pi k_B \nu^2}{h c^3 A_{ul}} \frac{Q(T_\mathrm{ex})}{g_u} \frac{e^{E_u/k_B T_\mathrm{ex}}}{1 - e^{-h\nu/k_B T_\mathrm{ex}}} \int T_b\,dv$$
 
-**Physical interpretation:** $M_\mathrm{vir} \gg M_\mathrm{clump}$ confirms the clump is **not gravitationally bound** — the large velocity dispersion is due to tidal acceleration by the IMBH.
+Mass: $M = \mu m_H \cdot N(\mathrm{HCN})/X(\mathrm{HCN}) \cdot \Omega D^2$
 
-### 1.4 Key Observational Diagnostics
+With $T_k = 60$ K, $n = 10^{6.5}$ cm$^{-3}$, $X(\mathrm{HCN}) \approx 10^{-8}$: **$M_\mathrm{clump} \approx 40\,M_\odot$**
 
-The characteristic "parallelogram" shape in the P-V diagram indicates tidal stretching:
-- Velocity range: $V_\mathrm{LSR} = -105$ to $-5$ km/s ($\Delta v \sim 100$ km/s)
-- Dense clump offset: 0.2 pc from continuum source
-- Spectral index $\alpha = 1.18$ (inverted spectrum → compact accretion source)
+**Virial mass:**
+$$M_\mathrm{vir} = \frac{5\sigma_V^2 R}{G} = \frac{5 \times (22)^2 \times 0.15}{4.30 \times 10^{-3}} \approx 4100\,M_\odot$$
+
+### 1.3 Critical Insight: Cloud is NOT Gravitationally Bound
+
+$$\frac{M_\mathrm{vir}}{M_\mathrm{gas}} = \frac{4100}{40} \approx 100$$
+
+This proves:
+1. Velocity dispersion is externally imposed (tidal acceleration)
+2. Cloud is being tidally disrupted
+3. Observed structure is POST-encounter, not equilibrium
 
 ---
 
-## 2. Physics Requirements Analysis
+## 2. Why the Cloud is NOT in Thermal Equilibrium
 
-### 2.1 MHD Effects: NOT Required
+### 2.1 Jeans Length Analysis
 
-**Plasma beta** (thermal/magnetic pressure ratio):
-$$\beta_\mathrm{bulk} \approx 1.2, \quad \beta_\mathrm{dense} \approx 1.5$$
+$$\lambda_J = c_s \sqrt{\frac{\pi}{G\rho}} \approx 0.4 \times \sqrt{\frac{T}{n}}\,\mathrm{pc}$$
 
-**Alfvén Mach number:**
-$$M_A = \frac{v_\mathrm{bulk}}{v_A} = \frac{100\,\mathrm{km/s}}{0.39\,\mathrm{km/s}} \approx 250$$
+| Phase | $n$ (cm$^{-3}$) | $T$ (K) | $\lambda_J$ (pc) |
+|-------|-----------------|---------|------------------|
+| WNM | 0.5 | 6000 | 44 |
+| CNM | 50 | 80 | 0.5 |
+| Molecular | 1000 | 10 | 0.04 |
+| Dense | $10^{6.5}$ | 8 | 0.003 |
 
-**Force ratio:**
-$$\frac{F_\mathrm{tidal}}{F_\mathrm{magnetic}} \approx 300$$
+**Problem:** Observed clump (0.3 pc) is 100× larger than equilibrium Jeans length at observed density.
 
-**Conclusion:** Flow is highly super-Alfvénic. Kinetic energy dominates magnetic energy by $M_A^2 \sim 6 \times 10^4$. MHD is unnecessary for primary dynamics.
+### 2.2 Three Independent Proofs
 
-### 2.2 Two-Fluid Effects: NOT Required
+1. **Virial ratio:** $M_\mathrm{vir}/M_\mathrm{gas} \approx 100$ (should be ~1 for equilibrium)
+2. **Size:** Observed 0.3 pc >> equilibrium $\lambda_J \sim 0.003$ pc
+3. **Velocity:** 100 km/s >> sound speed 0.3 km/s (supersonic, non-thermal)
 
-**Ionization fraction:** $\chi_i \approx 4 \times 10^{-8}$
+### 2.3 Why K&I 2000 Equilibrium Produces Small Clouds
 
-**Timescales:**
+Bonnor-Ebert mass scaling: $M_\mathrm{BE} \propto T^2/\sqrt{P}$
+
+For cold molecular gas ($T \sim 10$ K) vs warm gas ($T \sim 6000$ K):
+$$\frac{M_\mathrm{BE,cold}}{M_\mathrm{BE,warm}} \sim \left(\frac{10}{6000}\right)^2 \sim 3 \times 10^{-6}$$
+
+Result: K&I equilibrium clouds are limited to $R \sim 0.05-0.25$ pc for molecular densities.
+
+---
+
+## 3. SPH vs N-body: Scientific Purpose
+
+### 3.1 What Oka's N-body Cannot Capture
+
+| Physics | N-body | SPH |
+|---------|--------|-----|
+| Pressure forces | ❌ | ✅ |
+| Shock formation | ❌ | ✅ |
+| Thermal physics | ❌ | ✅ |
+| Compression heating | ❌ | ✅ |
+| Energy dissipation | ❌ | ✅ |
+
+### 3.2 Possible Outcomes
+
+| Outcome | Implication |
+|---------|-------------|
+| SPH matches observations | IMBH hypothesis validated with rigorous physics |
+| SPH differs from observations | IMBH parameters need adjustment OR alternative needed |
+| SPH reveals new physics | New predictions for follow-up observations |
+
+### 3.3 Simulation Strategy
+
+1. Use physically motivated IC (Lane-Emden + K&I temperatures)
+2. Vary IMBH parameters: $M = 10^4 - 10^6\,M_\odot$, $Y_0 = 0.5 - 3$ pc
+3. Compare to **observations**, not Oka's N-body
+4. Report: Confirmed / Refined / Challenged
+
+---
+
+## 4. Physics Requirements
+
+### 4.1 MHD: NOT Required
+
+- Alfvén Mach number: $M_A = v_\mathrm{bulk}/v_A = 100/0.39 \approx 250$
+- Force ratio: $F_\mathrm{tidal}/F_\mathrm{magnetic} \approx 300$
+- Kinetic energy dominates by $M_A^2 \sim 6 \times 10^4$
+
+### 4.2 Two-Fluid: NOT Required
+
 | Timescale | Value | Ratio to $\tau_\mathrm{dyn}$ |
 |-----------|-------|------------------------------|
-| Neutral-ion coupling $\tau_{ni}$ | 5000 yr | 0.5 |
-| Ambipolar diffusion $\tau_\mathrm{AD}$ | $10^7$ yr | 1000 |
-| Dynamical $\tau_\mathrm{dyn}$ | $10^4$ yr | 1 |
+| Neutral-ion coupling | 5000 yr | 0.5 |
+| Ambipolar diffusion | $10^7$ yr | 1000 |
+| Dynamical | $10^4$ yr | 1 |
 
-**Conclusion:** Neutrals and ions are well-coupled ($\tau_{ni} < \tau_\mathrm{dyn}$). Ambipolar diffusion is negligible. Single-fluid hydrodynamics is sufficient.
+Single-fluid hydrodynamics is sufficient.
 
-### 2.3 Shock Formation: YES
+### 4.3 Shock Formation: YES
 
-**Tidal compression Mach number:**
-$$\mathcal{M}_\mathrm{compress} = \frac{v_\mathrm{compress}}{c_s} \approx \frac{7\,\mathrm{km/s}}{0.47\,\mathrm{km/s}} \approx 15$$
-
-**Post-shock temperature** (before cooling):
-$$T_\mathrm{post} \approx 2600\,\mathrm{K}$$
-
-**Conclusion:** Strong shocks ($\mathcal{M} \sim 10$–15) will form. Simulation must use shock-capturing scheme.
+- Compression Mach number: $\mathcal{M} \approx v_\mathrm{compress}/c_s = 7/0.47 \approx 15$
+- Post-shock temperature: $T_\mathrm{post} \approx 2600$ K (before cooling)
 
 ---
 
-## 3. Tidal Compression Theory (Coughlin & Nixon 2021)
+## 5. Tidal Compression Theory
 
-### 3.1 The Penetration Parameter β
+### 5.1 Penetration Parameter
 
-The key dimensionless parameter controlling tidal compression strength:
-$$\beta \equiv \frac{r_t}{r_p}$$
+$$\beta \equiv \frac{r_t}{r_p}, \quad r_t = R_\mathrm{cloud}\left(\frac{M_\mathrm{BH}}{M_\mathrm{cloud}}\right)^{1/3}$$
 
-where $r_t = R_\mathrm{cloud}(M_\mathrm{BH}/M_\mathrm{cloud})^{1/3}$ is the tidal radius and $r_p$ is the pericentre distance.
+For CO-0.40-0.22: $\beta \approx 3.1$ (shock formation threshold)
 
-**For CAT_OKA:** $\beta = 5.25/1.69 \approx 3.1$
+### 5.2 Compression Regimes (Coughlin & Nixon 2021)
 
-### 3.2 Homologous Compression
+| $\beta$ | Physics | Scaling |
+|---------|---------|---------|
+| $< 1$ | Partial disruption | Survives |
+| $1-3$ | Adiabatic compression | $\rho_\mathrm{max} \propto \beta^3$ |
+| $3-10$ | Shock forms, stalls | $\rho_\mathrm{max} \propto \beta^3$ (reduced) |
+| $> 10$ | Shock-dominated | $\rho_\mathrm{max} \propto \beta^{1.62}$ |
 
-In the pressureless limit, all fluid elements compress homologously:
-$$\frac{z}{z_0} = H(\tau)$$
+### 5.3 Homologous Compression
 
-where $\tau$ is dimensionless time related to orbital phase.
+With pressure and self-gravity:
+$$\mathcal{L}[H] - \frac{2}{\beta^3}\frac{\rho_c}{\rho_\star}\left(H^{-\gamma} - 1\right)\cosh^6(\tau) = 0$$
 
-**With pressure and self-gravity**, $H(\tau)$ satisfies:
-$$\boxed{\mathcal{L}[H] - \frac{2}{\beta^3}\frac{\rho_c}{\rho_\star}\left(H^{-\gamma} - 1\right)\cosh^6(\tau) = 0}$$
-
-**Key result:** The black hole mass does not explicitly appear — the physics is determined by $\beta$ and $\rho_c/\rho_\star$ alone.
-
-### 3.3 Shock Formation Regimes
-
-| $\beta$ Range | Physics | $\rho_\mathrm{max}$ Scaling |
-|---------------|---------|----------------------------|
-| $\beta < 1$ | Partial disruption | Cloud survives |
-| $1 < \beta < 3$ | Adiabatic compression | $\propto \beta^3$ (reduced coeff.) |
-| $3 < \beta < 10$ | Shock forms, stalls | $\propto \beta^3$ (reduced coeff.) |
-| $\beta > 10$ | Shock-dominated | $\propto \beta^{1.62}$ |
-
-**For CAT_OKA ($\beta \approx 3.1$):** At the threshold of shock formation. Compression primarily adiabatic but shocks may form in outer layers.
-
-### 3.4 Key Insight: Weak Shocks
-
-Coughlin & Nixon found that **internal shocks are weak** ($\mathcal{M} \sim 1.2$), even for large $\beta$. This is because pre-shock gas is simultaneously compressing, raising its sound speed.
+Key result: Physics determined by $\beta$ and $\rho_c/\rho_\star$ alone.
 
 ---
 
-## 4. Simulation Configuration
+## 6. Simulation Configuration
 
-### 4.1 Required Physics
+### 6.1 Required Physics
 
-| Physics | Include? | Justification |
-|---------|----------|---------------|
-| **Hydrodynamics** | YES | Primary dynamics |
-| **Self-gravity** | YES | Cloud structure |
-| **Point-mass gravity** | YES | IMBH tidal field |
-| **Shock capturing** | YES | $\mathcal{M} \sim 10$–15 |
-| **Sink accretion** | YES | Remove particles that fall into BH |
-| MHD | OPTIONAL | Not dynamically important |
+| Physics | Include | Justification |
+|---------|---------|---------------|
+| Hydrodynamics | YES | Primary dynamics |
+| Self-gravity | YES | Cloud structure |
+| Point-mass IMBH | YES | Tidal field |
+| Shock capturing | YES | $\mathcal{M} \sim 15$ |
+| Sink accretion | YES | Remove accreted particles |
+| Radiative cooling | OPTIONAL | Post-shock structure |
+| MHD | NO | $M_A \sim 250$ |
 | Two-fluid | NO | $\tau_\mathrm{AD} \gg \tau_\mathrm{dyn}$ |
-| Radiative cooling | OPTIONAL | For post-shock structure |
 
-### 4.1.1 Fixed Black Hole Implementation
+### 6.2 IMBH Implementation
 
-The IMBH is implemented as a **fixed point mass** at the origin with Plummer softening:
-
-**BH Parameters:**
-| Parameter | Symbol | Typical Value | Description |
-|-----------|--------|---------------|-------------|
-| BH mass | $M_\mathrm{BH}$ | $10^5\,M_\odot$ | Fixed, does not change on accretion |
-| BH position | $\vec{r}_\mathrm{BH}$ | $(0,0,0)$ | Fixed at origin |
-| Softening | $\varepsilon$ | 0.001 pc (~200 AU) | Prevents singularity |
-| Sink radius | $r_\mathrm{sink}$ | 0.005 pc (~1000 AU) | Accretion boundary |
-
-**Plummer-Softened Gravity:**
-$$\vec{a}_\mathrm{BH}(\vec{r}) = -\frac{G M_\mathrm{BH} \vec{r}}{(r^2 + \varepsilon^2)^{3/2}}$$
-
-$$\Phi_\mathrm{BH}(r) = -\frac{G M_\mathrm{BH}}{\sqrt{r^2 + \varepsilon^2}}$$
-
-**Sink Accretion Algorithm:**
-For each particle inside $r < r_\mathrm{sink}$:
-1. **Inflow check:** $v_\mathrm{rad} = \vec{v} \cdot \hat{r} < 0$ (moving toward BH)
-2. **Bound check:** $E = \frac{1}{2}|\vec{v}|^2 + \Phi_\mathrm{BH} < 0$ (gravitationally bound)
-
-If both conditions satisfied, particle is removed. BH mass remains fixed (fixed-potential approximation).
-
-**Time Stepping:**
-Two constraints must be satisfied:
-1. **Hydro CFL:** $\Delta t_\mathrm{hydro} \leq C_\mathrm{CFL} \cdot h / v_\mathrm{sig}$
-2. **Gravity limiter:** $\Delta t_\mathrm{grav} \leq \eta_t \cdot \sqrt{h / |\vec{a}|}$
-
-Final timestep: $\Delta t = \min(\Delta t_\mathrm{hydro}, \Delta t_\mathrm{grav})$
-
-Typical safe values: $C_\mathrm{CFL} \sim 0.2$–$0.4$, $\eta_t \sim 0.1$–$0.2$
-
-### 4.2 Initial Conditions (Oka et al. 2017 N-body Model)
-
-**Exact parameters from Oka et al. Methods section:**
+Plummer-softened gravity:
+$$\vec{a}_\mathrm{BH} = -\frac{G M_\mathrm{BH} \vec{r}}{(r^2 + \varepsilon^2)^{3/2}}$$
 
 | Parameter | Value |
 |-----------|-------|
-| BH mass $M_\mathrm{BH}$ | $10^5\,M_\odot$ |
-| Cloud mass | $1000\,M_\odot$ |
-| Initial position $(X_0, Y_0)$ | $(9.8, -0.65)$ pc |
-| Initial velocity $(v_X, v_Y)$ | $(-8.19, 0.4)$ km/s |
-| Cloud dispersion $\sigma_r$ | 0.2 pc |
+| Softening $\varepsilon$ | 0.001 pc |
+| Sink radius | 0.005 pc |
+| Sink criteria | $v_r < 0$ AND $E < 0$ |
+
+### 6.3 Oka et al. Orbital Parameters
+
+| Parameter | Value |
+|-----------|-------|
+| Initial position | $(X_0, Y_0) = (9.8, -0.65)$ pc |
+| Initial velocity | $(v_X, v_Y) = (-8.19, 0.4)$ km/s |
+| Cloud mass | 1000 $M_\odot$ |
+| Cloud $\sigma_r$ | 0.2 pc |
 | Velocity dispersion | 1.43 km/s |
-| Orbital inclination $i$ | 70° |
-| Position angle PA | 41.6° |
+| Inclination | 70° |
+| Position angle | 41.6° |
 | $V_\mathrm{LSR}$ | −120 km/s |
-| Best-fit snapshot | $t = 7.2 \times 10^5$ yr |
+| Best-fit time | $7.2 \times 10^5$ yr |
 
-**Note:** For SPH simulations with resolved cloud ($R_\mathrm{cloud} = 1.13$ pc), pericentre must satisfy $r_\mathrm{peri} \geq 1.5 R_\mathrm{cloud}$ to avoid numerical issues.
-
-### 4.3 Resolution Requirements
-
-#### From Coughlin & Nixon (2021):
-
-Under-resolved simulations systematically **underestimate compression**.
+### 6.4 Resolution Requirements
 
 | $\beta$ | Min Particles | Recommended |
 |---------|---------------|-------------|
 | 1 | $10^4$ | $10^5$ |
-| 2 | $10^5$ | $10^6$ |
 | 3 | $5 \times 10^5$ | $2 \times 10^6$ |
-| 4 | $2 \times 10^6$ | $10^7$ |
 | 8 | $2 \times 10^7$ | $10^8$ |
-| 16 | $10^8$ | $10^9$ |
 
-**For CAT_OKA ($\beta \approx 3$):**
-$$\boxed{N_\mathrm{min} = 10^6, \quad N_\mathrm{rec} = 10^7}$$
+For $\beta \approx 3$: $N_\mathrm{min} = 10^6$, $N_\mathrm{rec} = 10^7$
 
-#### Physical Constraints:
-
-| Scale | Value | Required $h$ |
-|-------|-------|--------------|
-| Jeans length (dense) | 0.024 pc | < 0.006 pc |
-| Jeans length (post-shock) | 0.016 pc | **< 0.004 pc** |
-| In-plane tidal | 0.015 pc | **< 0.004 pc** |
-| Vertical tidal | 0.022 pc | < 0.005 pc |
-
-**Critical resolution:** $h_\mathrm{max} = 0.004$ pc
-
-### 4.4 Numerical Safety Checks
-
-**Sink radius vs smoothing length:**
-- Rule of thumb: $r_\mathrm{sink} \gtrsim h_\mathrm{min}$
-- If $r_\mathrm{sink} \gg h_\mathrm{min}$: sink removes resolved structure
-- If $r_\mathrm{sink} \ll h_\mathrm{min}$: sink may not help with timestepping
-
-**Softening vs sink radius:**
-- Requirement: $\varepsilon < r_\mathrm{sink}$ (softening inside sink)
-- Typical: $\varepsilon \approx r_\mathrm{sink}/5$
-
-**JSON Configuration Example:**
-```json
-{
-  "imbh_parameters": {
-    "enabled": true,
-    "M_BH": 1e5,
-    "BH_initial_position": [0.0, 0.0, 0.0],
-    "BH_initial_velocity": [0.0, 0.0, 0.0],
-    "softening_epsilon": 0.001,
-    "sink_radius": 0.005,
-    "enable_sink": true
-  }
-}
-```
-
-### 4.5 Temporal Requirements
-
-| Constraint | Value |
-|------------|-------|
-| CFL (bulk velocity) | $\Delta t \lesssim 10$ yr |
-| Orbital accuracy | $\Delta t < 100$ yr |
-| Total simulation time | $\gtrsim 10^6$ yr |
-| Timesteps | $\sim 10^5$ |
+Critical smoothing length: $h_\mathrm{max} = 0.004$ pc
 
 ---
 
-## 5. Post-Processing for Observational Comparison
+## 7. Initial Condition Design
 
-### 5.1 Chemistry Treatment
+### 7.1 IC Options Summary
 
-**Recommendation:** Equilibrium chemistry with post-processing radiative transfer.
+| IC Type | Use Case | Pros | Cons |
+|---------|----------|------|------|
+| **Lane-Emden + K&I** | **RECOMMENDED** | Smooth profile, thermal physics | Initial transient |
+| Gaussian Virialized | Oka comparison | Matches N-body | Not hydrostatic |
+| K&I Bonnor-Ebert | Phase structure | True equilibrium | Too small (~0.2 pc) |
 
-**Justification:**
-- CO: $\tau_\mathrm{form} \ll \tau_\mathrm{dyn}$ in dense gas → equilibrium
-- HCN: $\tau_\mathrm{form} \sim \tau_\mathrm{dyn}$ → approximate equilibrium
-- PV structure is kinematically determined; chemistry affects intensity, not morphology
+### 7.2 Recommended: Lane-Emden + K&I Temperatures
 
-**Equilibrium abundances:**
-- CO: $X(\mathrm{CO}) = 10^{-4}$ (constant in well-shielded regions)
-- HCN: $X(\mathrm{HCN}) = 10^{-8} \times (n/10^4)^{0.5}$
+- Density: Lane-Emden n=3/2 polytrope
+- Temperature: $T(r) = T_\mathrm{eq}(n(r))$ from K&I 2000 tables
+- Represents realistic pre-encounter molecular cloud
+- NOT in exact equilibrium — will adjust during initial phase
 
-### 5.2 P-V Diagram Generation
+### 7.3 Gaussian IC (For Oka Comparison Only)
 
-**Step 1: Transform to observer frame**
-```
-Rotation: R = R_z(PA=41.6°) · R_x(i=70°)
-v_LOS = v · ẑ_obs + V_LSR
-```
+Density: $\rho(r) = \rho_c \exp(-r^2/2\sigma_r^2)$
 
-**Step 2: Compute line-of-sight velocity**
-$$v_\mathrm{LOS,i} = \mathbf{v}_i \cdot \hat{z}_\mathrm{obs} + V_\mathrm{LSR}$$
+Mass-radius: $M = (2\pi)^{3/2} \rho_c \sigma_r^3$
 
-**Step 3: Grid and weight by emissivity**
-- CO J=2-1: LTE (densities exceed $n_\mathrm{crit} \sim 10^3$ cm$^{-3}$)
-- HCN J=3-2: Non-LTE with RADEX (densities marginal at $n_\mathrm{crit} \sim 3 \times 10^6$ cm$^{-3}$)
+Virial velocity: $\sigma_v = \sqrt{GM/\alpha\sigma_r}$ where $\alpha \approx 2.4$
 
-**Step 4: Convolve with ALMA beam**
-- CO: $1.87'' \times 1.14''$
-- HCN: $1.52'' \times 0.60''$
+With $M = 1000\,M_\odot$, $\sigma_r = 0.2$ pc: $n_c \approx 2000$ cm$^{-3}$, $\sigma_v \approx 1.4$ km/s
 
-### 5.3 Key Features to Match
+### 7.4 Bonnor-Ebert with K&I 2000 EOS
+
+Barotropic EOS: $P(\rho) = n k_B T_\mathrm{eq}(n)$
+
+Effective sound speed: $c_\mathrm{eff}^2 = (k_B T/\mu m_H)(1 + d\ln T/d\ln n)$
+
+Hydrostatic ODE:
+$$\frac{d\rho}{dr} = -\rho\frac{GM(r)}{r^2 c_\mathrm{eff}^2}, \quad \frac{dM}{dr} = 4\pi r^2 \rho$$
+
+Integrate until $P = P_\mathrm{ext}$. Tune $\rho_c$ and $P_\mathrm{ext}$ to hit target $R$ and $M$.
+
+**Limitation:** Cold phase ($T \sim 10$ K) produces small clouds ($R \sim 0.05-0.25$ pc).
+
+---
+
+## 8. Post-Processing
+
+### 8.1 P-V Diagram Generation
+
+1. **Transform to observer frame:** $R = R_x(i=70°) \cdot R_z(PA=41.6°)$
+2. **Line-of-sight velocity:** $v_\mathrm{LOS} = \vec{v} \cdot \hat{z}_\mathrm{obs} + V_\mathrm{LSR}$
+3. **Grid and weight** by mass or emissivity
+4. **Convolve** with ALMA beam
+
+### 8.2 Key Features to Match
 
 | Feature | Observation | Target |
 |---------|-------------|--------|
-| Velocity range | −105 to −5 km/s | $\sim 100$ km/s width |
-| P-V gradient | Parallelogram | Tidal stretching |
-| Dense clump offset | 0.2 pc | Track density max |
-| Velocity at clump | $V_\mathrm{LSR} \sim -60$ km/s | Main body |
+| Velocity range | −105 to −5 km/s | ~100 km/s width |
+| P-V shape | Parallelogram | Tidal stretching |
+| Dense clump offset | 0.2 pc | Density maximum |
+| Clump velocity | ~−60 km/s | Main body |
+
+### 8.3 Chemistry
+
+- CO: $X(\mathrm{CO}) = 10^{-4}$ (equilibrium in shielded gas)
+- HCN: $X(\mathrm{HCN}) = 10^{-8} \times (n/10^4)^{0.5}$
+- Use RADEX for non-LTE emission modeling
 
 ---
 
-## 6. Verification Workflow
+## 9. Verification
 
-### 6.1 Simulation vs Theory Comparisons
+### 9.1 Convergence Test
 
-| Plot | X-axis | Y-axis | Theory Overlay |
-|------|--------|--------|----------------|
-| Lagrangian height | $t/t_\mathrm{dyn}$ | $z/z_0$ | $H(\tau)$ solution |
-| Central density | $t/t_\mathrm{dyn}$ | $\rho_c/\rho_{c,0}$ | $1/H(\tau)$ |
-| Velocity profile | $z$ | $v_z$ | Linear (homologous) |
-| β-scaling | $\beta$ | $\rho_\mathrm{max}$ | Power-law fits |
+Run at $N$, $2N$, $4N$ particles. Criterion:
+$$\frac{|\rho_\mathrm{max}^{(2N)} - \rho_\mathrm{max}^{(N)}|}{\rho_\mathrm{max}^{(2N)}} < 0.1$$
 
-### 6.2 Convergence Test Protocol
+### 9.2 Shock Detection
 
-1. Run at resolutions $N$, $2N$, $4N$
-2. Compare $\rho_c(t)$ evolution
-3. Convergence criterion:
-   $$\frac{|\rho_\mathrm{max}^{(2N)} - \rho_\mathrm{max}^{(N)}|}{\rho_\mathrm{max}^{(2N)}} < 0.1$$
+1. Velocity divergence: $\nabla \cdot \vec{v} < 0$
+2. Artificial viscosity: High $\Pi_{ij}$
+3. Entropy: Non-adiabatic increase
 
-### 6.3 Shock Detection Methods
+### 9.3 Theory Comparison
 
-1. **Velocity divergence:** $\nabla \cdot \vec{v} < 0$ (strong negative → shock)
-2. **Artificial viscosity:** Track $\Pi_{ij}$ (high values → shock heating)
-3. **Entropy:** Non-adiabatic increase indicates shock passage
+| Plot | Theory |
+|------|--------|
+| $z/z_0$ vs $t$ | $H(\tau)$ solution |
+| $\rho_c/\rho_{c,0}$ vs $t$ | $1/H(\tau)$ |
+| $v_z$ vs $z$ | Linear (homologous) |
 
 ---
 
-## 7. Conclusions
+## 10. Key Formulas
 
-### Required Physics
-- Single-fluid hydrodynamics (SPH)
-- Self-gravity
-- Point-mass external gravity (IMBH)
-- Shock-capturing artificial viscosity
-
-### Optional Enhancements
-- Radiative cooling (for post-shock structure)
-- MHD (for small-scale structure, not primary dynamics)
-
-### NOT Needed
-- Two-fluid approximation
-- Ambipolar diffusion
-- Time-dependent chemistry
-
-### Key Numbers
-
-| Quantity | Value |
-|----------|-------|
-| MHD importance | $M_A \sim 250$ (negligible) |
-| Two-fluid importance | $\tau_\mathrm{AD}/\tau_\mathrm{dyn} \sim 1000$ (negligible) |
-| Shock Mach number | $\mathcal{M} \sim 10$–15 (strong shocks) |
-| Penetration parameter | $\beta \approx 3$ (shock threshold) |
-| Minimum particles | $10^6$ |
-| Recommended particles | $10^7$ |
+| Formula | Expression |
+|---------|------------|
+| Tidal radius | $r_t = R_\mathrm{cloud}(M_\mathrm{BH}/M_\mathrm{cloud})^{1/3}$ |
+| Virial mass | $M_\mathrm{vir} = 5\sigma_v^2 R/G$ |
+| Jeans length | $\lambda_J = c_s\sqrt{\pi/G\rho}$ |
+| Alfvén speed | $v_A = B/\sqrt{4\pi\rho}$ |
+| Plummer potential | $\Phi = -GM/\sqrt{r^2 + \varepsilon^2}$ |
 
 ---
 
-## References
-
-1. Oka, T., et al. (2017). "Millimetre-wave Emission from an Intermediate-Mass Black Hole Candidate in the Milky Way." *Nature Astronomy*.
-
-2. Coughlin, E. R., & Nixon, C. J. (2021). "Stars Crushed by Black Holes. II. A Physical Model of Adiabatic Compression and Shock Formation in Tidal Disruption Events." *ApJ*.
-
-3. Inoue, T., & Inutsuka, S. (2008). "Two-Fluid MHD Simulations of Converging HI Flows in the Interstellar Medium." *ApJ*.
-
-4. Koyama, H., & Inutsuka, S. (2000). "Molecular Cloud Formation in Shock-compressed Layers." *ApJ*, 532, 980.
-
-5. van der Tak, F. F. S., et al. (2007). "RADEX: A Computer Program for Fast Non-LTE Analysis." *A&A*, 468, 627.
-
-6. Dullemond, C. P., et al. (2012). "RADMC-3D: A Multi-purpose Radiative Transfer Tool." *ASCL*, 1202.015.
-
----
-
-## Appendix A: Key Formulas
-
-### A.1 Tidal Radius
-$$r_t = \left(\frac{M_\mathrm{cloud}}{3M_\mathrm{BH}}\right)^{1/3} d$$
-
-### A.2 Alfvén Speed
-$$v_A = \frac{B}{\sqrt{4\pi\rho}} \approx 0.39\,\mathrm{km/s}$$
-
-### A.3 Jeans Length
-$$\lambda_J = c_s \sqrt{\frac{\pi}{G\rho}}$$
-
-### A.4 Ambipolar Diffusion Timescale
-$$\tau_\mathrm{AD} = \frac{L^2}{v_A^2 \tau_{ni}}$$
-
-### A.5 Homologous Compression
-$$\frac{z}{z_0} = H(\tau), \quad \frac{\rho_c}{\rho_{c,0}} = \frac{1}{H(\tau)}$$
-
----
-
-## Appendix B: Physical Constants
+## 11. Physical Constants
 
 | Constant | Value |
 |----------|-------|
@@ -419,4 +336,12 @@ $$\frac{z}{z_0} = H(\tau), \quad \frac{\rho_c}{\rho_{c,0}} = \frac{1}{H(\tau)}$$
 | $M_\odot$ | $2 \times 10^{33}$ g |
 | 1 pc | $3.09 \times 10^{18}$ cm |
 | 1 km/s | $10^5$ cm/s |
-| 1 yr | $3.15 \times 10^7$ s |
+
+---
+
+## References
+
+1. Oka, T., et al. (2017). Nature Astronomy. (IMBH candidate in CO-0.40-0.22)
+2. Coughlin, E. R., & Nixon, C. J. (2021). ApJ. (Tidal compression theory)
+3. Koyama, H., & Inutsuka, S. (2000). ApJ 532, 980. (ISM cooling)
+4. Inoue, T., & Inutsuka, S. (2008). ApJ. (Two-fluid MHD)

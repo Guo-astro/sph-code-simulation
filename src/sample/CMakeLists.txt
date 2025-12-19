@@ -2,7 +2,9 @@ target_sources(sph
     PRIVATE
         bns_cocoon_1d.cpp
         bns_cocoon_2d.cpp
+        bonnor_ebert_ki2000.cpp
         evrard.cpp
+        lane_emden_ki2000.cpp
         evrard_cold_collapse.cpp
         gresho_chan_vortex.cpp
         hydrostatic.cpp

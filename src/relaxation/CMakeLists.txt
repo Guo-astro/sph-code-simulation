@@ -4,4 +4,5 @@ target_sources(sph
         lane_emden_relaxation.cpp
         polytropic_slab_relaxation.cpp
         polytropic_slab_2d_relaxation.cpp
+        koyama_inutsuka_relaxation.cpp
     )

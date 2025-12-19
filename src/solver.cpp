@@ -39,6 +39,7 @@
 #include "relaxation/lane_emden_relaxation.hpp"
 #include "relaxation/polytropic_slab_relaxation.hpp"
 #include "relaxation/polytropic_slab_2d_relaxation.hpp"
+#include "relaxation/koyama_inutsuka_relaxation.hpp"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -430,6 +431,24 @@ void Solver::read_parameterfile(const char * filename)
             m_sample_parameters["amplitude"] = input.get<real>("amplitude", real(0.01));
             m_sample_parameters["rho_0"] = input.get<real>("rho_0", real(1.0));
             m_sample_parameters["c_s"] = input.get<real>("c_s", real(1.0));
+        } else if (sample_type == "bonnor_ebert_ki2000") {
+            m_sample = Sample::BonnorEbertKI2000;
+            // K&I 2000 pressure-truncated Bonnor-Ebert sphere
+            // Parameters match bonnor_ebert_ki2000.cpp sample generator
+            m_sample_parameters["N"] = input.get<int>("N", 40);
+            m_sample_parameters["R_cloud_pc"] = input.get<real>("R_cloud_pc", real(1.0));
+            m_sample_parameters["M_cloud_Msun"] = input.get<real>("M_cloud_Msun", real(1000.0));
+            m_sample_parameters["rho_center_nH"] = input.get<real>("rho_center_nH", real(100.0));
+            m_sample_parameters["N_H_cm2"] = input.get<real>("N_H_cm2", real(1.0e19));
+            m_sample_parameters["P_ext_K_cm3"] = input.get<real>("P_ext_K_cm3", real(1000.0));
+        } else if (sample_type == "lane_emden_ki2000") {
+            m_sample = Sample::LaneEmdenKI2000;
+            // Lane-Emden density structure + K&I 2000 temperatures (NOT hydrostatic)
+            m_sample_parameters["N"] = input.get<int>("N", 40);
+            m_sample_parameters["R_cloud_pc"] = input.get<real>("R_cloud_pc", real(1.0));
+            m_sample_parameters["M_cloud_Msun"] = input.get<real>("M_cloud_Msun", real(1000.0));
+            m_sample_parameters["N_H_cm2"] = input.get<real>("N_H_cm2", real(1.0e19));
+            m_sample_parameters["use_glass"] = input.get<bool>("use_glass", true);
         } else {
             // Try to infer sample type from SPH type and JSON content
             std::string sph_type_check = input.get<std::string>("SPHType", "");
@@ -2177,6 +2196,237 @@ void Solver::initialize()
         m_sim->set_time(0.0);
     }
 
+    // Initialize relaxation for BonnorEbertKI2000 if enabled
+    if(m_use_relaxation && m_sample == Sample::BonnorEbertKI2000) {
+        std::cout << "\n=== Initializing K&I 2000 Bonnor-Ebert Relaxation ===" << std::endl;
+        m_ki2000_relax = std::make_shared<KoyamaInutsukaRelaxation>();
+
+        // Get parameters from sample_parameters
+        const real R_cloud = boost::any_cast<double>(m_sample_parameters["R_cloud"]);
+        const real M_cloud = boost::any_cast<double>(m_sample_parameters["M_cloud"]);
+        const real P_ext_K_cm3 = boost::any_cast<double>(m_sample_parameters["P_ext_K_cm3"]);
+        const real rho_center_code = boost::any_cast<double>(m_sample_parameters["rho_center_code"]);
+        const real N_H_cm2 = boost::any_cast<double>(m_sample_parameters["N_H_cm2"]);
+        const real density_to_n = boost::any_cast<double>(m_sample_parameters["density_to_n"]);
+        const real G = m_param->gravity.constant;
+        const real gamma = m_param->physics.gamma;
+
+        KIRelaxationParams relax_params;
+        relax_params.R_cloud = R_cloud;
+        relax_params.M_cloud = M_cloud;
+        relax_params.P_ext = P_ext_K_cm3;  // P/k_B in K cm^-3
+        relax_params.rho_center = rho_center_code;
+        relax_params.N_H = N_H_cm2;
+        relax_params.G = G;
+        relax_params.gamma = gamma;
+        relax_params.density_to_n = density_to_n;
+        relax_params.pressure_to_cgs = 1.0;  // Will be set properly
+
+        m_ki2000_relax->initialize(relax_params);
+        std::cout << "=== K&I 2000 Relaxation Initialized ===" << std::endl;
+
+        // Initialize sound speed and tree for relaxation calculations
+        {
+            auto& particles = m_sim->get_particles();
+            const int num_p = m_sim->get_particle_num();
+            const real gamma = m_param->physics.gamma;
+            const real c_sound_factor = gamma * (gamma - 1.0);
+            for(int i = 0; i < num_p; ++i) {
+                particles[i].sound = std::sqrt(c_sound_factor * particles[i].ene);
+            }
+
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num_p);
+            tree->make(particles, num_p);
+#endif
+        }
+
+        // Run relaxation phase
+        std::cout << "\n=== Starting K&I 2000 Relaxation Phase (" << m_relaxation_steps << " steps) ===" << std::endl;
+
+        int start_step = 0;
+        real accumulated_time = 0.0;
+
+        // Metadata for relaxation snapshots
+        OutputMetadata relax_meta;
+        relax_meta.is_relaxation = true;
+        relax_meta.relaxation_total_steps = m_relaxation_steps;
+        relax_meta.accumulated_time = 0.0;
+
+        // Progress tracking
+        int output_counter = 0;
+        int last_percent = -1;
+        int last_sub_percent = -1;
+        int target_step = start_step + m_relaxation_steps;
+
+        // Timing for ETA
+        auto start_time = std::chrono::steady_clock::now();
+        double avg_step_time = 0.0;
+        int timing_samples = 0;
+
+        for(int step = start_step; step < target_step; ++step) {
+            auto step_start = std::chrono::steady_clock::now();
+
+            // Update particle properties
+            auto& particles = m_sim->get_particles();
+            const int num_p = m_sim->get_particle_num();
+
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num_p);
+            tree->make(particles, num_p);
+#endif
+
+            // Calculate SPH forces
+            m_pre->calculation(m_sim);
+            m_fforce->calculation(m_sim);
+            // Note: gravity is OFF during relaxation
+
+            // Apply K&I 2000 relaxation: subtract analytical pressure gradient
+            m_ki2000_relax->apply_relaxation(m_sim, 0.0);
+
+            // Calculate timestep
+            m_timestep->calculation(m_sim);
+            real dt_relax = m_sim->get_dt();
+            dt_relax *= m_relaxation_timestep_factor;
+
+            // Integrate positions with net acceleration (zero velocity constraint)
+            auto * periodic = m_sim->get_periodic().get();
+            real max_acc = 0.0;
+
+#pragma omp parallel for reduction(max:max_acc)
+            for(int i = 0; i < num_p; ++i) {
+                // Zero velocities (constraint for quasi-static relaxation)
+                particles[i].vel[0] = 0.0;
+                particles[i].vel[1] = 0.0;
+#if DIM == 3
+                particles[i].vel[2] = 0.0;
+#endif
+
+                // Integrate position: Δx = ½at² (no velocity term)
+                particles[i].pos[0] += 0.5 * particles[i].acc[0] * dt_relax * dt_relax;
+                particles[i].pos[1] += 0.5 * particles[i].acc[1] * dt_relax * dt_relax;
+#if DIM == 3
+                particles[i].pos[2] += 0.5 * particles[i].acc[2] * dt_relax * dt_relax;
+#endif
+
+                if(periodic) periodic->apply(particles[i].pos);
+
+                real acc_mag = std::abs(particles[i].acc[0]);
+                acc_mag = std::max(acc_mag, std::abs(particles[i].acc[1]));
+#if DIM == 3
+                acc_mag = std::max(acc_mag, std::abs(particles[i].acc[2]));
+#endif
+                max_acc = std::max(max_acc, acc_mag);
+            }
+
+            accumulated_time += dt_relax;
+
+            // Progress bar update
+            auto step_end = std::chrono::steady_clock::now();
+            double step_time = std::chrono::duration<double>(step_end - step_start).count();
+            timing_samples++;
+            avg_step_time = ((timing_samples - 1) * avg_step_time + step_time) / timing_samples;
+
+            int percent = (step - start_step + 1) * 100 / m_relaxation_steps;
+            int sub_percent = ((step - start_step + 1) * 1000 / m_relaxation_steps) % 10;
+
+            if(percent != last_percent || sub_percent != last_sub_percent) {
+                int bar_width = 50;
+                int filled = percent * bar_width / 100;
+
+                int remaining_steps = target_step - step - 1;
+                double eta_seconds = remaining_steps * avg_step_time;
+                int eta_mins = static_cast<int>(eta_seconds / 60);
+                int eta_secs = static_cast<int>(eta_seconds - eta_mins * 60);
+
+                std::cout << "\33[2K\r[" << std::string(filled, '=') << std::string(bar_width - filled, ' ')
+                          << "] " << std::setw(3) << std::setfill(' ') << percent << "% "
+                          << step << "/" << target_step
+                          << " ETA:" << eta_mins << "m" << eta_secs << "s"
+                          << " a=" << std::fixed << std::setprecision(2) << max_acc
+                          << std::flush;
+                last_percent = percent;
+                last_sub_percent = sub_percent;
+            }
+
+            // Output snapshots
+            if(step % m_relaxation_output_freq == 0 || step == target_step - 1) {
+                std::cout << std::endl;
+                m_sim->set_time(accumulated_time);
+
+                auto& p = m_sim->get_particles();
+                const int num = m_sim->get_particle_num();
+                const real gamma = m_param->physics.gamma;
+                const real c_sound_factor = gamma * (gamma - 1.0);
+                const real alpha = m_param->av.alpha;
+
+#pragma omp parallel for
+                for(int i = 0; i < num; ++i) {
+                    p[i].alpha = alpha;
+                    p[i].balsara = 1.0;
+                    p[i].sound = std::sqrt(c_sound_factor * p[i].ene);
+                }
+
+                relax_meta.relaxation_step = step;
+                relax_meta.accumulated_time = accumulated_time;
+
+                m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++, &relax_meta);
+                output_counter++;
+            }
+        }
+
+        std::cout << std::endl;
+        std::cout << "=== K&I 2000 Relaxation Complete ===" << std::endl;
+
+        // If relaxation-only mode, output and exit
+        if(m_relaxation_only) {
+            std::cout << "\n=== Relaxation-Only Mode: Outputting Results ===\n" << std::endl;
+
+            m_sim->set_time(0.0);
+
+            auto & p = m_sim->get_particles();
+            const int num = m_sim->get_particle_num();
+            const real gamma = m_param->physics.gamma;
+            const real c_sound = gamma * (gamma - 1.0);
+            const real alpha = m_param->av.alpha;
+
+#pragma omp parallel for
+            for(int i = 0; i < num; ++i) {
+                p[i].alpha = alpha;
+                p[i].balsara = 1.0;
+                p[i].sound = std::sqrt(c_sound * p[i].ene);
+            }
+
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num);
+            tree->make(p, num);
+#endif
+
+            m_pre->calculation(m_sim);
+            m_fforce->calculation(m_sim);
+
+            relax_meta.relaxation_step = m_relaxation_steps;
+            relax_meta.accumulated_time = accumulated_time;
+
+            m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++, &relax_meta);
+
+            real kinetic, thermal, potential;
+            compute_total_energies(kinetic, thermal, potential);
+            m_output_manager->write_energy(0.0, kinetic, thermal, potential);
+
+            std::cout << "=== K&I 2000 Relaxed Configuration Saved ===" << std::endl;
+            std::cout << "=== Exiting (No Simulation Run) ===\n" << std::endl;
+
+            return;
+        }
+
+        std::cout << "=== Starting Main Simulation ===\n" << std::endl;
+        m_sim->set_time(0.0);
+    }
+
     auto & p = m_sim->get_particles();
     const int num = m_sim->get_particle_num();
     const real gamma = m_param->physics.gamma;
@@ -2339,9 +2589,9 @@ void Solver::predict()
             // Note: Safety checks (floors, limiters) applied in corrector step
             
             // Recover primitive variables at half-step for position update
-            // Use the FIXED v_t version to ensure v_t constraint is respected
-            auto prim_half = srgsph::PrimitiveRecovery::conserved_to_primitive_fixed_vt(
-                S_half, p[i].vel_t, e_half, p[i].N, gamma, c_speed
+            // Use conserved S_t to recover v_t (S_t = γHv_t is conserved, not v_t)
+            auto prim_half = srgsph::PrimitiveRecovery::conserved_to_primitive_with_tangent(
+                S_half, S_t_half, e_half, p[i].N, gamma, c_speed
             );
             
             // Update position using half-step velocity (drift)
@@ -2349,9 +2599,9 @@ void Solver::predict()
             periodic->apply(p[i].pos);
             
             // Recover primitive variables at full step
-            // Use the FIXED v_t version to ensure v_t constraint is respected
-            auto prim_full = srgsph::PrimitiveRecovery::conserved_to_primitive_fixed_vt(
-                p[i].S, p[i].vel_t, p[i].e, p[i].N, gamma, c_speed
+            // Use conserved S_t to recover v_t (S_t = γHv_t is conserved, not v_t)
+            auto prim_full = srgsph::PrimitiveRecovery::conserved_to_primitive_with_tangent(
+                p[i].S, p[i].S_t, p[i].e, p[i].N, gamma, c_speed
             );
             
             // Store PRIMITIVE variables for output and next step's Riemann solver
@@ -2361,6 +2611,9 @@ void Solver::predict()
             //   - dens: rest-frame density n (recovered from N/γ in primitive recovery)
             p[i].vel = prim_full.vel;       // Primitive velocity v
             
+            // Update vel_t from primitive recovery (v_t is recovered from conserved S_t)
+            p[i].vel_t = prim_full.vel_t;
+
             // Safety clamp: ensure |v_x| + v_t^2 < 1 (subluminal with tangent velocity)
             {
                 const real v_t2 = p[i].vel_t * p[i].vel_t;
@@ -2368,8 +2621,8 @@ void Solver::predict()
                 if (std::abs(p[i].vel[0]) > max_vx) {
                     static int clamp_count = 0;
                     if (clamp_count < 10) {
-                        WRITE_LOG << "[PREDICT CLAMP] particle " << i 
-                                  << " vel[0]=" << p[i].vel[0] 
+                        WRITE_LOG << "[PREDICT CLAMP] particle " << i
+                                  << " vel[0]=" << p[i].vel[0]
                                   << " clamped to " << std::copysign(max_vx, p[i].vel[0])
                                   << " (v_t=" << p[i].vel_t << ")";
                         ++clamp_count;
@@ -2377,8 +2630,7 @@ void Solver::predict()
                     p[i].vel[0] = std::copysign(max_vx, p[i].vel[0]);
                 }
             }
-            
-            // vel_t stays constant, not updated from primitive recovery
+
             p[i].vel_p = prim_half.vel;     // Half-step velocity (for position update)
             p[i].ene = prim_full.pressure / ((gamma - 1.0) * prim_full.density);  // u = P/[(γ-1)n]
             p[i].ene_p = prim_half.pressure / ((gamma - 1.0) * prim_half.density);
@@ -2387,10 +2639,9 @@ void Solver::predict()
             p[i].sound = prim_full.sound_speed;
             p[i].gamma_lor = prim_full.gamma_lor;
             p[i].enthalpy = prim_full.enthalpy;
-            
-            // Update S_t to be consistent with CONSTANT v_t and current γ, H
-            // This is needed because γH changes through shock dynamics
-            p[i].S_t = p[i].gamma_lor * p[i].enthalpy * p[i].vel_t;
+
+            // NOTE: S_t is CONSERVED (dS_t/dt = 0), do NOT update it here!
+            // v_t is recovered from S_t/(γH) in primitive recovery above.
         }
     } else {
         // === STANDARD SPH TIME INTEGRATION ===
@@ -2477,14 +2728,17 @@ void Solver::correct()
             p[i].N = std::max(p[i].N, 1.0e-6);
 
             // Recover primitive variables from CORRECTED conserved variables
-            // Use the FIXED v_t version to ensure v_t constraint is respected
-            auto prim = sph::srgsph::PrimitiveRecovery::conserved_to_primitive_fixed_vt(
-                p[i].S, p[i].vel_t, p[i].e, p[i].N, gamma, c_speed
+            // Use conserved S_t to recover v_t (S_t = γHv_t is conserved, not v_t)
+            auto prim = sph::srgsph::PrimitiveRecovery::conserved_to_primitive_with_tangent(
+                p[i].S, p[i].S_t, p[i].e, p[i].N, gamma, c_speed
             );
             
             // Update primitive variables from recovered state
             p[i].vel = prim.vel;
-            
+
+            // Update vel_t from primitive recovery (v_t is recovered from conserved S_t)
+            p[i].vel_t = prim.vel_t;
+
             // Safety clamp: ensure |v_x| + v_t^2 < 1 (subluminal with tangent velocity)
             {
                 const real v_t2 = p[i].vel_t * p[i].vel_t;
@@ -2492,8 +2746,8 @@ void Solver::correct()
                 if (std::abs(p[i].vel[0]) > max_vx) {
                     static int clamp_count = 0;
                     if (clamp_count < 10) {
-                        WRITE_LOG << "[CORRECT CLAMP] particle " << i 
-                                  << " vel[0]=" << p[i].vel[0] 
+                        WRITE_LOG << "[CORRECT CLAMP] particle " << i
+                                  << " vel[0]=" << p[i].vel[0]
                                   << " clamped to " << std::copysign(max_vx, p[i].vel[0])
                                   << " (v_t=" << p[i].vel_t << ")";
                         ++clamp_count;
@@ -2501,18 +2755,16 @@ void Solver::correct()
                     p[i].vel[0] = std::copysign(max_vx, p[i].vel[0]);
                 }
             }
-            
-            // vel_t stays constant, not updated from primitive recovery
+
             p[i].ene = prim.pressure / ((gamma - 1.0) * prim.density);
             p[i].pres = prim.pressure;
             p[i].dens = prim.density;
             p[i].sound = prim.sound_speed;
             p[i].gamma_lor = prim.gamma_lor;
             p[i].enthalpy = prim.enthalpy;
-            
-            // Update S_t to be consistent with CONSTANT v_t and current γ, H
-            // This is needed because γH changes through shock dynamics
-            p[i].S_t = p[i].gamma_lor * p[i].enthalpy * p[i].vel_t;
+
+            // NOTE: S_t is CONSERVED (dS_t/dt = 0), do NOT update it here!
+            // v_t is recovered from S_t/(γH) in primitive recovery above.
         }
     } else {
         // Standard SPH correction
@@ -2719,6 +2971,8 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::PolytropicSlab, polytropic_slab);
         MAKE_SAMPLE(Sample::SinusoidalPerturbation, sinusoidal_perturbation);
         MAKE_SAMPLE(Sample::JeansInstability, jeans_instability);
+        MAKE_SAMPLE(Sample::BonnorEbertKI2000, bonnor_ebert_ki2000);
+        MAKE_SAMPLE(Sample::LaneEmdenKI2000, lane_emden_ki2000);
         case Sample::DoNotUse:
 
             // サンプルを使わない場合はここを実装

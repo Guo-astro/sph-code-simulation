@@ -1,0 +1,50 @@
+{
+  "_comment": "Kitajima et al. (2025) Section 3.2.1 Figure 12: Riemann Problem 5 with v^t=0.9 - HLLC solver",
+  "_reference": "arXiv:2510.18251v1, Section 3.2.1 - shock front reaches x=0.2",
+  "_initial_left": "(P, n, v^x, v^t) = (1000, 1.0, 0, 0.9)",
+  "_initial_right": "(P, n, v^x, v^t) = (0.01, 1.0, 0, 0.9)",
+  "_expected_pons2000": "P*=0.904, v*=0.319, v_t*=0.947",
+  "_solver": "HLLC (Mignone & Bodo 2005)",
+  "sample": "sr_tangent_velocity",
+  "outputDirectory": "simulations/relativistic/sr_tangent/results/kitajima_vt09_hllc",
+  "startTime": 0.0,
+  "endTime": 1.5,
+  "outputTime": 0.03,
+  "energyTime": 0.05,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "SPHType": "srgsph",
+  "use2ndOrderSRGSPH": false,
+  "riemannSolver": "hllc",
+  "cSpeed": 1.0,
+  "cShock": 3.0,
+  "cContactDiscontinuity": 1.0,
+  "etaSmoothingLength": 1.0,
+  "gamma": 1.666666667,
+  "kernel": "gaussian",
+  "iterativeSmoothingLength": true,
+  "neighborNumber": 50,
+  "N": 1600,
+  "vt_left": 0.9,
+  "vt_right": 0.9,
+  "useGhostParticles": true,
+  "ghostLayers": 6,
+  "periodic": false,
+  "rangeMax": [0.5],
+  "rangeMin": [-0.5],
+  "avAlpha": 0.0,
+  "useBalsaraSwitch": false,
+  "cflSound": 0.15,
+  "cflForce": 0.1
+}

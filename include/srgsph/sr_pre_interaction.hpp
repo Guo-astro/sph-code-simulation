@@ -37,6 +37,7 @@ class PreInteraction : public sph::PreInteraction {
 
     /**
      * Compute particle volume V_p(x_i) = [Σ_j W(x_i - x_j, h)]^(-1)
+     * and grad-h correction factor Ω_i = 1 / (1 + h * Σ dW/dh / (D * Σ W))
      * Used for number density: N_i = ν_i / V_p(x_i)
      */
     real compute_volume(
@@ -46,7 +47,8 @@ class PreInteraction : public sph::PreInteraction {
         const int n_neighbor,
         const Periodic * periodic,
         const KernelFunction * kernel,
-        const real h
+        const real h,
+        real & gradh_out
     );
 
     /**

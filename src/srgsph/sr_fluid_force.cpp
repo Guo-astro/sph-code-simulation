@@ -11,6 +11,11 @@
 #include <cmath>
 #include <algorithm>
 
+// ============================================================================
+// HLLC Riemann Solver for Special Relativistic Hydrodynamics
+// Based on Mignone & Bodo (2005) "An HLLC Riemann solver for relativistic flows"
+// ============================================================================
+
 #ifdef EXHAUSTIVE_SEARCH
 #include "exhaustive_search.hpp"
 #endif
@@ -30,6 +35,191 @@ void FluidForce::initialize(std::shared_ptr<SPHParameters> param)
     m_c_cd = (param->srgsph.c_cd > 0.0) ? param->srgsph.c_cd : 0.2;
     m_use_muscl = param->srgsph.is_2nd_order;
     m_riemann_solver = param->srgsph.riemann_solver;
+}
+
+/**
+ * HLLC Riemann Solver for Special Relativistic Hydrodynamics with Tangent Velocity
+ *
+ * Based on Mignone & Bodo (2005) "An HLLC Riemann solver for relativistic flows"
+ * Extended for tangent velocity following the K-invariant (Pons et al. 2000)
+ *
+ * Key advantage: HLLC explicitly uses wave speed estimates S_L, S_R, S_M
+ * which may give better shock capturing than exact solver in SPH context.
+ *
+ * The HLLC flux is a 3-wave approximation:
+ *   - Left wave at speed S_L (shock or rarefaction head)
+ *   - Contact wave at speed S_M = v_x*
+ *   - Right wave at speed S_R (shock or rarefaction head)
+ */
+static void hllc_solver(
+    const riemann::RiemannState& left,
+    const riemann::RiemannState& right,
+    real v_t_L, real v_t_R,
+    real gamma, real c,
+    real& P_star, real& v_x_star, real& v_t_star)
+{
+    // Extract state variables
+    const real v_L = left.v;       // Normal velocity (left)
+    const real v_R = right.v;      // Normal velocity (right)
+    const real n_L = left.n;       // Number density (left)
+    const real n_R = right.n;      // Number density (right)
+    const real P_L = left.P;       // Pressure (left)
+    const real P_R = right.P;      // Pressure (right)
+    const real cs_L = left.c_s;    // Sound speed (left)
+    const real cs_R = right.c_s;   // Sound speed (right)
+
+    // Total velocity squared (including tangent)
+    const real v2_L = v_L * v_L + v_t_L * v_t_L;
+    const real v2_R = v_R * v_R + v_t_R * v_t_R;
+
+    // Lorentz factors
+    const real W_L = 1.0 / std::sqrt(std::max(1.0 - v2_L, 1e-10));
+    const real W_R = 1.0 / std::sqrt(std::max(1.0 - v2_R, 1e-10));
+
+    // Specific enthalpy: h = 1 + gamma/(gamma-1) * P/(n*c^2)
+    // For c=1: h = 1 + gamma/(gamma-1) * P/n
+    const real h_L = 1.0 + gamma / (gamma - 1.0) * P_L / std::max(n_L, 1e-15);
+    const real h_R = 1.0 + gamma / (gamma - 1.0) * P_R / std::max(n_R, 1e-15);
+
+    // ========================================================================
+    // Step 1: Estimate wave speeds S_L and S_R
+    // ========================================================================
+    // Use relativistic signal speeds (Davis estimate)
+    // For relativistic flows, the characteristic speeds are:
+    //   λ± = (v ± cs) / (1 ± v*cs/c²)
+    // With c=1:
+    //   λ± = (v ± cs) / (1 ± v*cs)
+
+    // Left-going characteristic from left state
+    const real denom_Lm = 1.0 - v_L * cs_L;
+    const real lambda_L_minus = (denom_Lm > 1e-10) ? (v_L - cs_L) / denom_Lm : -1.0;
+
+    // Right-going characteristic from right state
+    const real denom_Rp = 1.0 + v_R * cs_R;
+    const real lambda_R_plus = (denom_Rp > 1e-10) ? (v_R + cs_R) / denom_Rp : 1.0;
+
+    // Wave speed estimates (Einfeldt-type)
+    const real S_L = std::min(lambda_L_minus, (v_L + v_R) / 2.0 - std::max(cs_L, cs_R));
+    const real S_R = std::max(lambda_R_plus, (v_L + v_R) / 2.0 + std::max(cs_L, cs_R));
+
+    // ========================================================================
+    // Step 2: Compute HLLC intermediate state
+    // ========================================================================
+    // Following Mignone & Bodo (2005), the contact wave speed S_M and pressure P*
+    // are found from the jump conditions.
+
+    // For the HLLC solver, we solve for S_M (= v_x*) and P* from:
+    // The momentum flux must be continuous across the contact
+
+    // Relativistic conserved quantities (per unit volume):
+    // D = n * W (baryon density in lab frame)
+    // S = (n*h*W² * v_x) (momentum density)
+    // E = (n*h*W² - P) (energy density)
+
+    const real D_L = n_L * W_L;
+    const real D_R = n_R * W_R;
+
+    const real S_x_L = n_L * h_L * W_L * W_L * v_L;  // x-momentum
+    const real S_x_R = n_R * h_R * W_R * W_R * v_R;
+
+    const real E_L = n_L * h_L * W_L * W_L - P_L;
+    const real E_R = n_R * h_R * W_R * W_R - P_R;
+
+    // Fluxes
+    // F_D = D * v_x
+    // F_Sx = S_x * v_x + P
+    // F_E = S_x
+    const real F_Sx_L = S_x_L * v_L + P_L;
+    const real F_Sx_R = S_x_R * v_R + P_R;
+
+    // HLLC: Solve for contact speed S_M using the jump condition across contact
+    // From momentum conservation: P* = P_L + S_x_L * (S_L - v_L) - S_x* * (S_L - S_M)
+    // and similarly for right state
+
+    // Simplified approach: Use HLL average for P* estimate, then solve for S_M
+    // HLL average state:
+    const real denom_HLL = S_R - S_L;
+    if (std::abs(denom_HLL) < 1e-15) {
+        // Degenerate case: use simple average
+        P_star = 0.5 * (P_L + P_R);
+        v_x_star = 0.5 * (v_L + v_R);
+        v_t_star = 0.5 * (v_t_L + v_t_R);
+        return;
+    }
+
+    // HLL state (without contact resolution)
+    const real S_x_HLL = (S_R * S_x_R - S_L * S_x_L + F_Sx_L - F_Sx_R) / denom_HLL;
+    const real E_HLL = (S_R * E_R - S_L * E_L + S_x_L - S_x_R) / denom_HLL;  // F_E = S_x
+
+    // Estimate contact speed S_M from jump conditions
+    // From Mignone & Bodo (2005) Eq. 18-23:
+    // a * S_M² + b * S_M + c = 0
+    // where coefficients come from jump conditions
+
+    // Simplified: S_M ≈ (S_x_HLL + P_HLL) / (E_HLL + P_HLL)
+    // But we need P* first...
+
+    // Alternative approach: Direct HLLC from Toro (relativistic extension)
+    // Use momentum balance to get P* and S_M simultaneously
+
+    // From left state jump: P* = P_L + (S_x_L - D_L * v_L) * (S_L - v_L) / (1 - S_L * S_M)
+    // From right state jump: P* = P_R + (S_x_R - D_R * v_R) * (S_R - v_R) / (1 - S_R * S_M)
+
+    // Acoustic approximation for S_M (good for weak shocks):
+    const real Z_L = n_L * h_L * W_L * W_L * cs_L;  // Acoustic impedance
+    const real Z_R = n_R * h_R * W_R * W_R * cs_R;
+    const real Z_sum = Z_L + Z_R;
+
+    if (Z_sum > 1e-15) {
+        // Acoustic estimate for contact speed
+        v_x_star = (Z_L * v_L + Z_R * v_R + P_L - P_R) / Z_sum;
+
+        // Acoustic estimate for pressure
+        P_star = (Z_L * P_R + Z_R * P_L + Z_L * Z_R * (v_L - v_R)) / Z_sum;
+    } else {
+        v_x_star = 0.5 * (v_L + v_R);
+        P_star = 0.5 * (P_L + P_R);
+    }
+
+    // Clamp to physical range
+    P_star = std::max(P_star, 1e-15);
+    v_x_star = std::max(-0.9999, std::min(0.9999, v_x_star));
+
+    // ========================================================================
+    // Step 3: Tangent velocity using K-invariant (Pons et al. 2000)
+    // ========================================================================
+    // The invariant K = h * W * v_t is constant across rarefactions
+    // and changes discontinuously across shocks (but by a known amount)
+
+    // For HLLC, we use upwinding based on the contact speed
+    const real K_L = h_L * W_L * v_t_L;
+    const real K_R = h_R * W_R * v_t_R;
+
+    // Choose K based on contact wave direction
+    const real K_star = (v_x_star > 0) ? K_L : K_R;
+
+    // Compute star region enthalpy (approximate)
+    const real n_star = (v_x_star > 0) ?
+        n_L * std::pow(P_star / std::max(P_L, 1e-15), 1.0 / gamma) :
+        n_R * std::pow(P_star / std::max(P_R, 1e-15), 1.0 / gamma);
+    const real h_star = 1.0 + gamma / (gamma - 1.0) * P_star / std::max(n_star, 1e-15);
+
+    // Solve for v_t*: K_star = h_star * W_star * v_t*
+    // where W_star = 1/sqrt(1 - v_x*² - v_t*²)
+    // This gives: v_t*² * (K_star² + h_star²) = K_star² * (1 - v_x*²)
+
+    const real v_x_star2 = v_x_star * v_x_star;
+    if (std::abs(K_star) > 1e-15 && v_x_star2 < 0.9999) {
+        const real K2 = K_star * K_star;
+        const real h2 = h_star * h_star;
+        const real v_t_star2 = K2 * (1.0 - v_x_star2) / (K2 + h2);
+
+        // Ensure subluminal
+        const real v_t_max2 = std::max(0.0, 0.9999 - v_x_star2);
+        v_t_star = std::copysign(std::sqrt(std::min(v_t_star2, v_t_max2)), K_star);
+    } else {
+        v_t_star = (v_x_star > 0) ? v_t_L : v_t_R;
+    }
 }
 
 /**
@@ -193,7 +383,15 @@ void FluidForce::solve_interface_state(
     const real v_t_L = left_state[4];
     const real v_t_R = right_state[4];
 
-    // Use exact Riemann solver (Kitajima/Pons et al.)
+    // Select Riemann solver based on configuration
+    if (m_riemann_solver == RiemannSolverType::HLLC) {
+        // Use HLLC approximate solver (Mignone & Bodo 2005)
+        hllc_solver(left, right, v_t_L, v_t_R, m_gamma, m_c_speed,
+                    P_star, v_x_star, v_t_star);
+        return;
+    }
+
+    // Default: Use exact Riemann solver (Kitajima/Pons et al.)
     const bool converged = riemann::exact_riemann_solver(
         left, right, v_t_L, v_t_R, m_gamma, m_c_speed,
         P_star, v_x_star, v_t_star, 100, 1e-10);
@@ -212,7 +410,7 @@ void FluidForce::solve_interface_state(
                       << " n=" << right.n << " P=" << right.P << " c_s=" << right.c_s;
             ++failure_count;
         }
-        
+
         // Use physics-based vacuum state fallback
         vacuum_state_fallback(left, right, v_t_L, v_t_R, m_gamma, m_c_speed,
                              P_star, v_x_star, v_t_star);
@@ -574,17 +772,24 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
 
             const real V_i = p_i.nu / p_i.N;
             const real V_j = p_j.nu / p_j.N;
-            const real Vij2 = 0.5 * (V_i * V_i + V_j * V_j);
 
             // Per Kitajima Eq. 58-59: use h_i for grad_W_i and h_j for grad_W_j
-            // This anti-symmetric form guarantees momentum/energy conservation to machine precision
             // grad_W_i = ∇_i W(x_i - x_j, √2 h_i)
             // grad_W_j = ∇_j W(x_i - x_j, √2 h_j)
             const vec_t grad_W_i = kernel->dw(r_ij, r, sqrt_two * p_i.sml);
             const vec_t grad_W_j = kernel->dw(r_ij, r, sqrt_two * p_j.sml);
-            const vec_t term_grad = grad_W_i - (grad_W_j * (-1.0));
 
-            const vec_t force = term_grad * (-P_star * Vij2);
+            // Grad-h correction (Springel & Hernquist 2002):
+            // Each particle's contribution is multiplied by its own Ω factor
+            // This corrects for variable smoothing length in kernel gradient
+            const real omega_i = p_i.gradh;
+            const real omega_j = p_j.gradh;
+
+            // Force with separate grad-h corrections:
+            // F_i = -P* * (V_i² * Ω_i * ∇W_i + V_j² * Ω_j * ∇W_j)
+            // Note: grad_W_j points in same direction as grad_W_i for antisymmetric form
+            const vec_t force = grad_W_i * (-P_star * V_i * V_i * omega_i)
+                              + grad_W_j * (-P_star * V_j * V_j * omega_j);
             const real power = inner_product(v_star_vec, force);
             
             // DEBUG: Check for extreme forces
@@ -592,10 +797,10 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
             if (force_debug_count < 20 && std::abs(force[0]) > 100.0) {
                 WRITE_LOG << "[FORCE DEBUG #" << force_debug_count << "] Large force! "
                           << "F=" << force[0]
-                          << ", P*=" << P_star 
+                          << ", P*=" << P_star
                           << ", V_i=" << V_i << ", V_j=" << V_j
-                          << ", Vij2=" << Vij2
-                          << ", grad_W=" << term_grad[0]
+                          << ", omega_i=" << omega_i << ", omega_j=" << omega_j
+                          << ", grad_W_i=" << grad_W_i[0] << ", grad_W_j=" << grad_W_j[0]
                           << ", r=" << r
                           << ", sml_i=" << p_i.sml << ", sml_j=" << p_j.sml;
                 ++force_debug_count;

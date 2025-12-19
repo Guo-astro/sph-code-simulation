@@ -130,9 +130,11 @@ PrimitiveVariables conserved_to_primitive(
 /**
  * Full conversion from conserved to primitive variables with tangent momentum
  * For 1D simulations with tangent velocity (Section 3.1.5)
- * 
- * IMPORTANT: In 1D tangent velocity tests, v_t is a constant of the motion.
- * We solve for γ correctly accounting for v_t being nonzero using iteration.
+ *
+ * IMPORTANT: In 1D SRGSPH, the tangent MOMENTUM S_t = γHv_t is conserved
+ * (dS_t/dt = 0 because there's no force in the tangent direction).
+ * This function takes S_t as input and recovers v_t from it: v_t = S_t / (γH).
+ * As γ and H evolve through shock dynamics, v_t adjusts to maintain S_t constant.
  */
 PrimitiveVariables conserved_to_primitive_with_tangent(
     const vec_t & S,

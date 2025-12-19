@@ -2,6 +2,7 @@
 #include "simulation.hpp"
 #include "parameters.hpp"
 #include "openmp.hpp"
+#include "logger.hpp"
 #include <limits>
 #include <algorithm>
 #include <cmath>
@@ -19,18 +20,16 @@ void TimeStep::initialize(std::shared_ptr<SPHParameters> param)
 
 /**
  * Calculate timestep for Special Relativistic GSPH
- * 
+ *
  * Following Kitajima, Inutsuka & Seno (2025) SRGSPH paper:
  * "we find that a simpler time step criterion, similar to that used in
  * non-relativistic cases, works well without the more elaborate methods
  * employed in Chow & Monaghan (1997) and Rosswog (2010)."
- * 
+ *
  * The CFL condition used is simply:
  *   Δt = C_CFL * min_i(h_i / c_{s,i})
- * 
- * where c_s is the sound speed. This is more stable than the elaborate
- * relativistic characteristic speed formulas which can cause severe
- * timestep collapse when tangent velocity is high.
+ *
+ * where c_s is the sound speed.
  */
 void TimeStep::calculation(std::shared_ptr<Simulation> sim)
 {
@@ -44,9 +43,12 @@ void TimeStep::calculation(std::shared_ptr<Simulation> sim)
     for(int i = 0; i < num; ++i) {
         const auto & p_i = particles[i];
 
+        // Skip ghost particles
+        if (p_i.is_ghost) continue;
+
         // Skip if sound speed is zero or negative
         if (p_i.sound <= 0.0) continue;
-        
+
         // Simple CFL: h / c_s (as in Kitajima et al. 2025)
         const real h_over_cs = p_i.sml / p_i.sound;
 
@@ -64,6 +66,15 @@ void TimeStep::calculation(std::shared_ptr<Simulation> sim)
 
     // Set timestep (CFL limited)
     sim->set_dt(dt_cfl);
+
+    // Debug: report timestep info on first few calls
+    static int call_count = 0;
+    if (call_count < 5) {
+        WRITE_LOG << "[SR TIMESTEP] dt=" << dt_cfl
+                  << " min(h/c_s)=" << min_h_over_cs.min()
+                  << " CFL=" << c_sound;
+        ++call_count;
+    }
 }
 
 } // namespace srgsph

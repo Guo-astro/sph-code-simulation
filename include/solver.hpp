@@ -20,6 +20,7 @@ class Simulation;
 class LaneEmdenRelaxation;
 class PolytropicSlabRelaxation;
 class PolytropicSlab2DRelaxation;
+class KoyamaInutsukaRelaxation;
 
 class Module;
 
@@ -55,6 +56,8 @@ enum struct Sample {
     PolytropicSlab,
     SinusoidalPerturbation,
     JeansInstability,
+    BonnorEbertKI2000,  // K&I 2000 Bonnor-Ebert pressure-truncated sphere
+    LaneEmdenKI2000,    // Lane-Emden density + K&I 2000 temperatures (NOT hydrostatic)
     DoNotUse,
 };
 
@@ -85,6 +88,7 @@ class Solver {
     std::shared_ptr<LaneEmdenRelaxation> m_lane_emden_relax;
     std::shared_ptr<PolytropicSlabRelaxation> m_polytropic_slab_relax;
     std::shared_ptr<PolytropicSlab2DRelaxation> m_polytropic_slab_2d_relax;
+    std::shared_ptr<KoyamaInutsukaRelaxation> m_ki2000_relax;
     bool m_use_relaxation;
     int m_relaxation_steps;
     int m_relaxation_output_freq;  // Output frequency during relaxation
@@ -137,6 +141,8 @@ class Solver {
     void make_polytropic_slab();
     void make_sinusoidal_perturbation();
     void make_jeans_instability();
+    void make_bonnor_ebert_ki2000();  // K&I 2000 pressure-truncated sphere
+    void make_lane_emden_ki2000();    // Lane-Emden + K&I temperatures
 
 public:
     Solver(int argc, char * argv[]);

@@ -1,0 +1,29 @@
+{
+    "outputDirectory": "simulations/benchmarks/sedov/results/gsph_3d_iterative",
+    "endTime": 0.1,
+    "outputTime": 0.005,
+    "energyTime": 0.005,
+    "output": {
+      "formats": [
+        {
+          "type": "csv",
+          "precision": 16
+        }
+      ],
+      "enableEnergyFile": true
+    },
+    "avAlpha": 1.0,
+    "neighborNumber": 50,
+    "useBalsaraSwitch": false,
+    "leafParticleNumber": 32,
+    "gamma": 1.66666667,
+    "kernel": "cubic_spline",
+    "sample": "sedov",
+    "N": 50,
+    "periodic": false,
+    "rangeMax": [0.5, 0.5, 0.5],
+    "rangeMin": [-0.5, -0.5, -0.5],
+    "SPHType": "gsph",
+    "use2ndOrderGSPH": true,
+    "riemannSolver": "iterative"
+}
