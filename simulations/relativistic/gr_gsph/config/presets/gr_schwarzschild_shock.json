@@ -1,0 +1,51 @@
+{
+  "_comment": "GR-GSPH Schwarzschild Radial Shock Tube",
+  "_description": "Tests gravitational source terms in curved spacetime (Liptai & Price 2019)",
+  "_reference": "Liptai & Price (2019) MNRAS 485, 819",
+  "_physics": "Rosswog Test 1 initial conditions in Schwarzschild spacetime",
+  "sample": "gr_schwarzschild_shock",
+  "outputDirectory": "simulations/relativistic/gr_gsph/results/schwarzschild_shock",
+  "startTime": 0.0,
+  "endTime": 5.0,
+  "outputTime": 0.1,
+  "energyTime": 0.05,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "SPHType": "grgsph",
+  "metricType": "schwarzschild",
+  "blackHoleMass": 1.0,
+  "use2ndOrderSRGSPH": true,
+  "riemannSolver": "exact",
+  "cSpeed": 1.0,
+  "cShock": 3.0,
+  "cContactDiscontinuity": 1.0,
+  "etaSmoothingLength": 1.0,
+  "gamma": 1.666666667,
+  "kernel": "gaussian",
+  "iterativeSmoothingLength": true,
+  "neighborNumber": 50,
+  "N": 1000,
+  "rMin": 3.0,
+  "rMax": 15.0,
+  "rDiscontinuity": 6.0,
+  "useGhostParticles": true,
+  "ghostLayers": 6,
+  "periodic": false,
+  "rangeMax": [15.0],
+  "rangeMin": [3.0],
+  "avAlpha": 0.0,
+  "useBalsaraSwitch": false,
+  "cflSound": 0.3,
+  "cflForce": 0.25
+}

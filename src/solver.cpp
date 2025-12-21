@@ -34,6 +34,8 @@
 #include "srgsph/sr_fluid_force.hpp"
 #include "srgsph/sr_timestep.hpp"
 #include "srgsph/sr_primitive_recovery.hpp"
+#include "grgsph/gr_fluid_force.hpp"
+#include "grgsph/gr_metric.hpp"
 
 // relaxation
 #include "relaxation/lane_emden_relaxation.hpp"
@@ -117,6 +119,14 @@ Solver::Solver(int argc, char * argv[])
             WRITE_LOG << "SPH type: Special Relativistic Godunov SPH (2nd order)";
         } else {
             WRITE_LOG << "SPH type: Special Relativistic Godunov SPH (1st order)";
+        }
+        WRITE_LOG << "* Speed of light c = " << m_param->srgsph.c_speed;
+        break;
+    case SPHType::GRGSPH:
+        if(m_param->srgsph.is_2nd_order) {
+            WRITE_LOG << "SPH type: General Relativistic Godunov SPH (2nd order)";
+        } else {
+            WRITE_LOG << "SPH type: General Relativistic Godunov SPH (1st order)";
         }
         WRITE_LOG << "* Speed of light c = " << m_param->srgsph.c_speed;
         break;
@@ -340,13 +350,40 @@ void Solver::read_parameterfile(const char * filename)
         } else if (sample_type == "sr_rosswog") {
             m_sample = Sample::SRRosswog;
             // Rosswog (2010) arXiv:0907.4890 benchmark tests
-            // testType: perturbed_shock_tube (test3), sine_advection (test5), 
+            // testType: perturbed_shock_tube (test3), sine_advection (test5),
             //           square_advection (test6), simple_wave (test7)
             m_sample_parameters["testType"] = input.get<std::string>("testType", "perturbed_shock_tube");
             m_sample_parameters["N"] = input.get<int>("N", 500);
             m_sample_parameters["gamma"] = input.get<real>("gamma", real(5.0 / 3.0));
             m_sample_parameters["advectionVelocity"] = input.get<real>("advectionVelocity", real(0.997));
             m_sample_parameters["vMax"] = input.get<real>("vMax", real(0.7));
+        } else if (sample_type == "gr_schwarzschild_shock") {
+            m_sample = Sample::GRSchwarzschildShock;
+            // GR-GSPH Schwarzschild radial shock tube (Liptai & Price 2019)
+            m_sample_parameters["N"] = input.get<int>("N", 1000);
+            m_sample_parameters["blackHoleMass"] = input.get<real>("blackHoleMass", real(1.0));
+            m_sample_parameters["rMin"] = input.get<real>("rMin", real(3.0));  // In units of M
+            m_sample_parameters["rMax"] = input.get<real>("rMax", real(15.0)); // In units of M
+            m_sample_parameters["rDiscontinuity"] = input.get<real>("rDiscontinuity", real(6.0)); // In units of M
+            m_sample_parameters["ghostLayers"] = input.get<int>("ghostLayers", 6);
+        } else if (sample_type == "gr_geodesic_test") {
+            m_sample = Sample::GRGeodesicTest;
+            // GR geodesic test (Liptai & Price 2019 Section 6.2)
+            m_sample_parameters["N"] = input.get<int>("N", 10);
+            m_sample_parameters["blackHoleMass"] = input.get<real>("blackHoleMass", real(1.0));
+            m_sample_parameters["testType"] = input.get<std::string>("testType", "radial_infall");
+            m_sample_parameters["rMin"] = input.get<real>("rMin", real(4.0));   // For radial infall
+            m_sample_parameters["rMax"] = input.get<real>("rMax", real(40.0));  // For radial infall
+            m_sample_parameters["rOrbit"] = input.get<real>("rOrbit", real(10.0)); // For circular orbit
+        } else if (sample_type == "gr_bondi") {
+            m_sample = Sample::GRBondi;
+            // GR-GSPH Bondi accretion (Liptai & Price 2019 Figs 14, 18)
+            m_sample_parameters["N"] = input.get<int>("N", 500);
+            m_sample_parameters["blackHoleMass"] = input.get<real>("blackHoleMass", real(1.0));
+            m_sample_parameters["testType"] = input.get<std::string>("testType", "geodesic");
+            m_sample_parameters["rIn"] = input.get<real>("rIn", real(2.5));   // Inner boundary
+            m_sample_parameters["rOut"] = input.get<real>("rOut", real(18.0)); // Outer boundary
+            m_sample_parameters["ghostLayers"] = input.get<int>("ghostLayers", 6);
         } else if (sample_type == "ns_merger_2d") {
             m_sample = Sample::NSMerger2D;
             m_sample_parameters["R_star"] = input.get<real>("ns_merger.star1.radius", real(1.2));
@@ -464,7 +501,7 @@ void Solver::read_parameterfile(const char * filename)
             std::string sph_type_check = input.get<std::string>("SPHType", "");
             std::string test_type = input.get<std::string>("testType", "");
             
-            if(sph_type_check == "srgsph") {
+            if(sph_type_check == "srgsph" || sph_type_check == "grgsph") {
                 // Check for BNS cocoon test types
                 if(test_type == "bns_cocoon_1d" || name_str.find("bns_cocoon_1d") != std::string::npos) {
                     m_sample = Sample::BNSCocoon1D;
@@ -588,6 +625,8 @@ void Solver::read_parameterfile(const char * filename)
         m_param->type = SPHType::GDISPH;
     } else if(sph_type == "srgsph") {
         m_param->type = SPHType::SRGSPH;
+    } else if(sph_type == "grgsph") {
+        m_param->type = SPHType::GRGSPH;
     } else {
         THROW_ERROR("Unknown SPH type");
     }
@@ -626,7 +665,7 @@ void Solver::read_parameterfile(const char * filename)
 
     // Kernel
     const std::string kernel_default =
-        (m_param->type == SPHType::SRGSPH) ? "gaussian" : "cubic_spline";
+        (m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) ? "gaussian" : "cubic_spline";
     std::string kernel_name = input.get<std::string>("kernel", kernel_default);
     if(kernel_name == "cubic_spline") {
         m_param->kernel = KernelType::CUBIC_SPLINE;
@@ -638,8 +677,8 @@ void Solver::read_parameterfile(const char * filename)
         THROW_ERROR("kernel is unknown.");
     }
 
-    if(m_param->type == SPHType::SRGSPH && m_param->kernel != KernelType::GAUSSIAN) {
-        THROW_ERROR("SRGSPH currently supports only the Gaussian kernel. Set kernel=\"gaussian\".");
+    if((m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) && m_param->kernel != KernelType::GAUSSIAN) {
+        THROW_ERROR("SR/GR-GSPH currently supports only the Gaussian kernel. Set kernel=\"gaussian\".");
     }
 
     // smoothing length
@@ -739,8 +778,8 @@ void Solver::read_parameterfile(const char * filename)
         }
     }
     
-    // SRGSPH (Fixed-h formulation, §2.2)
-    if(m_param->type == SPHType::SRGSPH) {
+    // SRGSPH/GRGSPH (Fixed-h formulation, §2.2)
+    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
         m_param->srgsph.is_2nd_order = input.get<bool>("use2ndOrderSRGSPH", true);
         m_param->srgsph.c_speed = input.get<real>("cSpeed", 1.0);
         m_param->srgsph.c_shock = input.get<real>("cShock", 3.0);
@@ -751,17 +790,33 @@ void Solver::read_parameterfile(const char * filename)
         std::string riemann_type = input.get<std::string>("riemannSolver", "exact");
         if (riemann_type == "hllc" || riemann_type == "HLLC") {
             m_param->srgsph.riemann_solver = RiemannSolverType::HLLC;
-            WRITE_LOG << "Using HLLC Riemann solver for SRGSPH";
+            WRITE_LOG << "Using HLLC Riemann solver for SR/GR-GSPH";
         } else {
             m_param->srgsph.riemann_solver = RiemannSolverType::EXACT;
-            WRITE_LOG << "Using Exact Riemann solver for SRGSPH (with HLLC fallback)";
+            WRITE_LOG << "Using Exact Riemann solver for SR/GR-GSPH (with HLLC fallback)";
         }
         
         // Fixed smoothing length (§2.2): auto-compute from eta if not specified
         // h is constant for all particles and all times
         m_param->srgsph.smoothing_length = input.get<real>("fixedSmoothingLength", -1.0);
     }
-    
+
+    // GRGSPH-specific parameters (metric configuration)
+    if(m_param->type == SPHType::GRGSPH) {
+        m_param->grgsph.metric_type = input.get<std::string>("metricType", "minkowski");
+        m_param->grgsph.bh_mass = input.get<real>("blackHoleMass", 1.0);
+        m_param->grgsph.bh_spin = input.get<real>("blackHoleSpin", 0.0);
+
+        WRITE_LOG << "GR-GSPH metric configuration:";
+        WRITE_LOG << "  Metric type: " << m_param->grgsph.metric_type;
+        if(m_param->grgsph.metric_type == "schwarzschild" || m_param->grgsph.metric_type == "kerr") {
+            WRITE_LOG << "  Black hole mass M: " << m_param->grgsph.bh_mass;
+        }
+        if(m_param->grgsph.metric_type == "kerr") {
+            WRITE_LOG << "  Black hole spin a: " << m_param->grgsph.bh_spin;
+        }
+    }
+
     // Relaxation (for Lane-Emden)
     
     // Thermal (ISM Cooling/Heating) - Koyama & Inutsuka (2000)
@@ -882,9 +937,9 @@ void Solver::read_parameterfile(const char * filename)
         m_units = UnitSystem();
     }
     
-    // For SR-GSPH, automatically use relativistic units if not explicitly specified
-    if(m_param->type == SPHType::SRGSPH && unit_type_str == "CODE") {
-        std::cout << "Note: SR-GSPH detected, auto-selecting dimensionless relativistic units (c=1)" << std::endl;
+    // For SR/GR-GSPH, automatically use relativistic units if not explicitly specified
+    if((m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) && unit_type_str == "CODE") {
+        std::cout << "Note: SR/GR-GSPH detected, auto-selecting dimensionless relativistic units (c=1)" << std::endl;
         m_units = UnitSystem::create_sr_test();
     }
     
@@ -1180,9 +1235,9 @@ void Solver::run()
     real t_out = t_start + m_param->time.output;
     real t_ene = t_start + m_param->time.energy;
 
-    // For SRGSPH, compute initial N from kernel sum, then update ghosts
+    // For SR/GR-GSPH, compute initial N from kernel sum, then update ghosts
     // This ensures consistent initial conditions for force calculation
-    if(m_param->type == SPHType::SRGSPH) {
+    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
 #ifndef EXHAUSTIVE_SEARCH
         m_sim->make_tree();
 #endif
@@ -1391,11 +1446,25 @@ void Solver::initialize()
         m_timestep = std::make_shared<srgsph::TimeStep>();  // Use SR timestep
         m_pre = std::make_shared<srgsph::PreInteraction>();
         m_fforce = std::make_shared<srgsph::FluidForce>();
+    } else if(m_param->type == SPHType::GRGSPH) {
+        m_timestep = std::make_shared<srgsph::TimeStep>();  // Use SR timestep (same for GR)
+        m_pre = std::make_shared<srgsph::PreInteraction>(); // Use SR pre-interaction (same for GR)
+        auto gr_fforce = std::make_shared<grgsph::GRFluidForce>();
+
+        // Set up the metric based on configuration
+        auto metric = grgsph::create_metric(
+            m_param->grgsph.metric_type,
+            m_param->grgsph.bh_mass,
+            m_param->grgsph.bh_spin
+        );
+        gr_fforce->set_metric(std::move(metric));
+        m_fforce = gr_fforce;
     }
     m_gforce = std::make_shared<GravityForce>();
 
-    // GSPH, GDISPH, and SRGSPH require gradient arrays for MUSCL
-    if(m_param->type == SPHType::GSPH || m_param->type == SPHType::GDISPH || m_param->type == SPHType::SRGSPH) {
+    // GSPH, GDISPH, SRGSPH, and GRGSPH require gradient arrays for MUSCL
+    if(m_param->type == SPHType::GSPH || m_param->type == SPHType::GDISPH ||
+       m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
         std::vector<std::string> names;
         names.push_back("grad_density");
         names.push_back("grad_pressure");
@@ -1406,8 +1475,8 @@ void Solver::initialize()
         names.push_back("grad_velocity_1");
         names.push_back("grad_velocity_2");
 #endif
-        // SRGSPH also needs number density gradient
-        if(m_param->type == SPHType::SRGSPH) {
+        // SRGSPH/GRGSPH also needs number density gradient
+        if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
             names.push_back("grad_number_density");
         }
         m_sim->add_vector_array(names);
@@ -2469,8 +2538,8 @@ void Solver::initialize()
 
     m_pre->calculation(m_sim);
     
-    // For SRGSPH, update ghost particles after computing N but before forces
-    if(m_param->type == SPHType::SRGSPH) {
+    // For SR/GR-GSPH, update ghost particles after computing N but before forces
+    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
         update_ghost_particles();
     }
     
@@ -2561,9 +2630,9 @@ void Solver::predict()
 
     assert(p.size() == num);
 
-    // SR-GSPH: Integrate CONSERVED variables (S, e, N)
+    // SR/GR-GSPH: Integrate CONSERVED variables (S, e, N)
     // Standard SPH: Integrate PRIMITIVE variables (v, u, ρ)
-    if(m_param->type == SPHType::SRGSPH) {
+    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
         const real c_speed = m_param->srgsph.c_speed;
 
 #pragma omp parallel for
@@ -2696,8 +2765,8 @@ void Solver::correct()
 
     assert(p.size() == num);
 
-    // SR-GSPH uses different correction (conserved variables)
-    if(m_param->type == SPHType::SRGSPH) {
+    // SR/GR-GSPH uses different correction (conserved variables)
+    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
         const real c_speed = m_param->srgsph.c_speed;
         
 #pragma omp parallel for
@@ -2892,8 +2961,8 @@ void Solver::update_ghost_particles()
                     p[i].vel = p[nearest_idx].vel * (-1.0);
                 }
                 
-                // For SRGSPH, also update conserved variables
-                if(m_param->type == SPHType::SRGSPH) {
+                // For SR/GR-GSPH, also update conserved variables
+                if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
                     p[i].N = p[nearest_idx].N;
                     p[i].e = p[nearest_idx].e;
                     p[i].gamma_lor = p[nearest_idx].gamma_lor;
@@ -2942,8 +3011,8 @@ void Solver::update_ghost_particles()
                     p[i].vel = p[nearest_idx].vel * (-1.0);
                 }
                 
-                // For SRGSPH, also update conserved variables
-                if(m_param->type == SPHType::SRGSPH) {
+                // For SR/GR-GSPH, also update conserved variables
+                if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
                     p[i].N = p[nearest_idx].N;
                     p[i].e = p[nearest_idx].e;
                     p[i].gamma_lor = p[nearest_idx].gamma_lor;
@@ -2984,6 +3053,9 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::SRSod, sr_sod);
         MAKE_SAMPLE(Sample::SRTangentVelocity, sr_tangent_velocity);
         MAKE_SAMPLE(Sample::SRRosswog, sr_rosswog);
+        MAKE_SAMPLE(Sample::GRSchwarzschildShock, gr_schwarzschild_shock);
+        MAKE_SAMPLE(Sample::GRGeodesicTest, gr_geodesic_test);
+        MAKE_SAMPLE(Sample::GRBondi, gr_bondi);
         MAKE_SAMPLE(Sample::NSMerger2D, ns_merger_2d);
         MAKE_SAMPLE(Sample::BNSCocoon1D, bns_cocoon_1d);
         MAKE_SAMPLE(Sample::BNSCocoon2D, bns_cocoon_2d);
@@ -3017,8 +3089,8 @@ void Solver::compute_total_energies(real& kinetic, real& thermal, real& potentia
     const int num = m_sim->get_particle_num();
     const bool use_gravity = m_param->gravity.is_valid;
     
-    // For SRGSPH, compute relativistic energies from canonical variables
-    if(m_param->type == SPHType::SRGSPH) {
+    // For SR/GR-GSPH, compute relativistic energies from canonical variables
+    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
         // In special relativistic Godunov SPH (Kitajima et al. 2025):
         // - Total energy = sum of canonical energy contributions
         // - Canonical energy per baryon: e = γH - P/(Nc²) where H = 1 + ε + P/(ρc²)

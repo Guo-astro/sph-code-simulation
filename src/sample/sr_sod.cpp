@@ -163,7 +163,7 @@ void Solver::make_sr_sod()
         P_left = 0.01;  // Very cold gas
         n_left = 1.0;
         v_left = -0.9999999998;  // γ ≈ 50,000 moving towards wall
-        
+
         // Right side is effectively a wall - we use very high density stationary matter
         // to simulate reflective boundary
         P_right = 0.01;
@@ -175,6 +175,24 @@ void Solver::make_sr_sod()
         N_right = 10;    // Just a few particles to represent wall
         WRITE_LOG << "Test type: ROSSWOG TEST 4 (Wall Shock γ≈50,000, arXiv:0907.4890)";
         WRITE_LOG << "WARNING: This test requires γ_eos = 4/3 (radiation-dominated EOS)";
+
+    } else if (test_type == "sinewave_shock") {
+        // Liptai & Price (2019) Fig 13: Sinusoidally Perturbed Shock
+        // From Del Zanna & Bucciantini (2002), Rosswog (2010)
+        // Left:  (P, n) = (40/3, 10)
+        // Right: (P, n) = (5, 2 + 0.3*sin(50x))
+        // Tests that density perturbations are correctly advected through shocks
+        P_left = 40.0 / 3.0;
+        n_left = 10.0;
+        v_left = 0.0;
+        P_right = 5.0;
+        n_right = 2.0;  // Mean density (sine wave added in particle loop)
+        v_right = 0.0;
+
+        // N_L:N_R = 10:2 = 5:1 (proportional to density ratio)
+        N_left = (N > 0) ? static_cast<int>(N * 5.0 / 6.0) : 2500;
+        N_right = (N > 0) ? static_cast<int>(N * 1.0 / 6.0) : 500;
+        WRITE_LOG << "Test type: SINE WAVE SHOCK (Liptai & Price 2019 Fig 13)";
 
     } else {
         THROW_ERROR("Unknown test type: " + test_type);
@@ -293,14 +311,24 @@ void Solver::make_sr_sod()
     // ============================================================================
     // Initialize right state particles
     // ============================================================================
+    const bool is_sinewave = (test_type == "sinewave_shock");
+
     for (int i = 0; i < N_right; ++i) {
         auto& p_i = p[N_left + i];
         p_i.id = N_left + i;
         p_i.pos[0] = x_right_start + (i + 0.5) * dx_right;
 
-        // Baryon number per particle
-        p_i.nu = nu_right;
-        p_i.mass = nu_right;
+        // For sine wave test: n = 2 + 0.3*sin(50*x)
+        // Otherwise use uniform n_right
+        real n_local = n_right;
+        if (is_sinewave) {
+            n_local = 2.0 + 0.3 * std::sin(50.0 * p_i.pos[0]);
+        }
+
+        // Baryon number per particle (varies with local density for sine wave)
+        const real nu_local = gamma_right * n_local * dx_right;
+        p_i.nu = nu_local;
+        p_i.mass = nu_local;
 
         vec_t vel;
         vel[0] = v_right;
@@ -309,14 +337,14 @@ void Solver::make_sr_sod()
         const real v2 = vel[0] * vel[0];
         p_i.gamma_lor = 1.0 / std::sqrt(1.0 - v2 / c2);
 
-        // Thermodynamic quantities
-        const real u_init = P_right / ((gamma - 1.0) * n_right);
-        const real H_init = 1.0 + u_init / c2 + P_right / (n_right * c2);
+        // Thermodynamic quantities (use local density)
+        const real u_init = P_right / ((gamma - 1.0) * n_local);
+        const real H_init = 1.0 + u_init / c2 + P_right / (n_local * c2);
         p_i.sound = std::sqrt((gamma - 1.0) * (H_init - 1.0) / H_init) * c_speed;
         p_i.enthalpy = H_init;
 
-        // Conserved variables
-        const real N_conserved = p_i.gamma_lor * n_right;
+        // Conserved variables (use local density)
+        const real N_conserved = p_i.gamma_lor * n_local;
         const vec_t S_conserved = vel * (p_i.gamma_lor * H_init);
         const real X = gamma / (gamma - 1.0);
         const real e_conserved = (H_init * (X * p_i.gamma_lor * p_i.gamma_lor - 1.0) + 1.0) / (X * p_i.gamma_lor);

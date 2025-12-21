@@ -1,0 +1,50 @@
+{
+  "_comment": "GR-GSPH Bondi Geodesic Flow Test",
+  "_description": "Pressure-less radial infall in Schwarzschild spacetime",
+  "_reference": "Liptai & Price (2019) MNRAS 485, 819 - Figure 14",
+  "_physics": "v^r = -sqrt(2M/r)*(1-2M/r), n proportional to r^(-3/2)",
+  "sample": "gr_bondi",
+  "testType": "geodesic",
+  "outputDirectory": "simulations/relativistic/gr_gsph/results/bondi_geodesic",
+  "startTime": 0.0,
+  "endTime": 50.0,
+  "outputTime": 1.0,
+  "energyTime": 1.0,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "SPHType": "grgsph",
+  "metricType": "schwarzschild",
+  "use2ndOrderSRGSPH": true,
+  "riemannSolver": "exact",
+  "cSpeed": 1.0,
+  "cShock": 3.0,
+  "cContactDiscontinuity": 1.0,
+  "etaSmoothingLength": 1.0,
+  "gamma": 1.666666667,
+  "kernel": "gaussian",
+  "iterativeSmoothingLength": true,
+  "neighborNumber": 50,
+  "N": 500,
+  "blackHoleMass": 1.0,
+  "rIn": 2.5,
+  "rOut": 18.0,
+  "ghostLayers": 6,
+  "periodic": false,
+  "rangeMax": [20.0],
+  "rangeMin": [2.0],
+  "avAlpha": 0.0,
+  "useBalsaraSwitch": false,
+  "cflSound": 0.3,
+  "cflForce": 0.25
+}

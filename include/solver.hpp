@@ -49,6 +49,9 @@ enum struct Sample {
     SRSod,
     SRTangentVelocity,
     SRRosswog,           // Rosswog (2010) SR-SPH benchmark tests
+    GRSchwarzschildShock,// GR-GSPH Schwarzschild radial shock tube
+    GRGeodesicTest,      // GR geodesic test (radial infall, circular orbits)
+    GRBondi,             // GR-GSPH Bondi accretion (geodesic and sonic point)
     NSMerger2D,
     BNSCocoon1D,
     BNSCocoon2D,
@@ -134,6 +137,9 @@ class Solver {
     void make_sr_sod();
     void make_sr_tangent_velocity();
     void make_sr_rosswog();
+    void make_gr_schwarzschild_shock();  // GR-GSPH Schwarzschild radial shock tube
+    void make_gr_geodesic_test();        // GR geodesic test (radial infall, circular orbits)
+    void make_gr_bondi();                // GR-GSPH Bondi accretion
     void make_ns_merger_2d();
     void make_bns_cocoon_1d();
     void make_bns_cocoon_2d();

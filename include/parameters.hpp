@@ -2,6 +2,7 @@
 
 #include "defines.hpp"
 #include "vector_type.hpp"
+#include <string>
 
 namespace sph
 {
@@ -12,6 +13,7 @@ enum struct SPHType {
     GSPH,
     GDISPH,
     SRGSPH,  // Special Relativistic GSPH
+    GRGSPH,  // General Relativistic GSPH (GR-GSPH)
 };
 
 enum struct KernelType {
@@ -120,6 +122,12 @@ struct SPHParameters {
         real smoothing_length;    // Fixed smoothing length h (§2.2, constant for all particles)
         RiemannSolverType riemann_solver;  // EXACT (default) or HLLC
     } srgsph;
+
+    struct GRGSPH {
+        std::string metric_type;  // "minkowski", "schwarzschild", or "kerr"
+        real bh_mass;             // Black hole mass M (default: 1.0)
+        real bh_spin;             // Black hole spin a (for Kerr, default: 0.0)
+    } grgsph;
 
     struct Thermal {
         bool enable_cooling;      // Enable ISM cooling/heating

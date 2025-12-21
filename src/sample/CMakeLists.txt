@@ -23,6 +23,9 @@ target_sources(sph
         shock_tube.cpp
         shock_tube_2d.cpp
         sinusoidal_perturbation.cpp
+        gr_schwarzschild_shock.cpp
+        gr_geodesic_test.cpp
+        gr_bondi.cpp
         sr_rosswog.cpp
         sr_sod.cpp
         sr_tangent_velocity.cpp
