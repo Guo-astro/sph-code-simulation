@@ -1,0 +1,352 @@
+# ============================================================================
+# KITAJIMA RESOLUTION STUDY MAKEFILE
+# ============================================================================
+#
+# PURPOSE:
+#   One-shot run all Kitajima et al. (2025) resolution study simulations
+#   and generate comparison plots (Exact vs HLLC Riemann solvers).
+#
+# USAGE:
+#   # From sphcode root directory:
+#
+#   # Show help
+#   make -f simulations/relativistic/sr_tangent/Makefile.kitajima help
+#
+#   # Run everything (all simulations + plots)
+#   make -f simulations/relativistic/sr_tangent/Makefile.kitajima all
+#
+#   # Run only simulations
+#   make -f simulations/relativistic/sr_tangent/Makefile.kitajima run_all
+#
+#   # Run only plots (requires completed simulations)
+#   make -f simulations/relativistic/sr_tangent/Makefile.kitajima plot
+#
+#   # Run specific resolution
+#   make -f simulations/relativistic/sr_tangent/Makefile.kitajima run_800_800
+#   make -f simulations/relativistic/sr_tangent/Makefile.kitajima run_1600_1600
+#
+#   # Clean results
+#   make -f simulations/relativistic/sr_tangent/Makefile.kitajima clean
+#
+# RESOLUTION CONFIGURATIONS:
+#   800+800     : Baseline (low resolution)
+#   1600+1600   : Uniform doubled
+#   3200+1600   : 2x left (rarefaction side)
+#   12800+1600  : 8x left (rarefaction side)
+#
+# RIEMANN SOLVERS:
+#   exact : Exact iterative Riemann solver (Pons et al. 2000)
+#   hllc  : HLLC approximate solver (Mignone & Bodo 2005)
+#
+# OUTPUT:
+#   Results: simulations/relativistic/sr_tangent/results/kitajima_resolution/
+#   Plots:   simulations/relativistic/sr_tangent/results/kitajima_resolution/
+#
+# ============================================================================
+
+# Paths
+SR_TANGENT_DIR := simulations/relativistic/sr_tangent
+PRESET_DIR := $(SR_TANGENT_DIR)/config/presets
+RESULTS_DIR := $(SR_TANGENT_DIR)/results/kitajima_resolution
+SCRIPTS_DIR := $(SR_TANGENT_DIR)/scripts
+
+# Executable
+SPH := ./build/sph
+
+# Python
+VENV_PYTHON := $(wildcard $(CURDIR)/.venv/bin/python)
+PYTHON := $(if $(VENV_PYTHON),$(VENV_PYTHON),python3)
+
+# Configuration files (in kitajima subfolder)
+KITAJIMA_PRESET_DIR := $(PRESET_DIR)/kitajima
+CONFIG_800_800_EXACT := $(KITAJIMA_PRESET_DIR)/kitajima_800_800_exact.json
+CONFIG_800_800_HLLC := $(KITAJIMA_PRESET_DIR)/kitajima_800_800_hllc.json
+CONFIG_1600_1600_EXACT := $(KITAJIMA_PRESET_DIR)/kitajima_1600_1600_exact.json
+CONFIG_1600_1600_HLLC := $(KITAJIMA_PRESET_DIR)/kitajima_1600_1600_hllc.json
+CONFIG_3200_1600_EXACT := $(KITAJIMA_PRESET_DIR)/kitajima_3200_1600_exact.json
+CONFIG_3200_1600_HLLC := $(KITAJIMA_PRESET_DIR)/kitajima_3200_1600_hllc.json
+CONFIG_12800_1600_EXACT := $(KITAJIMA_PRESET_DIR)/kitajima_12800_1600_exact.json
+CONFIG_12800_1600_HLLC := $(KITAJIMA_PRESET_DIR)/kitajima_12800_1600_hllc.json
+
+# Result directories
+RESULT_800_800_EXACT := $(RESULTS_DIR)/exact_800_800
+RESULT_800_800_HLLC := $(RESULTS_DIR)/hllc_800_800
+RESULT_1600_1600_EXACT := $(RESULTS_DIR)/exact_1600_1600
+RESULT_1600_1600_HLLC := $(RESULTS_DIR)/hllc_1600_1600
+RESULT_3200_1600_EXACT := $(RESULTS_DIR)/exact_3200_1600
+RESULT_3200_1600_HLLC := $(RESULTS_DIR)/hllc_3200_1600
+RESULT_12800_1600_EXACT := $(RESULTS_DIR)/exact_12800_1600
+RESULT_12800_1600_HLLC := $(RESULTS_DIR)/hllc_12800_1600
+
+# Timestamps for dependency tracking
+STAMP_DIR := $(RESULTS_DIR)/.stamps
+STAMP_800_800_EXACT := $(STAMP_DIR)/800_800_exact.done
+STAMP_800_800_HLLC := $(STAMP_DIR)/800_800_hllc.done
+STAMP_1600_1600_EXACT := $(STAMP_DIR)/1600_1600_exact.done
+STAMP_1600_1600_HLLC := $(STAMP_DIR)/1600_1600_hllc.done
+STAMP_3200_1600_EXACT := $(STAMP_DIR)/3200_1600_exact.done
+STAMP_3200_1600_HLLC := $(STAMP_DIR)/3200_1600_hllc.done
+STAMP_12800_1600_EXACT := $(STAMP_DIR)/12800_1600_exact.done
+STAMP_12800_1600_HLLC := $(STAMP_DIR)/12800_1600_hllc.done
+
+ALL_STAMPS := $(STAMP_800_800_EXACT) $(STAMP_800_800_HLLC) \
+              $(STAMP_1600_1600_EXACT) $(STAMP_1600_1600_HLLC) \
+              $(STAMP_3200_1600_EXACT) $(STAMP_3200_1600_HLLC) \
+              $(STAMP_12800_1600_EXACT) $(STAMP_12800_1600_HLLC)
+
+# Plot output
+PLOT_OUTPUT := $(RESULTS_DIR)/kitajima_style_comparison.png
+
+# ============================================================================
+# PHONY TARGETS
+# ============================================================================
+
+.PHONY: all help info check_build check_dim \
+        run_all run_800_800 run_1600_1600 run_3200_1600 run_12800_1600 \
+        plot clean clean_stamps
+
+# ============================================================================
+# MAIN TARGETS
+# ============================================================================
+
+# Default target: run all simulations and generate plots
+all: run_all plot
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  KITAJIMA RESOLUTION STUDY COMPLETE"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Results: $(RESULTS_DIR)/"
+	@echo "  Plot:    $(PLOT_OUTPUT)"
+	@echo ""
+
+# Help
+help:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  KITAJIMA RESOLUTION STUDY"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Compare Exact vs HLLC Riemann solvers across multiple resolutions."
+	@echo "  Based on Kitajima et al. (2025) arXiv:2510.18251v1"
+	@echo ""
+	@echo "┌────────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                               │"
+	@echo "├────────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make -f Makefile.kitajima all        # Run everything (sims + plots)     │"
+	@echo "│  make -f Makefile.kitajima run_all    # Run all 8 simulations             │"
+	@echo "│  make -f Makefile.kitajima plot       # Generate comparison plot          │"
+	@echo "└────────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌────────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  INDIVIDUAL RESOLUTIONS                                                    │"
+	@echo "├────────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make -f Makefile.kitajima run_800_800     # 800+800 (exact + hllc)       │"
+	@echo "│  make -f Makefile.kitajima run_1600_1600   # 1600+1600 (exact + hllc)     │"
+	@echo "│  make -f Makefile.kitajima run_3200_1600   # 3200+1600 (exact + hllc)     │"
+	@echo "│  make -f Makefile.kitajima run_12800_1600  # 12800+1600 (exact + hllc)    │"
+	@echo "└────────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌────────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  RESOLUTION CONFIGURATIONS                                                 │"
+	@echo "├────────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  800+800     : Baseline (low resolution)                                  │"
+	@echo "│  1600+1600   : Uniform doubled                                            │"
+	@echo "│  3200+1600   : 2x left (rarefaction side)                                 │"
+	@echo "│  12800+1600  : 8x left (rarefaction side)                                 │"
+	@echo "└────────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌────────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  CLEANUP                                                                   │"
+	@echo "├────────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make -f Makefile.kitajima clean          # Remove all results            │"
+	@echo "│  make -f Makefile.kitajima clean_stamps   # Remove stamps only (re-run)   │"
+	@echo "└────────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+
+# Info
+info:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  Configuration Info"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Executable:    $(SPH)"
+	@echo "  Python:        $(PYTHON)"
+	@echo "  Results:       $(RESULTS_DIR)"
+	@echo "  Scripts:       $(SCRIPTS_DIR)"
+	@echo ""
+	@echo "  Config files:"
+	@ls -1 $(KITAJIMA_PRESET_DIR)/*.json 2>/dev/null | sed 's/^/    /' || echo "    (none)"
+	@echo ""
+
+# ============================================================================
+# VALIDATION
+# ============================================================================
+
+check_build:
+	@if [ ! -x "$(SPH)" ]; then \
+		echo ""; \
+		echo "❌ ERROR: sphcode executable not found: $(SPH)"; \
+		echo "   Please build first: make"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "✓ Executable found: $(SPH)"
+
+check_dim: check_build
+	@if grep -q "SPH_DIM:STRING=1\|SPH_DIM=1\|DIM=1\|DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
+		echo "✓ DIM=1 confirmed"; \
+	else \
+		echo ""; \
+		echo "❌ ERROR: sphcode not built with DIM=1"; \
+		echo "   Please rebuild: cmake -DSPH_DIM=1 .. && make"; \
+		echo ""; \
+		exit 1; \
+	fi
+
+# ============================================================================
+# SIMULATION TARGETS
+# ============================================================================
+
+# Create stamp directory
+$(STAMP_DIR):
+	@mkdir -p $(STAMP_DIR)
+
+# Run all simulations
+run_all: run_800_800 run_1600_1600 run_3200_1600 run_12800_1600
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  ALL SIMULATIONS COMPLETE"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+
+# 800+800 resolution
+run_800_800: $(STAMP_800_800_EXACT) $(STAMP_800_800_HLLC)
+	@echo "✓ 800+800 complete (exact + hllc)"
+
+$(STAMP_800_800_EXACT): $(CONFIG_800_800_EXACT) check_dim | $(STAMP_DIR)
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@echo "  Running: 800+800 EXACT"
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@mkdir -p $(RESULT_800_800_EXACT)
+	$(SPH) $(CONFIG_800_800_EXACT) 2>&1 | tee $(RESULT_800_800_EXACT)/run.log
+	@touch $@
+	@echo "✓ 800+800 EXACT complete"
+
+$(STAMP_800_800_HLLC): $(CONFIG_800_800_HLLC) check_dim | $(STAMP_DIR)
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@echo "  Running: 800+800 HLLC"
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@mkdir -p $(RESULT_800_800_HLLC)
+	$(SPH) $(CONFIG_800_800_HLLC) 2>&1 | tee $(RESULT_800_800_HLLC)/run.log
+	@touch $@
+	@echo "✓ 800+800 HLLC complete"
+
+# 1600+1600 resolution
+run_1600_1600: $(STAMP_1600_1600_EXACT) $(STAMP_1600_1600_HLLC)
+	@echo "✓ 1600+1600 complete (exact + hllc)"
+
+$(STAMP_1600_1600_EXACT): $(CONFIG_1600_1600_EXACT) check_dim | $(STAMP_DIR)
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@echo "  Running: 1600+1600 EXACT"
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@mkdir -p $(RESULT_1600_1600_EXACT)
+	$(SPH) $(CONFIG_1600_1600_EXACT) 2>&1 | tee $(RESULT_1600_1600_EXACT)/run.log
+	@touch $@
+	@echo "✓ 1600+1600 EXACT complete"
+
+$(STAMP_1600_1600_HLLC): $(CONFIG_1600_1600_HLLC) check_dim | $(STAMP_DIR)
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@echo "  Running: 1600+1600 HLLC"
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@mkdir -p $(RESULT_1600_1600_HLLC)
+	$(SPH) $(CONFIG_1600_1600_HLLC) 2>&1 | tee $(RESULT_1600_1600_HLLC)/run.log
+	@touch $@
+	@echo "✓ 1600+1600 HLLC complete"
+
+# 3200+1600 resolution
+run_3200_1600: $(STAMP_3200_1600_EXACT) $(STAMP_3200_1600_HLLC)
+	@echo "✓ 3200+1600 complete (exact + hllc)"
+
+$(STAMP_3200_1600_EXACT): $(CONFIG_3200_1600_EXACT) check_dim | $(STAMP_DIR)
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@echo "  Running: 3200+1600 EXACT"
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@mkdir -p $(RESULT_3200_1600_EXACT)
+	$(SPH) $(CONFIG_3200_1600_EXACT) 2>&1 | tee $(RESULT_3200_1600_EXACT)/run.log
+	@touch $@
+	@echo "✓ 3200+1600 EXACT complete"
+
+$(STAMP_3200_1600_HLLC): $(CONFIG_3200_1600_HLLC) check_dim | $(STAMP_DIR)
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@echo "  Running: 3200+1600 HLLC"
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@mkdir -p $(RESULT_3200_1600_HLLC)
+	$(SPH) $(CONFIG_3200_1600_HLLC) 2>&1 | tee $(RESULT_3200_1600_HLLC)/run.log
+	@touch $@
+	@echo "✓ 3200+1600 HLLC complete"
+
+# 12800+1600 resolution
+run_12800_1600: $(STAMP_12800_1600_EXACT) $(STAMP_12800_1600_HLLC)
+	@echo "✓ 12800+1600 complete (exact + hllc)"
+
+$(STAMP_12800_1600_EXACT): $(CONFIG_12800_1600_EXACT) check_dim | $(STAMP_DIR)
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@echo "  Running: 12800+1600 EXACT"
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@mkdir -p $(RESULT_12800_1600_EXACT)
+	$(SPH) $(CONFIG_12800_1600_EXACT) 2>&1 | tee $(RESULT_12800_1600_EXACT)/run.log
+	@touch $@
+	@echo "✓ 12800+1600 EXACT complete"
+
+$(STAMP_12800_1600_HLLC): $(CONFIG_12800_1600_HLLC) check_dim | $(STAMP_DIR)
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@echo "  Running: 12800+1600 HLLC"
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@mkdir -p $(RESULT_12800_1600_HLLC)
+	$(SPH) $(CONFIG_12800_1600_HLLC) 2>&1 | tee $(RESULT_12800_1600_HLLC)/run.log
+	@touch $@
+	@echo "✓ 12800+1600 HLLC complete"
+
+# ============================================================================
+# PLOT TARGET
+# ============================================================================
+
+plot: $(PLOT_OUTPUT)
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  PLOT GENERATED"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Output: $(PLOT_OUTPUT)"
+	@echo ""
+
+$(PLOT_OUTPUT): $(ALL_STAMPS)
+	@echo ""
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	@echo "  Generating Kitajima-style comparison plot"
+	@echo "────────────────────────────────────────────────────────────────────────────"
+	cd $(SCRIPTS_DIR) && $(PYTHON) plot_kitajima_resolution.py
+	@echo "✓ Plot generated: $@"
+
+# ============================================================================
+# CLEANUP
+# ============================================================================
+
+clean:
+	@echo "Removing all Kitajima resolution study results..."
+	rm -rf $(RESULTS_DIR)
+	@echo "✓ Cleaned"
+
+clean_stamps:
+	@echo "Removing stamps (simulations will re-run)..."
+	rm -rf $(STAMP_DIR)
+	@echo "✓ Stamps removed"

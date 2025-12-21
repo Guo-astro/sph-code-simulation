@@ -70,10 +70,28 @@ void Solver::make_sr_tangent_velocity()
     const real P_right = 0.01;
     const real n_right = 1.0;
 
-    // Equal density on both sides with equal particle count
-    // Following paper: 1600 particles each side for standard test
-    const int N_left = N;
-    const int N_right = N;
+    // Particle counts for each side
+    // Default: equal on both sides (N each)
+    // Can be overridden with N_left, N_right, or leftResolutionRatio
+    int N_left = N;
+    int N_right = N;
+
+    // Option 1: Explicitly set N_left and N_right
+    if (m_sample_parameters.count("N_left")) {
+        N_left = boost::any_cast<int>(m_sample_parameters["N_left"]);
+    }
+    if (m_sample_parameters.count("N_right")) {
+        N_right = boost::any_cast<int>(m_sample_parameters["N_right"]);
+    }
+
+    // Option 2: Use ratio to increase left side resolution (rarefaction side)
+    // leftResolutionRatio = 2.0 means 2x more particles on left
+    if (m_sample_parameters.count("leftResolutionRatio")) {
+        real ratio = boost::any_cast<real>(m_sample_parameters["leftResolutionRatio"]);
+        N_left = static_cast<int>(N * ratio);
+        N_right = N;
+        WRITE_LOG << "Non-uniform resolution: left/right ratio = " << ratio;
+    }
 
     WRITE_LOG << "Test type: TANGENT VELOCITY (Section 3.1.5)";
     WRITE_LOG << "  v^t_L = " << vt_left << ", v^t_R = " << vt_right;

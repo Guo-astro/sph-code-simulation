@@ -327,6 +327,16 @@ void Solver::read_parameterfile(const char * filename)
             m_sample_parameters["vt_right"] = input.get<real>("vt_right", real(0.9));
             m_sample_parameters["useGhostParticles"] = input.get<bool>("useGhostParticles", true);
             m_sample_parameters["ghostLayers"] = input.get<int>("ghostLayers", 6);
+            // Non-uniform resolution support (Kitajima hypothesis: rarefaction side matters)
+            if (auto opt = input.get_child_optional("N_left")) {
+                m_sample_parameters["N_left"] = input.get<int>("N_left");
+            }
+            if (auto opt = input.get_child_optional("N_right")) {
+                m_sample_parameters["N_right"] = input.get<int>("N_right");
+            }
+            if (auto opt = input.get_child_optional("leftResolutionRatio")) {
+                m_sample_parameters["leftResolutionRatio"] = input.get<real>("leftResolutionRatio");
+            }
         } else if (sample_type == "sr_rosswog") {
             m_sample = Sample::SRRosswog;
             // Rosswog (2010) arXiv:0907.4890 benchmark tests
@@ -514,6 +524,16 @@ void Solver::read_parameterfile(const char * filename)
                     m_sample_parameters["vt_right"] = input.get<real>("vt_right", real(0.9));
                     m_sample_parameters["useGhostParticles"] = input.get<bool>("useGhostParticles", true);
                     m_sample_parameters["ghostLayers"] = input.get<int>("ghostLayers", 6);
+                    // Non-uniform resolution support
+                    if (auto opt = input.get_child_optional("N_left")) {
+                        m_sample_parameters["N_left"] = input.get<int>("N_left");
+                    }
+                    if (auto opt = input.get_child_optional("N_right")) {
+                        m_sample_parameters["N_right"] = input.get<int>("N_right");
+                    }
+                    if (auto opt = input.get_child_optional("leftResolutionRatio")) {
+                        m_sample_parameters["leftResolutionRatio"] = input.get<real>("leftResolutionRatio");
+                    }
                 }
                 // Check for SR-specific test names in the path
                 else if(name_str.find("sr_sod") != std::string::npos || 
