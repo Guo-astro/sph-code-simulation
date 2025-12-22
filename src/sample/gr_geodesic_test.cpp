@@ -104,69 +104,108 @@ void Solver::make_gr_geodesic_test()
             p.gamma_lor = 1.0;
             p.N = p.dens;
             p.nu = 1.0;
-            p.sml = 0.1 * M;  // Small smoothing length
+            p.mass = 1.0 / N;  // Equal mass particles
+            // Smoothing length should be large enough for kernel overlap
+            // With particles spaced ~4M apart, need sml > spacing for neighbors
+            const real dr = (r_max - r_min) / (N - 1);  // Particle spacing
+            p.sml = 2.0 * dr;  // Ensure neighbor overlap
+            p.gradh = 1.0;     // Initialize gradh to 1.0
             p.is_ghost = false;
 
             particles.push_back(p);
         }
 
     } else if (test_type == "circular_orbit") {
-        // Circular orbit test
+        // Circular orbit test - create an annulus of particles
         real r_orbit = 10.0 * M;
         if (m_sample_parameters.count("rOrbit")) {
             r_orbit = boost::any_cast<real>(m_sample_parameters["rOrbit"]);
         }
 
-        WRITE_LOG << "  Circular orbit test: r = " << r_orbit;
-
-        // Orbital frequency: Omega = sqrt(M / r^3)
-        const real Omega = std::sqrt(M / (r_orbit * r_orbit * r_orbit));
-        const real v_phi = Omega * r_orbit;  // Tangential velocity
-
-        WRITE_LOG << "  Orbital frequency Omega = " << Omega;
-        WRITE_LOG << "  Tangential velocity v_phi = " << v_phi;
-
-        for (int i = 0; i < N; ++i) {
-            SPHParticle p;
-            p.id = i;
-
-            // Initial position on circle (equally spaced in phi)
-            const real phi = 2.0 * M_PI * i / N;
-            p.pos[0] = r_orbit * std::cos(phi);
-#if DIM >= 2
-            p.pos[1] = r_orbit * std::sin(phi);
-#endif
-#if DIM == 3
-            p.pos[2] = 0.0;
-#endif
-
-            // Tangential velocity (perpendicular to radius)
-            p.vel[0] = -v_phi * std::sin(phi);
-#if DIM >= 2
-            p.vel[1] = v_phi * std::cos(phi);
-#endif
-#if DIM == 3
-            p.vel[2] = 0.0;
-#endif
-            p.vel_t = 0.0;
-
-            // Negligible pressure
-            p.pres = 1.0e-10;
-            p.dens = 1.0;
-            p.ene = p.pres / ((gamma - 1.0) * p.dens);
-            p.sound = std::sqrt(gamma * p.pres / p.dens);
-
-            // Lorentz factor for circular orbit
-            const real v2 = v_phi * v_phi;
-            p.gamma_lor = 1.0 / std::sqrt(1.0 - v2);
-
-            p.N = p.dens * p.gamma_lor;
-            p.nu = 1.0;
-            p.sml = 0.1 * M;
-            p.is_ghost = false;
-
-            particles.push_back(p);
+        // Width of the annulus (for SPH neighbor finding)
+        real dr = 0.5 * M;  // Annulus half-width
+        if (m_sample_parameters.count("annulusWidth")) {
+            dr = boost::any_cast<real>(m_sample_parameters["annulusWidth"]) / 2.0;
         }
+
+        WRITE_LOG << "  Circular orbit test: r = " << r_orbit;
+        WRITE_LOG << "  Annulus width: " << (2.0 * dr);
+
+        // Number of radial layers
+        int n_radial = 5;
+        if (m_sample_parameters.count("nRadial")) {
+            n_radial = boost::any_cast<int>(m_sample_parameters["nRadial"]);
+        }
+
+        // Distribute N particles across n_radial layers
+        int particles_per_layer = N / n_radial;
+        real layer_spacing = (n_radial > 1) ? (2.0 * dr) / (n_radial - 1) : 0.0;
+
+        int particle_id = 0;
+        for (int layer = 0; layer < n_radial; ++layer) {
+            // Radius for this layer
+            real r = r_orbit - dr + layer * layer_spacing;
+            if (n_radial == 1) r = r_orbit;
+
+            // Circular orbit in Schwarzschild coordinates
+            // Using Newtonian orbital velocity: v = sqrt(M/r)
+            // The GR source term with omega (gradh) correction should provide proper balance
+            const real Omega = std::sqrt(M / (r * r * r));
+            const real v_phi = Omega * r;  // = sqrt(M/r)
+
+            // Number of particles in this layer (adjust for circumference)
+            int n_phi = particles_per_layer;
+            if (layer == 0) {
+                WRITE_LOG << "  Orbital velocity v_phi = " << v_phi << " at r = " << r;
+            }
+
+            for (int i = 0; i < n_phi; ++i) {
+                SPHParticle p;
+                p.id = particle_id++;
+
+                // Initial position (equally spaced in phi, offset alternate layers)
+                real phi_offset = (layer % 2 == 0) ? 0.0 : M_PI / n_phi;
+                const real phi = 2.0 * M_PI * i / n_phi + phi_offset;
+                p.pos[0] = r * std::cos(phi);
+#if DIM >= 2
+                p.pos[1] = r * std::sin(phi);
+#endif
+#if DIM == 3
+                p.pos[2] = 0.0;
+#endif
+
+                // Tangential velocity (perpendicular to radius)
+                p.vel[0] = -v_phi * std::sin(phi);
+#if DIM >= 2
+                p.vel[1] = v_phi * std::cos(phi);
+#endif
+#if DIM == 3
+                p.vel[2] = 0.0;
+#endif
+                p.vel_t = 0.0;
+
+                // Set small but non-negligible density for SPH
+                p.dens = 1.0;
+                p.pres = 1.0e-6;  // Small pressure
+                p.ene = p.pres / ((gamma - 1.0) * p.dens);
+                p.sound = std::sqrt(gamma * p.pres / p.dens);
+
+                // Lorentz factor for circular orbit
+                const real v2 = v_phi * v_phi;
+                p.gamma_lor = 1.0 / std::sqrt(1.0 - v2);
+
+                p.N = p.dens * p.gamma_lor;
+                p.nu = 1.0;
+                p.mass = 1.0 / (n_radial * n_phi);  // Equal mass particles
+                p.sml = 1.5 * layer_spacing;  // Smoothing length based on spacing
+                if (p.sml < 0.1 * M) p.sml = 0.1 * M;
+                p.is_ghost = false;
+
+                particles.push_back(p);
+            }
+        }
+
+        WRITE_LOG << "  Created " << particles.size() << " particles in annulus";
 
     } else {
         THROW_ERROR("Unknown geodesic test type: " + test_type);

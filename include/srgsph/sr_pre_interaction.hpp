@@ -26,6 +26,7 @@ namespace srgsph
  * - Gradients for MUSCL reconstruction
  */
 class PreInteraction : public sph::PreInteraction {
+protected:
     real m_eta;           // Smoothing length parameter η (default: 1.0)
     real m_c_smooth;      // Kernel expansion for h iteration C_smooth (default: 2.0)
     real m_gamma;         // EOS gamma

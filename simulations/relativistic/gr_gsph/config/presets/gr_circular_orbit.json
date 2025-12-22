@@ -1,0 +1,40 @@
+{
+  "_comment": "GR-GSPH Circular Orbit Test (Liptai & Price 2019 Section 6.2)",
+  "_description": "Ring of particles in circular orbit in Schwarzschild spacetime",
+  "_reference": "Liptai & Price (2019) MNRAS 485, 819 - Figure 8 left",
+  "sample": "gr_geodesic_test",
+  "outputDirectory": "simulations/relativistic/gr_gsph/results/circular_orbit",
+  "startTime": 0.0,
+  "endTime": 100.0,
+  "outputTime": 10.0,
+  "energyTime": 10.0,
+  "checkpoint": {
+    "enabled": false
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "SPHType": "grgsph",
+  "metricType": "schwarzschild",
+  "blackHoleMass": 1.0,
+  "testType": "circular_orbit",
+  "N": 500,
+  "rOrbit": 10.0,
+  "annulusWidth": 1.0,
+  "nRadial": 5,
+  "gamma": 1.666666667,
+  "kernel": "gaussian",
+  "neighborNumber": 50,
+  "cflSound": 0.1,
+  "cflForce": 0.05,
+  "avAlpha": 0.0,
+  "rangeMax": [15.0, 15.0],
+  "rangeMin": [-15.0, -15.0],
+  "periodic": false
+}

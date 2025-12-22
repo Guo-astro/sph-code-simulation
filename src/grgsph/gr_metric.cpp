@@ -380,6 +380,137 @@ void KerrMetric::compute_derivatives(const vec_t& pos, MetricDerivatives& derivs
 }
 
 // ============================================================================
+// Tetrad Implementation
+// ============================================================================
+
+/**
+ * Construct orthonormal tetrad using Gram-Schmidt with spatial metric
+ *
+ * Algorithm:
+ * 1. Normalize line-of-sight: n = los / |los|_γ
+ * 2. Choose reference vector (avoid parallel to n)
+ * 3. Gram-Schmidt: t1 = (ref - <ref,n>_γ n) / |...|_γ
+ * 4. Cross product: t2 = n × t1 (in 3D, using metric for lowering)
+ */
+void Tetrad::construct(const real los[3], const Metric31& metric)
+{
+    // Step 1: Normalize line-of-sight to get unit normal n^i
+    const real los_norm = metric.metric_norm(los);
+
+    if (los_norm < 1e-15) {
+        // Degenerate case: use identity tetrad
+        n[0] = 1.0; n[1] = 0.0; n[2] = 0.0;
+        t1[0] = 0.0; t1[1] = 1.0; t1[2] = 0.0;
+        t2[0] = 0.0; t2[1] = 0.0; t2[2] = 1.0;
+        return;
+    }
+
+    const real inv_los_norm = 1.0 / los_norm;
+    n[0] = los[0] * inv_los_norm;
+    n[1] = los[1] * inv_los_norm;
+    n[2] = los[2] * inv_los_norm;
+
+    // Step 2: Choose reference vector for Gram-Schmidt
+    // Pick the coordinate axis least aligned with n
+    real ref[3];
+    const real abs_nx = std::abs(n[0]);
+    const real abs_ny = std::abs(n[1]);
+    const real abs_nz = std::abs(n[2]);
+
+    if (abs_nx <= abs_ny && abs_nx <= abs_nz) {
+        // n is mostly in y-z plane, use x-axis
+        ref[0] = 1.0; ref[1] = 0.0; ref[2] = 0.0;
+    } else if (abs_ny <= abs_nx && abs_ny <= abs_nz) {
+        // n is mostly in x-z plane, use y-axis
+        ref[0] = 0.0; ref[1] = 1.0; ref[2] = 0.0;
+    } else {
+        // n is mostly in x-y plane, use z-axis
+        ref[0] = 0.0; ref[1] = 0.0; ref[2] = 1.0;
+    }
+
+    // Step 3: Gram-Schmidt orthogonalization
+    // t1_raw = ref - <ref,n>_γ n
+    const real ref_dot_n = metric.metric_inner_product(ref, n);
+
+    real t1_raw[3];
+    t1_raw[0] = ref[0] - ref_dot_n * n[0];
+    t1_raw[1] = ref[1] - ref_dot_n * n[1];
+    t1_raw[2] = ref[2] - ref_dot_n * n[2];
+
+    // Normalize t1
+    const real t1_norm = metric.metric_norm(t1_raw);
+
+    if (t1_norm < 1e-15) {
+        // Fallback: try different reference
+        t1[0] = 0.0; t1[1] = 1.0; t1[2] = 0.0;
+        t2[0] = 0.0; t2[1] = 0.0; t2[2] = 1.0;
+        return;
+    }
+
+    const real inv_t1_norm = 1.0 / t1_norm;
+    t1[0] = t1_raw[0] * inv_t1_norm;
+    t1[1] = t1_raw[1] * inv_t1_norm;
+    t1[2] = t1_raw[2] * inv_t1_norm;
+
+    // Step 4: Cross product t2 = n × t1 (using metric for covariant components)
+    // In curved space: t2^i = ε^ijk n_j t1_k / √γ
+    // For our purposes with Cartesian-like coordinates where √γ ≈ 1:
+
+    // First lower indices: n_i = γ_ij n^j, t1_i = γ_ij t1^j
+    real n_down[3], t1_down[3];
+    metric.lower_index(n, n_down);
+    metric.lower_index(t1, t1_down);
+
+    // Cross product (Levi-Civita with raised indices)
+    // t2^i = γ^ij ε_jkl n^k t1^l / √γ
+    // Simplified for √γ ≈ 1 in Cartesian-like coords:
+    real t2_raw[3];
+    t2_raw[0] = n[1] * t1[2] - n[2] * t1[1];
+    t2_raw[1] = n[2] * t1[0] - n[0] * t1[2];
+    t2_raw[2] = n[0] * t1[1] - n[1] * t1[0];
+
+    // Normalize t2
+    const real t2_norm = metric.metric_norm(t2_raw);
+
+    if (t2_norm < 1e-15) {
+        // 2D case or degenerate: t2 = 0
+        t2[0] = 0.0; t2[1] = 0.0; t2[2] = 0.0;
+        return;
+    }
+
+    const real inv_t2_norm = 1.0 / t2_norm;
+    t2[0] = t2_raw[0] * inv_t2_norm;
+    t2[1] = t2_raw[1] * inv_t2_norm;
+    t2[2] = t2_raw[2] * inv_t2_norm;
+}
+
+/**
+ * Project Eulerian velocity onto tetrad frame
+ *
+ * Uses metric-compatible projection:
+ * V^(a) = γ_ij V^i e^j_(a)
+ */
+void Tetrad::project_velocity(const real V[3], const Metric31& metric,
+                               real& V_n, real& V_t1, real& V_t2) const
+{
+    V_n = metric.metric_inner_product(V, n);
+    V_t1 = metric.metric_inner_product(V, t1);
+    V_t2 = metric.metric_inner_product(V, t2);
+}
+
+/**
+ * Reconstruct coordinate velocity from tetrad components
+ *
+ * V^i = V^(n) n^i + V^(t1) t1^i + V^(t2) t2^i
+ */
+void Tetrad::reconstruct_velocity(real V_n, real V_t1, real V_t2, real V[3]) const
+{
+    V[0] = V_n * n[0] + V_t1 * t1[0] + V_t2 * t2[0];
+    V[1] = V_n * n[1] + V_t1 * t1[1] + V_t2 * t2[1];
+    V[2] = V_n * n[2] + V_t1 * t1[2] + V_t2 * t2[2];
+}
+
+// ============================================================================
 // Factory Function
 // ============================================================================
 

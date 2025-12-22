@@ -31,7 +31,8 @@ public:
     void calculation(std::shared_ptr<Simulation> sim) override;
 
 private:
-    real m_c_speed;  // Speed of light (for reference)
+    real m_c_speed;   // Speed of light (for reference)
+    real m_fixed_dt;  // Fixed timestep for geodesic tests (0 = use CFL)
 };
 
 }

@@ -34,6 +34,85 @@ from scipy.integrate import solve_ivp
 from scipy.fft import fft, fftfreq
 from pathlib import Path
 import argparse
+import pandas as pd
+
+
+# =============================================================================
+# C++ Simulation Data Loading
+# =============================================================================
+
+def load_bondi_geodesic_data(results_dir):
+    """
+    Load C++ GR-GSPH Bondi geodesic simulation data.
+
+    The Bondi geodesic test is effectively a radial infall test -
+    particles fall radially with v^r = -sqrt(2M/r) * (1 - 2M/r).
+
+    Returns dict with 'r' and 'v_r' arrays, or None if not found.
+    """
+    snapshot_file = results_dir / 'snapshot_0000.csv'
+    if not snapshot_file.exists():
+        return None
+
+    try:
+        data = pd.read_csv(snapshot_file, comment='#')
+
+        # Filter out ghost particles
+        if 'is_ghost' in data.columns:
+            mask = data['is_ghost'] == 0
+            data = data[mask]
+
+        return {
+            'r': data['pos_x'].values,
+            'v_r': data['vel_x'].values
+        }
+    except Exception as e:
+        print(f"  Warning: Could not load simulation data: {e}")
+        return None
+
+
+def load_circular_orbit_data(results_dir):
+    """
+    Load C++ GR-GSPH circular orbit simulation data.
+
+    Returns dict with time series of snapshot data, or None if not found.
+    """
+    import glob
+
+    snapshots = sorted(glob.glob(str(results_dir / 'snapshot_*.csv')))
+    if not snapshots:
+        return None
+
+    try:
+        all_data = []
+        times = []
+
+        for snapshot_file in snapshots:
+            # Read time from header
+            with open(snapshot_file, 'r') as f:
+                for line in f:
+                    if 'Time (code):' in line:
+                        time = float(line.split(':')[1].strip())
+                        times.append(time)
+                        break
+
+            # Read particle data
+            data = pd.read_csv(snapshot_file, comment='#')
+
+            # Filter out ghost particles
+            if 'is_ghost' in data.columns:
+                mask = data['is_ghost'] == 0
+                data = data[mask]
+
+            all_data.append(data)
+
+        return {
+            'times': np.array(times),
+            'snapshots': all_data
+        }
+    except Exception as e:
+        print(f"  Warning: Could not load circular orbit data: {e}")
+        return None
 
 
 # =============================================================================
@@ -355,11 +434,11 @@ def integrate_precessing_orbit(r0, v_tan, M=1.0, t_end=50000, dt=0.5):
 def plot_circular_orbits(output_dir):
     """Plot Fig 8: Circular orbits in Schwarzschild and Kerr."""
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
 
     M = 1.0
 
-    # Left: Schwarzschild circular orbit at r = 10M
+    # Left: Schwarzschild circular orbit at r = 10M (Python ODE)
     ax = axes[0]
     r0 = 10.0 * M
 
@@ -369,7 +448,7 @@ def plot_circular_orbits(output_dir):
     x = r * np.cos(phi)
     y = r * np.sin(phi)
 
-    ax.plot(x, y, 'b-', lw=0.5, alpha=0.7, label='Numerical (RK4)')
+    ax.plot(x, y, 'b-', lw=0.5, alpha=0.7, label='Python ODE (RK4)')
 
     # Exact circle
     theta_exact = np.linspace(0, 2*np.pi, 100)
@@ -381,7 +460,7 @@ def plot_circular_orbits(output_dir):
 
     ax.set_xlabel('x/M')
     ax.set_ylabel('y/M')
-    ax.set_title(f'Schwarzschild: Circular orbit at r = {r0:.0f}M\n(15 periods, dt=0.01M)',
+    ax.set_title(f'Schwarzschild: Python ODE at r = {r0:.0f}M\n(15 periods, dt=0.01M)',
                  fontweight='bold')
     ax.set_aspect('equal')
     ax.legend(loc='upper right')
@@ -398,8 +477,60 @@ def plot_circular_orbits(output_dir):
             transform=ax.transAxes, fontsize=10, verticalalignment='bottom',
             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
-    # Right: Kerr circular orbit at r = 2M for a/M = 1
+    # Middle: C++ GR-GSPH circular orbit simulation
     ax = axes[1]
+
+    # Load C++ simulation data
+    project_root = output_dir.parent.parent.parent.parent
+    circular_orbit_dir = project_root / 'simulations' / 'relativistic' / 'gr_gsph' / 'results' / 'circular_orbit'
+    cpp_data = load_circular_orbit_data(circular_orbit_dir)
+
+    if cpp_data is not None and len(cpp_data['snapshots']) > 0:
+        # Plot particle positions from all snapshots
+        colors = plt.cm.viridis(np.linspace(0, 1, len(cpp_data['snapshots'])))
+
+        for i, snapshot in enumerate(cpp_data['snapshots']):
+            if 'pos_x' in snapshot.columns and 'pos_y' in snapshot.columns:
+                x_cpp = snapshot['pos_x'].values
+                y_cpp = snapshot['pos_y'].values
+                alpha = 0.8 if i == 0 or i == len(cpp_data['snapshots'])-1 else 0.3
+                s = 5 if i == 0 or i == len(cpp_data['snapshots'])-1 else 1
+                label = f't={cpp_data["times"][i]:.0f}M' if i == 0 or i == len(cpp_data['snapshots'])-1 else None
+                ax.scatter(x_cpp, y_cpp, s=s, c=[colors[i]], alpha=alpha, label=label)
+
+        # Exact circle for reference
+        ax.plot(10.0 * np.cos(theta_exact), 10.0 * np.sin(theta_exact), 'g--', lw=2,
+                alpha=0.7, label='r=10M circle')
+        ax.add_patch(plt.Circle((0, 0), 2*M, color='black'))
+
+        # Calculate mean radius at final time
+        last_snapshot = cpp_data['snapshots'][-1]
+        r_final = np.sqrt(last_snapshot['pos_x']**2 + last_snapshot['pos_y']**2)
+        r_mean = np.mean(r_final)
+
+        ax.set_title(f'C++ GR-GSPH: r₀=10M annulus\n'
+                     f't: 0 → {cpp_data["times"][-1]:.0f}M, r_mean: 10.0 → {r_mean:.1f}M',
+                     fontweight='bold')
+        ax.text(0.02, 0.02, f'Orbital drift: {(r_mean-10)/10*100:.1f}%',
+                transform=ax.transAxes, fontsize=10, verticalalignment='bottom',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    else:
+        ax.text(0.5, 0.5, 'No C++ simulation data\n\nRun:\n./build/sph simulations/relativistic/\n'
+                'gr_gsph/config/presets/gr_circular_orbit.json',
+                transform=ax.transAxes, ha='center', va='center', fontsize=10,
+                bbox=dict(boxstyle='round', facecolor='lightyellow'))
+        ax.set_title('C++ GR-GSPH: Circular Orbit\n(no data)', fontweight='bold')
+
+    ax.set_xlabel('x/M')
+    ax.set_ylabel('y/M')
+    ax.set_aspect('equal')
+    ax.legend(loc='upper right', fontsize=8)
+    ax.set_xlim(-12, 12)
+    ax.set_ylim(-12, 12)
+    ax.grid(True, alpha=0.3)
+
+    # Right: Kerr circular orbit at r = 2M for a/M = 1
+    ax = axes[2]
 
     # For Kerr at the ISCO (a=1, prograde), r_isco = M
     # At r = 2M with a = 1:
@@ -726,20 +857,38 @@ def create_combined_figure(output_dir):
 
     # --- Top Right: Radial geodesics ---
     ax3 = fig.add_subplot(3, 3, 3)
+
+    # Load C++ Bondi geodesic simulation data (radial infall test)
+    project_root = output_dir.parent.parent.parent.parent
+    bondi_geodesic_dir = project_root / 'simulations' / 'relativistic' / 'gr_gsph' / 'results' / 'bondi_geodesic'
+    bondi_data = load_bondi_geodesic_data(bondi_geodesic_dir)
+
+    # Plot C++ simulation data (Bondi geodesic = radial infall)
+    if bondi_data is not None:
+        ax3.scatter(bondi_data['r'], -bondi_data['v_r'], s=8, c='blue',
+                   alpha=0.8, label='C++ GR-GSPH', zorder=5)
+
+    # Plot Python numerical integration (ODE solver)
     r0_values = np.linspace(4.0 * M, 40.0 * M, 10)
-    for r0 in r0_values:
+    for i, r0 in enumerate(r0_values):
         t, r, vr = integrate_radial_infall(r0, M, r_min=2.001*M, dt=0.01*M)
-        ax3.scatter(r, -vr, s=2, c='blue', alpha=0.7)
+        label = 'Python ODE' if i == 0 else None
+        ax3.scatter(r, -vr, s=1, c='cyan', alpha=0.4, label=label)
+
+    # Plot analytic solution
     r_exact = np.linspace(2.01*M, 40*M, 500)
-    for r0 in r0_values:
+    for i, r0 in enumerate(r0_values):
         v_exact = schw.v_radial(r_exact[r_exact < r0], r0)
-        ax3.plot(r_exact[r_exact < r0], v_exact, 'g-', lw=1, alpha=0.6)
-    ax3.axvline(2*M, color='r', ls='--', lw=1.5, alpha=0.7)
+        label = 'Analytic' if i == 0 else None
+        ax3.plot(r_exact[r_exact < r0], v_exact, 'g-', lw=1, alpha=0.6, label=label)
+
+    ax3.axvline(2*M, color='r', ls='--', lw=1.5, alpha=0.7, label='Horizon')
     ax3.set_xlabel('r/M')
     ax3.set_ylabel('|v$^r$|')
     ax3.set_title('Radial Geodesics', fontweight='bold')
     ax3.set_xlim(0, 42)
     ax3.set_ylim(0, 1.1)
+    ax3.legend(loc='upper right', fontsize=8)
     ax3.grid(True, alpha=0.3)
 
     # --- Middle Left: Epicyclic frequency ---
@@ -812,7 +961,10 @@ def create_combined_figure(output_dir):
         ax.set_ylim(-100, 100)
         ax.grid(True, alpha=0.3)
 
+    # Update title based on available simulation data
+    title_suffix = "Blue: C++ GR-GSPH (Bondi geodesic), " if bondi_data else ""
     fig.suptitle('GRSPH Geodesic Benchmarks: Liptai & Price (2019) MNRAS 485, 819\n'
+                 f'{title_suffix}Cyan: Python ODE, Green: Analytic\n'
                  'Circular Orbits | Radial Infall | Epicyclic/Vertical Oscillations | Apsidal Precession',
                  fontsize=14, fontweight='bold')
     plt.tight_layout()
@@ -837,6 +989,19 @@ def main():
     print("  GRSPH Geodesic Benchmark Suite")
     print("  Based on Liptai & Price (2019) MNRAS 485, 819")
     print("=" * 70)
+
+    # Check for C++ simulation data
+    project_root = script_dir.parent.parent.parent.parent
+    bondi_geodesic_dir = project_root / 'simulations' / 'relativistic' / 'gr_gsph' / 'results' / 'bondi_geodesic'
+
+    print("\n[0] Checking C++ Simulation Data")
+    bondi_data = load_bondi_geodesic_data(bondi_geodesic_dir)
+    if bondi_data is not None:
+        print(f"  Loaded Bondi geodesic data: {len(bondi_data['r'])} particles")
+        print("  (Will overlay on radial geodesics panel)")
+    else:
+        print("  No Bondi geodesic data found. Run:")
+        print("  ./build/sph simulations/relativistic/gr_gsph/config/presets/gr_bondi_geodesic.json")
 
     if args.test in ['all', 'circular']:
         print("\n[1] Circular Orbits (Fig 8)")

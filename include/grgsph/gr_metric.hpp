@@ -3,6 +3,7 @@
 #include "defines.hpp"
 #include "vector_type.hpp"
 #include <cmath>
+#include <algorithm>
 #include <memory>
 
 namespace sph {
@@ -100,13 +101,85 @@ struct Metric31 {
             }
         }
     }
+
+    // Inner product with spatial metric: <u,v> = γ_ij u^i v^j
+    real metric_inner_product(const real u[3], const real v[3]) const {
+        real result = 0.0;
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                result += gamma_ij[i][j] * u[i] * v[j];
+            }
+        }
+        return result;
+    }
+
+    // Norm with spatial metric: |v| = sqrt(γ_ij v^i v^j)
+    real metric_norm(const real v[3]) const {
+        return std::sqrt(std::max(1e-30, metric_inner_product(v, v)));
+    }
 };
 
 /**
- * Metric derivatives for gravitational source terms
+ * Orthonormal Tetrad for GR-GSPH Riemann Solver
  *
- * The source term f_i = (√-g / 2ρ*) T^μν ∂g_μν/∂x^i
- * requires derivatives of the metric components.
+ * Constructs a local orthonormal frame {e^(n), e^(t1), e^(t2)} at each
+ * interaction point, using the spatial metric γ_ij for orthonormalization.
+ *
+ * The tetrad satisfies: γ_ij e^i_(a) e^j_(b) = δ_ab
+ *
+ * References:
+ *   - Liptai & Price (2019) Section 2.4: "The Riemann problem is solved
+ *     in a local orthonormal frame aligned with the line of sight"
+ */
+struct Tetrad {
+    real n[3];     // Unit normal (line-of-sight direction) e^i_(n)
+    real t1[3];    // First tangent direction e^i_(t1)
+    real t2[3];    // Second tangent direction e^i_(t2)
+
+    /**
+     * Construct orthonormal tetrad from line-of-sight vector
+     *
+     * Uses Gram-Schmidt orthonormalization with the spatial metric γ_ij:
+     * 1. n^i = los^i / |los|_γ  (normalize line-of-sight)
+     * 2. t1^i = (ref - <ref,n>_γ n) / |...|_γ  (Gram-Schmidt)
+     * 3. t2^i = ε^ijk n_j t1_k / √γ  (cross product for 3D)
+     *
+     * @param los Line-of-sight vector (separation r_ij)
+     * @param metric Spatial metric for orthonormalization
+     */
+    void construct(const real los[3], const Metric31& metric);
+
+    /**
+     * Project Eulerian velocity onto tetrad frame
+     *
+     * V^(a) = γ_ij V^i e^j_(a)  (tetrad-frame components)
+     *
+     * @param V Eulerian velocity V^i in coordinate frame
+     * @param V_n Normal component (along line-of-sight)
+     * @param V_t1 First tangent component
+     * @param V_t2 Second tangent component
+     */
+    void project_velocity(const real V[3], const Metric31& metric,
+                          real& V_n, real& V_t1, real& V_t2) const;
+
+    /**
+     * Reconstruct coordinate velocity from tetrad components
+     *
+     * V^i = V^(n) n^i + V^(t1) t1^i + V^(t2) t2^i
+     *
+     * @param V_n Normal component
+     * @param V_t1 First tangent component
+     * @param V_t2 Second tangent component
+     * @param V Output: Eulerian velocity in coordinate frame
+     */
+    void reconstruct_velocity(real V_n, real V_t1, real V_t2, real V[3]) const;
+};
+
+/**
+ * Metric spatial derivatives for gravitational momentum source terms
+ *
+ * The momentum source f_i = (√-g / 2N*) T^μν ∂g_μν/∂x^i
+ * requires spatial derivatives of the metric components.
  */
 struct MetricDerivatives {
     real dg_tt[3];           // ∂g_tt/∂x^i
@@ -115,7 +188,53 @@ struct MetricDerivatives {
 };
 
 /**
+ * Metric time derivatives for gravitational energy source (work) term
+ *
+ * The gravitational work Λ = -(√-g / 2N*) T^μν ∂g_μν/∂t (Formulation §5.3)
+ * requires time derivatives of the metric components.
+ *
+ * For stationary spacetimes (Schwarzschild, Kerr, Minkowski), all derivatives are zero.
+ * Non-zero for:
+ *   - Cosmological backgrounds (FLRW expansion)
+ *   - Gravitational wave spacetimes
+ *   - Dynamical black hole spacetimes (accretion, mergers)
+ */
+struct MetricTimeDerivatives {
+    real dg_tt_dt;           // ∂g_tt/∂t
+    real dg_ti_dt[3];        // ∂g_ti/∂t
+    real dgamma_ij_dt[3][3]; // ∂γ_ij/∂t
+
+    // Constructor initializes to zero (stationary spacetime)
+    MetricTimeDerivatives() : dg_tt_dt(0.0) {
+        for (int i = 0; i < 3; ++i) {
+            dg_ti_dt[i] = 0.0;
+            for (int j = 0; j < 3; ++j) {
+                dgamma_ij_dt[i][j] = 0.0;
+            }
+        }
+    }
+
+    // Check if metric is time-dependent (any non-zero derivative)
+    bool is_time_dependent() const {
+        constexpr real eps = 1e-30;
+        if (std::abs(dg_tt_dt) > eps) return true;
+        for (int i = 0; i < 3; ++i) {
+            if (std::abs(dg_ti_dt[i]) > eps) return true;
+            for (int j = 0; j < 3; ++j) {
+                if (std::abs(dgamma_ij_dt[i][j]) > eps) return true;
+            }
+        }
+        return false;
+    }
+};
+
+/**
  * Abstract base class for spacetime metrics
+ *
+ * Provides interface for computing:
+ *   1. Metric components (α, β^i, γ_ij) at a position
+ *   2. Spatial derivatives ∂g_μν/∂x^i for momentum source
+ *   3. Time derivatives ∂g_μν/∂t for energy source (gravitational work)
  */
 class MetricBase {
 public:
@@ -124,13 +243,32 @@ public:
     // Compute metric at position
     virtual void compute(const vec_t& pos, Metric31& metric) const = 0;
 
-    // Compute metric derivatives at position
+    // Compute spatial metric derivatives at position (for momentum source)
     virtual void compute_derivatives(const vec_t& pos, MetricDerivatives& derivs) const = 0;
 
-    // Convenience: compute both metric and derivatives
+    // Compute time derivatives of metric at position (for energy source)
+    // Default implementation: stationary metric (all time derivatives zero)
+    virtual void compute_time_derivatives(const vec_t& pos, real time,
+                                          MetricTimeDerivatives& time_derivs) const {
+        time_derivs = MetricTimeDerivatives();  // All zeros for stationary metrics
+    }
+
+    // Check if metric is stationary (no time dependence)
+    // Override in derived classes for time-dependent metrics
+    virtual bool is_stationary() const { return true; }
+
+    // Convenience: compute both metric and spatial derivatives
     void compute_all(const vec_t& pos, Metric31& metric, MetricDerivatives& derivs) const {
         compute(pos, metric);
         compute_derivatives(pos, derivs);
+    }
+
+    // Full computation including time derivatives (for dynamical spacetimes)
+    void compute_full(const vec_t& pos, real time, Metric31& metric,
+                      MetricDerivatives& derivs, MetricTimeDerivatives& time_derivs) const {
+        compute(pos, metric);
+        compute_derivatives(pos, derivs);
+        compute_time_derivatives(pos, time, time_derivs);
     }
 };
 

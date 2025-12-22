@@ -23,6 +23,7 @@
   "SPHType": "grgsph",
   "metricType": "schwarzschild",
   "blackHoleMass": 1.0,
+  "geodesicMode": true,
   "testType": "radial_infall",
   "N": 10,
   "rMin": 4.0,
@@ -30,9 +31,10 @@
   "gamma": 1.666666667,
   "kernel": "gaussian",
   "neighborNumber": 50,
-  "cflSound": 0.3,
-  "cflForce": 0.25,
-  "rangeMax": [50.0],
-  "rangeMin": [2.0],
+  "iterativeSmoothingLength": false,
+  "cflSound": 0.01,
+  "cflForce": 0.01,
+  "rangeMax": [50.0, 50.0],
+  "rangeMin": [-50.0, -50.0],
   "periodic": false
 }

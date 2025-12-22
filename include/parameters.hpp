@@ -127,6 +127,7 @@ struct SPHParameters {
         std::string metric_type;  // "minkowski", "schwarzschild", or "kerr"
         real bh_mass;             // Black hole mass M (default: 1.0)
         real bh_spin;             // Black hole spin a (for Kerr, default: 0.0)
+        bool geodesic_mode;       // Geodesic test mode: skip pairwise SPH forces
     } grgsph;
 
     struct Thermal {

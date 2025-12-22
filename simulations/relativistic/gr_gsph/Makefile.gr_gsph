@@ -1,0 +1,323 @@
+# ==============================================================================
+# Makefile.gr_gsph - General Relativistic Godunov SPH Tests
+# ==============================================================================
+# Reference: GRGSPH Formulation (Kitajima + Liptai & Price combination)
+#
+# Tests the GR-GSPH implementation with:
+#   1. Minkowski (flat) spacetime - should match SR-GSPH exactly
+#   2. Schwarzschild spacetime - curved spacetime effects
+#   3. Geodesic motion benchmarks (radial infall, circular orbits)
+#   4. Bondi accretion
+#
+# Usage examples:
+# ---------------
+#
+# Single Test Execution:
+#   make -f simulations/relativistic/gr_gsph/Makefile.gr_gsph grgsph_minkowski_run
+#   make -f simulations/relativistic/gr_gsph/Makefile.gr_gsph grgsph_schwarzschild_run
+#
+# Animation with Analytic Overlay:
+#   make -f simulations/relativistic/gr_gsph/Makefile.gr_gsph grgsph_minkowski_animate
+#
+# Complete Workflow (run + animate):
+#   make -f simulations/relativistic/gr_gsph/Makefile.gr_gsph grgsph_minkowski_all
+#
+# Clean:
+#   make -f simulations/relativistic/gr_gsph/Makefile.gr_gsph grgsph_clean
+#
+# ==============================================================================
+
+# Path configuration
+TEST_DIR := simulations/relativistic/gr_gsph
+PRESET_DIR := $(TEST_DIR)/config/presets
+RESULTS_DIR := $(TEST_DIR)/results
+SCRIPTS_DIR := $(TEST_DIR)/scripts
+
+# Python with virtual environment
+PYTHON := .venv/bin/python
+
+.PHONY: grgsph_help grgsph_check_dim grgsph_clean \
+        grgsph_minkowski_run grgsph_minkowski_animate grgsph_minkowski_viz grgsph_minkowski_all \
+        grgsph_schwarzschild_run grgsph_schwarzschild_animate grgsph_schwarzschild_all \
+        grgsph_geodesic_run grgsph_bondi_run \
+        grgsph_all grgsph_compare_metrics
+
+# ==============================================================================
+# Help Target
+# ==============================================================================
+
+grgsph_help:
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo "  GR-GSPH: General Relativistic Godunov SPH Tests"
+	@echo "════════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Implementation based on Kitajima et al. (2025) SR-GSPH extended to GR"
+	@echo "  using Liptai & Price (2019) 3+1 ADM formalism."
+	@echo ""
+	@echo "┌──────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  QUICK START                                                             │"
+	@echo "├──────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  make grgsph_minkowski_all     # Run shock tube + animate              │"
+	@echo "│  make grgsph_schwarzschild_all # Run curved spacetime + animate        │"
+	@echo "│  make grgsph_clean             # Remove all results                    │"
+	@echo "└──────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌──────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  MINKOWSKI (FLAT SPACETIME) TESTS                                        │"
+	@echo "├──────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  grgsph_minkowski_run      Run shock tube simulation                    │"
+	@echo "│  grgsph_minkowski_animate  Generate animation with analytic overlay    │"
+	@echo "│  grgsph_minkowski_viz      Generate static comparison plots            │"
+	@echo "│  grgsph_minkowski_all      Run + animate (complete workflow)           │"
+	@echo "└──────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌──────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  SCHWARZSCHILD (CURVED SPACETIME) TESTS                                  │"
+	@echo "├──────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  grgsph_schwarzschild_run      Run shock tube in curved spacetime      │"
+	@echo "│  grgsph_schwarzschild_animate  Generate animation                      │"
+	@echo "│  grgsph_schwarzschild_all      Run + animate (complete workflow)       │"
+	@echo "└──────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌──────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  GEODESIC & ACCRETION TESTS                                              │"
+	@echo "├──────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  grgsph_geodesic_run       Test geodesic motion (radial infall, orbit) │"
+	@echo "│  grgsph_bondi_run          Test Bondi accretion flow                   │"
+	@echo "└──────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "┌──────────────────────────────────────────────────────────────────────────┐"
+	@echo "│  COMPARISON TARGETS                                                      │"
+	@echo "├──────────────────────────────────────────────────────────────────────────┤"
+	@echo "│  grgsph_compare_metrics    Compare Minkowski vs Schwarzschild          │"
+	@echo "│  grgsph_all                Run all tests                               │"
+	@echo "└──────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "  Results: $(RESULTS_DIR)/"
+	@echo ""
+
+# ==============================================================================
+# Validation Checks
+# ==============================================================================
+
+grgsph_check_dim:
+	@if ! grep -q "SPH_DIM:STRING=1" build/CMakeCache.txt 2>/dev/null; then \
+		echo "❌ ERROR: Shock tube tests require DIM=1"; \
+		echo ""; \
+		echo "   To fix: cd build && cmake -DSPH_DIM=1 .. && make -j8"; \
+		exit 1; \
+	fi
+	@echo "✓ DIM=1 confirmed"
+
+# ==============================================================================
+# MINKOWSKI (FLAT SPACETIME) TESTS
+# ==============================================================================
+
+grgsph_minkowski_run: build/sph grgsph_check_dim
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  GR-GSPH Minkowski Shock Tube"
+	@echo "  (Should match SR-GSPH exactly - verification test)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Initial conditions (Rosswog Test 1):"
+	@echo "    Left:  (n, v, P) = (10, 0, 40/3)"
+	@echo "    Right: (n, v, P) = (1, 0, 10⁻⁶)"
+	@echo "    γ = 5/3"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/minkowski_shock
+	@cp $(PRESET_DIR)/gr_minkowski_shock.json config/config.json
+	./build/sph $(PRESET_DIR)/gr_minkowski_shock.json
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "  📁 Results: $(RESULTS_DIR)/minkowski_shock/"
+
+grgsph_minkowski_animate: 
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Animation with Analytic SR Solution Overlay"
+	@echo "════════════════════════════════════════════════════════════════"
+	@if [ ! -d "$(RESULTS_DIR)/minkowski_shock" ]; then \
+		echo "❌ ERROR: No results found. Run grgsph_minkowski_run first."; \
+		exit 1; \
+	fi
+	@chmod +x $(SCRIPTS_DIR)/animate_shock_tube.py
+	$(PYTHON) $(SCRIPTS_DIR)/animate_shock_tube.py \
+		--input $(RESULTS_DIR)/minkowski_shock \
+		--output $(RESULTS_DIR)/minkowski_shock/grgsph_minkowski_shock.gif \
+		--gamma 1.666666667 \
+		--test rosswog1
+	@echo ""
+	@echo "✓ Animation complete!"
+	@echo "  📊 GIF: $(RESULTS_DIR)/minkowski_shock/grgsph_minkowski_shock.gif"
+	@echo "  📊 PNG: $(RESULTS_DIR)/minkowski_shock/grgsph_minkowski_shock_final.png"
+
+grgsph_minkowski_viz:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Static Verification Plots"
+	@echo "════════════════════════════════════════════════════════════════"
+	@if [ ! -d "$(RESULTS_DIR)/minkowski_shock" ]; then \
+		echo "❌ ERROR: No results found. Run grgsph_minkowski_run first."; \
+		exit 1; \
+	fi
+	@chmod +x $(SCRIPTS_DIR)/verify_minkowski.py
+	$(PYTHON) $(SCRIPTS_DIR)/verify_minkowski.py
+	@echo ""
+	@echo "✓ Verification plots complete!"
+
+grgsph_minkowski_all: build/sph grgsph_check_dim
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════"
+	@echo "  GR-GSPH MINKOWSKI SHOCK TUBE - COMPLETE WORKFLOW"
+	@echo "════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  [1/2] Running simulation..."
+	@echo "════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/minkowski_shock
+	./build/sph $(PRESET_DIR)/gr_minkowski_shock.json
+	@echo "✓ Simulation complete!"
+	@echo ""
+	@echo "  [2/2] Generating animation with analytic overlay..."
+	@echo "════════════════════════════════════════"
+	@chmod +x $(SCRIPTS_DIR)/animate_shock_tube.py
+	$(PYTHON) $(SCRIPTS_DIR)/animate_shock_tube.py \
+		--input $(RESULTS_DIR)/minkowski_shock \
+		--output $(RESULTS_DIR)/minkowski_shock/grgsph_minkowski_shock.gif \
+		--gamma 1.666666667 \
+		--test rosswog1
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════"
+	@echo "  ✓ COMPLETE WORKFLOW FINISHED!"
+	@echo "════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  📁 Results directory: $(RESULTS_DIR)/minkowski_shock/"
+	@echo "  📊 Animation: $(RESULTS_DIR)/minkowski_shock/grgsph_minkowski_shock.gif"
+	@echo "  📊 Final frame: $(RESULTS_DIR)/minkowski_shock/grgsph_minkowski_shock_final.png"
+	@echo ""
+
+# ==============================================================================
+# SCHWARZSCHILD (CURVED SPACETIME) TESTS
+# ==============================================================================
+
+grgsph_schwarzschild_run: build/sph grgsph_check_dim
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  GR-GSPH Schwarzschild Shock Tube"
+	@echo "  (Shock propagation in curved spacetime)"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/schwarzschild_shock
+	./build/sph $(PRESET_DIR)/gr_schwarzschild_shock.json
+	@echo ""
+	@echo "✓ Simulation complete!"
+	@echo "  📁 Results: $(RESULTS_DIR)/schwarzschild_shock/"
+
+grgsph_schwarzschild_animate:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Generating Schwarzschild Shock Animation"
+	@echo "════════════════════════════════════════════════════════════════"
+	@if [ ! -d "$(RESULTS_DIR)/schwarzschild_shock" ]; then \
+		echo "❌ ERROR: No results found. Run grgsph_schwarzschild_run first."; \
+		exit 1; \
+	fi
+	@chmod +x $(SCRIPTS_DIR)/animate_schwarzschild_shock.py
+	$(PYTHON) $(SCRIPTS_DIR)/animate_schwarzschild_shock.py
+	@echo ""
+	@echo "✓ Animation complete!"
+	@echo "  📊 GIF: $(RESULTS_DIR)/schwarzschild_shock/schwarzschild_shock.gif"
+
+grgsph_schwarzschild_all: build/sph grgsph_check_dim
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════════════"
+	@echo "  GR-GSPH SCHWARZSCHILD SHOCK - COMPLETE WORKFLOW"
+	@echo "════════════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  [1/2] Running simulation..."
+	@echo "════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/schwarzschild_shock
+	./build/sph $(PRESET_DIR)/gr_schwarzschild_shock.json
+	@echo "✓ Simulation complete!"
+	@echo ""
+	@echo "  [2/2] Generating animation..."
+	@echo "════════════════════════════════════════"
+	@chmod +x $(SCRIPTS_DIR)/animate_schwarzschild_shock.py
+	$(PYTHON) $(SCRIPTS_DIR)/animate_schwarzschild_shock.py
+	@echo ""
+	@echo "✓ Complete workflow finished!"
+
+# ==============================================================================
+# GEODESIC & ACCRETION TESTS
+# ==============================================================================
+
+grgsph_geodesic_run: build/sph
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  GR-GSPH Geodesic Motion Tests"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/radial_infall
+	@mkdir -p $(RESULTS_DIR)/circular_orbit
+	@echo "[1/2] Running radial infall..."
+	./build/sph $(PRESET_DIR)/gr_radial_infall.json
+	@echo "[2/2] Running circular orbit..."
+	./build/sph $(PRESET_DIR)/gr_circular_orbit.json
+	@echo ""
+	@echo "✓ Geodesic tests complete!"
+
+grgsph_bondi_run: build/sph
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  GR-GSPH Bondi Accretion Test"
+	@echo "════════════════════════════════════════════════════════════════"
+	@mkdir -p $(RESULTS_DIR)/bondi_sonic
+	./build/sph $(PRESET_DIR)/gr_bondi_sonic.json
+	@echo ""
+	@echo "✓ Bondi accretion test complete!"
+	@echo "  📁 Results: $(RESULTS_DIR)/bondi_sonic/"
+
+# ==============================================================================
+# COMPARISON TARGETS
+# ==============================================================================
+
+grgsph_compare_metrics:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Comparing Minkowski vs Schwarzschild Results"
+	@echo "════════════════════════════════════════════════════════════════"
+	@chmod +x $(SCRIPTS_DIR)/compare_minkowski_schwarzschild.py
+	$(PYTHON) $(SCRIPTS_DIR)/compare_minkowski_schwarzschild.py
+	@echo ""
+	@echo "✓ Comparison complete!"
+
+grgsph_all: grgsph_minkowski_all grgsph_schwarzschild_all
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  ✓ ALL GR-GSPH TESTS COMPLETE!"
+	@echo "════════════════════════════════════════════════════════════════"
+
+# ==============================================================================
+# CLEAN TARGET
+# ==============================================================================
+
+grgsph_clean:
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Cleaning GR-GSPH Results"
+	@echo "════════════════════════════════════════════════════════════════"
+	rm -rf $(RESULTS_DIR)/minkowski_shock/*.csv
+	rm -rf $(RESULTS_DIR)/minkowski_shock/*.log
+	rm -rf $(RESULTS_DIR)/minkowski_shock/*.dat
+	rm -rf $(RESULTS_DIR)/minkowski_shock/*.gif
+	rm -rf $(RESULTS_DIR)/minkowski_shock/*.png
+	rm -rf $(RESULTS_DIR)/schwarzschild_shock/*.csv
+	rm -rf $(RESULTS_DIR)/schwarzschild_shock/*.log
+	rm -rf $(RESULTS_DIR)/schwarzschild_shock/*.dat
+	rm -rf $(RESULTS_DIR)/schwarzschild_shock/*.gif
+	rm -rf $(RESULTS_DIR)/schwarzschild_shock/*.png
+	rm -rf $(RESULTS_DIR)/radial_infall/*
+	rm -rf $(RESULTS_DIR)/circular_orbit/*
+	rm -rf $(RESULTS_DIR)/bondi_sonic/*
+	rm -rf $(RESULTS_DIR)/bondi_geodesic/*
+	@echo ""
+	@echo "✓ Clean complete!"

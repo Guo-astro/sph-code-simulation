@@ -35,6 +35,7 @@
 #include "srgsph/sr_timestep.hpp"
 #include "srgsph/sr_primitive_recovery.hpp"
 #include "grgsph/gr_fluid_force.hpp"
+#include "grgsph/gr_pre_interaction.hpp"
 #include "grgsph/gr_metric.hpp"
 
 // relaxation
@@ -357,6 +358,15 @@ void Solver::read_parameterfile(const char * filename)
             m_sample_parameters["gamma"] = input.get<real>("gamma", real(5.0 / 3.0));
             m_sample_parameters["advectionVelocity"] = input.get<real>("advectionVelocity", real(0.997));
             m_sample_parameters["vMax"] = input.get<real>("vMax", real(0.7));
+        } else if (sample_type == "sr_sod") {
+            m_sample = Sample::SRSod;
+            // SR-GSPH / GR-GSPH shock tube tests
+            // testType: sod, blast_wave, strong_blast
+            m_sample_parameters["N"] = input.get<int>("N", 50);
+            m_sample_parameters["different_nu"] = input.get<bool>("different_nu", false);
+            m_sample_parameters["testType"] = input.get<std::string>("testType", "sod");
+            m_sample_parameters["particleMode"] = input.get<std::string>("particleMode", "equal_N");
+            m_sample_parameters["v_left"] = input.get<real>("v_left", real(0.0));
         } else if (sample_type == "gr_schwarzschild_shock") {
             m_sample = Sample::GRSchwarzschildShock;
             // GR-GSPH Schwarzschild radial shock tube (Liptai & Price 2019)
@@ -806,6 +816,7 @@ void Solver::read_parameterfile(const char * filename)
         m_param->grgsph.metric_type = input.get<std::string>("metricType", "minkowski");
         m_param->grgsph.bh_mass = input.get<real>("blackHoleMass", 1.0);
         m_param->grgsph.bh_spin = input.get<real>("blackHoleSpin", 0.0);
+        m_param->grgsph.geodesic_mode = input.get<bool>("geodesicMode", false);
 
         WRITE_LOG << "GR-GSPH metric configuration:";
         WRITE_LOG << "  Metric type: " << m_param->grgsph.metric_type;
@@ -814,6 +825,9 @@ void Solver::read_parameterfile(const char * filename)
         }
         if(m_param->grgsph.metric_type == "kerr") {
             WRITE_LOG << "  Black hole spin a: " << m_param->grgsph.bh_spin;
+        }
+        if(m_param->grgsph.geodesic_mode) {
+            WRITE_LOG << "  Geodesic mode: enabled (no SPH pressure forces)";
         }
     }
 
@@ -1448,16 +1462,28 @@ void Solver::initialize()
         m_fforce = std::make_shared<srgsph::FluidForce>();
     } else if(m_param->type == SPHType::GRGSPH) {
         m_timestep = std::make_shared<srgsph::TimeStep>();  // Use SR timestep (same for GR)
-        m_pre = std::make_shared<srgsph::PreInteraction>(); // Use SR pre-interaction (same for GR)
+
+        // Create GR pre-interaction with metric-aware Lorentz factor
+        auto gr_pre = std::make_shared<grgsph::GRPreInteraction>();
         auto gr_fforce = std::make_shared<grgsph::GRFluidForce>();
 
         // Set up the metric based on configuration
-        auto metric = grgsph::create_metric(
+        // Create two metrics: one for pre-interaction, one for force
+        auto metric_pre = grgsph::create_metric(
             m_param->grgsph.metric_type,
             m_param->grgsph.bh_mass,
             m_param->grgsph.bh_spin
         );
-        gr_fforce->set_metric(std::move(metric));
+        auto metric_force = grgsph::create_metric(
+            m_param->grgsph.metric_type,
+            m_param->grgsph.bh_mass,
+            m_param->grgsph.bh_spin
+        );
+
+        gr_pre->set_metric(std::move(metric_pre));
+        gr_fforce->set_metric(std::move(metric_force));
+
+        m_pre = gr_pre;
         m_fforce = gr_fforce;
     }
     m_gforce = std::make_shared<GravityForce>();
@@ -2703,20 +2729,28 @@ void Solver::predict()
             // Update vel_t from primitive recovery (v_t is recovered from conserved S_t)
             p[i].vel_t = prim_full.vel_t;
 
-            // Safety clamp: ensure |v_x| + v_t^2 < 1 (subluminal with tangent velocity)
+            // Safety clamp: ensure |v|² + v_t² < 1 (subluminal)
+            // In DIM=1: v² = v_x² + v_t² (tangent velocity)
+            // In DIM≥2: v² = |vel|² (no tangent velocity)
             {
+                real v2 = inner_product(p[i].vel, p[i].vel);
+#if DIM == 1
                 const real v_t2 = p[i].vel_t * p[i].vel_t;
-                const real max_vx = std::sqrt(std::max(0.9999 - v_t2, 0.01));
-                if (std::abs(p[i].vel[0]) > max_vx) {
+                v2 += v_t2;
+#endif
+                if (v2 > 0.9999) {
                     static int clamp_count = 0;
+                    const real scale = std::sqrt(0.99 / v2);
                     if (clamp_count < 10) {
                         WRITE_LOG << "[PREDICT CLAMP] particle " << i
-                                  << " vel[0]=" << p[i].vel[0]
-                                  << " clamped to " << std::copysign(max_vx, p[i].vel[0])
-                                  << " (v_t=" << p[i].vel_t << ")";
+                                  << " |v|²=" << v2
+                                  << " clamped by factor " << scale;
                         ++clamp_count;
                     }
-                    p[i].vel[0] = std::copysign(max_vx, p[i].vel[0]);
+                    p[i].vel = p[i].vel * scale;
+#if DIM == 1
+                    p[i].vel_t *= scale;
+#endif
                 }
             }
 

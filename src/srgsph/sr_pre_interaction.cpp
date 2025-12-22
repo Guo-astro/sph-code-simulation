@@ -6,6 +6,7 @@
 #include "openmp.hpp"
 #include "kernel/kernel_function.hpp"
 #include "bhtree.hpp"
+#include <iostream>
 
 #ifdef EXHAUSTIVE_SEARCH
 #include "exhaustive_search.hpp"
@@ -260,10 +261,15 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
         // (Initial conditions set primitives, but N was estimated, so S and e are inconsistent)
         if (m_first_calculation) {
             // Use existing primitive values (set by initialization)
-            // Include tangent velocity in Lorentz factor: γ = 1/√(1 - (v_x² + v_t²)/c²)
-            const real vel_x = p_i.vel[0];  // Normal velocity (1D)
-            const real vel_t = p_i.vel_t;   // Tangent velocity (scalar for 1D tests)
-            const real v2 = vel_x * vel_x + vel_t * vel_t;
+            // Compute velocity magnitude including all velocity components
+            // In DIM=1: v² = v_x² + v_t² (tangent velocity for 1D tests)
+            // In DIM≥2: v² = v_x² + v_y² [+ v_z²] (no tangent velocity needed)
+            real v2 = inner_product(p_i.vel, p_i.vel);
+#if DIM == 1
+            // In 1D, tangent velocity contributes to Lorentz factor
+            const real vel_t = p_i.vel_t;
+            v2 += vel_t * vel_t;
+#endif
             const real gamma_lor = 1.0 / std::sqrt(1.0 - v2 / (m_c_speed * m_c_speed));
             p_i.gamma_lor = gamma_lor;
 
@@ -274,11 +280,15 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
             p_i.enthalpy = H;
 
             // Compute conserved variables from primitives using CORRECT N
-            // Use formula consistent with primitive recovery (Python test_sod.py lines 44-45)
-            // For 1D with tangent velocity: S = γHv_x, S_t = γHv_t
+            // Canonical momentum: S = γHv (vector in DIM dimensions)
             p_i.N = N_new;
-            p_i.S = vel_x * (gamma_lor * H);
-            p_i.S_t = vel_t * (gamma_lor * H);  // Tangent momentum
+            p_i.S = p_i.vel * (gamma_lor * H);  // Vector: S[i] = γH * v[i]
+#if DIM == 1
+            // In 1D, store tangent momentum separately
+            p_i.S_t = vel_t * (gamma_lor * H);
+#else
+            p_i.S_t = 0.0;  // Not used in 2D/3D
+#endif
             const real X = m_gamma / (m_gamma - 1.0);
             p_i.e = (H * (X * gamma_lor * gamma_lor - 1.0) + 1.0) / (X * gamma_lor);
 
