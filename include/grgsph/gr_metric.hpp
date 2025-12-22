@@ -120,62 +120,6 @@ struct Metric31 {
 };
 
 /**
- * Orthonormal Tetrad for GR-GSPH Riemann Solver
- *
- * Constructs a local orthonormal frame {e^(n), e^(t1), e^(t2)} at each
- * interaction point, using the spatial metric γ_ij for orthonormalization.
- *
- * The tetrad satisfies: γ_ij e^i_(a) e^j_(b) = δ_ab
- *
- * References:
- *   - Liptai & Price (2019) Section 2.4: "The Riemann problem is solved
- *     in a local orthonormal frame aligned with the line of sight"
- */
-struct Tetrad {
-    real n[3];     // Unit normal (line-of-sight direction) e^i_(n)
-    real t1[3];    // First tangent direction e^i_(t1)
-    real t2[3];    // Second tangent direction e^i_(t2)
-
-    /**
-     * Construct orthonormal tetrad from line-of-sight vector
-     *
-     * Uses Gram-Schmidt orthonormalization with the spatial metric γ_ij:
-     * 1. n^i = los^i / |los|_γ  (normalize line-of-sight)
-     * 2. t1^i = (ref - <ref,n>_γ n) / |...|_γ  (Gram-Schmidt)
-     * 3. t2^i = ε^ijk n_j t1_k / √γ  (cross product for 3D)
-     *
-     * @param los Line-of-sight vector (separation r_ij)
-     * @param metric Spatial metric for orthonormalization
-     */
-    void construct(const real los[3], const Metric31& metric);
-
-    /**
-     * Project Eulerian velocity onto tetrad frame
-     *
-     * V^(a) = γ_ij V^i e^j_(a)  (tetrad-frame components)
-     *
-     * @param V Eulerian velocity V^i in coordinate frame
-     * @param V_n Normal component (along line-of-sight)
-     * @param V_t1 First tangent component
-     * @param V_t2 Second tangent component
-     */
-    void project_velocity(const real V[3], const Metric31& metric,
-                          real& V_n, real& V_t1, real& V_t2) const;
-
-    /**
-     * Reconstruct coordinate velocity from tetrad components
-     *
-     * V^i = V^(n) n^i + V^(t1) t1^i + V^(t2) t2^i
-     *
-     * @param V_n Normal component
-     * @param V_t1 First tangent component
-     * @param V_t2 Second tangent component
-     * @param V Output: Eulerian velocity in coordinate frame
-     */
-    void reconstruct_velocity(real V_n, real V_t1, real V_t2, real V[3]) const;
-};
-
-/**
  * Metric spatial derivatives for gravitational momentum source terms
  *
  * The momentum source f_i = (√-g / 2N*) T^μν ∂g_μν/∂x^i
