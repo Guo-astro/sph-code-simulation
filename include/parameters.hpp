@@ -12,8 +12,9 @@ enum struct SPHType {
     DISPH,
     GSPH,
     GDISPH,
-    SRGSPH,  // Special Relativistic GSPH
-    GRGSPH,  // General Relativistic GSPH (GR-GSPH)
+    SRGSPH,   // Special Relativistic GSPH
+    GRGSPH,   // General Relativistic GSPH (GR-GSPH)
+    GSPMHD,   // Godunov SPMHD (Iwasaki & Inutsuka 2011)
 };
 
 enum struct KernelType {
@@ -112,6 +113,12 @@ struct SPHParameters {
         RiemannSolverType riemann_solver;  // Riemann solver type: HLL (default) or ITERATIVE
         bool use_gradh;  // Enable grad-h correction (default: true). Disabling causes core collapse in hydrostatic tests.
     } gsph;
+
+    struct MHD {
+        bool is_2nd_order;                 // Enable MUSCL reconstruction for 2nd order accuracy
+        bool use_powell_correction;        // Powell 8-wave div-B correction (default: true)
+        real c_h;                          // Smoothing length factor for h calculation (default: 1.2)
+    } mhd;
 
     struct SRGSPH {
         bool is_2nd_order;        // Enable MUSCL reconstruction

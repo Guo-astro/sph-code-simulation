@@ -1,4 +1,5 @@
 ﻿#include <cassert>
+#include <algorithm>
 
 #include <iostream>
 #include <iomanip>
@@ -37,12 +38,15 @@
 #include "grgsph/gr_fluid_force.hpp"
 #include "grgsph/gr_pre_interaction.hpp"
 #include "grgsph/gr_metric.hpp"
+#include "gspmhd/mhd_fluid_force.hpp"
+#include "gspmhd/mhd_pre_interaction.hpp"
 
 // relaxation
 #include "relaxation/lane_emden_relaxation.hpp"
 #include "relaxation/polytropic_slab_relaxation.hpp"
 #include "relaxation/polytropic_slab_2d_relaxation.hpp"
 #include "relaxation/koyama_inutsuka_relaxation.hpp"
+#include "relaxation/isothermal_relaxation.hpp"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -131,6 +135,14 @@ Solver::Solver(int argc, char * argv[])
         }
         WRITE_LOG << "* Speed of light c = " << m_param->srgsph.c_speed;
         break;
+    case SPHType::GSPMHD:
+        if(m_param->mhd.is_2nd_order) {
+            WRITE_LOG << "SPH type: Godunov SPMHD (2nd order) - Iwasaki & Inutsuka (2011)";
+        } else {
+            WRITE_LOG << "SPH type: Godunov SPMHD (1st order) - Iwasaki & Inutsuka (2011)";
+        }
+        WRITE_LOG << "* Powell div-B correction: " << (m_param->mhd.use_powell_correction ? "enabled" : "disabled");
+        break;
     }
 
     WRITE_LOG << "CFL condition";
@@ -202,6 +214,9 @@ Solver::Solver(int argc, char * argv[])
         WRITE_SAMPLE(Sample::LaneEmdenCylinder, "Lane-Emden cylinder (3D, radial gravity in xy-plane)");
         WRITE_SAMPLE(Sample::PolytropicSlab2D, "Polytropic slab 2D (planar, gravity in y-direction)");
         WRITE_SAMPLE(Sample::Sedov, "Sedov blast wave");
+        WRITE_SAMPLE(Sample::HVCCIsothermal10K, "HVCC 10K isothermal (Oka 2017)");
+        WRITE_SAMPLE(Sample::MHDShockTube1, "MHD Shock Tube 1 (Dai-Woodward)");
+        WRITE_SAMPLE(Sample::MHDShockTube2, "MHD Shock Tube 2 (Strong shock)");
 #undef WRITE_SAMPLE
         default:
             break;
@@ -498,6 +513,9 @@ void Solver::read_parameterfile(const char * filename)
             m_sample_parameters["rho_center_nH"] = input.get<real>("rho_center_nH", real(100.0));
             m_sample_parameters["N_H_cm2"] = input.get<real>("N_H_cm2", real(1.0e19));
             m_sample_parameters["P_ext_K_cm3"] = input.get<real>("P_ext_K_cm3", real(1000.0));
+            // Ghost envelope for pressure confinement during relaxation
+            m_sample_parameters["useEnvelope"] = input.get<bool>("useEnvelope", false);
+            m_sample_parameters["envelopeLayers"] = input.get<int>("envelopeLayers", 4);
         } else if (sample_type == "lane_emden_ki2000") {
             m_sample = Sample::LaneEmdenKI2000;
             // Lane-Emden density structure + K&I 2000 temperatures (NOT hydrostatic)
@@ -506,6 +524,31 @@ void Solver::read_parameterfile(const char * filename)
             m_sample_parameters["M_cloud_Msun"] = input.get<real>("M_cloud_Msun", real(1000.0));
             m_sample_parameters["N_H_cm2"] = input.get<real>("N_H_cm2", real(1.0e19));
             m_sample_parameters["use_glass"] = input.get<bool>("use_glass", true);
+        } else if (sample_type == "hvcc_isothermal_10k") {
+            m_sample = Sample::HVCCIsothermal10K;
+            // 10K isothermal HVCC for IMBH-cloud interaction (Oka 2017)
+            // K&I 2000 equilibrium at T=10K:
+            //   N_H = 10^19 cm^-2: n_eq ~ 34 cm^-3, P/k_B ~ 920 K cm^-3
+            //   N_H = 10^20 cm^-2: n_eq ~ 26 cm^-3, P/k_B ~ 710 K cm^-3
+            m_sample_parameters["N"] = input.get<int>("N", 10000);
+            m_sample_parameters["M_cloud"] = input.get<real>("M_cloud", real(40.0));
+            m_sample_parameters["R_cloud"] = input.get<real>("R_cloud", real(0.14));
+            m_sample_parameters["T_cloud"] = input.get<real>("T_cloud", real(10.0));
+            m_sample_parameters["n_center"] = input.get<real>("n_center", real(1000.0));
+            m_sample_parameters["N_H_cm2"] = input.get<real>("N_H_cm2", real(1.0e20));
+            m_sample_parameters["M_BH"] = input.get<real>("M_BH", real(5.0e4));
+            m_sample_parameters["b_impact"] = input.get<real>("b_impact", real(5.0));
+            m_sample_parameters["v_rel"] = input.get<real>("v_rel", real(0.0));
+            m_sample_parameters["epsilon_BH"] = input.get<real>("epsilon_BH", real(0.001));
+            m_sample_parameters["useEnvelope"] = input.get<bool>("useEnvelope", true);
+            m_sample_parameters["envelopeLayers"] = input.get<int>("envelopeLayers", 4);
+            m_sample_parameters["P_ext"] = input.get<real>("P_ext", real(710.0));
+        } else if (sample_type == "mhd_shock_tube_1" || sample_type == "mhd_dai_woodward") {
+            m_sample = Sample::MHDShockTube1;
+            m_sample_parameters["N"] = input.get<int>("N", 400);
+        } else if (sample_type == "mhd_shock_tube_2" || sample_type == "mhd_strong_shock") {
+            m_sample = Sample::MHDShockTube2;
+            m_sample_parameters["N"] = input.get<int>("N", 400);
         } else {
             // Try to infer sample type from SPH type and JSON content
             std::string sph_type_check = input.get<std::string>("SPHType", "");
@@ -637,6 +680,8 @@ void Solver::read_parameterfile(const char * filename)
         m_param->type = SPHType::SRGSPH;
     } else if(sph_type == "grgsph") {
         m_param->type = SPHType::GRGSPH;
+    } else if(sph_type == "gspmhd" || sph_type == "mhd") {
+        m_param->type = SPHType::GSPMHD;
     } else {
         THROW_ERROR("Unknown SPH type");
     }
@@ -776,7 +821,7 @@ void Solver::read_parameterfile(const char * filename)
     // GSPH and GDISPH specific settings
     if(m_param->type == SPHType::GSPH || m_param->type == SPHType::GDISPH) {
         m_param->gsph.is_2nd_order = input.get<bool>("use2ndOrderGSPH", true);
-        
+
         // Riemann solver selection: "hll", "iterative", or "kitajima"
         std::string riemann_solver_str = input.get<std::string>("riemannSolver", "hll");
         if(riemann_solver_str == "iterative") {
@@ -787,7 +832,18 @@ void Solver::read_parameterfile(const char * filename)
             m_param->gsph.riemann_solver = RiemannSolverType::HLL;
         }
     }
-    
+
+    // GSPMHD specific settings (Iwasaki & Inutsuka 2011)
+    if(m_param->type == SPHType::GSPMHD) {
+        m_param->mhd.is_2nd_order = input.get<bool>("use2ndOrderMHD", true);
+        m_param->mhd.use_powell_correction = input.get<bool>("usePowellCorrection", true);
+        m_param->mhd.c_h = input.get<real>("cH", 1.2);
+
+        WRITE_LOG << "GSPMHD (Iwasaki & Inutsuka 2011) configuration:";
+        WRITE_LOG << "  2nd order: " << (m_param->mhd.is_2nd_order ? "yes" : "no");
+        WRITE_LOG << "  Powell div-B correction: " << (m_param->mhd.use_powell_correction ? "yes" : "no");
+    }
+
     // SRGSPH/GRGSPH (Fixed-h formulation, §2.2)
     if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
         m_param->srgsph.is_2nd_order = input.get<bool>("use2ndOrderSRGSPH", true);
@@ -865,11 +921,19 @@ void Solver::read_parameterfile(const char * filename)
     m_relaxation_output_freq = input.get<int>("relaxationOutputFreq", 10);
     m_relaxation_only = input.get<bool>("relaxationOnly", false);
     m_relaxation_timestep_factor = input.get<real>("relaxationTimestepFactor", 0.1);
-    
+
+    // GLASS pre-relaxation to uniformize particle spacing before main relaxation
+    m_use_glass_relaxation = input.get<bool>("useGlassRelaxation", false);
+    m_glass_relaxation_steps = input.get<int>("glassRelaxationSteps", 5000);
+    m_glass_target_neighbors = input.get<int>("glassTargetNeighbors", 50);
+
     if(m_use_relaxation) {
         std::cout << "Relaxation enabled: " << m_relaxation_steps << " steps" << std::endl;
         std::cout << "Relaxation output frequency: every " << m_relaxation_output_freq << " steps" << std::endl;
         std::cout << "Relaxation timestep factor: " << m_relaxation_timestep_factor << std::endl;
+        if(m_use_glass_relaxation) {
+            std::cout << "GLASS pre-relaxation: " << m_glass_relaxation_steps << " steps (target " << m_glass_target_neighbors << " neighbors)" << std::endl;
+        }
         if(m_relaxation_only) {
             std::cout << "Relaxation-only mode: Will exit after relaxation without running simulation" << std::endl;
         }
@@ -1485,6 +1549,9 @@ void Solver::initialize()
 
         m_pre = gr_pre;
         m_fforce = gr_fforce;
+    } else if(m_param->type == SPHType::GSPMHD) {
+        m_pre = std::make_shared<gspmhd::PreInteraction>();
+        m_fforce = std::make_shared<gspmhd::FluidForce>();
     }
     m_gforce = std::make_shared<GravityForce>();
 
@@ -2316,29 +2383,47 @@ void Solver::initialize()
         std::cout << "\n=== Initializing K&I 2000 Bonnor-Ebert Relaxation ===" << std::endl;
         m_ki2000_relax = std::make_shared<KoyamaInutsukaRelaxation>();
 
-        // Get parameters from sample_parameters
-        const real R_cloud = boost::any_cast<double>(m_sample_parameters["R_cloud"]);
-        const real M_cloud = boost::any_cast<double>(m_sample_parameters["M_cloud"]);
-        const real P_ext_K_cm3 = boost::any_cast<double>(m_sample_parameters["P_ext_K_cm3"]);
-        const real rho_center_code = boost::any_cast<double>(m_sample_parameters["rho_center_code"]);
-        const real N_H_cm2 = boost::any_cast<double>(m_sample_parameters["N_H_cm2"]);
-        const real density_to_n = boost::any_cast<double>(m_sample_parameters["density_to_n"]);
-        const real G = m_param->gravity.constant;
-        const real gamma = m_param->physics.gamma;
+        // Try to load profile from file saved by IC generator (SSOT pattern)
+        std::string profile_file = m_output_dir + "/ki2000_profile.dat";
+        bool loaded_from_file = false;
 
-        KIRelaxationParams relax_params;
-        relax_params.R_cloud = R_cloud;
-        relax_params.M_cloud = M_cloud;
-        relax_params.P_ext = P_ext_K_cm3;  // P/k_B in K cm^-3
-        relax_params.rho_center = rho_center_code;
-        relax_params.N_H = N_H_cm2;
-        relax_params.G = G;
-        relax_params.gamma = gamma;
-        relax_params.density_to_n = density_to_n;
-        relax_params.pressure_to_cgs = 1.0;  // Will be set properly
+        if (m_sample_parameters.count("ki2000_profile_file")) {
+            profile_file = boost::any_cast<std::string>(m_sample_parameters["ki2000_profile_file"]);
+        }
 
-        m_ki2000_relax->initialize(relax_params);
+        // Try to load from file first (ensures same profile as IC)
+        loaded_from_file = m_ki2000_relax->load_profile_from_file(profile_file);
+
+        if (!loaded_from_file) {
+            // Fallback: compute profile (may differ from IC!)
+            std::cout << "WARNING: Could not load profile from " << profile_file << std::endl;
+            std::cout << "WARNING: Computing profile independently - may differ from IC!" << std::endl;
+
+            // Get parameters from sample_parameters
+            const real R_cloud = boost::any_cast<double>(m_sample_parameters["R_cloud"]);
+            const real M_cloud = boost::any_cast<double>(m_sample_parameters["M_cloud"]);
+            const real P_ext_K_cm3 = boost::any_cast<double>(m_sample_parameters["P_ext_K_cm3"]);
+            const real rho_center_code = boost::any_cast<double>(m_sample_parameters["rho_center_code"]);
+            const real N_H_cm2 = boost::any_cast<double>(m_sample_parameters["N_H_cm2"]);
+            const real density_to_n = boost::any_cast<double>(m_sample_parameters["density_to_n"]);
+            const real G = m_param->gravity.constant;
+            const real gamma = m_param->physics.gamma;
+
+            KIRelaxationParams relax_params;
+            relax_params.R_cloud = R_cloud;
+            relax_params.M_cloud = M_cloud;
+            relax_params.P_ext = P_ext_K_cm3;  // P/k_B in K cm^-3
+            relax_params.rho_center = rho_center_code;
+            relax_params.N_H = N_H_cm2;
+            relax_params.G = G;
+            relax_params.gamma = gamma;
+            relax_params.density_to_n = density_to_n;
+            relax_params.pressure_to_cgs = 1.0;  // Will be set properly
+
+            m_ki2000_relax->initialize(relax_params);
+        }
         std::cout << "=== K&I 2000 Relaxation Initialized ===" << std::endl;
+        std::cout << "  Profile R_cloud = " << m_ki2000_relax->get_R_cloud() << " [code]" << std::endl;
 
         // Initialize sound speed and tree for relaxation calculations
         {
@@ -2412,6 +2497,13 @@ void Solver::initialize()
 
 #pragma omp parallel for reduction(max:max_acc)
             for(int i = 0; i < num_p; ++i) {
+                // Skip ghost/envelope particles - they provide fixed pressure boundary
+                if(particles[i].is_ghost) {
+                    particles[i].vel = 0.0;
+                    particles[i].acc = 0.0;
+                    continue;
+                }
+
                 // Zero velocities (constraint for quasi-static relaxation)
                 particles[i].vel[0] = 0.0;
                 particles[i].vel[1] = 0.0;
@@ -2536,6 +2628,460 @@ void Solver::initialize()
             std::cout << "=== Exiting (No Simulation Run) ===\n" << std::endl;
 
             return;
+        }
+
+        std::cout << "=== Starting Main Simulation ===\n" << std::endl;
+        m_sim->set_time(0.0);
+    }
+
+    // Initialize relaxation for HVCCIsothermal10K if enabled
+    if(m_use_relaxation && m_sample == Sample::HVCCIsothermal10K) {
+        std::cout << "\n=== Initializing Isothermal Sphere Relaxation ===" << std::endl;
+        m_isothermal_relax = std::make_shared<IsothermalRelaxation>();
+
+        // Get parameters from sample_parameters
+        const real T_cloud = boost::any_cast<double>(m_sample_parameters["T_cloud"]);
+        const real rho_center = boost::any_cast<double>(m_sample_parameters["rho_center_code"]);
+        const real r_c = boost::any_cast<double>(m_sample_parameters["r_c_code"]);
+        const real R_cloud = boost::any_cast<double>(m_sample_parameters["R_cloud_code"]);
+        const real P_ext = boost::any_cast<double>(m_sample_parameters["P_ext"]);
+        const real density_to_n = boost::any_cast<double>(m_sample_parameters["density_to_n"]);
+
+        IsothermalRelaxationParams relax_params;
+        relax_params.T_cloud = T_cloud;
+        relax_params.rho_center = rho_center;
+        relax_params.r_c = r_c;
+        relax_params.R_cloud = R_cloud;
+        relax_params.P_ext = P_ext;
+        relax_params.density_to_n = density_to_n;
+
+        m_isothermal_relax->initialize(relax_params);
+        std::cout << "=== Isothermal Relaxation Initialized ===" << std::endl;
+
+        // Initialize sound speed and tree for relaxation calculations
+        {
+            auto& particles = m_sim->get_particles();
+            const int num_p = m_sim->get_particle_num();
+            const real gamma = m_param->physics.gamma;
+            const real c_sound_factor = gamma * (gamma - 1.0);
+            for(int i = 0; i < num_p; ++i) {
+                particles[i].sound = std::sqrt(c_sound_factor * particles[i].ene);
+            }
+
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num_p);
+            tree->make(particles, num_p);
+#endif
+        }
+
+        // GLASS pre-relaxation phase to uniformize particle spacing
+        if(m_use_glass_relaxation) {
+            std::cout << "\n=== Starting GLASS Pre-Relaxation (" << m_glass_relaxation_steps << " steps) ===" << std::endl;
+            std::cout << "Target neighbor count: " << m_glass_target_neighbors << std::endl;
+
+            auto& particles = m_sim->get_particles();
+            const int num_p = m_sim->get_particle_num();
+            auto* kernel = m_sim->get_kernel().get();
+            auto* periodic = m_sim->get_periodic().get();
+
+            // Get R_cloud for boundary conditions
+            const real R_cloud = boost::any_cast<double>(m_sample_parameters["R_cloud_code"]);
+
+            // GLASS uses repulsive forces between nearby particles
+            // F_ij = k * (1 - r/h)^2 * r_hat for r < h
+            // This pushes particles apart until uniform spacing achieved
+            const real glass_strength = 0.1;  // Strength of repulsive force
+
+            auto glass_start = std::chrono::steady_clock::now();
+            double avg_step_time = 0.0;
+            int timing_samples = 0;
+
+            for(int step = 0; step < m_glass_relaxation_steps; ++step) {
+                auto step_start = std::chrono::steady_clock::now();
+
+                // Build tree for neighbor search
+#ifndef EXHAUSTIVE_SEARCH
+                auto tree = m_sim->get_tree();
+                tree->resize(num_p);
+                tree->make(particles, num_p);
+#endif
+                // Compute density and smoothing length
+                m_pre->calculation(m_sim);
+
+                // Compute GLASS repulsive forces
+                const int max_neighbors = 200;
+
+#pragma omp parallel for
+                for(int i = 0; i < num_p; ++i) {
+                    auto& p_i = particles[i];
+                    if(p_i.is_ghost) continue;
+
+                    std::vector<int> neighbor_list(max_neighbors);
+#ifndef EXHAUSTIVE_SEARCH
+                    int n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, true);
+#else
+                    int n_neighbor = 0;
+                    for(int j = 0; j < num_p && n_neighbor < max_neighbors; ++j) {
+                        if(i != j) {
+                            real r = std::abs(periodic->calc_r_ij(p_i.pos, particles[j].pos));
+                            if(r < p_i.sml) neighbor_list[n_neighbor++] = j;
+                        }
+                    }
+#endif
+                    // GLASS repulsive force: push apart particles that are too close
+                    vec_t f_glass(0.0);
+                    for(int n = 0; n < n_neighbor; ++n) {
+                        int j = neighbor_list[n];
+                        auto& p_j = particles[j];
+
+                        vec_t r_ij = periodic->calc_r_ij(p_i.pos, p_j.pos);
+                        real r = std::abs(r_ij);
+                        real h_avg = 0.5 * (p_i.sml + p_j.sml);
+
+                        if(r < h_avg && r > 1e-10) {
+                            // Repulsive force: stronger when particles closer
+                            real q = r / h_avg;
+                            real f_mag = glass_strength * (1.0 - q) * (1.0 - q) / r;
+                            f_glass -= r_ij * f_mag;  // Repel (opposite direction of r_ij)
+                        }
+                    }
+                    p_i.acc = f_glass;
+                }
+
+                // Calculate timestep based on maximum acceleration
+                real max_acc = 0.0;
+                for(int i = 0; i < num_p; ++i) {
+                    if(!particles[i].is_ghost) {
+                        max_acc = std::max(max_acc, std::abs(particles[i].acc));
+                    }
+                }
+                real dt = (max_acc > 0) ? 0.01 * std::sqrt(particles[0].sml / max_acc) : 1e-6;
+                dt = std::min(dt, real(0.001));
+
+                // Update positions: Δx = 0.5 * a * dt²
+#pragma omp parallel for
+                for(int i = 0; i < num_p; ++i) {
+                    if(particles[i].is_ghost) continue;
+
+                    particles[i].pos[0] += 0.5 * particles[i].acc[0] * dt * dt;
+                    particles[i].pos[1] += 0.5 * particles[i].acc[1] * dt * dt;
+#if DIM == 3
+                    particles[i].pos[2] += 0.5 * particles[i].acc[2] * dt * dt;
+#endif
+                    // Keep particles inside cloud radius
+                    real r = std::abs(particles[i].pos);
+                    if(r > R_cloud * 0.98) {
+                        particles[i].pos *= (R_cloud * 0.98 / r);
+                    }
+                }
+
+                // Timing and progress
+                auto step_end = std::chrono::steady_clock::now();
+                double step_time = std::chrono::duration<double>(step_end - step_start).count();
+                timing_samples++;
+                avg_step_time = ((timing_samples - 1) * avg_step_time + step_time) / timing_samples;
+
+                // Progress bar every 1%
+                if((step + 1) % (m_glass_relaxation_steps / 100 + 1) == 0 || step == m_glass_relaxation_steps - 1) {
+                    int percent = (step + 1) * 100 / m_glass_relaxation_steps;
+                    int bar_width = 40;
+                    int filled = (step + 1) * bar_width / m_glass_relaxation_steps;
+
+                    // Compute neighbor statistics
+                    real avg_neighbors = 0.0;
+                    real min_neighbors = 1e10, max_neighbors_stat = 0.0;
+                    int cloud_count = 0;
+                    for(int i = 0; i < num_p; ++i) {
+                        if(!particles[i].is_ghost) {
+                            avg_neighbors += particles[i].neighbor;
+                            min_neighbors = std::min(min_neighbors, (real)particles[i].neighbor);
+                            max_neighbors_stat = std::max(max_neighbors_stat, (real)particles[i].neighbor);
+                            cloud_count++;
+                        }
+                    }
+                    if(cloud_count > 0) avg_neighbors /= cloud_count;
+
+                    int eta_secs = static_cast<int>((m_glass_relaxation_steps - step - 1) * avg_step_time);
+
+                    std::cout << "\r[GLASS] [";
+                    for(int i = 0; i < bar_width; ++i) std::cout << (i < filled ? "#" : " ");
+                    std::cout << "] " << std::setw(3) << percent << "% "
+                              << "N=" << std::fixed << std::setprecision(1) << avg_neighbors
+                              << " [" << (int)min_neighbors << "-" << (int)max_neighbors_stat << "]"
+                              << " a=" << std::scientific << std::setprecision(1) << max_acc
+                              << " ETA:" << eta_secs << "s" << std::fixed << std::flush;
+                }
+            }
+            std::cout << std::endl;
+            std::cout << "=== GLASS Pre-Relaxation Complete ===" << std::endl;
+
+            // Re-compute density after GLASS
+            m_pre->calculation(m_sim);
+        }
+
+        // Run relaxation phase
+        std::cout << "\n=== Starting Isothermal Relaxation Phase (" << m_relaxation_steps << " steps) ===" << std::endl;
+
+        int start_step = 0;
+        real accumulated_time = 0.0;
+
+        // Metadata for relaxation snapshots
+        OutputMetadata relax_meta;
+        relax_meta.is_relaxation = true;
+        relax_meta.relaxation_total_steps = m_relaxation_steps;
+        relax_meta.accumulated_time = 0.0;
+
+        // Progress tracking
+        int output_counter = 0;
+        int last_percent = -1;
+        int last_sub_percent = -1;
+        int target_step = start_step + m_relaxation_steps;
+
+        // Timing for ETA
+        auto start_time = std::chrono::steady_clock::now();
+        double avg_step_time = 0.0;
+        int timing_samples = 0;
+
+        for(int step = start_step; step < target_step; ++step) {
+            auto step_start = std::chrono::steady_clock::now();
+
+            auto& particles = m_sim->get_particles();
+            const int num_p = m_sim->get_particle_num();
+
+            // Build tree
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num_p);
+            tree->make(particles, num_p);
+#endif
+
+            // ================================================================
+            // HYBRID RELAXATION: Analytical force + velocity damping
+            // ================================================================
+            // - Subtract analytical equilibrium acceleration (prevents expansion)
+            // - Apply velocity damping (removes oscillations)
+            // ================================================================
+
+            // Step 1: Compute SPH quantities
+            m_pre->calculation(m_sim);
+            m_fforce->calculation(m_sim);
+
+            // Step 2: Apply isothermal relaxation (subtracts equilibrium forces)
+            m_isothermal_relax->apply_relaxation(m_sim);
+
+            // Step 3: Calculate timestep
+            m_timestep->calculation(m_sim);
+            real dt = m_sim->get_dt() * m_relaxation_timestep_factor;
+            dt = std::max(dt, real(1.0e-10));
+
+            // Damping factor: damp 15% of velocity per step
+            const real damp_factor = 0.15;
+
+            // Step 4: Update velocities and positions with damping
+#pragma omp parallel for
+            for(int i = 0; i < num_p; ++i) {
+                if(particles[i].is_ghost) continue;
+
+                // Apply velocity damping (reduces oscillations)
+                particles[i].vel[0] *= (1.0 - damp_factor);
+                particles[i].vel[1] *= (1.0 - damp_factor);
+#if DIM == 3
+                particles[i].vel[2] *= (1.0 - damp_factor);
+#endif
+
+                // Update velocity: v += a * dt (a now has equilibrium subtracted)
+                particles[i].vel[0] += particles[i].acc[0] * dt;
+                particles[i].vel[1] += particles[i].acc[1] * dt;
+#if DIM == 3
+                particles[i].vel[2] += particles[i].acc[2] * dt;
+#endif
+
+                // Update position: x += v * dt
+                particles[i].pos[0] += particles[i].vel[0] * dt;
+                particles[i].pos[1] += particles[i].vel[1] * dt;
+#if DIM == 3
+                particles[i].pos[2] += particles[i].vel[2] * dt;
+#endif
+
+                // REFLECTING BOUNDARY at R_cloud
+                // If particle escapes, push it back and reverse radial velocity
+                real R_cloud = m_isothermal_relax->get_R_cloud();
+                real r2 = particles[i].pos[0] * particles[i].pos[0]
+                        + particles[i].pos[1] * particles[i].pos[1];
+#if DIM == 3
+                r2 += particles[i].pos[2] * particles[i].pos[2];
+#endif
+                real r = std::sqrt(r2);
+                if (r > R_cloud) {
+                    // Push particle back to R_cloud surface
+                    real scale = R_cloud / r * 0.99;  // slightly inside
+                    particles[i].pos[0] *= scale;
+                    particles[i].pos[1] *= scale;
+#if DIM == 3
+                    particles[i].pos[2] *= scale;
+#endif
+                    // Reverse radial velocity component (reflect)
+                    real v_r = (particles[i].vel[0] * particles[i].pos[0]
+                              + particles[i].vel[1] * particles[i].pos[1]
+#if DIM == 3
+                              + particles[i].vel[2] * particles[i].pos[2]
+#endif
+                              ) / (R_cloud * 0.99);
+                    if (v_r > 0) {  // moving outward
+                        particles[i].vel[0] -= 2.0 * v_r * particles[i].pos[0] / (R_cloud * 0.99);
+                        particles[i].vel[1] -= 2.0 * v_r * particles[i].pos[1] / (R_cloud * 0.99);
+#if DIM == 3
+                        particles[i].vel[2] -= 2.0 * v_r * particles[i].pos[2] / (R_cloud * 0.99);
+#endif
+                    }
+                }
+            }
+
+            accumulated_time += dt;
+
+            // Timing
+            auto step_end = std::chrono::steady_clock::now();
+            double step_time = std::chrono::duration<double>(step_end - step_start).count();
+            timing_samples++;
+            avg_step_time = ((timing_samples - 1) * avg_step_time + step_time) / timing_samples;
+
+            int percent = (step - start_step + 1) * 100 / m_relaxation_steps;
+            int sub_percent = ((step - start_step + 1) * 1000 / m_relaxation_steps) % 10;
+
+            if(percent != last_percent || sub_percent != last_sub_percent) {
+                int bar_width = 50;
+                int filled = (step - start_step + 1) * bar_width / m_relaxation_steps;
+
+                // Calculate kinetic energy and max velocity (Phantom convergence criterion)
+                real E_kin = 0.0;
+                real max_vel = 0.0;
+                for(int i = 0; i < num_p; ++i) {
+                    if(!particles[i].is_ghost) {
+                        real v2 = particles[i].vel[0] * particles[i].vel[0]
+                                + particles[i].vel[1] * particles[i].vel[1];
+#if DIM == 3
+                        v2 += particles[i].vel[2] * particles[i].vel[2];
+#endif
+                        E_kin += 0.5 * particles[i].mass * v2;
+                        max_vel = std::max(max_vel, std::sqrt(v2));
+                    }
+                }
+
+                // Calculate ETA
+                int steps_remaining = m_relaxation_steps - (step - start_step + 1);
+                double eta_seconds = steps_remaining * avg_step_time;
+                int eta_mins = static_cast<int>(eta_seconds / 60);
+                int eta_secs = static_cast<int>(eta_seconds) % 60;
+
+                std::cout << "\r[";
+                for(int i = 0; i < bar_width; ++i) {
+                    std::cout << (i < filled ? "#" : " ");
+                }
+                std::cout << "] " << std::setw(3) << percent << "." << sub_percent << "% "
+                          << step - start_step + 1 << "/" << m_relaxation_steps
+                          << " ETA:" << eta_mins << "m" << std::setw(2) << std::setfill('0') << eta_secs << "s"
+                          << std::setfill(' ')
+                          << " Ek=" << std::scientific << std::setprecision(2) << E_kin
+                          << " v=" << max_vel
+                          << std::fixed
+                          << std::flush;
+
+                last_percent = percent;
+                last_sub_percent = sub_percent;
+            }
+
+            // Output snapshots
+            if(step % m_relaxation_output_freq == 0 || step == m_relaxation_steps - 1) {
+                std::cout << std::endl;
+                m_sim->set_time(accumulated_time);
+
+                // Update sound speed before output
+                const real gamma = m_param->physics.gamma;
+                const real c_sound_factor = gamma * (gamma - 1.0);
+                for(int i = 0; i < num_p; ++i) {
+                    particles[i].sound = std::sqrt(c_sound_factor * particles[i].ene);
+                }
+
+                relax_meta.relaxation_step = step;
+                relax_meta.accumulated_time = accumulated_time;
+
+                m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++, &relax_meta);
+                output_counter++;
+
+                std::cout << "Wrote snapshot " << m_snapshot_counter - 1
+                          << " at step " << step << " (t=" << accumulated_time << ")" << std::endl;
+            }
+        }
+
+        std::cout << "\n=== Isothermal Relaxation Complete ===" << std::endl;
+        std::cout << "Total relaxation time: " << accumulated_time << " [code units]" << std::endl;
+
+        if(m_relaxation_only) {
+            // Output final relaxed configuration
+            auto& p = m_sim->get_particles();
+            const int num = m_sim->get_particle_num();
+            const real gamma = m_param->physics.gamma;
+            const real c_sound_factor = gamma * (gamma - 1.0);
+
+#ifndef EXHAUSTIVE_SEARCH
+            auto tree = m_sim->get_tree();
+            tree->resize(num);
+            tree->make(p, num);
+#endif
+
+            m_pre->calculation(m_sim);
+            m_fforce->calculation(m_sim);
+
+            relax_meta.relaxation_step = m_relaxation_steps;
+            relax_meta.accumulated_time = accumulated_time;
+
+            m_output_manager->write_snapshot(m_sim, m_param, m_snapshot_counter++, &relax_meta);
+
+            real kinetic, thermal, potential;
+            compute_total_energies(kinetic, thermal, potential);
+            m_output_manager->write_energy(0.0, kinetic, thermal, potential);
+
+            std::cout << "=== Isothermal Relaxed Configuration Saved ===" << std::endl;
+            std::cout << "=== Exiting (No Simulation Run) ===\n" << std::endl;
+
+            return;
+        }
+
+        // ================================================================
+        // REMOVE GHOST PARTICLES AFTER RELAXATION
+        // ================================================================
+        // Ghost particles provided external pressure confinement during
+        // relaxation. For the actual simulation (e.g., BH flyby), we remove
+        // them so the cloud can freely evolve without artificial boundaries.
+        // ================================================================
+        {
+            auto& particles = m_sim->get_particles();
+            const int num_before = m_sim->get_particle_num();
+
+            // Count ghost particles before removal
+            int ghost_count = 0;
+            for(int i = 0; i < num_before; ++i) {
+                if(particles[i].is_ghost) ghost_count++;
+            }
+
+            if(ghost_count > 0) {
+                std::cout << "\n=== Removing Ghost Particles ===" << std::endl;
+                std::cout << "Particles before: " << num_before << std::endl;
+                std::cout << "Ghost particles: " << ghost_count << std::endl;
+
+                // Remove ghost particles using erase-remove idiom
+                auto new_end = std::remove_if(particles.begin(), particles.end(),
+                    [](const SPHParticle& p) { return p.is_ghost; });
+                particles.erase(new_end, particles.end());
+
+                const int num_after = static_cast<int>(particles.size());
+                m_sim->get_particle_num() = num_after;
+
+                std::cout << "Particles after: " << num_after << std::endl;
+                std::cout << "Removed: " << (num_before - num_after) << " ghost particles" << std::endl;
+                std::cout << "=================================\n" << std::endl;
+            }
         }
 
         std::cout << "=== Starting Main Simulation ===\n" << std::endl;
@@ -2766,6 +3312,34 @@ void Solver::predict()
             // NOTE: S_t is CONSERVED (dS_t/dt = 0), do NOT update it here!
             // v_t is recovered from S_t/(γH) in primitive recovery above.
         }
+    } else if(m_param->type == SPHType::GSPMHD) {
+        // === GSPMHD TIME INTEGRATION (Iwasaki & Inutsuka 2011) ===
+        // Standard SPH integration plus B field and MHD velocity components
+#pragma omp parallel for
+        for(int i = 0; i < num; ++i) {
+            if(p[i].is_ghost) continue;
+
+            // Save old derivatives for predictor-corrector
+            p[i].dB_old = p[i].dB;
+
+            // k -> k+1/2 (half-step for position update)
+            p[i].vel_p = p[i].vel + p[i].acc * (0.5 * dt);
+            p[i].ene_p = p[i].ene + p[i].dene * (0.5 * dt);
+
+            // k -> k+1 (full step for velocities, energy, B)
+            p[i].pos += p[i].vel_p * dt;
+            p[i].vel += p[i].acc * dt;
+            p[i].vy_mhd += p[i].acc_y_mhd * dt;  // MHD transverse velocity
+            p[i].vz_mhd += p[i].acc_z_mhd * dt;
+            p[i].ene += p[i].dene * dt;
+            p[i].B += p[i].dB * dt;  // B field evolution
+
+            // Floor internal energy
+            if(p[i].ene < 1e-30) p[i].ene = 1e-30;
+            p[i].sound = std::sqrt(c_sound * p[i].ene);
+
+            periodic->apply(p[i].pos);
+        }
     } else {
         // === STANDARD SPH TIME INTEGRATION ===
         // Integrate PRIMITIVE variables: v (velocity), u (internal energy)
@@ -2773,7 +3347,7 @@ void Solver::predict()
         for(int i = 0; i < num; ++i) {
             // Skip ghost particles - they are fixed and don't evolve
             if(p[i].is_ghost) continue;
-            
+
             // k -> k+1/2
             p[i].vel_p = p[i].vel + p[i].acc * (0.5 * dt);
             p[i].ene_p = p[i].ene + p[i].dene * (0.5 * dt);
@@ -2889,19 +3463,37 @@ void Solver::correct()
             // NOTE: S_t is CONSERVED (dS_t/dt = 0), do NOT update it here!
             // v_t is recovered from S_t/(γH) in primitive recovery above.
         }
+    } else if(m_param->type == SPHType::GSPMHD) {
+        // GSPMHD correction with B field
+#pragma omp parallel for
+        for(int i = 0; i < num; ++i) {
+            if(p[i].is_ghost) continue;
+
+            // Corrector: v^{n+1} = v^{n+1/2} + 0.5 * a^{n+1} * dt
+            p[i].vel = p[i].vel_p + p[i].acc * (0.5 * dt);
+            p[i].ene = p[i].ene_p + p[i].dene * (0.5 * dt);
+
+            // B field corrector (use average of old and new derivatives)
+            // B^{n+1}_corr = B^{n+1}_pred + 0.5 * (dB^{n+1} - dB^n) * dt
+            p[i].B += (p[i].dB - p[i].dB_old) * (0.5 * dt);
+
+            // Floor internal energy
+            if(p[i].ene < 1e-30) p[i].ene = 1e-30;
+            p[i].sound = std::sqrt(c_sound * p[i].ene);
+        }
     } else {
         // Standard SPH correction
 #pragma omp parallel for
         for(int i = 0; i < num; ++i) {
             // Skip ghost particles - they are fixed and don't evolve
             if(p[i].is_ghost) continue;
-            
+
             p[i].vel = p[i].vel_p + p[i].acc * (0.5 * dt);
             p[i].ene = p[i].ene_p + p[i].dene * (0.5 * dt);
             p[i].sound = std::sqrt(c_sound * p[i].ene);
         }
     }
-    
+
     // Update ghost particles by mirroring nearest real particles
     update_ghost_particles();
 }
@@ -3099,6 +3691,9 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::JeansInstability, jeans_instability);
         MAKE_SAMPLE(Sample::BonnorEbertKI2000, bonnor_ebert_ki2000);
         MAKE_SAMPLE(Sample::LaneEmdenKI2000, lane_emden_ki2000);
+        MAKE_SAMPLE(Sample::HVCCIsothermal10K, hvcc_isothermal_10k);
+        MAKE_SAMPLE(Sample::MHDShockTube1, mhd_shock_tube_1);
+        MAKE_SAMPLE(Sample::MHDShockTube2, mhd_shock_tube_2);
         case Sample::DoNotUse:
 
             // サンプルを使わない場合はここを実装

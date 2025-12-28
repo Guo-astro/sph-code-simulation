@@ -21,6 +21,7 @@ class LaneEmdenRelaxation;
 class PolytropicSlabRelaxation;
 class PolytropicSlab2DRelaxation;
 class KoyamaInutsukaRelaxation;
+class IsothermalRelaxation;
 
 class Module;
 
@@ -61,6 +62,9 @@ enum struct Sample {
     JeansInstability,
     BonnorEbertKI2000,  // K&I 2000 Bonnor-Ebert pressure-truncated sphere
     LaneEmdenKI2000,    // Lane-Emden density + K&I 2000 temperatures (NOT hydrostatic)
+    HVCCIsothermal10K,  // 10K isothermal HVCC for IMBH-cloud interaction (Oka 2017)
+    MHDShockTube1,      // MHD Shock Tube 1: Dai-Woodward (Iwasaki & Inutsuka 2011)
+    MHDShockTube2,      // MHD Shock Tube 2: Strong shock (Iwasaki & Inutsuka 2011)
     DoNotUse,
 };
 
@@ -92,11 +96,17 @@ class Solver {
     std::shared_ptr<PolytropicSlabRelaxation> m_polytropic_slab_relax;
     std::shared_ptr<PolytropicSlab2DRelaxation> m_polytropic_slab_2d_relax;
     std::shared_ptr<KoyamaInutsukaRelaxation> m_ki2000_relax;
+    std::shared_ptr<IsothermalRelaxation> m_isothermal_relax;
     bool m_use_relaxation;
     int m_relaxation_steps;
     int m_relaxation_output_freq;  // Output frequency during relaxation
     bool m_relaxation_only;  // If true, exit after relaxation without simulation
     real m_relaxation_timestep_factor;  // Safety factor for relaxation timestep (default 0.1)
+
+    // GLASS pre-relaxation to uniformize particle spacing
+    bool m_use_glass_relaxation;
+    int m_glass_relaxation_steps;
+    int m_glass_target_neighbors;
     
     // Resume configuration (JSON as SSOT - snapshot provides particle data only)
     bool m_resume_from_checkpoint;
@@ -149,6 +159,9 @@ class Solver {
     void make_jeans_instability();
     void make_bonnor_ebert_ki2000();  // K&I 2000 pressure-truncated sphere
     void make_lane_emden_ki2000();    // Lane-Emden + K&I temperatures
+    void make_hvcc_isothermal_10k();  // 10K isothermal HVCC (Oka 2017)
+    void make_mhd_shock_tube_1();     // MHD Shock Tube 1: Dai-Woodward
+    void make_mhd_shock_tube_2();     // MHD Shock Tube 2: Strong shock
 
 public:
     Solver(int argc, char * argv[]);

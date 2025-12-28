@@ -1,0 +1,30 @@
+{
+    "comment": "MHD Shock Tube 1 (Dai-Woodward test) from Iwasaki & Inutsuka (2011) Fig. 5. Uses GSPH-like settings: high resolution (N=4000), low neighbor number (4), cubic_spline kernel.",
+    "outputDirectory": "simulations/mhd/results/mhd_shock_tube_1",
+    "sample": "mhd_shock_tube_1",
+    "N": 4000,
+    "startTime": 0.0,
+    "endTime": 0.2,
+    "outputTime": 0.02,
+    "SPHType": "gspmhd",
+    "kernel": "cubic_spline",
+    "neighborNumber": 4,
+    "gamma": 1.6666666666666667,
+    "cflSound": 0.3,
+    "cflForce": 0.125,
+    "use2ndOrderMHD": true,
+    "usePowellCorrection": true,
+    "useGravity": false,
+    "useBalsaraSwitch": false,
+    "iterativeSmoothingLength": false,
+    "rangeMin": [-0.75],
+    "rangeMax": [0.51],
+    "periodic": false,
+    "boundaryType": "none",
+    "output": {
+        "enableCSV": true,
+        "enableHDF5": false,
+        "enableVTK": false,
+        "csvPrecision": 16
+    }
+}

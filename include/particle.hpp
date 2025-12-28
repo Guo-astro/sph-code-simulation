@@ -56,6 +56,21 @@ public:
     real enthalpy;   // specific enthalpy H = 1 + u/c² + P/(nc²)
     real nu;         // baryon number per particle (constant)
 
+    // === MHD (Magnetohydrodynamics) variables ===
+    // Based on Iwasaki & Inutsuka (2011) GSPMHD formulation
+    // Uses vec3_t (always 3D) so MHD works correctly even with DIM=1
+    vec3_t B;              // Magnetic field vector (always 3D)
+    vec3_t dB;             // dB/dt time derivative
+    vec3_t dB_old;         // dB/dt from previous timestep (for predictor-corrector)
+    real div_B = 0.0;      // Divergence of B (for monitoring)
+
+    // MHD velocity components (for 1D simulations that need 3D velocity)
+    // In DIM=1, vel only has x component; vy, vz stored separately
+    real vy_mhd = 0.0;     // y-component of velocity for MHD
+    real vz_mhd = 0.0;     // z-component of velocity for MHD
+    real acc_y_mhd = 0.0;  // y-component of acceleration for MHD
+    real acc_z_mhd = 0.0;  // z-component of acceleration for MHD
+
     // === Particle type flags ===
     bool is_ghost = false;  // Ghost/boundary particle (fixed, not integrated)
 

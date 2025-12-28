@@ -64,6 +64,14 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
         auto & p_i = particles[i];
+
+        // Ghost particles: skip density computation, keep initial values
+        // Their properties are set by initialization and maintained by update_ghost_particles()
+        if (p_i.is_ghost) {
+            p_i.gradh = 1.0;  // Set gradh=1.0 so forces don't vanish at boundaries
+            continue;
+        }
+
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
 
         // guess smoothing length
@@ -71,7 +79,7 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
                            DIM == 2 ? M_PI :
                                       4.0 * M_PI / 3.0;
         p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / DIM) * m_kernel_ratio;
-        
+
         // neighbor search
 #ifdef EXHAUSTIVE_SEARCH
         const int n_neighbor_tmp = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, m_neighbor_number * neighbor_list_size, periodic, false);
@@ -252,6 +260,14 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
         auto & p_i = particles[i];
+
+        // Ghost particles: skip density computation, keep initial values
+        // Their properties are set by initialization and maintained by update_ghost_particles()
+        if (p_i.is_ghost) {
+            p_i.gradh = 1.0;  // Set gradh=1.0 so forces don't vanish at boundaries
+            continue;
+        }
+
         const vec_t & pos_i = p_i.pos;
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
 
@@ -260,7 +276,7 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
                            DIM == 2 ? M_PI :
                                       4.0 * M_PI / 3.0;
         p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / DIM);
-        
+
         // DEBUG first particle
         bool is_first = (i == 0);
         if (is_first) {

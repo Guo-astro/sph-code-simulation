@@ -3,6 +3,7 @@ target_sources(sph
         bns_cocoon_1d.cpp
         bns_cocoon_2d.cpp
         bonnor_ebert_ki2000.cpp
+        hvcc_isothermal.cpp
         evrard.cpp
         lane_emden_ki2000.cpp
         evrard_cold_collapse.cpp
@@ -31,4 +32,6 @@ target_sources(sph
         sr_tangent_velocity.cpp
         strong_shock.cpp
         vacuum.cpp
+        mhd_shock_tube_1.cpp
+        mhd_shock_tube_2.cpp
     )
