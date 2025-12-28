@@ -74,8 +74,18 @@ void Solver::make_mhd_shock_tube_1()
     const real dx_R = domain_length / N;
     const real dx_L = dx_R * (rho_R / rho_L);  // Adjust for density ratio
 
-    // Ghost layers for boundary conditions
-    const int n_ghost_layers = 25;
+    // Ghost particle configuration from config
+    bool use_ghost_particles = true;
+    if (m_sample_parameters.count("useGhostParticles")) {
+        use_ghost_particles = boost::any_cast<bool>(m_sample_parameters["useGhostParticles"]);
+    }
+
+    int ghost_layers = 6;
+    if (m_sample_parameters.count("ghostLayers")) {
+        ghost_layers = boost::any_cast<int>(m_sample_parameters["ghostLayers"]);
+    }
+
+    const int n_ghost_layers = use_ghost_particles ? ghost_layers : 0;
 
     // Estimate particle count
     const real L_left = x_interface - x_min;

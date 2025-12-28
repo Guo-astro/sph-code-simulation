@@ -76,12 +76,27 @@ void Solver::make_mhd_shock_tube_2()
     const real domain_length = x_max - x_min;
     const real dx = domain_length / N;
 
+    // Ghost particle configuration from config
+    bool use_ghost_particles = true;
+    if (m_sample_parameters.count("useGhostParticles")) {
+        use_ghost_particles = boost::any_cast<bool>(m_sample_parameters["useGhostParticles"]);
+    }
+
+    int ghost_layers = 6;
+    if (m_sample_parameters.count("ghostLayers")) {
+        ghost_layers = boost::any_cast<int>(m_sample_parameters["ghostLayers"]);
+    }
+
+    const int n_ghost_layers = use_ghost_particles ? ghost_layers : 0;
+
     // Count particles on each side
     const real L_left = x_interface - x_min;
     const real L_right = x_max - x_interface;
     const int N_left = static_cast<int>(L_left / dx) + 1;
     const int N_right = static_cast<int>(L_right / dx) + 1;
-    const int num_total = N_left + N_right;
+    const int N_ghost_left = n_ghost_layers;
+    const int N_ghost_right = n_ghost_layers;
+    const int num_total = N_left + N_right + N_ghost_left + N_ghost_right;
 
     std::vector<SPHParticle> particles(num_total);
 
@@ -122,10 +137,52 @@ void Solver::make_mhd_shock_tube_2()
         x += dx;
     }
 
+    // Add left ghost particles (extend leftward from x_min)
+    for (int g = 0; g < n_ghost_layers && idx < num_total; ++g) {
+        auto& p = particles[idx];
+        real ghost_x = x_min - dx * (0.5 + g);
+        p.pos = vec_t{ghost_x, 0.0, 0.0};
+        p.vel = vec_t{vx_L, vy_L, vz_L};
+        p.dens = rho_L;
+        p.pres = P_L;
+        p.mass = mass;
+        p.ene = P_L / ((gamma - 1.0) * rho_L);
+        p.B = vec3_t{Bx_L, By_L, Bz_L};
+        p.sml = dx;
+        p.is_ghost = true;
+        p.id = idx;
+        ++idx;
+    }
+
+    // Add right ghost particles (extend rightward from x_max)
+    for (int g = 0; g < n_ghost_layers && idx < num_total; ++g) {
+        auto& p = particles[idx];
+        real ghost_x = x_max + dx * (0.5 + g);
+        p.pos = vec_t{ghost_x, 0.0, 0.0};
+        p.vel = vec_t{vx_R, vy_R, vz_R};
+        p.dens = rho_R;
+        p.pres = P_R;
+        p.mass = mass;
+        p.ene = P_R / ((gamma - 1.0) * rho_R);
+        p.B = vec3_t{Bx_R, By_R, Bz_R};
+        p.sml = dx;
+        p.is_ghost = true;
+        p.id = idx;
+        ++idx;
+    }
+
     // Resize to actual count
     particles.resize(idx);
 
+    int n_real = 0, n_ghost = 0;
+    for (const auto& p : particles) {
+        if (p.is_ghost) ++n_ghost;
+        else ++n_real;
+    }
+
     std::cout << "[MHD Shock Tube 2 - Strong Shock]" << std::endl;
+    std::cout << "  Real particles: " << n_real << std::endl;
+    std::cout << "  Ghost particles: " << n_ghost << std::endl;
     std::cout << "  Total particles: " << idx << std::endl;
     std::cout << "  dx = " << dx << std::endl;
     std::cout << "  Bx = By = " << Bx_L << " (constant)" << std::endl;

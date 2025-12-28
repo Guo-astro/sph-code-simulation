@@ -20,7 +20,8 @@
     "rangeMin": [-0.75],
     "rangeMax": [0.51],
     "periodic": false,
-    "boundaryType": "none",
+    "useGhostParticles": true,
+    "ghostLayers": 6,
     "output": {
         "enableCSV": true,
         "enableHDF5": false,
