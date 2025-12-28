@@ -2875,37 +2875,34 @@ void Solver::initialize()
             real dt = m_sim->get_dt() * m_relaxation_timestep_factor;
             dt = std::max(dt, real(1.0e-10));
 
-            // Damping factor: damp 15% of velocity per step
-            const real damp_factor = 0.15;
+            // ================================================================
+            // LANE-EMDEN STYLE RELAXATION:
+            // - Zero velocities every step (quasi-static)
+            // - Update position: Δx = ½at² (not v*dt)
+            // - Keep reflecting boundary for containment
+            // ================================================================
 
-            // Step 4: Update velocities and positions with damping
+            // Step 4: Update positions with acceleration (velocities zeroed)
 #pragma omp parallel for
             for(int i = 0; i < num_p; ++i) {
                 if(particles[i].is_ghost) continue;
 
-                // Apply velocity damping (reduces oscillations)
-                particles[i].vel[0] *= (1.0 - damp_factor);
-                particles[i].vel[1] *= (1.0 - damp_factor);
+                // Zero velocities (Lane-Emden style quasi-static relaxation)
+                particles[i].vel[0] = 0.0;
+                particles[i].vel[1] = 0.0;
 #if DIM == 3
-                particles[i].vel[2] *= (1.0 - damp_factor);
+                particles[i].vel[2] = 0.0;
 #endif
 
-                // Update velocity: v += a * dt (a now has equilibrium subtracted)
-                particles[i].vel[0] += particles[i].acc[0] * dt;
-                particles[i].vel[1] += particles[i].acc[1] * dt;
+                // Update position: Δx = ½at² (no velocity term)
+                particles[i].pos[0] += 0.5 * particles[i].acc[0] * dt * dt;
+                particles[i].pos[1] += 0.5 * particles[i].acc[1] * dt * dt;
 #if DIM == 3
-                particles[i].vel[2] += particles[i].acc[2] * dt;
-#endif
-
-                // Update position: x += v * dt
-                particles[i].pos[0] += particles[i].vel[0] * dt;
-                particles[i].pos[1] += particles[i].vel[1] * dt;
-#if DIM == 3
-                particles[i].pos[2] += particles[i].vel[2] * dt;
+                particles[i].pos[2] += 0.5 * particles[i].acc[2] * dt * dt;
 #endif
 
                 // REFLECTING BOUNDARY at R_cloud
-                // If particle escapes, push it back and reverse radial velocity
+                // If particle escapes, push it back inside
                 real R_cloud = m_isothermal_relax->get_R_cloud();
                 real r2 = particles[i].pos[0] * particles[i].pos[0]
                         + particles[i].pos[1] * particles[i].pos[1];
@@ -2921,20 +2918,6 @@ void Solver::initialize()
 #if DIM == 3
                     particles[i].pos[2] *= scale;
 #endif
-                    // Reverse radial velocity component (reflect)
-                    real v_r = (particles[i].vel[0] * particles[i].pos[0]
-                              + particles[i].vel[1] * particles[i].pos[1]
-#if DIM == 3
-                              + particles[i].vel[2] * particles[i].pos[2]
-#endif
-                              ) / (R_cloud * 0.99);
-                    if (v_r > 0) {  // moving outward
-                        particles[i].vel[0] -= 2.0 * v_r * particles[i].pos[0] / (R_cloud * 0.99);
-                        particles[i].vel[1] -= 2.0 * v_r * particles[i].pos[1] / (R_cloud * 0.99);
-#if DIM == 3
-                        particles[i].vel[2] -= 2.0 * v_r * particles[i].pos[2] / (R_cloud * 0.99);
-#endif
-                    }
                 }
             }
 
@@ -2953,18 +2936,17 @@ void Solver::initialize()
                 int bar_width = 50;
                 int filled = (step - start_step + 1) * bar_width / m_relaxation_steps;
 
-                // Calculate kinetic energy and max velocity (Phantom convergence criterion)
-                real E_kin = 0.0;
-                real max_vel = 0.0;
+                // Calculate max acceleration (Lane-Emden convergence criterion)
+                // With velocities zeroed, we monitor |a_net| = |a_SPH - a_eq| -> 0
+                real max_acc = 0.0;
                 for(int i = 0; i < num_p; ++i) {
                     if(!particles[i].is_ghost) {
-                        real v2 = particles[i].vel[0] * particles[i].vel[0]
-                                + particles[i].vel[1] * particles[i].vel[1];
+                        real a2 = particles[i].acc[0] * particles[i].acc[0]
+                                + particles[i].acc[1] * particles[i].acc[1];
 #if DIM == 3
-                        v2 += particles[i].vel[2] * particles[i].vel[2];
+                        a2 += particles[i].acc[2] * particles[i].acc[2];
 #endif
-                        E_kin += 0.5 * particles[i].mass * v2;
-                        max_vel = std::max(max_vel, std::sqrt(v2));
+                        max_acc = std::max(max_acc, std::sqrt(a2));
                     }
                 }
 
@@ -2982,8 +2964,7 @@ void Solver::initialize()
                           << step - start_step + 1 << "/" << m_relaxation_steps
                           << " ETA:" << eta_mins << "m" << std::setw(2) << std::setfill('0') << eta_secs << "s"
                           << std::setfill(' ')
-                          << " Ek=" << std::scientific << std::setprecision(2) << E_kin
-                          << " v=" << max_vel
+                          << " |a|=" << std::scientific << std::setprecision(2) << max_acc
                           << std::fixed
                           << std::flush;
 
@@ -3599,6 +3580,20 @@ void Solver::update_ghost_particles()
                         p[i].S = p[nearest_idx].S * (-1.0);  // Reflect momentum
                     }
                 }
+
+                // For GSPMHD, also update MHD-specific fields
+                if(m_param->type == SPHType::GSPMHD) {
+                    // B field: copy (physical field, not reflected)
+                    p[i].B = p[nearest_idx].B;
+                    // Transverse MHD velocities: follow same rule as main velocity
+                    if(is_outflow) {
+                        p[i].vy_mhd = p[nearest_idx].vy_mhd;
+                        p[i].vz_mhd = p[nearest_idx].vz_mhd;
+                    } else {
+                        p[i].vy_mhd = -p[nearest_idx].vy_mhd;
+                        p[i].vz_mhd = -p[nearest_idx].vz_mhd;
+                    }
+                }
             }
         } else if(ghost_x > x_right) {
             // Right ghost: mirror from particles near x_right
@@ -3647,6 +3642,20 @@ void Solver::update_ghost_particles()
                         p[i].S = p[nearest_idx].S;  // Copy momentum
                     } else {
                         p[i].S = p[nearest_idx].S * (-1.0);  // Reflect momentum
+                    }
+                }
+
+                // For GSPMHD, also update MHD-specific fields
+                if(m_param->type == SPHType::GSPMHD) {
+                    // B field: copy (physical field, not reflected)
+                    p[i].B = p[nearest_idx].B;
+                    // Transverse MHD velocities: follow same rule as main velocity
+                    if(is_outflow) {
+                        p[i].vy_mhd = p[nearest_idx].vy_mhd;
+                        p[i].vz_mhd = p[nearest_idx].vz_mhd;
+                    } else {
+                        p[i].vy_mhd = -p[nearest_idx].vy_mhd;
+                        p[i].vz_mhd = -p[nearest_idx].vz_mhd;
                     }
                 }
             }
