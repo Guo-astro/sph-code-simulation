@@ -20,6 +20,7 @@
     "rangeMin": [-0.75],
     "rangeMax": [0.51],
     "periodic": false,
+    "boundaryType": "outflow",
     "useGhostParticles": true,
     "ghostLayers": 6,
     "output": {
