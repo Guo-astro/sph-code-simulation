@@ -9,7 +9,6 @@ file(REMOVE_RECURSE
   "googletest-populate-prefix/src/googletest-populate-stamp/googletest-populate-patch"
   "googletest-populate-prefix/src/googletest-populate-stamp/googletest-populate-test"
   "googletest-populate-prefix/src/googletest-populate-stamp/googletest-populate-update"
-  "googletest-populate-prefix/src/v1.14.0.tar.gz"
 )
 
 # Per-language clean rules from dependency scanning.

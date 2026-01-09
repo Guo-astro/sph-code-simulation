@@ -16,6 +16,7 @@
     "xi_s": 6.0,
     "mu": 1.27,
     "R_cloud": 0.75,
+    "ic_method": "healpix",
 
     "M_BH": 0.0,
     "b_impact": 0.0,
@@ -38,15 +39,15 @@
     "cfl": 0.3,
 
     "useRelaxation": true,
-    "relaxationSteps": 2000,
-    "relaxationOutputFreq": 500,
+    "relaxationSteps": 1000,
+    "relaxationOutputFreq": 1000,
     "relaxationOnly": true,
     "relaxationTimestepFactor": 0.05,
-    "useGlassRelaxation": true,
-    "glassRelaxationSteps": 2000,
+    "useGlassRelaxation": false,
+    "glassRelaxationSteps": 20000,
     "glassTargetNeighbors": 50,
 
-    "outputDirectory": "results/phase1_relaxation",
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/phase1_relaxation",
     "outputFormat": "csv",
 
     "stability_analysis": {

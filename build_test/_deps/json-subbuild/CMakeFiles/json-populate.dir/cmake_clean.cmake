@@ -9,7 +9,6 @@ file(REMOVE_RECURSE
   "json-populate-prefix/src/json-populate-stamp/json-populate-patch"
   "json-populate-prefix/src/json-populate-stamp/json-populate-test"
   "json-populate-prefix/src/json-populate-stamp/json-populate-update"
-  "json-populate-prefix/src/json.tar.xz"
 )
 
 # Per-language clean rules from dependency scanning.

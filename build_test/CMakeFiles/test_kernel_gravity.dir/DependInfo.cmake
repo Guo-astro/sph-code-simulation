@@ -8,8 +8,8 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/Users/guo/Downloads/sphcode/src/gravity_force.cpp" "CMakeFiles/test_kernel_gravity.dir/src/gravity_force.cpp.o" "gcc" "CMakeFiles/test_kernel_gravity.dir/src/gravity_force.cpp.o.d"
-  "/Users/guo/Downloads/sphcode/tests/test_kernel_gravity.cpp" "CMakeFiles/test_kernel_gravity.dir/tests/test_kernel_gravity.cpp.o" "gcc" "CMakeFiles/test_kernel_gravity.dir/tests/test_kernel_gravity.cpp.o.d"
+  "/Users/guo-opt-p148/sph-code-simulation/src/gravity_force.cpp" "CMakeFiles/test_kernel_gravity.dir/src/gravity_force.cpp.o" "gcc" "CMakeFiles/test_kernel_gravity.dir/src/gravity_force.cpp.o.d"
+  "/Users/guo-opt-p148/sph-code-simulation/tests/test_kernel_gravity.cpp" "CMakeFiles/test_kernel_gravity.dir/tests/test_kernel_gravity.cpp.o" "gcc" "CMakeFiles/test_kernel_gravity.dir/tests/test_kernel_gravity.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

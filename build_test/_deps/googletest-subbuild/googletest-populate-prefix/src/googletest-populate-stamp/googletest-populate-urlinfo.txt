@@ -3,10 +3,10 @@
 # No other meaning or use of this file is supported.
 
 method=url
-command=/opt/homebrew/Cellar/cmake/3.28.1/bin/cmake;-P;/Users/guo/Downloads/sphcode/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp/download-googletest-populate.cmake;COMMAND;/opt/homebrew/Cellar/cmake/3.28.1/bin/cmake;-P;/Users/guo/Downloads/sphcode/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp/verify-googletest-populate.cmake;COMMAND;/opt/homebrew/Cellar/cmake/3.28.1/bin/cmake;-P;/Users/guo/Downloads/sphcode/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp/extract-googletest-populate.cmake
-source_dir=/Users/guo/Downloads/sphcode/build_test/_deps/googletest-src
-work_dir=/Users/guo/Downloads/sphcode/build_test/_deps
+command=/nix/store/qvv2ddin29xa8fqmsv567b6xlnhbvpv0-cmake-3.31.7/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp/download-googletest-populate.cmake;COMMAND;/nix/store/qvv2ddin29xa8fqmsv567b6xlnhbvpv0-cmake-3.31.7/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp/verify-googletest-populate.cmake;COMMAND;/nix/store/qvv2ddin29xa8fqmsv567b6xlnhbvpv0-cmake-3.31.7/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp/extract-googletest-populate.cmake
+source_dir=/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-src
+work_dir=/Users/guo-opt-p148/sph-code-simulation/build_test/_deps
 url(s)=https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
 hash=
-no_extract=
+      no_extract=
 

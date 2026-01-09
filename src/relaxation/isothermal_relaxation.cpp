@@ -323,21 +323,7 @@ void IsothermalRelaxation::apply_relaxation(std::shared_ptr<Simulation> sim, rea
 #endif
 
         // NOTE: Velocities are zeroed in the solver loop, not here
-    }
-
-    // Optional: Apply velocity damping for faster convergence
-    if (damping_factor > 0.0) {
-        #pragma omp parallel for
-        for (int i = 0; i < num; ++i) {
-            auto& p_i = particles[i];
-            if (p_i.is_ghost) continue;
-
-            p_i.vel[0] *= (1.0 - damping_factor);
-            p_i.vel[1] *= (1.0 - damping_factor);
-#if DIM == 3
-            p_i.vel[2] *= (1.0 - damping_factor);
-#endif
-        }
+        // No damping needed - quasi-static relaxation zeros velocities each step
     }
 }
 

@@ -4,8 +4,8 @@ events:
   -
     kind: "message-v1"
     backtrace:
-      - "/opt/homebrew/Cellar/cmake/3.28.1/share/cmake/Modules/CMakeDetermineSystem.cmake:233 (message)"
+      - "/nix/store/qvv2ddin29xa8fqmsv567b6xlnhbvpv0-cmake-3.31.7/share/cmake-3.31/Modules/CMakeDetermineSystem.cmake:205 (message)"
       - "CMakeLists.txt:16 (project)"
     message: |
-      The system is: Darwin - 23.6.0 - arm64
+      The system is: Darwin - 24.6.0 - arm64
 ...

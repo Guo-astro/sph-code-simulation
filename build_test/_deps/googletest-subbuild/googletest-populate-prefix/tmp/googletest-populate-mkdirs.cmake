@@ -1,22 +1,27 @@
 # Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
 # file Copyright.txt or https://cmake.org/licensing for details.
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION ${CMAKE_VERSION}) # this file comes with cmake
 
+# If CMAKE_DISABLE_SOURCE_CHANGES is set to true and the source directory is an
+# existing directory in our source tree, calling file(MAKE_DIRECTORY) on it
+# would cause a fatal error, even though it would be a no-op.
+if(NOT EXISTS "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-src")
+  file(MAKE_DIRECTORY "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-src")
+endif()
 file(MAKE_DIRECTORY
-  "/Users/guo/Downloads/sphcode/build_test/_deps/googletest-src"
-  "/Users/guo/Downloads/sphcode/build_test/_deps/googletest-build"
-  "/Users/guo/Downloads/sphcode/build_test/_deps/googletest-subbuild/googletest-populate-prefix"
-  "/Users/guo/Downloads/sphcode/build_test/_deps/googletest-subbuild/googletest-populate-prefix/tmp"
-  "/Users/guo/Downloads/sphcode/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp"
-  "/Users/guo/Downloads/sphcode/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src"
-  "/Users/guo/Downloads/sphcode/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp"
+  "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-build"
+  "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-subbuild/googletest-populate-prefix"
+  "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-subbuild/googletest-populate-prefix/tmp"
+  "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp"
+  "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src"
+  "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp"
 )
 
 set(configSubDirs )
 foreach(subDir IN LISTS configSubDirs)
-    file(MAKE_DIRECTORY "/Users/guo/Downloads/sphcode/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp/${subDir}")
+    file(MAKE_DIRECTORY "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp/${subDir}")
 endforeach()
 if(cfgdir)
-  file(MAKE_DIRECTORY "/Users/guo/Downloads/sphcode/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp${cfgdir}") # cfgdir has leading slash
+  file(MAKE_DIRECTORY "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/googletest-subbuild/googletest-populate-prefix/src/googletest-populate-stamp${cfgdir}") # cfgdir has leading slash
 endif()

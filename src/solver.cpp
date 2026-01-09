@@ -550,6 +550,10 @@ void Solver::read_parameterfile(const char * filename)
             m_sample_parameters["xi_s"] = input.get<real>("xi_s", real(6.0));  // Dimensionless truncation (critical ~6.45)
             m_sample_parameters["useEnvelope"] = input.get<bool>("useEnvelope", true);
             m_sample_parameters["envelopeLayers"] = input.get<int>("envelopeLayers", 4);
+            m_sample_parameters["mu"] = input.get<real>("mu", real(1.27));  // Mean molecular weight
+            // IC method: "healpix" (best), "shell" (good), or "random" (slow)
+            m_sample_parameters["ic_method"] = input.get<std::string>("ic_method", std::string("healpix"));
+            m_sample_parameters["use_random_ic"] = input.get<bool>("use_random_ic", false);  // Backward compat
             // Optional: specify central number density instead of mass
             // Mode 1: n_center specified -> compute M_cloud from equilibrium
             // Mode 2: M_cloud specified -> compute n_center (may be very low)
@@ -3000,9 +3004,10 @@ void Solver::initialize()
             dt = std::max(dt, real(1.0e-10));
 
             // ================================================================
-            // LANE-EMDEN STYLE RELAXATION:
+            // STEEPEST DESCENT RELAXATION:
             // - Zero velocities every step (quasi-static)
-            // - Update position: Δx = ½at² (not v*dt)
+            // - Update position: Δx = a·dt (steepest descent, NOT ½at²)
+            // - ½at² is extremely slow when dt << 1
             // - Keep reflecting boundary for containment
             // ================================================================
 
@@ -3011,18 +3016,18 @@ void Solver::initialize()
             for(int i = 0; i < num_p; ++i) {
                 if(particles[i].is_ghost) continue;
 
-                // Zero velocities (Lane-Emden style quasi-static relaxation)
+                // Zero velocities (quasi-static relaxation)
                 particles[i].vel[0] = 0.0;
                 particles[i].vel[1] = 0.0;
 #if DIM == 3
                 particles[i].vel[2] = 0.0;
 #endif
 
-                // Update position: Δx = ½at² (no velocity term)
-                particles[i].pos[0] += 0.5 * particles[i].acc[0] * dt * dt;
-                particles[i].pos[1] += 0.5 * particles[i].acc[1] * dt * dt;
+                // STEEPEST DESCENT: Δx = a·dt (NOT ½at² which is extremely slow)
+                particles[i].pos[0] += particles[i].acc[0] * dt;
+                particles[i].pos[1] += particles[i].acc[1] * dt;
 #if DIM == 3
-                particles[i].pos[2] += 0.5 * particles[i].acc[2] * dt * dt;
+                particles[i].pos[2] += particles[i].acc[2] * dt;
 #endif
 
                 // REFLECTING BOUNDARY at R_cloud
