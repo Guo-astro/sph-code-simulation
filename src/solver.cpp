@@ -40,6 +40,10 @@
 #include "grgsph/gr_metric.hpp"
 #include "gspmhd/mhd_fluid_force.hpp"
 #include "gspmhd/mhd_pre_interaction.hpp"
+#include "srmhd/srmhd_fluid_force.hpp"
+#include "srmhd/srmhd_pre_interaction.hpp"
+#include "srmhd/srmhd_timestep.hpp"
+#include "srmhd/srmhd_primitive_recovery.hpp"
 
 // relaxation
 #include "relaxation/lane_emden_relaxation.hpp"
@@ -143,6 +147,15 @@ Solver::Solver(int argc, char * argv[])
         }
         WRITE_LOG << "* Powell div-B correction: " << (m_param->mhd.use_powell_correction ? "enabled" : "disabled");
         break;
+    case SPHType::SRMHD:
+        if(m_param->srgsph.is_2nd_order) {
+            WRITE_LOG << "SPH type: Special Relativistic MHD (2nd order) - SR-GSPH + GSPMHD";
+        } else {
+            WRITE_LOG << "SPH type: Special Relativistic MHD (1st order) - SR-GSPH + GSPMHD";
+        }
+        WRITE_LOG << "* Speed of light c = " << m_param->srgsph.c_speed;
+        WRITE_LOG << "* Powell div-B correction: " << (m_param->mhd.use_powell_correction ? "enabled" : "disabled");
+        break;
     }
 
     WRITE_LOG << "CFL condition";
@@ -214,9 +227,12 @@ Solver::Solver(int argc, char * argv[])
         WRITE_SAMPLE(Sample::LaneEmdenCylinder, "Lane-Emden cylinder (3D, radial gravity in xy-plane)");
         WRITE_SAMPLE(Sample::PolytropicSlab2D, "Polytropic slab 2D (planar, gravity in y-direction)");
         WRITE_SAMPLE(Sample::Sedov, "Sedov blast wave");
+        WRITE_SAMPLE(Sample::IsothermalBonnorEbert, "Isothermal Bonnor-Ebert (self-gravitating)");
         WRITE_SAMPLE(Sample::HVCCIsothermal10K, "HVCC 10K isothermal (Oka 2017)");
         WRITE_SAMPLE(Sample::MHDShockTube1, "MHD Shock Tube 1 (Dai-Woodward)");
         WRITE_SAMPLE(Sample::MHDShockTube2, "MHD Shock Tube 2 (Strong shock)");
+        WRITE_SAMPLE(Sample::SRMHDBalsara1, "SRMHD Balsara Test 1 (Relativistic MHD shock)");
+        WRITE_SAMPLE(Sample::UniformCloud, "Uniform cloud (IMBH-cloud tidal interaction)");
 #undef WRITE_SAMPLE
         default:
             break;
@@ -524,6 +540,22 @@ void Solver::read_parameterfile(const char * filename)
             m_sample_parameters["M_cloud_Msun"] = input.get<real>("M_cloud_Msun", real(1000.0));
             m_sample_parameters["N_H_cm2"] = input.get<real>("N_H_cm2", real(1.0e19));
             m_sample_parameters["use_glass"] = input.get<bool>("use_glass", true);
+        } else if (sample_type == "isothermal_bonnor_ebert") {
+            m_sample = Sample::IsothermalBonnorEbert;
+            // True isothermal Bonnor-Ebert sphere (self-gravitating hydrostatic equilibrium)
+            // Solves isothermal Lane-Emden equation for stable configuration
+            m_sample_parameters["N"] = input.get<int>("N", 22);
+            m_sample_parameters["M_cloud"] = input.get<real>("M_cloud", real(40.0));
+            m_sample_parameters["T_cloud"] = input.get<real>("T_cloud", real(10.0));
+            m_sample_parameters["xi_s"] = input.get<real>("xi_s", real(6.0));  // Dimensionless truncation (critical ~6.45)
+            m_sample_parameters["useEnvelope"] = input.get<bool>("useEnvelope", true);
+            m_sample_parameters["envelopeLayers"] = input.get<int>("envelopeLayers", 4);
+            // Optional: specify central number density instead of mass
+            // Mode 1: n_center specified -> compute M_cloud from equilibrium
+            // Mode 2: M_cloud specified -> compute n_center (may be very low)
+            if (input.count("n_center") > 0) {
+                m_sample_parameters["n_center"] = input.get<real>("n_center");
+            }
         } else if (sample_type == "hvcc_isothermal_10k") {
             m_sample = Sample::HVCCIsothermal10K;
             // 10K isothermal HVCC for IMBH-cloud interaction (Oka 2017)
@@ -543,12 +575,41 @@ void Solver::read_parameterfile(const char * filename)
             m_sample_parameters["useEnvelope"] = input.get<bool>("useEnvelope", true);
             m_sample_parameters["envelopeLayers"] = input.get<int>("envelopeLayers", 4);
             m_sample_parameters["P_ext"] = input.get<real>("P_ext", real(710.0));
+        } else if (sample_type == "uniform_cloud") {
+            m_sample = Sample::UniformCloud;
+            // Uniform density cloud for IMBH-cloud tidal interaction
+            // Based on observational constraints from Oka et al. (2017)
+            // and first-principles analysis:
+            //   M = 40 M_sun, R = 1.0-1.5 pc, T = 15 K (KI2000 equilibrium)
+            //   IMBH at distance 5-10 pc creates tidal perturbations
+            m_sample_parameters["N"] = input.get<int>("N", 22);  // Grid resolution (N^3 particles)
+            m_sample_parameters["M_cloud"] = input.get<real>("M_cloud", real(40.0));
+            m_sample_parameters["R_cloud"] = input.get<real>("R_cloud", real(1.0));
+            m_sample_parameters["T_cloud"] = input.get<real>("T_cloud", real(15.0));
+            m_sample_parameters["M_BH"] = input.get<real>("M_BH", real(1.0e5));
+            m_sample_parameters["d_BH"] = input.get<real>("d_BH", real(5.0));
+            m_sample_parameters["epsilon_BH"] = input.get<real>("epsilon_BH", real(0.01));
+            m_sample_parameters["useEnvelope"] = input.get<bool>("useEnvelope", true);
+            m_sample_parameters["envelopeLayers"] = input.get<int>("envelopeLayers", 4);
         } else if (sample_type == "mhd_shock_tube_1" || sample_type == "mhd_dai_woodward") {
             m_sample = Sample::MHDShockTube1;
             m_sample_parameters["N"] = input.get<int>("N", 400);
+            m_sample_parameters["useGhostParticles"] = input.get<bool>("useGhostParticles", true);
+            m_sample_parameters["ghostLayers"] = input.get<int>("ghostLayers", 6);
         } else if (sample_type == "mhd_shock_tube_2" || sample_type == "mhd_strong_shock") {
             m_sample = Sample::MHDShockTube2;
             m_sample_parameters["N"] = input.get<int>("N", 400);
+            m_sample_parameters["useGhostParticles"] = input.get<bool>("useGhostParticles", true);
+            m_sample_parameters["ghostLayers"] = input.get<int>("ghostLayers", 6);
+        } else if (sample_type == "mhd_orszag_tang" || sample_type == "orszag_tang") {
+            m_sample = Sample::MHDOrszagTang;
+            m_sample_parameters["N"] = input.get<int>("N", 10000);
+        } else if (sample_type == "srmhd_balsara_1" || sample_type == "srmhd_balsara") {
+            m_sample = Sample::SRMHDBalsara1;
+            m_sample_parameters["N"] = input.get<int>("N", 400);
+            m_sample_parameters["useGhostParticles"] = input.get<bool>("useGhostParticles", true);
+            m_sample_parameters["ghostLayers"] = input.get<int>("ghostLayers", 6);
+            m_sample_parameters["useMHD"] = input.get<bool>("useMHD", true);  // Default: full MHD
         } else {
             // Try to infer sample type from SPH type and JSON content
             std::string sph_type_check = input.get<std::string>("SPHType", "");
@@ -682,6 +743,8 @@ void Solver::read_parameterfile(const char * filename)
         m_param->type = SPHType::GRGSPH;
     } else if(sph_type == "gspmhd" || sph_type == "mhd") {
         m_param->type = SPHType::GSPMHD;
+    } else if(sph_type == "srmhd") {
+        m_param->type = SPHType::SRMHD;
     } else {
         THROW_ERROR("Unknown SPH type");
     }
@@ -773,14 +836,12 @@ void Solver::read_parameterfile(const char * filename)
     }
     
     // Boundary type for ghost particles (when periodic is false)
-    // Options: "reflecting" (wall), "outflow" (open boundary), "inflow" (fixed ghosts)
-    std::string boundary_type_str = input.get<std::string>("boundaryType", "outflow");
+    // Options: "reflecting" (wall), "inflow" (fixed boundary conditions)
+    std::string boundary_type_str = input.get<std::string>("boundaryType", "inflow");
     if(boundary_type_str == "reflecting" || boundary_type_str == "wall") {
         m_param->periodic.boundary_type = BoundaryType::REFLECTING;
-    } else if(boundary_type_str == "inflow" || boundary_type_str == "fixed") {
-        m_param->periodic.boundary_type = BoundaryType::INFLOW;
     } else {
-        m_param->periodic.boundary_type = BoundaryType::OUTFLOW;  // Default: outflow
+        m_param->periodic.boundary_type = BoundaryType::INFLOW;  // Default: inflow (fixed BC)
     }
 
     // gravity
@@ -831,6 +892,13 @@ void Solver::read_parameterfile(const char * filename)
         } else {
             m_param->gsph.riemann_solver = RiemannSolverType::HLL;
         }
+
+        // Volume-based approach (Kitajima et al.) vs mass-based (standard GSPH)
+        // When enabled, uses V_p = [Σ W]^(-1) for volume and V² in force formula
+        // When disabled, uses ρ = Σ m W for density and 1/ρ² in force formula
+        m_param->gsph.use_volume_based = input.get<bool>("useVolumeBased", false);
+        m_param->gsph.eta = input.get<real>("etaSmoothingLength", 1.0);
+        m_param->gsph.c_smooth = input.get<real>("cSmooth", 2.0);
     }
 
     // GSPMHD specific settings (Iwasaki & Inutsuka 2011)
@@ -841,6 +909,35 @@ void Solver::read_parameterfile(const char * filename)
 
         WRITE_LOG << "GSPMHD (Iwasaki & Inutsuka 2011) configuration:";
         WRITE_LOG << "  2nd order: " << (m_param->mhd.is_2nd_order ? "yes" : "no");
+        WRITE_LOG << "  Powell div-B correction: " << (m_param->mhd.use_powell_correction ? "yes" : "no");
+    }
+
+    // SRMHD specific settings (SR-GSPH + GSPMHD)
+    if(m_param->type == SPHType::SRMHD) {
+        // SR parameters
+        m_param->srgsph.is_2nd_order = input.get<bool>("use2ndOrderSRGSPH", false);
+        m_param->srgsph.c_speed = input.get<real>("cSpeed", 1.0);
+        m_param->srgsph.c_shock = input.get<real>("cShock", 3.0);
+        m_param->srgsph.c_cd = input.get<real>("cContactDiscontinuity", 0.2);
+        m_param->srgsph.eta = input.get<real>("etaSmoothingLength", 1.0);
+
+        // Riemann solver type: "hll" (default) or "hllc"
+        std::string riemann_type = input.get<std::string>("riemannSolver", "hll");
+        if (riemann_type == "hllc" || riemann_type == "HLLC") {
+            m_param->srgsph.riemann_solver = RiemannSolverType::HLLC;
+        } else {
+            m_param->srgsph.riemann_solver = RiemannSolverType::HLL;
+        }
+
+        // MHD parameters
+        m_param->mhd.is_2nd_order = input.get<bool>("use2ndOrderMHD", false);
+        m_param->mhd.use_powell_correction = input.get<bool>("usePowellCorrection", true);
+        m_param->mhd.use_mhd = input.get<bool>("useMHD", true);  // default: full MHD
+
+        WRITE_LOG << "SRMHD (SR-GSPH + GSPMHD) configuration:";
+        WRITE_LOG << "  c_speed: " << m_param->srgsph.c_speed;
+        WRITE_LOG << "  Riemann solver: " << (m_param->srgsph.riemann_solver == RiemannSolverType::HLLC ? "HLLC" : "HLL");
+        WRITE_LOG << "  MHD enabled: " << (m_param->mhd.use_mhd ? "yes" : "no (hydro-only, uses SR-GSPH exact solver)");
         WRITE_LOG << "  Powell div-B correction: " << (m_param->mhd.use_powell_correction ? "yes" : "no");
     }
 
@@ -1313,14 +1410,18 @@ void Solver::run()
     real t_out = t_start + m_param->time.output;
     real t_ene = t_start + m_param->time.energy;
 
-    // For SR/GR-GSPH, compute initial N from kernel sum, then update ghosts
+    // For SR/GR-GSPH and SRMHD, compute initial N from kernel sum, then update ghosts
     // This ensures consistent initial conditions for force calculation
-    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
+    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH || m_param->type == SPHType::SRMHD) {
 #ifndef EXHAUSTIVE_SEARCH
         m_sim->make_tree();
 #endif
         m_pre->calculation(m_sim);  // Compute N for real particles
         update_ghost_particles();   // Mirror N to ghost particles
+
+        // For conserved variable formulation, need to compute initial forces
+        // so that dS and de are initialized (not garbage) for the first predict step
+        m_fforce->calculation(m_sim);
     }
 
     // For GSPH with gravity, we need to compute initial grav_acc
@@ -1552,6 +1653,17 @@ void Solver::initialize()
     } else if(m_param->type == SPHType::GSPMHD) {
         m_pre = std::make_shared<gspmhd::PreInteraction>();
         m_fforce = std::make_shared<gspmhd::FluidForce>();
+    } else if(m_param->type == SPHType::SRMHD) {
+        m_timestep = std::make_shared<srmhd::TimeStep>();
+        // For hydro-only mode, use SR-GSPH modules (known to work)
+        if(!m_param->mhd.use_mhd) {
+            std::cout << "[SRMHD] Hydro-only mode: using SR-GSPH pre-interaction and force" << std::endl;
+            m_pre = std::make_shared<srgsph::PreInteraction>();
+            m_fforce = std::make_shared<srgsph::FluidForce>();
+        } else {
+            m_pre = std::make_shared<srmhd::PreInteraction>();
+            m_fforce = std::make_shared<srmhd::FluidForce>();
+        }
     }
     m_gforce = std::make_shared<GravityForce>();
 
@@ -1687,23 +1799,28 @@ void Solver::initialize()
             dt_relax *= m_relaxation_timestep_factor;
             
             // Integrate positions with net acceleration
-            // Zero velocities and integrate position directly from acceleration
+            // STEEPEST DESCENT: Zero velocities, move in direction of force
+            // Use Δx = a·dt (NOT ½at² which is extremely slow)
             auto * periodic = m_sim->get_periodic().get();
             
 #pragma omp parallel for
             for(int i = 0; i < num_p; ++i) {
-                // Set velocity to zero (constraint)
+                // Skip ghost particles
+                if(particles[i].is_ghost) continue;
+                
+                // Zero velocities (quasi-static relaxation)
                 particles[i].vel[0] = 0.0;
                 particles[i].vel[1] = 0.0;
 #if DIM == 3
                 particles[i].vel[2] = 0.0;
 #endif
                 
-                // Integrate position using net acceleration: Δx = ½at²
-                particles[i].pos[0] += 0.5 * particles[i].acc[0] * dt_relax * dt_relax;
-                particles[i].pos[1] += 0.5 * particles[i].acc[1] * dt_relax * dt_relax;
+                // STEEPEST DESCENT: Δx = a·dt (first order, much faster than ½at²)
+                // This moves particles in the direction of the net force
+                particles[i].pos[0] += particles[i].acc[0] * dt_relax;
+                particles[i].pos[1] += particles[i].acc[1] * dt_relax;
 #if DIM == 3
-                particles[i].pos[2] += 0.5 * particles[i].acc[2] * dt_relax * dt_relax;
+                particles[i].pos[2] += particles[i].acc[2] * dt_relax;
 #endif
                 
                 periodic->apply(particles[i].pos);
@@ -2634,29 +2751,36 @@ void Solver::initialize()
         m_sim->set_time(0.0);
     }
 
-    // Initialize relaxation for HVCCIsothermal10K if enabled
-    if(m_use_relaxation && m_sample == Sample::HVCCIsothermal10K) {
-        std::cout << "\n=== Initializing Isothermal Sphere Relaxation ===" << std::endl;
+    // Initialize relaxation for isothermal sphere samples (HVCCIsothermal10K and IsothermalBonnorEbert)
+    if(m_use_relaxation && (m_sample == Sample::HVCCIsothermal10K || m_sample == Sample::IsothermalBonnorEbert)) {
+        std::cout << "\n=== Initializing TRUE Bonnor-Ebert Relaxation ===" << std::endl;
         m_isothermal_relax = std::make_shared<IsothermalRelaxation>();
 
         // Get parameters from sample_parameters
         const real T_cloud = boost::any_cast<double>(m_sample_parameters["T_cloud"]);
         const real rho_center = boost::any_cast<double>(m_sample_parameters["rho_center_code"]);
-        const real r_c = boost::any_cast<double>(m_sample_parameters["r_c_code"]);
+        const real r_0 = boost::any_cast<double>(m_sample_parameters["r_c_code"]);  // r_0 stored as r_c_code
         const real R_cloud = boost::any_cast<double>(m_sample_parameters["R_cloud_code"]);
         const real P_ext = boost::any_cast<double>(m_sample_parameters["P_ext"]);
         const real density_to_n = boost::any_cast<double>(m_sample_parameters["density_to_n"]);
+        const real xi_s = boost::any_cast<double>(m_sample_parameters["xi_s"]);
+        const real mu = m_sample_parameters.count("mu") ?
+                        boost::any_cast<double>(m_sample_parameters["mu"]) : 1.27;
+        const real G = m_param->gravity.constant;
 
         IsothermalRelaxationParams relax_params;
         relax_params.T_cloud = T_cloud;
         relax_params.rho_center = rho_center;
-        relax_params.r_c = r_c;
+        relax_params.r_0 = r_0;
         relax_params.R_cloud = R_cloud;
+        relax_params.xi_s = xi_s;
         relax_params.P_ext = P_ext;
+        relax_params.G = G;
         relax_params.density_to_n = density_to_n;
+        relax_params.mu = mu;
 
         m_isothermal_relax->initialize(relax_params);
-        std::cout << "=== Isothermal Relaxation Initialized ===" << std::endl;
+        std::cout << "=== TRUE Bonnor-Ebert Relaxation Initialized ===" << std::endl;
 
         // Initialize sound speed and tree for relaxation calculations
         {
@@ -3091,8 +3215,9 @@ void Solver::initialize()
 
     m_pre->calculation(m_sim);
     
-    // For SR/GR-GSPH, update ghost particles after computing N but before forces
-    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
+    // For SR/GR-GSPH and SRMHD hydro-only, update ghost particles after computing N but before forces
+    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH ||
+       (m_param->type == SPHType::SRMHD && !m_param->mhd.use_mhd)) {
         update_ghost_particles();
     }
     
@@ -3185,7 +3310,11 @@ void Solver::predict()
 
     // SR/GR-GSPH: Integrate CONSERVED variables (S, e, N)
     // Standard SPH: Integrate PRIMITIVE variables (v, u, ρ)
-    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
+    // SRMHD hydro-only: Use SR-GSPH integration (proven to work)
+    const bool use_srgsph_integration = (m_param->type == SPHType::SRGSPH ||
+                                         m_param->type == SPHType::GRGSPH ||
+                                         (m_param->type == SPHType::SRMHD && !m_param->mhd.use_mhd));
+    if(use_srgsph_integration) {
         const real c_speed = m_param->srgsph.c_speed;
 
 #pragma omp parallel for
@@ -3210,7 +3339,13 @@ void Solver::predict()
             real e_half = p[i].e + p[i].de * (0.5 * dt);
             real S_t_half = p[i].S_t + p[i].dS_t * (0.5 * dt);  // Tangent momentum
 
-            // Limit half-step to prevent failures (only consider normal momentum)
+            // CRITICAL: Floor energy BEFORE primitive recovery to prevent instability
+            // If e < 1, primitive recovery gives H→1, P→0, and v = S/(γH) can explode!
+            if (e_half < 1.0) {
+                e_half = 1.0 + 1e-10;
+            }
+
+            // Limit half-step S/e ratio to prevent superluminal velocities
             // Tangent momentum is passive and handled separately
             const real S_normal_mag = std::sqrt(inner_product(S_half, S_half));
             const real S_half_ratio = S_normal_mag / std::max(e_half, 1.0e-10);
@@ -3228,8 +3363,22 @@ void Solver::predict()
             p[i].e += p[i].de * dt;      // Predicted e using OLD derivative
             p[i].S_t += p[i].dS_t * dt;  // Predicted S_t using OLD derivative
 
-            // Note: Safety checks (floors, limiters) applied in corrector step
-            
+            // CRITICAL: Floor energy BEFORE primitive recovery (full step)
+            // This prevents the runaway instability where low e → low H → high v → lower e
+            if (p[i].e < 1.0) {
+                p[i].e = 1.0 + 1e-10;
+            }
+
+            // Limit full-step S/e ratio to prevent superluminal velocities
+            {
+                const real S_mag = std::sqrt(inner_product(p[i].S, p[i].S));
+                const real S_ratio = S_mag / std::max(p[i].e, 1.0e-10);
+                if (S_ratio > 0.9999) {
+                    const real scale = 0.9999 / S_ratio;
+                    p[i].S = p[i].S * scale;
+                }
+            }
+
             // Recover primitive variables at half-step for position update
             // Use conserved S_t to recover v_t (S_t = γHv_t is conserved, not v_t)
             auto prim_half = srgsph::PrimitiveRecovery::conserved_to_primitive_with_tangent(
@@ -3298,7 +3447,7 @@ void Solver::predict()
         // Standard SPH integration plus B field and MHD velocity components
 #pragma omp parallel for
         for(int i = 0; i < num; ++i) {
-            if(p[i].is_ghost) continue;
+            if(p[i].is_ghost) continue;  // Ghost particles are fixed for stability
 
             // Save old derivatives for predictor-corrector
             p[i].dB_old = p[i].dB;
@@ -3320,6 +3469,123 @@ void Solver::predict()
             p[i].sound = std::sqrt(c_sound * p[i].ene);
 
             periodic->apply(p[i].pos);
+        }
+    } else if(m_param->type == SPHType::SRMHD) {
+        // === SRMHD TIME INTEGRATION (matching SR-GSPH structure) ===
+        // CRITICAL: Must integrate CONSERVED variables (S, e, S_t) like SR-GSPH!
+        // Also: do primitive recovery IN predictor to match SR-GSPH behavior.
+        const real c_speed = m_param->srgsph.c_speed;
+
+#pragma omp parallel for
+        for(int i = 0; i < num; ++i) {
+            if(p[i].is_ghost) continue;
+
+            // STEP 1: Save old derivatives for corrector step
+            p[i].dS_old = p[i].dS;
+            p[i].de_old = p[i].de;
+            p[i].dS_t_old = p[i].dS_t;
+            p[i].dB_old = p[i].dB;
+
+            // STEP 2: Compute half-step conserved variables
+            vec_t S_half = p[i].S + p[i].dS * (0.5 * dt);
+            real e_half = p[i].e + p[i].de * (0.5 * dt);
+            real S_t_half = p[i].S_t + p[i].dS_t * (0.5 * dt);
+
+            // CRITICAL: Floor e_half BEFORE primitive recovery to prevent instability
+            if (e_half < 1.0) {
+                e_half = 1.0 + 1e-10;
+            }
+
+            // Limit half-step S/e ratio to prevent superluminal velocities
+            const real S_normal_mag = std::sqrt(inner_product(S_half, S_half));
+            const real S_half_ratio = S_normal_mag / std::max(e_half, 1.0e-10);
+            if (S_half_ratio > 0.9999) {
+                const real scale = 0.9999 / S_half_ratio;
+                S_half = S_half * scale;
+            }
+
+            // STEP 3: Full step prediction
+            p[i].S += p[i].dS * dt;
+            p[i].e += p[i].de * dt;
+            p[i].S_t += p[i].dS_t * dt;
+            p[i].B += p[i].dB * dt;
+
+            // MHD transverse velocity evolution (1D only)
+            // In relativistic MHD, acc_y_mhd is dS_y/dt (momentum rate), not dv_y/dt
+            // Convert: dv_y/dt = dS_y/dt / (γH)
+            // Also limit transverse velocity to keep total v² < 1
+#if DIM == 1
+            if (m_param->mhd.use_mhd) {
+                const real gamma_H = p[i].gamma_lor * p[i].enthalpy;
+                const real inv_gamma_H = 1.0 / std::max(gamma_H, 1.0);
+                p[i].vy_mhd += p[i].acc_y_mhd * inv_gamma_H * dt;
+                p[i].vz_mhd += p[i].acc_z_mhd * inv_gamma_H * dt;
+
+                // Limit transverse velocity to keep total velocity subluminal
+                // v² = vx² + vy² + vz² < 1
+                const real vx2 = p[i].vel[0] * p[i].vel[0];
+                const real vt2 = p[i].vy_mhd * p[i].vy_mhd + p[i].vz_mhd * p[i].vz_mhd;
+                const real v2_max = 0.9999 * 0.9999 - vx2;  // Max allowed vt²
+                if (vt2 > v2_max && vt2 > 1e-30) {
+                    const real scale = std::sqrt(std::max(v2_max, 0.0) / vt2);
+                    p[i].vy_mhd *= scale;
+                    p[i].vz_mhd *= scale;
+                }
+            }
+#endif
+
+            // CRITICAL: Floor canonical energy BEFORE primitive recovery
+            if (p[i].e < 1.0) p[i].e = 1.0 + 1e-10;
+
+            // Limit full-step S/e ratio to prevent superluminal velocities
+            {
+                const real S_mag = std::sqrt(inner_product(p[i].S, p[i].S));
+                const real S_ratio = S_mag / std::max(p[i].e, 1.0e-10);
+                if (S_ratio > 0.9999) {
+                    const real scale = 0.9999 / S_ratio;
+                    p[i].S = p[i].S * scale;
+                }
+            }
+
+            // STEP 4: Recover primitives at half-step for position update
+            auto prim_half = srmhd::PrimitiveRecovery::conserved_to_primitive_with_tangent(
+                S_half, S_t_half, e_half, p[i].N, gamma, c_speed
+            );
+
+            // STEP 5: Position update using half-step velocity
+            p[i].pos += prim_half.vel * dt;
+            periodic->apply(p[i].pos);
+
+            // STEP 6: Recover primitives at full step
+            auto prim_full = srmhd::PrimitiveRecovery::conserved_to_primitive_with_tangent(
+                p[i].S, p[i].S_t, p[i].e, p[i].N, gamma, c_speed
+            );
+
+            // STEP 7: Store primitives
+            p[i].vel = prim_full.vel;
+            p[i].vel_t = prim_full.vel_t;
+            p[i].vel_p = prim_half.vel;
+            p[i].dens = prim_full.density;
+            p[i].pres = prim_full.pressure;
+            p[i].gamma_lor = prim_full.gamma_lor;
+            p[i].enthalpy = prim_full.enthalpy;
+            p[i].sound = prim_full.sound_speed;
+            p[i].ene = prim_full.pressure / ((gamma - 1.0) * prim_full.density);
+
+            // STEP 8: Velocity clamp (matching SR-GSPH)
+            {
+                real v2 = inner_product(p[i].vel, p[i].vel);
+#if DIM == 1
+                v2 += p[i].vel_t * p[i].vel_t;
+#endif
+                if (v2 > 0.9999) {
+                    const real scale = std::sqrt(0.99 / v2);
+                    p[i].vel = p[i].vel * scale;
+#if DIM == 1
+                    p[i].vel_t *= scale;
+#endif
+                }
+            }
         }
     } else {
         // === STANDARD SPH TIME INTEGRATION ===
@@ -3355,7 +3621,11 @@ void Solver::correct()
     assert(p.size() == num);
 
     // SR/GR-GSPH uses different correction (conserved variables)
-    if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
+    // SRMHD hydro-only: Use SR-GSPH integration (proven to work)
+    const bool use_srgsph_correction = (m_param->type == SPHType::SRGSPH ||
+                                        m_param->type == SPHType::GRGSPH ||
+                                        (m_param->type == SPHType::SRMHD && !m_param->mhd.use_mhd));
+    if(use_srgsph_correction) {
         const real c_speed = m_param->srgsph.c_speed;
         
 #pragma omp parallel for
@@ -3386,9 +3656,11 @@ void Solver::correct()
                 p[i].S_t = p[i].S_t + (p[i].dS_t - p[i].dS_t_old) * (0.5 * dt);  // Tangent momentum
             }
 
-            // Safety: Floor energy to prevent NaN
-            if(p[i].e < 1.0e-6) {
-                p[i].e = 1.0e-6;
+            // CRITICAL: Floor energy to prevent runaway instability
+            // For relativistic canonical energy, e = γH - P/(Nc²) ≥ 1 for physical states
+            // If e < 1, primitive recovery gives H → 1, P → 0, and v = S/(γH) can explode!
+            if(p[i].e < 1.0) {
+                p[i].e = 1.0 + 1e-10;
             }
 
             // Safety: Limit S/e ratio to prevent superluminal velocities
@@ -3462,6 +3734,32 @@ void Solver::correct()
             if(p[i].ene < 1e-30) p[i].ene = 1e-30;
             p[i].sound = std::sqrt(c_sound * p[i].ene);
         }
+    } else if(m_param->type == SPHType::SRMHD) {
+        // === SRMHD CORRECTION: Conserved variables (S, e, S_t) ===
+        // CRITICAL: Must correct CONSERVED variables, not primitives!
+        // The new derivatives (dS, de, dS_t) are computed from the predicted state.
+        // Correction: apply 0.5*(dS_new - dS_old)*dt to the predicted S, e, S_t
+        // Primitives (vel, ene) will be recovered in next pre_interaction call.
+
+#pragma omp parallel for
+        for(int i = 0; i < num; ++i) {
+            if(p[i].is_ghost) continue;
+
+            // Corrector for CONSERVED variables:
+            // X^{n+1} = X^{predicted} + 0.5 * (dX^{new} - dX^{old}) * dt
+            p[i].S = p[i].S + (p[i].dS - p[i].dS_old) * (0.5 * dt);
+            p[i].e = p[i].e + (p[i].de - p[i].de_old) * (0.5 * dt);
+            p[i].S_t = p[i].S_t + (p[i].dS_t - p[i].dS_t_old) * (0.5 * dt);
+
+            // B field correction (for MHD)
+            p[i].B += (p[i].dB - p[i].dB_old) * (0.5 * dt);
+
+            // Safety: floor canonical energy
+            // e = γH - P/(Nc²) ≈ 1 for non-relativistic cold gas
+            if (p[i].e < 1.0) p[i].e = 1.0 + 1e-10;
+        }
+        // NOTE: Primitive variables (vel, pres, dens) will be recovered
+        // from (S, e, S_t, N) in the next pre_interaction call.
     } else {
         // Standard SPH correction
 #pragma omp parallel for
@@ -3481,186 +3779,15 @@ void Solver::correct()
 
 void Solver::update_ghost_particles()
 {
-    auto & p = m_sim->get_particles();
-    const int num = m_sim->get_particle_num();
-    const real gamma = m_param->physics.gamma;
-    
-    // Get domain boundaries from parameters (set via rangeMin/rangeMax in config)
-    const real x_left = m_param->periodic.range_min[0];
-    const real x_right = m_param->periodic.range_max[0];
-    
-    // For INFLOW boundary, ghost particles move with flow but maintain inflow state
-    // This simulates continuous inflow of material
-    // NOTE: This function is called multiple times per timestep.
-    // We use a flag to ensure ghosts are moved only ONCE per timestep.
-    // The flag is reset at the start of each timestep in integrate().
-    static bool ghost_moved_this_step = false;
-    static real last_step_time = -999.0;
-    const real current_time = m_sim->get_time();
-    
-    // Detect new timestep (time has advanced)
-    if(std::abs(current_time - last_step_time) > 1e-15) {
-        ghost_moved_this_step = false;
-        last_step_time = current_time;
-    }
-    
-    if(m_param->periodic.boundary_type == BoundaryType::INFLOW) {
-        // Only move ghosts once per timestep
-        if(!ghost_moved_this_step) {
-            ghost_moved_this_step = true;
-            const real dt = m_sim->get_dt();
-            
-            // Move ghost particles with their velocity
-            for(int i = 0; i < num; ++i) {
-                if(!p[i].is_ghost) continue;
-                
-                // For SR, use coordinate velocity v directly
-                p[i].pos[0] += p[i].vel[0] * dt;
-            }
-        }
-        return;
-    }
-    
-    const bool is_outflow = (m_param->periodic.boundary_type == BoundaryType::OUTFLOW);
-    
-    // For each ghost particle, find the nearest real particle and copy/mirror its properties
-    for(int i = 0; i < num; ++i) {
-        if(!p[i].is_ghost) continue;
-        
-        // Determine if this is a left or right ghost
-        real ghost_x = p[i].pos[0];
-        
-        if(ghost_x < x_left) {
-            // Left ghost: mirror from particles near x_left
-            // Distance from boundary
-            real dist_from_boundary = x_left - ghost_x;
-            real mirror_x = x_left + dist_from_boundary;
-            
-            // Find nearest real particle to mirror_x
-            int nearest_idx = -1;
-            real min_dist = 1e10;
-            for(int j = 0; j < num; ++j) {
-                if(p[j].is_ghost) continue;
-                real dx = std::abs(p[j].pos[0] - mirror_x);
-                if(dx < min_dist) {
-                    min_dist = dx;
-                    nearest_idx = j;
-                }
-            }
-            
-            if(nearest_idx >= 0) {
-                // Update ghost position to exactly mirror the real particle
-                p[i].pos[0] = 2.0 * x_left - p[nearest_idx].pos[0];
-                
-                // Copy thermodynamic properties (same for both boundary types)
-                p[i].dens = p[nearest_idx].dens;
-                p[i].pres = p[nearest_idx].pres;
-                p[i].ene = p[nearest_idx].ene;
-                p[i].sound = p[nearest_idx].sound;
-                p[i].sml = p[nearest_idx].sml;
-                
-                // Velocity depends on boundary type
-                if(is_outflow) {
-                    // Outflow: copy velocity (waves exit without reflection)
-                    p[i].vel = p[nearest_idx].vel;
-                } else {
-                    // Reflecting wall: reverse velocity
-                    p[i].vel = p[nearest_idx].vel * (-1.0);
-                }
-                
-                // For SR/GR-GSPH, also update conserved variables
-                if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
-                    p[i].N = p[nearest_idx].N;
-                    p[i].e = p[nearest_idx].e;
-                    p[i].gamma_lor = p[nearest_idx].gamma_lor;
-                    p[i].enthalpy = p[nearest_idx].enthalpy;
-                    if(is_outflow) {
-                        p[i].S = p[nearest_idx].S;  // Copy momentum
-                    } else {
-                        p[i].S = p[nearest_idx].S * (-1.0);  // Reflect momentum
-                    }
-                }
-
-                // For GSPMHD, also update MHD-specific fields
-                if(m_param->type == SPHType::GSPMHD) {
-                    // B field: copy (physical field, not reflected)
-                    p[i].B = p[nearest_idx].B;
-                    // Transverse MHD velocities: follow same rule as main velocity
-                    if(is_outflow) {
-                        p[i].vy_mhd = p[nearest_idx].vy_mhd;
-                        p[i].vz_mhd = p[nearest_idx].vz_mhd;
-                    } else {
-                        p[i].vy_mhd = -p[nearest_idx].vy_mhd;
-                        p[i].vz_mhd = -p[nearest_idx].vz_mhd;
-                    }
-                }
-            }
-        } else if(ghost_x > x_right) {
-            // Right ghost: mirror from particles near x_right
-            real dist_from_boundary = ghost_x - x_right;
-            real mirror_x = x_right - dist_from_boundary;
-            
-            // Find nearest real particle to mirror_x
-            int nearest_idx = -1;
-            real min_dist = 1e10;
-            for(int j = 0; j < num; ++j) {
-                if(p[j].is_ghost) continue;
-                real dx = std::abs(p[j].pos[0] - mirror_x);
-                if(dx < min_dist) {
-                    min_dist = dx;
-                    nearest_idx = j;
-                }
-            }
-            
-            if(nearest_idx >= 0) {
-                // Update ghost position to exactly mirror the real particle
-                p[i].pos[0] = 2.0 * x_right - p[nearest_idx].pos[0];
-                
-                // Copy thermodynamic properties (same for both boundary types)
-                p[i].dens = p[nearest_idx].dens;
-                p[i].pres = p[nearest_idx].pres;
-                p[i].ene = p[nearest_idx].ene;
-                p[i].sound = p[nearest_idx].sound;
-                p[i].sml = p[nearest_idx].sml;
-                
-                // Velocity depends on boundary type
-                if(is_outflow) {
-                    // Outflow: copy velocity (waves exit without reflection)
-                    p[i].vel = p[nearest_idx].vel;
-                } else {
-                    // Reflecting wall: reverse velocity
-                    p[i].vel = p[nearest_idx].vel * (-1.0);
-                }
-                
-                // For SR/GR-GSPH, also update conserved variables
-                if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH) {
-                    p[i].N = p[nearest_idx].N;
-                    p[i].e = p[nearest_idx].e;
-                    p[i].gamma_lor = p[nearest_idx].gamma_lor;
-                    p[i].enthalpy = p[nearest_idx].enthalpy;
-                    if(is_outflow) {
-                        p[i].S = p[nearest_idx].S;  // Copy momentum
-                    } else {
-                        p[i].S = p[nearest_idx].S * (-1.0);  // Reflect momentum
-                    }
-                }
-
-                // For GSPMHD, also update MHD-specific fields
-                if(m_param->type == SPHType::GSPMHD) {
-                    // B field: copy (physical field, not reflected)
-                    p[i].B = p[nearest_idx].B;
-                    // Transverse MHD velocities: follow same rule as main velocity
-                    if(is_outflow) {
-                        p[i].vy_mhd = p[nearest_idx].vy_mhd;
-                        p[i].vz_mhd = p[nearest_idx].vz_mhd;
-                    } else {
-                        p[i].vy_mhd = -p[nearest_idx].vy_mhd;
-                        p[i].vz_mhd = -p[nearest_idx].vz_mhd;
-                    }
-                }
-            }
-        }
-    }
+    // For INFLOW boundary: ghost particles maintain their initial state
+    // (position, velocity, density, pressure, B field, etc.)
+    // This provides fixed boundary conditions.
+    //
+    // Ghost particles do NOT move and do NOT get updated.
+    // They provide SPH kernel support at the boundaries.
+    //
+    // For shock tube tests: The gap that forms between ghosts and real
+    // particles when bulk flow moves them away is physical (rarefaction wave).
 }
 
 void Solver::make_initial_condition()
@@ -3700,9 +3827,13 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::JeansInstability, jeans_instability);
         MAKE_SAMPLE(Sample::BonnorEbertKI2000, bonnor_ebert_ki2000);
         MAKE_SAMPLE(Sample::LaneEmdenKI2000, lane_emden_ki2000);
+        MAKE_SAMPLE(Sample::IsothermalBonnorEbert, isothermal_bonnor_ebert);
         MAKE_SAMPLE(Sample::HVCCIsothermal10K, hvcc_isothermal_10k);
         MAKE_SAMPLE(Sample::MHDShockTube1, mhd_shock_tube_1);
         MAKE_SAMPLE(Sample::MHDShockTube2, mhd_shock_tube_2);
+        MAKE_SAMPLE(Sample::MHDOrszagTang, mhd_orszag_tang);
+        MAKE_SAMPLE(Sample::SRMHDBalsara1, srmhd_balsara_1);
+        MAKE_SAMPLE(Sample::UniformCloud, uniform_cloud);
         case Sample::DoNotUse:
 
             // サンプルを使わない場合はここを実装
