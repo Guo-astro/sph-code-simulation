@@ -23,7 +23,7 @@
     "periodic": false,
     "rangeMin": [-2.0],
     "rangeMax": [2.0],
-    "boundaryType": "outflow",
+    "boundaryType": "inflow",
     
     "avAlpha": 1.0,
     "useBalsaraSwitch": true,

@@ -138,11 +138,12 @@ void Solver::make_mhd_shock_tube_2()
     }
 
     // Add left ghost particles (extend leftward from x_min)
+    // INFLOW boundary: ghosts have SAME state as boundary (including velocity)
     for (int g = 0; g < n_ghost_layers && idx < num_total; ++g) {
         auto& p = particles[idx];
         real ghost_x = x_min - dx * (0.5 + g);
         p.pos = vec_t{ghost_x, 0.0, 0.0};
-        p.vel = vec_t{vx_L, vy_L, vz_L};
+        p.vel = vec_t{vx_L, vy_L, vz_L};  // Same velocity as boundary (INFLOW)
         p.dens = rho_L;
         p.pres = P_L;
         p.mass = mass;
@@ -155,11 +156,12 @@ void Solver::make_mhd_shock_tube_2()
     }
 
     // Add right ghost particles (extend rightward from x_max)
+    // INFLOW boundary: ghosts have SAME state as boundary (including velocity)
     for (int g = 0; g < n_ghost_layers && idx < num_total; ++g) {
         auto& p = particles[idx];
         real ghost_x = x_max + dx * (0.5 + g);
         p.pos = vec_t{ghost_x, 0.0, 0.0};
-        p.vel = vec_t{vx_R, vy_R, vz_R};
+        p.vel = vec_t{vx_R, vy_R, vz_R};  // Same velocity as boundary (INFLOW)
         p.dens = rho_R;
         p.pres = P_R;
         p.mass = mass;

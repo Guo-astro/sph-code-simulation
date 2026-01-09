@@ -62,9 +62,13 @@ enum struct Sample {
     JeansInstability,
     BonnorEbertKI2000,  // K&I 2000 Bonnor-Ebert pressure-truncated sphere
     LaneEmdenKI2000,    // Lane-Emden density + K&I 2000 temperatures (NOT hydrostatic)
+    IsothermalBonnorEbert,  // True isothermal Bonnor-Ebert sphere (self-gravitating equilibrium)
     HVCCIsothermal10K,  // 10K isothermal HVCC for IMBH-cloud interaction (Oka 2017)
     MHDShockTube1,      // MHD Shock Tube 1: Dai-Woodward (Iwasaki & Inutsuka 2011)
     MHDShockTube2,      // MHD Shock Tube 2: Strong shock (Iwasaki & Inutsuka 2011)
+    MHDOrszagTang,      // MHD Orszag-Tang vortex: 2D turbulent MHD benchmark
+    SRMHDBalsara1,      // SRMHD Balsara Test 1: Relativistic MHD shock
+    UniformCloud,       // Uniform density cloud for IMBH-cloud tidal interaction
     DoNotUse,
 };
 
@@ -159,9 +163,13 @@ class Solver {
     void make_jeans_instability();
     void make_bonnor_ebert_ki2000();  // K&I 2000 pressure-truncated sphere
     void make_lane_emden_ki2000();    // Lane-Emden + K&I temperatures
+    void make_isothermal_bonnor_ebert();  // True isothermal BE sphere (self-gravitating)
     void make_hvcc_isothermal_10k();  // 10K isothermal HVCC (Oka 2017)
     void make_mhd_shock_tube_1();     // MHD Shock Tube 1: Dai-Woodward
     void make_mhd_shock_tube_2();     // MHD Shock Tube 2: Strong shock
+    void make_mhd_orszag_tang();      // MHD Orszag-Tang vortex: 2D turbulent MHD
+    void make_srmhd_balsara_1();      // SRMHD Balsara Test 1: Relativistic MHD shock
+    void make_uniform_cloud();        // Uniform density cloud for IMBH-cloud
 
 public:
     Solver(int argc, char * argv[]);

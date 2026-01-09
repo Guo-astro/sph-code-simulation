@@ -169,12 +169,15 @@ void CSVWriter::write_column_names() {
 #endif
     m_file << "mass,dens,pres,ene,sml,sound,";
 #if DIM == 1
-    m_file << "alpha,balsara,gradh,phi,grav_acc_x,neighbor,is_ghost\n";
+    m_file << "alpha,balsara,gradh,phi,grav_acc_x,";
 #elif DIM == 2
-    m_file << "alpha,balsara,gradh,phi,grav_acc_x,grav_acc_y,neighbor,is_ghost\n";
+    m_file << "alpha,balsara,gradh,phi,grav_acc_x,grav_acc_y,";
 #else
-    m_file << "alpha,balsara,gradh,phi,grav_acc_x,grav_acc_y,grav_acc_z,neighbor,is_ghost\n";
+    m_file << "alpha,balsara,gradh,phi,grav_acc_x,grav_acc_y,grav_acc_z,";
 #endif
+    // MHD fields (always 3D for B, regardless of DIM)
+    m_file << "B_x,B_y,B_z,vy_mhd,vz_mhd,";
+    m_file << "neighbor,is_ghost\n";
 }
 
 bool CSVWriter::write_particles(const std::vector<SPHParticle*>& particles) {
@@ -235,6 +238,10 @@ bool CSVWriter::write_particles(const std::vector<SPHParticle*>& particles) {
         m_file << p->grav_acc[0] << "," << p->grav_acc[1] << "," << p->grav_acc[2] << ",";
 #endif
         
+        // MHD fields (B is always vec3_t, regardless of DIM)
+        m_file << p->B[0] << "," << p->B[1] << "," << p->B[2] << ",";
+        m_file << p->vy_mhd << "," << p->vz_mhd << ",";
+
         m_file << p->neighbor << ",";
         m_file << (p->is_ghost ? 1 : 0) << "\n";
     }

@@ -74,6 +74,19 @@ public:
     bool is_initialized() const { return m_initialized; }
 
     /**
+     * @brief Save computed profile to file for sharing with relaxation
+     * @param filename Path to output file
+     */
+    void save_profile_to_file(const std::string& filename) const;
+
+    /**
+     * @brief Load profile from file (computed by IC generator)
+     * @param filename Path to profile file
+     * @return true if loaded successfully
+     */
+    bool load_profile_from_file(const std::string& filename);
+
+    /**
      * @brief Get equilibrium density at radius r
      */
     real get_rho_eq(real r) const;
@@ -87,6 +100,16 @@ public:
      * @brief Get equilibrium temperature at radius r
      */
     real get_T_eq(real r) const;
+
+    /**
+     * @brief Get enclosed mass at radius r
+     */
+    real get_M_enclosed(real r) const;
+
+    /**
+     * @brief Get profile radius array for iteration
+     */
+    const std::vector<real>& get_r_table() const { return m_r_table; }
 
     /**
      * @brief Get cloud radius from profile truncation
@@ -128,6 +151,13 @@ private:
      * Integrates the hydrostatic ODE from center until P = P_ext
      */
     void compute_equilibrium_profile();
+
+    /**
+     * @brief Scale the profile to match target R_cloud and M_cloud
+     * Preserves the dimensionless profile shape while adjusting
+     * radius and density to match user-specified targets.
+     */
+    void scale_profile_to_targets();
 
     /**
      * @brief Get effective sound speed squared c_eff² = dP/dρ

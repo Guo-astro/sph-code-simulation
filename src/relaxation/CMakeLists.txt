@@ -5,4 +5,5 @@ target_sources(sph
         polytropic_slab_relaxation.cpp
         polytropic_slab_2d_relaxation.cpp
         koyama_inutsuka_relaxation.cpp
+        isothermal_relaxation.cpp
     )

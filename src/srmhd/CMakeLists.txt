@@ -1,0 +1,7 @@
+target_sources(sph PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/srmhd_fluid_force.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/srmhd_pre_interaction.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/srmhd_primitive_recovery.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/srmhd_riemann.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/srmhd_timestep.cpp
+)

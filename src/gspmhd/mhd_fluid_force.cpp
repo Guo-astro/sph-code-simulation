@@ -131,8 +131,19 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
         const real omega_i = p_i.gradh;
 
         const real vx_i = p_i.vel[0];
+#if DIM == 1
+        // 1D: transverse velocities stored separately for 3D MHD physics
         const real vy_i = p_i.vy_mhd;
         const real vz_i = p_i.vz_mhd;
+#elif DIM == 2
+        // 2D: y-velocity from vel[1], z from vy_mhd (out-of-plane)
+        const real vy_i = p_i.vel[1];
+        const real vz_i = p_i.vy_mhd;
+#else
+        // 3D: all components from vel vector
+        const real vy_i = p_i.vel[1];
+        const real vz_i = p_i.vel[2];
+#endif
         const vec3_t& B_i = p_i.B;
 
         const real rho_i_inv = 1.0 / std::max(rho_i, 1e-30);
@@ -157,8 +168,16 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
 
             const real r_inv = 1.0 / r;
             const real vx_j = p_j.vel[0];
+#if DIM == 1
             const real vy_j = p_j.vy_mhd;
             const real vz_j = p_j.vz_mhd;
+#elif DIM == 2
+            const real vy_j = p_j.vel[1];
+            const real vz_j = p_j.vy_mhd;
+#else
+            const real vy_j = p_j.vel[1];
+            const real vz_j = p_j.vel[2];
+#endif
             const vec3_t& B_j = p_j.B;
             const real rho_j = p_j.dens;
             const real P_j = p_j.pres;
@@ -211,13 +230,14 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
             const real Pt_i = P_i + 0.5 * B_t_sq_i;
             const real Pt_j = P_j + 0.5 * B_t_sq_j;
 
-            // Riemann solver using fast magnetosonic speed
+            // Riemann solver for interface state (works for both real and ghost neighbors)
+            // For INFLOW boundary: ghosts have the inflow state, Riemann solver gives correct interface
             real Pt_star, v_n_star;
             mhd_riemann_solver(rho_j, Pt_j, v_n_j, c_fast_j,
                                rho_i, Pt_i, v_n_i, c_fast_i,
                                Pt_star, v_n_star);
 
-            // MOC for transverse
+            // MOC for transverse quantities
             real vt_y_star, vt_z_star, Bt_y_star, Bt_z_star;
             moc_alfven_3d(vt_y_j, vt_z_j, Bt_y_j, Bt_z_j, rho_j,
                           vt_y_i, vt_z_i, Bt_y_i, Bt_z_i, rho_i,
@@ -270,16 +290,36 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
             acc_z += B_n_avg * Bt_z_diff * dw_sum;
 #endif
 
-            // Induction equation (1D)
-#if DIM == 1
-            const real dvy = vt_y_star - vt_y_i;
-            const real dvz = vt_z_star - vt_z_i;
+            // Induction equation - Iwasaki & Inutsuka (2011) Eq. (53)
+            // dB/dt = Σ m_b [B_a/(ρ_a Ω_a) * (v* - v_a)·∇W_a + B_b/(ρ_b Ω_b) * (v* - v_b)·∇W_b]
+            // Full vector form for 1D/2D/3D
             const real ind_coeff_i = p_j.mass * rho_i_inv * omega_i;
             const real ind_coeff_j = p_j.mass * rho_j_inv * omega_j;
-            const real f_ind_x = dw_i[0] * ind_coeff_i + dw_j[0] * ind_coeff_j;
-            const real Bn_gradW = B_n_avg * f_ind_x * e_x;
-            dBy += dvy * Bn_gradW;
-            dBz += dvz * Bn_gradW;
+
+#if DIM == 1
+            // In 1D, (v* - v)·∇W = (v_n* - v_n) * ∂W/∂x
+            const real dv_dot_dw_i = (v_n_star - v_n_i) * dw_i[0];
+            const real dv_dot_dw_j = (v_n_star - v_n_j) * dw_j[0];
+            // Transverse B components evolve
+            dBy += (Bt_y_i * dv_dot_dw_i * ind_coeff_i + Bt_y_j * dv_dot_dw_j * ind_coeff_j);
+            dBz += (Bt_z_i * dv_dot_dw_i * ind_coeff_i + Bt_z_j * dv_dot_dw_j * ind_coeff_j);
+#elif DIM == 2
+            // In 2D, (v* - v)·∇W = (v_ij_x - vx)*dw[0] + (v_ij_y - vy)*dw[1]
+            const real dv_dot_dw_i = (v_ij_x - vx_i) * dw_i[0] + (v_ij_y - vy_i) * dw_i[1];
+            const real dv_dot_dw_j = (v_ij_x - vx_j) * dw_j[0] + (v_ij_y - vy_j) * dw_j[1];
+            // All B components evolve in 2D MHD
+            dBx += (B_i[0] * dv_dot_dw_i * ind_coeff_i + B_j[0] * dv_dot_dw_j * ind_coeff_j);
+            dBy += (B_i[1] * dv_dot_dw_i * ind_coeff_i + B_j[1] * dv_dot_dw_j * ind_coeff_j);
+            dBz += (B_i[2] * dv_dot_dw_i * ind_coeff_i + B_j[2] * dv_dot_dw_j * ind_coeff_j);
+#else
+            // In 3D, (v* - v)·∇W = full dot product
+            const real dv_dot_dw_i = (v_ij_x - vx_i) * dw_i[0] + (v_ij_y - vy_i) * dw_i[1]
+                                   + (v_ij_z - vz_i) * dw_i[2];
+            const real dv_dot_dw_j = (v_ij_x - vx_j) * dw_j[0] + (v_ij_y - vy_j) * dw_j[1]
+                                   + (v_ij_z - vz_j) * dw_j[2];
+            dBx += (B_i[0] * dv_dot_dw_i * ind_coeff_i + B_j[0] * dv_dot_dw_j * ind_coeff_j);
+            dBy += (B_i[1] * dv_dot_dw_i * ind_coeff_i + B_j[1] * dv_dot_dw_j * ind_coeff_j);
+            dBz += (B_i[2] * dv_dot_dw_i * ind_coeff_i + B_j[2] * dv_dot_dw_j * ind_coeff_j);
 #endif
         }
 

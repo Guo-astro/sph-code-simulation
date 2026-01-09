@@ -15,6 +15,7 @@ enum struct SPHType {
     SRGSPH,   // Special Relativistic GSPH
     GRGSPH,   // General Relativistic GSPH (GR-GSPH)
     GSPMHD,   // Godunov SPMHD (Iwasaki & Inutsuka 2011)
+    SRMHD,    // Special Relativistic MHD (SR-GSPH + GSPMHD)
 };
 
 enum struct KernelType {
@@ -34,8 +35,7 @@ enum struct RiemannSolverType {
 
 enum struct BoundaryType {
     REFLECTING,  // Wall boundary: velocity is reflected (v -> -v)
-    OUTFLOW,     // Open/outflow boundary: velocity is copied (waves exit without reflection)
-    INFLOW,      // Inflow boundary: ghosts keep their initial state (simulates infinite domain)
+    INFLOW,      // Inflow boundary: ghosts keep their initial state (fixed boundary conditions)
 };
 
 enum struct GravitySofteningType {
@@ -92,7 +92,7 @@ struct SPHParameters {
         bool is_valid;
         real range_max[DIM];
         real range_min[DIM];
-        BoundaryType boundary_type;  // Type of ghost boundary: REFLECTING or OUTFLOW
+        BoundaryType boundary_type;  // Type of ghost boundary: REFLECTING or INFLOW
     } periodic;
 
     struct Gravity {
@@ -112,11 +112,15 @@ struct SPHParameters {
         bool is_2nd_order;
         RiemannSolverType riemann_solver;  // Riemann solver type: HLL (default) or ITERATIVE
         bool use_gradh;  // Enable grad-h correction (default: true). Disabling causes core collapse in hydrostatic tests.
+        bool use_volume_based;  // Use volume-based approach (Kitajima et al.) instead of mass-based density
+        real eta;         // Smoothing length parameter for volume-based h (default: 1.0)
+        real c_smooth;    // Smoothing length expansion factor for h-adaptation (default: 2.0)
     } gsph;
 
     struct MHD {
         bool is_2nd_order;                 // Enable MUSCL reconstruction for 2nd order accuracy
         bool use_powell_correction;        // Powell 8-wave div-B correction (default: true)
+        bool use_mhd;                      // Enable MHD (false = pure hydro with SR-GSPH solver)
         real c_h;                          // Smoothing length factor for h calculation (default: 1.2)
     } mhd;
 

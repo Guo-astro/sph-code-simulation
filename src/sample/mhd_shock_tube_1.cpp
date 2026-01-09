@@ -157,12 +157,13 @@ void Solver::make_mhd_shock_tube_1()
     }
 
     // Add left ghost particles (extend leftward from x_min)
+    // INFLOW boundary: ghosts have SAME state as boundary (including velocity)
     for (int g = 0; g < n_ghost_layers && idx < num_total; ++g) {
         auto& p = particles[idx];
         real ghost_x = x_min - dx_L * (0.5 + g);
 #if DIM == 1
         p.pos = vec_t(ghost_x);
-        p.vel = vec_t(vx_L);
+        p.vel = vec_t(vx_L);  // Same velocity as boundary (INFLOW)
 #elif DIM == 2
         p.pos = vec_t(ghost_x, 0.0);
         p.vel = vec_t(vx_L, vy_L);
@@ -177,19 +178,20 @@ void Solver::make_mhd_shock_tube_1()
         p.mass = mass_L;
         p.ene = P_L / ((gamma - 1.0) * rho_L);
         p.B = vec3_t(Bx_L, By_L, Bz_L);
-        p.sml = dx_L;  // Set initial smoothing length
+        p.sml = 2.0 * dx_L;  // Match real particle smoothing length
         p.is_ghost = true;  // Mark as ghost particle
         p.id = idx;
         ++idx;
     }
 
     // Add right ghost particles (extend rightward from x_max)
+    // INFLOW boundary: ghosts have SAME state as boundary (including velocity)
     for (int g = 0; g < n_ghost_layers && idx < num_total; ++g) {
         auto& p = particles[idx];
         real ghost_x = x_max + dx_R * (0.5 + g);
 #if DIM == 1
         p.pos = vec_t(ghost_x);
-        p.vel = vec_t(vx_R);
+        p.vel = vec_t(vx_R);  // Same velocity as boundary (INFLOW)
 #elif DIM == 2
         p.pos = vec_t(ghost_x, 0.0);
         p.vel = vec_t(vx_R, vy_R);
@@ -204,7 +206,7 @@ void Solver::make_mhd_shock_tube_1()
         p.mass = mass_R;
         p.ene = P_R / ((gamma - 1.0) * rho_R);
         p.B = vec3_t(Bx_R, By_R, Bz_R);
-        p.sml = dx_R;  // Set initial smoothing length
+        p.sml = 2.0 * dx_R;  // Match real particle smoothing length
         p.is_ghost = true;  // Mark as ghost particle
         p.id = idx;
         ++idx;

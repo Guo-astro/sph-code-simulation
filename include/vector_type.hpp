@@ -4,6 +4,91 @@
 
 #include "defines.hpp"
 
+/**
+ * @brief 3D vector type, always 3D regardless of DIM setting.
+ * Used for MHD fields (B, v) which need full 3D even in 1D simulations.
+ */
+class vec3_t {
+    real vec[3];
+public:
+    vec3_t(const real x = 0, const real y = 0, const real z = 0) {
+        vec[0] = x;
+        vec[1] = y;
+        vec[2] = z;
+    }
+
+    vec3_t(const vec3_t & a) {
+        vec[0] = a[0]; vec[1] = a[1]; vec[2] = a[2];
+    }
+
+    real & operator[](const int i) { return vec[i]; }
+    const real & operator[](const int i) const { return vec[i]; }
+
+    vec3_t & operator=(const vec3_t &a) {
+        vec[0] = a[0]; vec[1] = a[1]; vec[2] = a[2];
+        return *this;
+    }
+
+    vec3_t & operator=(const real a) {
+        vec[0] = a; vec[1] = a; vec[2] = a;
+        return *this;
+    }
+
+    const vec3_t & operator+() const { return *this; }
+    const vec3_t operator-() const { return vec3_t(-vec[0], -vec[1], -vec[2]); }
+
+    vec3_t & operator+=(const vec3_t &a) {
+        vec[0] += a[0]; vec[1] += a[1]; vec[2] += a[2];
+        return *this;
+    }
+
+    vec3_t & operator-=(const vec3_t &a) {
+        vec[0] -= a[0]; vec[1] -= a[1]; vec[2] -= a[2];
+        return *this;
+    }
+
+    vec3_t & operator*=(const real a) {
+        vec[0] *= a; vec[1] *= a; vec[2] *= a;
+        return *this;
+    }
+
+    vec3_t operator+(const vec3_t &a) const {
+        return vec3_t(vec[0] + a[0], vec[1] + a[1], vec[2] + a[2]);
+    }
+
+    vec3_t operator-(const vec3_t &a) const {
+        return vec3_t(vec[0] - a[0], vec[1] - a[1], vec[2] - a[2]);
+    }
+
+    vec3_t operator*(const real a) const {
+        return vec3_t(vec[0] * a, vec[1] * a, vec[2] * a);
+    }
+
+    vec3_t operator/(const real a) const {
+        return vec3_t(vec[0] / a, vec[1] / a, vec[2] / a);
+    }
+
+    const real *get_array() const { return vec; }
+};
+
+inline real inner_product(const vec3_t &a, const vec3_t &b) {
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+inline real abs2(const vec3_t &a) {
+    return inner_product(a, a);
+}
+
+namespace std {
+inline real abs(const vec3_t &a) {
+    return std::sqrt(inner_product(a, a));
+}
+}
+
+inline vec3_t vector_product(const vec3_t &a, const vec3_t &b) {
+    return vec3_t(a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]);
+}
+
 class vec_t {
     real vec[DIM];
 public:

@@ -1,0 +1,69 @@
+{
+    "_comment": "Active configuration - start with relaxation phase",
+    "_see": "presets/be_sphere_relaxation.json for Phase 1",
+    "_then": "presets/be_sphere_imbh_interaction.json for Phase 2",
+    "_or_use": "make relax && make interact",
+
+    "simulation": {
+        "name": "IMBH-Cloud: Super-Critical BE Sphere with Relaxation",
+        "description": "40 Msun modified isothermal sphere at T=15K with external pressure confinement",
+        "dimension": 3
+    },
+
+    "sample": {
+        "type": "hvcc_isothermal",
+        "N": 30,
+        "M_cloud": 40.0,
+        "T_cloud": 15.0,
+        "n_center": 200.0,
+        "P_ext": 3000.0,
+        "M_BH": 0.0,
+        "b_impact": 0.0,
+        "v_rel": 0.0,
+        "useEnvelope": true,
+        "envelopeLayers": 6
+    },
+
+    "physics": {
+        "gamma": 1.0001,
+        "neighbor_number": 50
+    },
+
+    "gravity": {
+        "constant": 0.00430091,
+        "use_self_gravity": true
+    },
+
+    "sph": {
+        "algorithm": "gsph",
+        "kernel": "wendland_c6",
+        "use_grad_h": true
+    },
+
+    "time": {
+        "end_time": 1.0,
+        "output_interval": 0.05,
+        "cfl": 0.3
+    },
+
+    "useRelaxation": true,
+    "relaxationSteps": 5000,
+    "relaxationOutputFreq": 500,
+    "relaxationOnly": true,
+    "relaxationTimestepFactor": 0.1,
+    "useGlassRelaxation": true,
+    "glassRelaxationSteps": 2000,
+    "glassTargetNeighbors": 50,
+
+    "output": {
+        "directory": "results/be_sphere_relaxation",
+        "format": "hdf5"
+    },
+
+    "units": {
+        "mass": "Msun",
+        "length": "pc",
+        "velocity": "km/s",
+        "time": "Myr"
+    }
+}

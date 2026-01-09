@@ -32,7 +32,7 @@
   "N": 3600,
   "testType": "sod",
   "periodic": false,
-  "boundaryType": "outflow",
+  "boundaryType": "inflow",
   "rangeMax": [0.5],
   "rangeMin": [-0.5],
   "avAlpha": 0.0,

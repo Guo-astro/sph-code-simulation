@@ -3,6 +3,7 @@ target_sources(sph
         bns_cocoon_1d.cpp
         bns_cocoon_2d.cpp
         bonnor_ebert_ki2000.cpp
+        isothermal_bonnor_ebert.cpp
         hvcc_isothermal.cpp
         evrard.cpp
         lane_emden_ki2000.cpp
@@ -34,4 +35,7 @@ target_sources(sph
         vacuum.cpp
         mhd_shock_tube_1.cpp
         mhd_shock_tube_2.cpp
+        mhd_orszag_tang.cpp
+        srmhd_balsara_1.cpp
+        uniform_cloud.cpp
     )

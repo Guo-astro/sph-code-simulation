@@ -21,7 +21,7 @@
     "rangeMax": [1.0, 0.01, 0.01],
     "periodic": false,
     "useGhostParticles": true,
-    "ghostLayers": 6,
+    "ghostLayers": 200,
     "output": {
         "enableCSV": true,
         "enableHDF5": false,

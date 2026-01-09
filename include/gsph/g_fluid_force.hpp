@@ -19,6 +19,9 @@ class FluidForce : public sph::FluidForce {
     bool m_is_2nd_order;
     real m_gamma;
 
+    // Volume-based approach (Kitajima et al.)
+    bool m_use_volume_based;  // Use V² instead of 1/ρ² in force formula
+
     // Thermal cooling (optional) - Inoue & Inutsuka (2008)
     // Analytic fit to Koyama & Inutsuka (2000) cooling
     bool m_enable_cooling;

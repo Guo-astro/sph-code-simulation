@@ -23,12 +23,15 @@
 #include "simulation.hpp"
 #include "parameters.hpp"
 #include "thermal/koyama_inutsuka_cooling.hpp"
+#include "relaxation/koyama_inutsuka_relaxation.hpp"
+#include "sample/ghost_envelope.hpp"
 #include "exception.hpp"
 #include <vector>
 #include <cmath>
 #include <random>
 #include <iostream>
 #include <algorithm>
+#include <fstream>
 
 namespace sph
 {
@@ -79,6 +82,12 @@ void Solver::make_bonnor_ebert_ki2000()
                                 m_sample_parameters["N_H_cm2"] : boost::any(1.0e19));  // 10^19 cm^-2
     const real P_ext_K_cm3 = boost::any_cast<real>(m_sample_parameters.count("P_ext_K_cm3") ?
                                 m_sample_parameters["P_ext_K_cm3"] : boost::any(3000.0));  // 3000 K cm^-3
+
+    // Ghost envelope parameters (for pressure confinement during relaxation)
+    const bool use_envelope = m_sample_parameters.count("useEnvelope") ?
+                              boost::any_cast<bool>(m_sample_parameters["useEnvelope"]) : false;
+    const int envelope_layers = m_sample_parameters.count("envelopeLayers") ?
+                                boost::any_cast<int>(m_sample_parameters["envelopeLayers"]) : 4;
 
     const real gamma = m_param->physics.gamma;
     const real G_code = m_param->gravity.constant;
@@ -133,157 +142,48 @@ void Solver::make_bonnor_ebert_ki2000()
     std::cout << "  P(center)/k_B = " << P_center_K_cm3 << " K cm^-3" << std::endl;
 
     // ========================================================================
-    // BUILD EQUILIBRIUM PROFILE BY INTEGRATING HYDROSTATIC ODE
+    // BUILD EQUILIBRIUM PROFILE USING RELAXATION MODULE (SSOT)
     // ========================================================================
-    //
-    // Hydrostatic equilibrium: dP/dr = -ρ G M(r) / r²
-    // With barotropic EOS: P(ρ) = n k_B T_eq(n)
-    //
-    // Rewrite as: dρ/dr = -(dP/dρ)⁻¹ × ρ G M(r) / r²
-    //           = -ρ G M(r) / (r² c_eff²)
-    // where c_eff² = dP/dρ = (k_B T / m_n) × (1 + d ln T / d ln n)
+    // Use KoyamaInutsukaRelaxation to compute the profile - this ensures
+    // IC and relaxation use EXACTLY the same profile (Single Source of Truth)
 
-    std::cout << "\nIntegrating Bonnor-Ebert profile..." << std::endl;
+    std::cout << "\nComputing Bonnor-Ebert profile using SSOT relaxation module..." << std::endl;
 
-    // Profile arrays
-    std::vector<real> r_profile, rho_profile, M_profile, T_profile;
-    r_profile.reserve(2000);
-    rho_profile.reserve(2000);
-    M_profile.reserve(2000);
-    T_profile.reserve(2000);
+    // Initialize relaxation module to compute profile
+    KIRelaxationParams ki_params;
+    ki_params.R_cloud = R_cloud_pc;
+    ki_params.M_cloud = M_cloud_Msun;
+    ki_params.P_ext = P_ext_K_cm3;  // K cm^-3
+    ki_params.rho_center = rho_center_code;
+    ki_params.N_H = N_H_cm2;
+    ki_params.G = G_code;
+    ki_params.gamma = gamma;
+    ki_params.density_to_n = density_to_n;
 
-    // Helper function: get effective sound speed squared
-    auto get_c_eff_squared = [&](real rho_code) -> real {
-        real n_H = rho_code * density_to_n;
-        n_H = std::max(n_H, 0.1);
-        n_H = std::min(n_H, 1.0e4);
+    KoyamaInutsukaRelaxation ki_profile;
+    ki_profile.initialize(ki_params);
 
-        real T_eq = ki_cooling.equilibrium_temperature(n_H, N_H_cm2);
+    // Get actual truncation radius and mass from profile
+    const real R_actual = ki_profile.get_R_cloud();
+    const real M_actual = ki_profile.get_M_cloud();
 
-        // Numerical derivative d ln T / d ln n
-        const real eps = 0.02;
-        real n_lo = n_H * (1.0 - eps);
-        real n_hi = n_H * (1.0 + eps);
-        n_lo = std::max(n_lo, 0.1);
-        n_hi = std::min(n_hi, 1.0e4);
+    // Get radius table for building cumulative mass profile
+    const auto& r_table = ki_profile.get_r_table();
+    const int n_profile = r_table.size();
 
-        real T_lo = ki_cooling.equilibrium_temperature(n_lo, N_H_cm2);
-        real T_hi = ki_cooling.equilibrium_temperature(n_hi, N_H_cm2);
-
-        real dlnT_dlnn = 0.0;
-        if (T_lo > 0.0 && T_hi > 0.0) {
-            dlnT_dlnn = (std::log(T_hi) - std::log(T_lo)) / (std::log(n_hi) - std::log(n_lo));
-        }
-
-        // c_eff² in CGS [cm²/s²]
-        real c_eff_sq_cgs = (k_B_cgs * T_eq / m_n_cgs) * (1.0 + dlnT_dlnn);
-
-        // Convert to code units: [cm/s]² → [km/s]²
-        real c_eff_sq_code = c_eff_sq_cgs / (kms_cgs * kms_cgs);
-
-        return std::max(c_eff_sq_code, 1.0e-6);
-    };
-
-    // Initial conditions at center
-    const real dr = 0.002 * R_cloud_pc;
-    real r = 1.0e-6 * R_cloud_pc;  // Start at small r
-    real rho = rho_center_code;
-    real M_enc = (4.0 / 3.0) * M_PI * rho * r * r * r;
-
-    // External pressure for truncation
-    real P_ext_cgs = P_ext_K_cm3 * k_B_cgs;  // dyn/cm²
-
-    real R_actual = R_cloud_pc;
-    real M_actual = M_cloud_Msun;
-    bool truncated = false;
-
-    // RK4 integration
-    const int max_steps = 5000;
-    const real r_max = 5.0 * R_cloud_pc;
-
-    for (int step = 0; step < max_steps && r < r_max; ++step) {
-        // Store current state
-        real n_H = rho * density_to_n;
-        real T_eq = ki_cooling.equilibrium_temperature(std::max(n_H, 0.1), N_H_cm2);
-        real P_cgs = n_H * k_B_cgs * T_eq;
-
-        r_profile.push_back(r);
-        rho_profile.push_back(rho);
-        M_profile.push_back(M_enc);
-        T_profile.push_back(T_eq);
-
-        // Check truncation
-        if (P_cgs <= P_ext_cgs && step > 10) {
-            truncated = true;
-            R_actual = r;
-            M_actual = M_enc;
-            break;
-        }
-
-        // RK4 step for (rho, M)
-        real c_eff_sq = get_c_eff_squared(rho);
-
-        // k1
-        real drho_dr = -rho * G_code * M_enc / (r * r * c_eff_sq);
-        real dM_dr = 4.0 * M_PI * r * r * rho;
-        real k1_rho = dr * drho_dr;
-        real k1_M = dr * dM_dr;
-
-        // k2
-        real r2 = r + 0.5 * dr;
-        real rho2 = std::max(rho + 0.5 * k1_rho, 1.0e-30);
-        real M2 = M_enc + 0.5 * k1_M;
-        real c_eff_sq_2 = get_c_eff_squared(rho2);
-        real k2_rho = dr * (-rho2 * G_code * M2 / (r2 * r2 * c_eff_sq_2));
-        real k2_M = dr * (4.0 * M_PI * r2 * r2 * rho2);
-
-        // k3
-        real rho3 = std::max(rho + 0.5 * k2_rho, 1.0e-30);
-        real M3 = M_enc + 0.5 * k2_M;
-        real c_eff_sq_3 = get_c_eff_squared(rho3);
-        real k3_rho = dr * (-rho3 * G_code * M3 / (r2 * r2 * c_eff_sq_3));
-        real k3_M = dr * (4.0 * M_PI * r2 * r2 * rho3);
-
-        // k4
-        real r4 = r + dr;
-        real rho4 = std::max(rho + k3_rho, 1.0e-30);
-        real M4 = M_enc + k3_M;
-        real c_eff_sq_4 = get_c_eff_squared(rho4);
-        real k4_rho = dr * (-rho4 * G_code * M4 / (r4 * r4 * c_eff_sq_4));
-        real k4_M = dr * (4.0 * M_PI * r4 * r4 * rho4);
-
-        // Update
-        rho += (k1_rho + 2.0 * k2_rho + 2.0 * k3_rho + k4_rho) / 6.0;
-        M_enc += (k1_M + 2.0 * k2_M + 2.0 * k3_M + k4_M) / 6.0;
-        r += dr;
-
-        rho = std::max(rho, 1.0e-30);
-
-        // Stop if density becomes too low
-        if (rho * density_to_n < 0.01) {
-            R_actual = r;
-            M_actual = M_enc;
-            break;
-        }
-    }
-
-    if (!truncated) {
-        std::cout << "Warning: Profile not truncated at P_ext, using final values" << std::endl;
-    }
-
-    std::cout << "Profile integration complete:" << std::endl;
-    std::cout << "  R_actual = " << R_actual << " pc" << std::endl;
-    std::cout << "  M_actual = " << M_actual << " M_☉" << std::endl;
-    std::cout << "  Profile points: " << r_profile.size() << std::endl;
+    std::cout << "Profile from SSOT relaxation module:" << std::endl;
+    std::cout << "  R_actual = " << R_actual << " [code]" << std::endl;
+    std::cout << "  M_actual = " << M_actual << " [code]" << std::endl;
+    std::cout << "  Profile points: " << n_profile << std::endl;
 
     // ========================================================================
     // BUILD CUMULATIVE MASS PROFILE FOR PARTICLE PLACEMENT
     // ========================================================================
 
-    std::vector<real> M_cumulative(r_profile.size());
+    std::vector<real> M_cumulative(n_profile);
     M_cumulative[0] = 0.0;
-    for (size_t i = 1; i < r_profile.size(); ++i) {
-        M_cumulative[i] = M_profile[i];
+    for (int i = 1; i < n_profile; ++i) {
+        M_cumulative[i] = ki_profile.get_M_enclosed(r_table[i]);
     }
 
     // Normalize to actual mass
@@ -332,33 +232,22 @@ void Solver::make_bonnor_ebert_ki2000()
 
     auto interpolate_radius = [&](real mass_frac) -> real {
         // Find r where M(<r)/M_total = mass_frac
-        for (size_t i = 1; i < M_cumulative.size(); ++i) {
+        for (int i = 1; i < n_profile; ++i) {
             if (mass_frac >= M_cumulative[i-1] && mass_frac <= M_cumulative[i]) {
                 real frac = (mass_frac - M_cumulative[i-1]) / (M_cumulative[i] - M_cumulative[i-1]);
-                return r_profile[i-1] + frac * (r_profile[i] - r_profile[i-1]);
+                return r_table[i-1] + frac * (r_table[i] - r_table[i-1]);
             }
         }
-        return r_profile.back();
+        return r_table.back();
     };
 
+    // Use ki_profile interpolation methods for density and temperature
     auto interpolate_density = [&](real r) -> real {
-        for (size_t i = 1; i < r_profile.size(); ++i) {
-            if (r >= r_profile[i-1] && r <= r_profile[i]) {
-                real frac = (r - r_profile[i-1]) / (r_profile[i] - r_profile[i-1]);
-                return rho_profile[i-1] + frac * (rho_profile[i] - rho_profile[i-1]);
-            }
-        }
-        return rho_profile.back();
+        return ki_profile.get_rho_eq(r);
     };
 
     auto interpolate_temperature = [&](real r) -> real {
-        for (size_t i = 1; i < r_profile.size(); ++i) {
-            if (r >= r_profile[i-1] && r <= r_profile[i]) {
-                real frac = (r - r_profile[i-1]) / (r_profile[i] - r_profile[i-1]);
-                return T_profile[i-1] + frac * (T_profile[i] - T_profile[i-1]);
-            }
-        }
-        return T_profile.back();
+        return ki_profile.get_T_eq(r);
     };
 
     for (const auto& pos : positions) {
@@ -417,7 +306,43 @@ void Solver::make_bonnor_ebert_ki2000()
         particles.push_back(p);
     }
 
-    std::cout << "  Created " << particles.size() << " particles" << std::endl;
+    std::cout << "  Created " << particles.size() << " cloud (GAS) particles" << std::endl;
+
+    // ========================================================================
+    // CREATE GHOST ENVELOPE (optional, for pressure confinement)
+    // ========================================================================
+
+    if (use_envelope) {
+        // Get edge density from profile at R_actual
+        real rho_edge_code = ki_profile.get_rho_eq(R_actual);
+
+        // Get edge temperature and compute internal energy
+        real T_edge = ki_profile.get_T_eq(R_actual);
+        real u_edge = T_edge * energy_factor;
+
+        // Configure envelope using SSOT module
+        GhostEnvelopeConfig env_config;
+        env_config.R_cloud = R_actual;
+        env_config.rho_edge = rho_edge_code;
+        env_config.u_envelope = u_edge;
+        env_config.particle_mass = particle_mass;
+        env_config.N_neighbor = m_param->physics.neighbor_number;
+        env_config.num_layers = envelope_layers;
+
+        // Generate ghost envelope particles
+        auto envelope_particles = GhostEnvelopeGenerator::generate(env_config);
+
+        // Assign IDs continuing from cloud particles
+        for (auto& p : envelope_particles) {
+            p.id = particle_id++;
+        }
+
+        // Append envelope to particles
+        particles.insert(particles.end(), envelope_particles.begin(), envelope_particles.end());
+
+        // Print summary
+        GhostEnvelopeGenerator::print_summary(env_config, envelope_particles.size());
+    }
 
     // ========================================================================
     // STORE PARAMETERS FOR RELAXATION MODULE
@@ -430,10 +355,29 @@ void Solver::make_bonnor_ebert_ki2000()
     m_sample_parameters["N_H_cm2"] = N_H_cm2;
     m_sample_parameters["density_to_n"] = density_to_n;
 
+    // ========================================================================
+    // SAVE PROFILE FOR RELAXATION MODULE (SSOT - Single Source Of Truth)
+    // ========================================================================
+    // Save the SAME profile that was used for IC particle placement
+    // This ensures IC and relaxation use EXACTLY the same profile
+    {
+        // Save profile to output directory for relaxation to load
+        std::string profile_file = m_output_dir + "/ki2000_profile.dat";
+        ki_profile.save_profile_to_file(profile_file);
+
+        // Store profile path for relaxation module
+        m_sample_parameters["ki2000_profile_file"] = profile_file;
+
+        std::cout << "\n=== SSOT Profile Saved ===" << std::endl;
+        std::cout << "Profile file: " << profile_file << std::endl;
+        std::cout << "IC and Relaxation use same profile with R_cloud = " << R_actual << " [code]" << std::endl;
+    }
+
     m_sim->set_particles(particles);
     m_sim->set_particle_num(particles.size());
 
     std::cout << "\n=== Bonnor-Ebert K&I 2000 IC Complete ===" << std::endl;
+    std::cout << "Total particles: " << particles.size() << std::endl;
     std::cout << "Ready for analytical relaxation phase." << std::endl;
 }
 

@@ -23,6 +23,7 @@ namespace sph
             sph::FluidForce::initialize(param);
             m_is_2nd_order = param->gsph.is_2nd_order;
             m_gamma = param->physics.gamma;
+            m_use_volume_based = param->gsph.use_volume_based;
 
             // Initialize ISM cooling if enabled - Inoue & Inutsuka (2008)
             // Analytic fit to Koyama & Inutsuka (2000) cooling rates
@@ -172,15 +173,27 @@ namespace sph
                     const vec_t dw_i = kernel->dw(r_ij, r, h_i);
                     const vec_t dw_j = kernel->dw(r_ij, r, p_j.sml);
                     const vec_t v_ij = e_ij * vstar;
-                    const real rho2_inv_j = 1.0 / sqr(p_j.dens);
-                    
+
                     // Grad-h correction (Springel & Hernquist 2002)
                     const real omega_i = p_i.gradh;
                     const real omega_j = p_j.gradh;
-                    
-                    // Standard GSPH force with pstar from well-balanced Riemann solver
-                    const vec_t f = dw_i * (p_j.mass * pstar * rho2_inv_i * omega_i) 
-                                  + dw_j * (p_j.mass * pstar * rho2_inv_j * omega_j);
+
+                    vec_t f;
+                    if (m_use_volume_based) {
+                        // ===== VOLUME-BASED FORCE (Kitajima et al.) =====
+                        // F = -P* * (V_i² * Ω_i * ∇W_i + V_j² * Ω_j * ∇W_j)
+                        // V is stored in particle.nu
+                        const real V_i = p_i.nu;
+                        const real V_j = p_j.nu;
+                        f = dw_i * (pstar * V_i * V_i * omega_i)
+                          + dw_j * (pstar * V_j * V_j * omega_j);
+                    } else {
+                        // ===== MASS-BASED FORCE (Standard GSPH) =====
+                        // F = -P* * m_j * (1/ρ_i² * Ω_i * ∇W_i + 1/ρ_j² * Ω_j * ∇W_j)
+                        const real rho2_inv_j = 1.0 / sqr(p_j.dens);
+                        f = dw_i * (p_j.mass * pstar * rho2_inv_i * omega_i)
+                          + dw_j * (p_j.mass * pstar * rho2_inv_j * omega_j);
+                    }
 
                     acc -= f;
                     dene -= inner_product(f, v_ij - v_i);

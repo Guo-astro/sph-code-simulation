@@ -8,6 +8,9 @@
 #include <cmath>
 #include <iostream>
 #include <algorithm>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -39,12 +42,15 @@ void KoyamaInutsukaRelaxation::initialize(const KIRelaxationParams& params)
     // Compute equilibrium profile by integrating hydrostatic ODE
     compute_equilibrium_profile();
 
+    // Scale profile to match target R and M
+    scale_profile_to_targets();
+
     m_initialized = true;
 
     std::cout << "KoyamaInutsukaRelaxation: Profile computed:" << std::endl;
     std::cout << "  Actual R_cloud = " << m_R_actual << " [code]" << std::endl;
     std::cout << "  Actual M_cloud = " << m_M_actual << " [code]" << std::endl;
-    std::cout << "  n_H(center) = " << m_params.rho_center * m_params.density_to_n << " [cm^-3]" << std::endl;
+    std::cout << "  n_H(center) = " << m_rho_table[0] * m_params.density_to_n << " [cm^-3]" << std::endl;
     std::cout << "  T_eq(center) = " << m_T_table[0] << " [K]" << std::endl;
     std::cout << "  Profile points: " << m_r_table.size() << std::endl;
 }
@@ -246,6 +252,161 @@ void KoyamaInutsukaRelaxation::compute_equilibrium_profile()
     std::cout << "    rho_edge: " << m_rho_table.back() << " [code]" << std::endl;
 }
 
+void KoyamaInutsukaRelaxation::scale_profile_to_targets()
+{
+    // Find the central density AND external pressure that give the target R and M
+    // through proper hydrostatic integration with K&I 2000 EOS.
+    //
+    // For a Bonnor-Ebert sphere, both n_c and P_ext determine R and M.
+    // We use nested iteration:
+    //   - Outer loop: adjust P_ext to match R
+    //   - Inner loop: adjust n_c to match M (for given P_ext)
+
+    const real R_target = m_params.R_cloud;
+    const real M_target = m_params.M_cloud;
+    const real R_natural = m_R_actual;
+    const real M_natural = m_M_actual;
+
+    // Check if already close enough
+    const real tol = 0.02;  // 2% tolerance
+    if (std::abs(R_target - R_natural) / R_target < tol &&
+        std::abs(M_target - M_natural) / M_target < tol) {
+        std::cout << "  Profile already matches targets (within 2%), no iteration needed." << std::endl;
+        return;
+    }
+
+    std::cout << "  Finding n_c and P_ext for target R=" << R_target
+              << ", M=" << M_target << std::endl;
+
+    // Initial estimates based on scaling relations
+    // For uniform sphere: M = (4/3)πR³ρ_avg, so ρ_avg = 3M/(4πR³)
+    real rho_avg_target = 3.0 * M_target / (4.0 * M_PI * R_target * R_target * R_target);
+    real n_avg_target = rho_avg_target * m_params.density_to_n;
+
+    // For Bonnor-Ebert, ρ_c ≈ 1.2 × ρ_avg (rough estimate for slight central concentration)
+    real rho_c_init = rho_avg_target * 1.2;
+
+    // Estimate P_ext from edge conditions
+    // At edge: P = n_edge × k_B × T_eq(n_edge)
+    // For slight concentration, n_edge ≈ 0.9 × n_avg
+    real n_edge_est = 0.9 * n_avg_target;
+    real T_edge_est = m_ki_cooling.equilibrium_temperature(n_edge_est, m_params.N_H);
+    real P_ext_init = n_edge_est * T_edge_est;  // K cm^-3
+
+    std::cout << "  Initial estimates:" << std::endl;
+    std::cout << "    n_c = " << rho_c_init * m_params.density_to_n << " cm^-3" << std::endl;
+    std::cout << "    P_ext = " << P_ext_init << " K cm^-3" << std::endl;
+
+    // Iteration bounds
+    real P_ext_lo = P_ext_init * 0.01;
+    real P_ext_hi = P_ext_init * 100.0;
+    real P_ext = P_ext_init;
+
+    real rho_c = rho_c_init;
+
+    const int max_outer = 30;
+    const int max_inner = 20;
+
+    real best_P_ext = P_ext;
+    real best_rho_c = rho_c;
+    real best_error = 1e10;
+
+    for (int outer = 0; outer < max_outer; ++outer) {
+        m_params.P_ext = P_ext;
+
+        // Inner loop: find n_c that gives correct M for this P_ext
+        real rho_c_lo = rho_c * 0.1;
+        real rho_c_hi = rho_c * 10.0;
+
+        for (int inner = 0; inner < max_inner; ++inner) {
+            m_params.rho_center = rho_c;
+
+            // Recompute profile
+            m_r_table.clear();
+            m_rho_table.clear();
+            m_P_table.clear();
+            m_M_table.clear();
+            m_T_table.clear();
+            m_drho_dr_table.clear();
+            compute_equilibrium_profile();
+
+            real M_err = (m_M_actual - M_target) / M_target;
+
+            // Higher n_c → more mass
+            if (m_M_actual < M_target) {
+                rho_c_lo = rho_c;
+            } else {
+                rho_c_hi = rho_c;
+            }
+            rho_c = 0.5 * (rho_c_lo + rho_c_hi);
+
+            if (std::abs(M_err) < tol * 0.5) break;
+            if (rho_c_hi / rho_c_lo < 1.001) break;
+        }
+
+        // Check R error
+        real R_err = (m_R_actual - R_target) / R_target;
+        real M_err = (m_M_actual - M_target) / M_target;
+        real total_err = std::sqrt(R_err * R_err + M_err * M_err);
+
+        if (total_err < best_error) {
+            best_error = total_err;
+            best_P_ext = P_ext;
+            best_rho_c = rho_c;
+        }
+
+        if (outer % 5 == 0 || total_err < tol) {
+            std::cout << "    Outer " << outer << ": P_ext=" << P_ext
+                      << ", n_c=" << rho_c * m_params.density_to_n
+                      << ", R=" << m_R_actual << " (err " << R_err*100 << "%)"
+                      << ", M=" << m_M_actual << " (err " << M_err*100 << "%)" << std::endl;
+        }
+
+        if (total_err < tol) {
+            std::cout << "  Converged!" << std::endl;
+            break;
+        }
+
+        // Adjust P_ext to match R
+        // Lower P_ext → truncate later → larger R
+        // Higher P_ext → truncate earlier → smaller R
+        if (m_R_actual < R_target) {
+            P_ext_hi = P_ext;
+        } else {
+            P_ext_lo = P_ext;
+        }
+        P_ext = 0.5 * (P_ext_lo + P_ext_hi);
+
+        if (P_ext_hi / P_ext_lo < 1.001) {
+            std::cout << "  P_ext bisection converged" << std::endl;
+            break;
+        }
+    }
+
+    // Use best result
+    if (best_error > tol) {
+        std::cout << "  Using best result with " << best_error*100 << "% total error" << std::endl;
+    }
+    m_params.P_ext = best_P_ext;
+    m_params.rho_center = best_rho_c;
+    m_r_table.clear();
+    m_rho_table.clear();
+    m_P_table.clear();
+    m_M_table.clear();
+    m_T_table.clear();
+    m_drho_dr_table.clear();
+    compute_equilibrium_profile();
+
+    std::cout << "  Final profile (physically consistent with K&I 2000 EOS):" << std::endl;
+    std::cout << "    R_cloud: " << m_R_actual << " [code] (target: " << R_target << ")" << std::endl;
+    std::cout << "    M_cloud: " << m_M_actual << " [code] (target: " << M_target << ")" << std::endl;
+    std::cout << "    P_ext: " << m_params.P_ext << " K cm^-3" << std::endl;
+    std::cout << "    n_H(center): " << m_rho_table[0] * m_params.density_to_n << " [cm^-3]" << std::endl;
+    std::cout << "    T_eq(center): " << m_T_table[0] << " [K]" << std::endl;
+    std::cout << "    n_H(edge): " << m_rho_table.back() * m_params.density_to_n << " [cm^-3]" << std::endl;
+    std::cout << "    T_eq(edge): " << m_T_table.back() << " [K]" << std::endl;
+}
+
 real KoyamaInutsukaRelaxation::interpolate(const std::vector<real>& table, real r) const
 {
     if (m_r_table.empty() || table.empty()) {
@@ -291,6 +452,11 @@ real KoyamaInutsukaRelaxation::get_T_eq(real r) const
 real KoyamaInutsukaRelaxation::get_drho_dr(real r) const
 {
     return interpolate(m_drho_dr_table, r);
+}
+
+real KoyamaInutsukaRelaxation::get_M_enclosed(real r) const
+{
+    return interpolate(m_M_table, r);
 }
 
 vec_t KoyamaInutsukaRelaxation::compute_relaxation_force(const SPHParticle& p) const
@@ -357,6 +523,14 @@ void KoyamaInutsukaRelaxation::apply_relaxation(std::shared_ptr<Simulation> sim,
     #pragma omp parallel for
 #endif
     for (int i = 0; i < num_p; ++i) {
+        // Skip ghost/envelope particles - they provide fixed boundary pressure
+        if (particles[i].is_ghost) {
+            // Ensure ghost particles remain stationary
+            particles[i].vel = 0.0;
+            particles[i].acc = 0.0;
+            continue;
+        }
+
         // Compute analytical pressure gradient acceleration
         vec_t relax_acc = compute_relaxation_force(particles[i]);
 
@@ -369,6 +543,116 @@ void KoyamaInutsukaRelaxation::apply_relaxation(std::shared_ptr<Simulation> sim,
         particles[i].acc[2] -= relax_acc[2];
 #endif
     }
+}
+
+void KoyamaInutsukaRelaxation::save_profile_to_file(const std::string& filename) const
+{
+    if (!m_initialized) {
+        THROW_ERROR("Cannot save profile: not initialized");
+    }
+
+    std::ofstream outfile(filename);
+    if (!outfile.is_open()) {
+        THROW_ERROR("Cannot open file for writing: " + filename);
+    }
+
+    outfile << std::scientific << std::setprecision(10);
+
+    // Write header with key parameters
+    outfile << "# K&I 2000 Bonnor-Ebert equilibrium profile\n";
+    outfile << "# R_actual = " << m_R_actual << "\n";
+    outfile << "# M_actual = " << m_M_actual << "\n";
+    outfile << "# rho_center = " << m_params.rho_center << "\n";
+    outfile << "# P_ext = " << m_params.P_ext << "\n";
+    outfile << "# N_H = " << m_params.N_H << "\n";
+    outfile << "# G = " << m_params.G << "\n";
+    outfile << "# density_to_n = " << m_params.density_to_n << "\n";
+    outfile << "# n_points = " << m_r_table.size() << "\n";
+    outfile << "# Columns: r  rho  drho_dr  P  T  M\n";
+
+    // Write profile data
+    for (size_t i = 0; i < m_r_table.size(); ++i) {
+        outfile << m_r_table[i] << "  "
+                << m_rho_table[i] << "  "
+                << m_drho_dr_table[i] << "  "
+                << m_P_table[i] << "  "
+                << m_T_table[i] << "  "
+                << m_M_table[i] << "\n";
+    }
+
+    outfile.close();
+    std::cout << "KoyamaInutsukaRelaxation: Saved profile to " << filename << std::endl;
+}
+
+bool KoyamaInutsukaRelaxation::load_profile_from_file(const std::string& filename)
+{
+    std::ifstream infile(filename);
+    if (!infile.is_open()) {
+        std::cerr << "KoyamaInutsukaRelaxation: Cannot open profile file: " << filename << std::endl;
+        return false;
+    }
+
+    // Clear existing data
+    m_r_table.clear();
+    m_rho_table.clear();
+    m_drho_dr_table.clear();
+    m_P_table.clear();
+    m_T_table.clear();
+    m_M_table.clear();
+
+    std::string line;
+    while (std::getline(infile, line)) {
+        // Skip empty lines
+        if (line.empty()) continue;
+
+        // Parse header comments
+        if (line[0] == '#') {
+            if (line.find("R_actual") != std::string::npos) {
+                sscanf(line.c_str(), "# R_actual = %lf", &m_R_actual);
+            } else if (line.find("M_actual") != std::string::npos) {
+                sscanf(line.c_str(), "# M_actual = %lf", &m_M_actual);
+            } else if (line.find("rho_center") != std::string::npos) {
+                sscanf(line.c_str(), "# rho_center = %lf", &m_params.rho_center);
+            } else if (line.find("P_ext") != std::string::npos) {
+                sscanf(line.c_str(), "# P_ext = %lf", &m_params.P_ext);
+            } else if (line.find("N_H") != std::string::npos) {
+                sscanf(line.c_str(), "# N_H = %lf", &m_params.N_H);
+            } else if (line.find("G =") != std::string::npos) {
+                sscanf(line.c_str(), "# G = %lf", &m_params.G);
+            } else if (line.find("density_to_n") != std::string::npos) {
+                sscanf(line.c_str(), "# density_to_n = %lf", &m_params.density_to_n);
+            }
+            continue;
+        }
+
+        // Parse data line: r rho drho_dr P T M
+        real r, rho, drho_dr, P, T, M;
+        std::istringstream iss(line);
+        if (iss >> r >> rho >> drho_dr >> P >> T >> M) {
+            m_r_table.push_back(r);
+            m_rho_table.push_back(rho);
+            m_drho_dr_table.push_back(drho_dr);
+            m_P_table.push_back(P);
+            m_T_table.push_back(T);
+            m_M_table.push_back(M);
+        }
+    }
+
+    infile.close();
+
+    if (m_r_table.empty()) {
+        std::cerr << "KoyamaInutsukaRelaxation: Failed to read profile data from " << filename << std::endl;
+        return false;
+    }
+
+    m_initialized = true;
+
+    std::cout << "KoyamaInutsukaRelaxation: Loaded profile from " << filename << std::endl;
+    std::cout << "  R_actual = " << m_R_actual << " [code]" << std::endl;
+    std::cout << "  M_actual = " << m_M_actual << " [code]" << std::endl;
+    std::cout << "  Profile points: " << m_r_table.size() << std::endl;
+
+    return true;
 }
 
 } // namespace sph

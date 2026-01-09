@@ -1,0 +1,58 @@
+{
+    "_comment": "Phase 2: Hydrostatic Test - Verify relaxed cloud remains in equilibrium",
+    "_phase": "2 of 3: Free evolution without IMBH to verify stability",
+
+    "name": "Phase 2: Hydrostatic Stability Test (Stable BE Sphere)",
+    "dimension": 3,
+
+    "resumeFrom": "results/phase1_relaxation/relaxed_final.csv",
+
+    "M_cloud": 40.0,
+    "T_cloud": 7.0,
+    "n_center": 1800.0,
+    "n_edge": 162.0,
+    "P_ext": 1134.0,
+    "xi_s": 6.0,
+    "mu": 1.27,
+    "R_cloud": 0.75,
+
+    "M_BH": 0.0,
+    "b_impact": 0.0,
+    "v_rel": 0.0,
+    "useEnvelope": true,
+    "envelopeLayers": 6,
+
+    "gamma": 1.0001,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": true,
+
+    "sphAlgorithm": "gsph",
+    "kernel": "wendland",
+    "useGradH": true,
+
+    "endTime": 2.0,
+    "outputTime": 0.05,
+    "cfl": 0.3,
+
+    "useRelaxation": false,
+
+    "outputDirectory": "results/phase2_hydrostatic",
+    "outputFormat": "csv",
+
+    "expected_behavior": {
+        "R_cloud": "Should remain ~0.75 pc (stable equilibrium)",
+        "n_center": "Should remain ~1800 cm^-3",
+        "velocity_dispersion": "Should be minimal (thermal only)",
+        "duration": "Run for ~2 Myr crossing time"
+    },
+
+    "notes": [
+        "Ghost envelope provides external pressure P_ext=1134 K cm^-3",
+        "No relaxation (free SPH evolution)",
+        "Cloud should remain stable if properly relaxed",
+        "Any expansion/collapse indicates relaxation issues",
+        "xi_s=6.0 < xi_crit=6.45 guarantees stability"
+    ]
+}
