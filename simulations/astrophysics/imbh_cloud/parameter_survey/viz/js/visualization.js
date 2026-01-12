@@ -97,9 +97,6 @@ function initScene() {
     // Create analytic orbit
     createAnalyticOrbit();
 
-    // Create initial velocity and impact parameter visualization
-    createImpactParameterViz();
-
     // Create draggable LOS indicator
     createLOSControl();
 
@@ -319,29 +316,13 @@ function createLOSControl() {
     updateLOSArrows();
 
     STATE.scene.add(STATE.losArrows);
-
-    // Unit sphere guide (wireframe)
-    const guideGeom = new THREE.SphereGeometry(radius, 32, 16);
-    const guideMat = new THREE.MeshBasicMaterial({
-        color: 0x00ffff,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.1
-    });
-    const guideSphere = new THREE.Mesh(guideGeom, guideMat);
-    guideSphere.name = 'losGuide';
-    STATE.losArrows.add(guideSphere);
 }
 
 function updateLOSArrows() {
-    // Remove old arrows from group (keep guide)
-    const toRemove = [];
-    STATE.losArrows.children.forEach(child => {
-        if (child.name !== 'losGuide') {
-            toRemove.push(child);
-        }
-    });
-    toRemove.forEach(child => STATE.losArrows.remove(child));
+    // Remove old arrows from group
+    while (STATE.losArrows.children.length > 0) {
+        STATE.losArrows.remove(STATE.losArrows.children[0]);
+    }
 
     // Arrow from origin to sphere
     const arrowLength = 4.5;
