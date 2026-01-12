@@ -1,0 +1,33 @@
+{
+    "datasets": [
+        {
+            "id": "parabolic_rp0.13pc",
+            "name": "Parabolic r_p = 0.13 pc (Close)",
+            "path": "../parabolic_rp0.13pc",
+            "config": {
+                "r_peri": 0.13,
+                "cloud_pos0": [-15.0, 2.8049, 0.0],
+                "cloud_vel0": [7.2211, -2.0553, 0.0],
+                "description": "Close passage - severe tidal disruption"
+            }
+        },
+        {
+            "id": "parabolic_rp0.4pc",
+            "name": "Parabolic r_p = 0.4 pc (Wide)",
+            "path": "../parabolic_rp0.4pc",
+            "config": {
+                "r_peri": 0.4,
+                "cloud_pos0": [-14.4675, 4.8773, 0.0],
+                "cloud_vel0": [7.4071, -1.2149, 0.0],
+                "description": "Wider passage - moderate tidal disruption"
+            }
+        }
+    ],
+    "common": {
+        "G": 0.00430091,
+        "M_BH": 100000.0,
+        "tempConversion": 186.0,
+        "densityToNH2": 20.3,
+        "timeToMyr": 0.978
+    }
+}

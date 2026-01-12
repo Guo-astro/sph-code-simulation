@@ -3,24 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IMBH Cloud Tidal Disruption - Three.js Visualization</title>
+    <title>IMBH Cloud Tidal Disruption - Parameter Survey</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Dataset selector panel */
+        #dataset-panel {
+            position: fixed;
+            top: 10px;
+            left: 250px;
+            background: rgba(26, 26, 46, 0.95);
+            border: 1px solid #4a4a6a;
+            border-radius: 8px;
+            padding: 15px;
+            z-index: 100;
+            min-width: 200px;
+        }
+        #dataset-panel h3 {
+            color: #00aaff;
+            margin: 0 0 10px 0;
+            font-size: 0.9em;
+        }
+        #dataset-panel select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            background: #2a2a4a;
+            border: 1px solid #4a4a6a;
+            color: #fff;
+            border-radius: 4px;
+        }
+        #dataset-info {
+            font-size: 0.8em;
+            color: #aaa;
+        }
+        #dataset-info .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 4px 0;
+        }
+        #dataset-info .label {
+            color: #888;
+        }
+        #dataset-info .value {
+            color: #fff;
+        }
+    </style>
 </head>
 <body>
     <div id="container"></div>
 
     <!-- Info Panel -->
     <div id="info-panel">
-        <h2>IMBH-Cloud Tidal Disruption</h2>
+        <h2>IMBH-Cloud Parameter Survey</h2>
         <div class="info-row"><span class="label">Orbit:</span><span class="value">Parabolic (E=0)</span></div>
-        <div class="info-row"><span class="label">Pericenter:</span><span class="value">r_p = 0.13 pc</span></div>
         <div class="info-row"><span class="label">M_BH:</span><span class="value">10^5 M_sun</span></div>
-        <div class="info-row"><span class="label">M_cloud:</span><span class="value">127.5 M_sun</span></div>
         <hr style="margin: 10px 0; border-color: #4a4a6a;">
         <div class="info-row"><span class="label">Time:</span><span class="value" id="time-display">0.00 code</span></div>
         <div class="info-row"><span class="label">Particles:</span><span class="value" id="particle-count">--</span></div>
         <div class="info-row"><span class="label">Snapshot:</span><span class="value" id="snapshot-num">--</span></div>
         <div class="info-row"><span class="label">COM distance:</span><span class="value" id="com-distance">-- pc</span></div>
+    </div>
+
+    <!-- Dataset Selector Panel -->
+    <div id="dataset-panel">
+        <h3>Dataset Selection</h3>
+        <select id="dataset-select">
+            <!-- Populated dynamically -->
+        </select>
+        <div id="dataset-info">
+            <!-- Populated dynamically -->
+        </div>
     </div>
 
     <!-- Simulation & Color Select -->

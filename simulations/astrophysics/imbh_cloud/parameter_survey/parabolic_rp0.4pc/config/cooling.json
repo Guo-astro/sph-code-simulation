@@ -1,0 +1,103 @@
+{
+    "_comment": "Parameter Survey: Parabolic orbit r_p=0.4pc (v_p=46km/s) - WITH COOLING",
+    "_orbit": "Parabolic (E=0), pericenter=0.4pc, v_peri=46.4km/s",
+    "_units": "CODE units: L=pc, M=Msun, V=km/s",
+    "_physics": "Cloud tidal disruption at wider passage - K&I 2000 COOLING",
+
+    "_calculation": {
+        "orbit_type": "parabolic (E=0)",
+        "r_pericenter": "0.4 pc",
+        "v_pericenter": "46.37 km/s",
+        "start_distance": "15.27 pc",
+        "start_velocity": "7.51 km/s",
+        "sink_radius": "0.01 pc",
+        "cloud_R": "2 pc - MODERATE TIDAL DISRUPTION",
+        "cloud_M": "127.5 M_sun (from IC file)",
+        "M_BH": "10^5 M_sun"
+    },
+
+    "name": "Parabolic r_p=0.4pc Cooling",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/phase2.5_compact_cooling/snapshot_0002.csv",
+    "resetTimeOnResume": true,
+    "useSnapshotSSOT": false,
+    "N": 25,
+
+    "M_cloud": 127.5,
+    "T_cloud": 20.0,
+    "n_center": 500.0,
+    "xi_s": 3.0,
+    "R_cloud": 1.55,
+    "mu": 1.27,
+
+    "gamma": 1.6667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": true,
+
+    "imbh_parameters": {
+        "enabled": true,
+        "use_code_units": true,
+        "_note_units": "BH at origin, cloud on parabolic orbit toward disruption",
+        "M_BH": 100000.0,
+        "BH_initial_position": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0
+        },
+        "BH_initial_velocity": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0
+        },
+        "softening_epsilon": 0.005,
+        "sink_radius": 0.01,
+        "enable_sink": true,
+        "_note": "Sink accretion enabled: particles within 0.01pc are accreted",
+
+        "cloud_initial_position": {
+            "0": -14.4675,
+            "1": 4.8773,
+            "2": 0.0
+        },
+        "cloud_initial_velocity": {
+            "0": 7.4071,
+            "1": -1.2149,
+            "2": 0.0
+        },
+        "_cloud_note": "Parabolic orbit: r_p=0.4pc, v_p=46km/s, WIDER PASSAGE"
+    },
+
+    "sphAlgorithm": "gsph",
+    "kernel": "wendland",
+    "riemannSolver": "hll",
+    "useGradH": false,
+
+    "useBalsaraSwitch": true,
+    "alpha": 1.0,
+
+    "endTime": 6.0,
+    "outputTime": 0.02,
+    "energyOutputTime": 0.02,
+    "cfl": 0.2,
+
+    "useRelaxation": false,
+    "useCooling": true,
+    "coolingFunction": "koyama_inutsuka_2000",
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/parameter_survey/parabolic_rp0.4pc/cooling/results",
+    "outputFormat": "csv",
+    "saveEnergyFile": true,
+
+    "notes": [
+        "PARABOLIC ORBIT: r_p = 0.4 pc, v_p = 46 km/s",
+        "This is a WIDER PASSAGE - cloud center passes 0.4 pc from BH",
+        "Cloud R = 2 pc > r_p = 0.4 pc -> MODERATE TIDAL DISRUPTION",
+        "Sink accretion enabled: r_sink = 0.01 pc",
+        "COOLING: Koyama & Inutsuka 2000 ISM cooling",
+        "Expected: Moderate compression, some fragmentation"
+    ]
+}
