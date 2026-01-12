@@ -52,7 +52,7 @@ help: all
 # Usage:
 #   make viz SIM=simulations/benchmarks/sedov/results/gsph_wendland
 #   make viz SIM=simulations/astrophysics/imbh_cloud/results/Mc1e3_Mbh1e5_b3_v10/adiabatic_61k_gsph
-#   make viz_export SIM=lane_emden/results/n3_gsph
+#   make viz_export SIM=simulations/astrophysics/lane_emden/results/n3_gsph
 #   make viz_server
 #
 # Options:
@@ -96,9 +96,9 @@ viz_server:
 viz: viz_export viz_server
 
 # Lane-Emden preset-based system
--include lane_emden/Makefile.lane_emden
--include lane_emden/2d/Makefile.2d
--include lane_emden/3d/Makefile.3d
+-include simulations/astrophysics/lane_emden/Makefile.lane_emden
+-include simulations/astrophysics/lane_emden/Makefile.2d
+-include simulations/astrophysics/lane_emden/Makefile.3d
 
 # Shock Tube preset-based system
 -include simulations/benchmarks/shock_tube/Makefile.shock_tube

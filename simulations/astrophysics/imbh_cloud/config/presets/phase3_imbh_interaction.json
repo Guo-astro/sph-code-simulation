@@ -1,95 +1,87 @@
 {
-    "_comment": "Phase 3: IMBH flyby - Tidal disruption of cloud by 10^5 Msun IMBH",
-    "_phase": "4 of 4: Main science simulation - IMBH tidal encounter",
-    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr, rho=6.77e-23 g/cm³, u=1e10 erg/g",
-    "_physics": "M_BH=10^5 Msun, hyperbolic flyby, tidal compression & heating",
-    "_input": "Should resume from Phase 2.5 cooled equilibrium state",
-    "_target": "Reproduce Oka+2017 HVCC: T~60K, σ_v~22 km/s after encounter",
+    "_comment": "Phase 3: IMBH flyby - Tidal interaction with 10^5 Msun IMBH",
+    "_phase": "Final: Main science simulation - IMBH tidal encounter",
+    "_units": "CODE units where 1 code_L=1pc, 1 code_M=1Msun, 1 code_V=1km/s",
+    "_physics": "M_BH=10^5 Msun, hyperbolic flyby, v_los~80km/s, safe pericenter",
 
-    "name": "Phase 3: IMBH-Cloud Tidal Interaction (M_BH=10^5 Msun)",
+    "_calculation": {
+        "cloud_R": "1.55 pc",
+        "cloud_M": "127.5 M_sun",
+        "M_BH": "10^5 M_sun (=100000 code_mass)",
+        "v_infinity": "80 km/s (=80 code_velocity)",
+        "r_pericenter": "4.0 pc (2.6× R_cloud - NO penetration)",
+        "b_impact": "4.07 pc (=4.07 code_length)",
+        "v_pericenter": "81.3 km/s"
+    },
+
+    "name": "Phase 3: IMBH-Cloud Tidal Flyby (v_los~80 km/s)",
     "dimension": 3,
 
     "sample": "isothermal_bonnor_ebert",
-    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/phase2.5_cooling_gamma53/snapshot_FINAL.csv",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/phase2.5_compact_cooling/snapshot_0002.csv",
     "resetTimeOnResume": true,
+    "useSnapshotSSOT": false,
     "N": 25,
 
-    "M_cloud": 40.0,
-    "T_cloud": 7.0,
-    "n_center": 1800.0,
-    "n_edge": 162.0,
-    "P_ext": 1134.0,
-    "xi_s": 6.0,
-    "R_cloud": 0.75,
+    "M_cloud": 127.5,
+    "T_cloud": 20.0,
+    "n_center": 500.0,
+    "xi_s": 3.0,
+    "R_cloud": 1.55,
     "mu": 1.27,
-
-    "M_BH": 100000.0,
-    "d_BH": 10.0,
-    "b_impact": 0.0,
-    "v_rel": 100.0,
-    "useEnvelope": false,
-
-    "imbh_config": {
-        "M_BH_Msun": 100000,
-        "initial_distance_pc": 10.0,
-        "position_initial": [10.0, 0.0, 0.0],
-        "velocity_relative_kms": 100.0,
-        "trajectory": "hyperbolic"
-    },
 
     "gamma": 1.6667,
     "neighborNumber": 50,
 
     "G": 0.00430091,
     "useGravity": true,
-    "useExternalGravity": true,
+
+    "imbh_parameters": {
+        "enabled": true,
+        "use_code_units": true,
+        "_note_units": "All IMBH params in code units (L=pc, M=Msun, V=km/s) to match particle data",
+        "M_BH": 100000.0,
+        "BH_initial_position": {
+            "0": 15.0,
+            "1": 4.07,
+            "2": 0.0
+        },
+        "BH_initial_velocity": {
+            "0": -80.0,
+            "1": 0.0,
+            "2": 0.0
+        },
+        "softening_epsilon": 0.01,
+        "sink_radius": 0.1,
+        "enable_sink": false,
+        "_note": "BH approaches from +x, passes at y=4.07pc, r_peri=4pc"
+    },
 
     "sphAlgorithm": "gsph",
     "kernel": "wendland",
-    "useGradH": true,
+    "riemannSolver": "hll",
+    "useGradH": false,
 
-    "endTime": 5.0,
-    "outputTime": 0.05,
+    "useBalsaraSwitch": true,
+    "alpha": 1.0,
+
+    "endTime": 0.6,
+    "outputTime": 0.01,
+    "energyOutputTime": 0.01,
     "cfl": 0.3,
 
     "useRelaxation": false,
+    "useCooling": false,
 
-    "outputDirectory": "results/phase3_imbh_interaction",
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/phase3_flyby",
     "outputFormat": "csv",
-
-    "expected_evolution": {
-        "phase1_tidal_shaping": {
-            "time_Myr": "0-1",
-            "R_pc": "1.0-1.5",
-            "n_center_cm3": 1000,
-            "sigma_v_kms": "0.5-1"
-        },
-        "phase2_pre_pericenter": {
-            "time_Myr": "1-3",
-            "R_pc": "0.3-0.5",
-            "n_center_cm3": 10000,
-            "sigma_v_kms": "1-2"
-        },
-        "phase3_pericenter": {
-            "time_Myr": "3-3.1",
-            "description": "Tidal stretching, shock heating",
-            "n_center_cm3": "1e5-1e6",
-            "T_shock_K": 10000,
-            "sigma_v_kms": "50-100"
-        },
-        "phase4_post_encounter": {
-            "time_Myr": "3.2+",
-            "R_pc": 0.3,
-            "n_center_cm3": "1e6.5",
-            "T_K": 60,
-            "sigma_v_kms": 22
-        }
-    },
+    "saveEnergyFile": true,
 
     "notes": [
-        "Based on Oka et al. (2017) HVCC CO-0.40-0.22 observations",
-        "Cloud starts atomic (mu=1.27), becomes molecular during compression",
-        "Target final state: T~60K, sigma_v~22 km/s (observed values)",
-        "See Ballone et al. (2018) for tidal disruption physics"
+        "Flyby geometry: BH orbit in x-y plane",
+        "Cloud at origin, BH starts at (15, 4.07, 0) pc",
+        "BH velocity: (-80, 0, 0) km/s - approaches from +x",
+        "Pericenter r_p=4pc > 2×R_cloud ensures NO penetration",
+        "v_pericenter~81 km/s matches target v_los"
     ]
 }

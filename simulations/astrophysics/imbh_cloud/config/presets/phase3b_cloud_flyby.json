@@ -1,0 +1,99 @@
+{
+    "_comment": "Phase 3b: Cloud flyby of stationary IMBH - CORRECT GEOMETRY",
+    "_phase": "Cloud approaches BH, not BH approaching cloud",
+    "_units": "CODE units: L=pc, M=Msun, V=km/s",
+    "_physics": "Cloud v_inf=70km/s, r_p=4pc, tidal disruption during passage",
+
+    "_calculation": {
+        "cloud_R": "2 pc",
+        "cloud_M": "127.5 M_sun", 
+        "M_BH": "10^5 M_sun",
+        "v_infinity": "70 km/s (cloud approaching)",
+        "r_pericenter": "1.41 pc",
+        "impact_parameter": "1.5 pc",
+        "v_pericenter": "74.2 km/s"
+    },
+
+    "name": "Phase 3b: Cloud Flyby of Stationary IMBH",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/phase2.5_compact_cooling/snapshot_0002.csv",
+    "resetTimeOnResume": true,
+    "useSnapshotSSOT": false,
+    "N": 25,
+
+    "M_cloud": 127.5,
+    "T_cloud": 20.0,
+    "n_center": 500.0,
+    "xi_s": 3.0,
+    "R_cloud": 1.55,
+    "mu": 1.27,
+
+    "gamma": 1.6667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": true,
+
+    "imbh_parameters": {
+        "enabled": true,
+        "use_code_units": true,
+        "_note_units": "BH at origin, cloud moves toward it",
+        "M_BH": 100000.0,
+        "BH_initial_position": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0
+        },
+        "BH_initial_velocity": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0
+        },
+        "softening_epsilon": 0.1,
+        "sink_radius": 0.5,
+        "enable_sink": false,
+        "_note": "BH FIXED at origin, cloud moves past it",
+
+        "cloud_initial_position": {
+            "0": -20.0,
+            "1": 1.5,
+            "2": 0.0
+        },
+        "cloud_initial_velocity": {
+            "0": 70.0,
+            "1": 0.0,
+            "2": 0.0
+        },
+        "_cloud_note": "Cloud starts 20pc away, moves at 70km/s toward BH"
+    },
+
+    "sphAlgorithm": "gsph",
+    "kernel": "wendland",
+    "riemannSolver": "hll",
+    "useGradH": false,
+
+    "useBalsaraSwitch": true,
+    "alpha": 1.0,
+
+    "endTime": 1.0,
+    "outputTime": 0.01,
+    "energyOutputTime": 0.01,
+    "cfl": 0.3,
+
+    "useRelaxation": false,
+    "useCooling": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/phase3b_cloud_flyby",
+    "outputFormat": "csv",
+    "saveEnergyFile": true,
+
+    "notes": [
+        "CORRECT GEOMETRY: Cloud flies by stationary BH",
+        "Cloud starts at (-20, 1.5, 0) pc with v = (70, 0, 0) km/s",
+        "BH fixed at origin (0, 0, 0)",
+        "Pericenter: r_p ~ 1.41 pc, v_peri ~ 74 km/s",
+        "Cloud inner edge passes ~0.6 pc from BH - tidal disruption"
+    ]
+}

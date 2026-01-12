@@ -1142,38 +1142,63 @@ void Solver::read_parameterfile(const char * filename)
     if(m_use_external_bh) {
         std::cout << "\n=== IMBH External Force Configuration ===" << std::endl;
         
-        // Read BH mass (in M_☉, convert to code units)
-        real M_BH_msun = input.get<real>("imbh_parameters.M_BH", 1.0e5);
-        // Convert from M_☉ to code units using the unit system
-        real M_BH_cgs = M_BH_msun * UnitSystem::MSUN_TO_G;  // M_☉ → grams
-        real M_BH_code = m_units.from_physical_mass(M_BH_cgs);  // grams → code units
-        
-        // Read initial position array (in pc, convert to code units)
-        std::vector<real> bh_pos_pc(DIM);
-        bh_pos_pc[0] = input.get<real>("imbh_parameters.BH_initial_position.0", 0.0);
-        bh_pos_pc[1] = input.get<real>("imbh_parameters.BH_initial_position.1", 0.0);
-#if DIM == 3
-        bh_pos_pc[2] = input.get<real>("imbh_parameters.BH_initial_position.2", 0.0);
-#endif
-        // Convert from pc to code units
-        std::vector<real> bh_pos(DIM);
-        for(int d = 0; d < DIM; ++d) {
-            real pos_cgs = bh_pos_pc[d] * UnitSystem::PC_TO_CM;  // pc → cm
-            bh_pos[d] = m_units.from_physical_length(pos_cgs);   // cm → code units
+        // Check if values are already in code units (skip unit conversion)
+        // Use this when particle data is in code units (e.g., resuming from snapshot)
+        bool use_code_units = input.get<bool>("imbh_parameters.use_code_units", false);
+        if(use_code_units) {
+            std::cout << "  [use_code_units=true] BH parameters already in code units, skipping conversion" << std::endl;
         }
         
-        // Read initial velocity array (in km/s, convert to code units)
-        std::vector<real> bh_vel_kms(DIM);
-        bh_vel_kms[0] = input.get<real>("imbh_parameters.BH_initial_velocity.0", 0.0);
-        bh_vel_kms[1] = input.get<real>("imbh_parameters.BH_initial_velocity.1", 0.0);
+        // Read BH mass
+        real M_BH_input = input.get<real>("imbh_parameters.M_BH", 1.0e5);
+        real M_BH_code;
+        if(use_code_units) {
+            // M_BH is already in code mass units
+            M_BH_code = M_BH_input;
+        } else {
+            // M_BH is in M_sun, convert to code units
+            real M_BH_cgs = M_BH_input * UnitSystem::MSUN_TO_G;
+            M_BH_code = m_units.from_physical_mass(M_BH_cgs);
+        }
+        
+        // Read initial position array
+        std::vector<real> bh_pos_input(DIM);
+        bh_pos_input[0] = input.get<real>("imbh_parameters.BH_initial_position.0", 0.0);
+        bh_pos_input[1] = input.get<real>("imbh_parameters.BH_initial_position.1", 0.0);
 #if DIM == 3
-        bh_vel_kms[2] = input.get<real>("imbh_parameters.BH_initial_velocity.2", 0.0);
+        bh_pos_input[2] = input.get<real>("imbh_parameters.BH_initial_position.2", 0.0);
 #endif
-        // Convert from km/s to code units
+        // Convert position to code units
+        std::vector<real> bh_pos(DIM);
+        for(int d = 0; d < DIM; ++d) {
+            if(use_code_units) {
+                // Position already in code units
+                bh_pos[d] = bh_pos_input[d];
+            } else {
+                // Position in pc, convert to code units
+                real pos_cgs = bh_pos_input[d] * UnitSystem::PC_TO_CM;
+                bh_pos[d] = m_units.from_physical_length(pos_cgs);
+            }
+        }
+        
+        // Read initial velocity array
+        std::vector<real> bh_vel_input(DIM);
+        bh_vel_input[0] = input.get<real>("imbh_parameters.BH_initial_velocity.0", 0.0);
+        bh_vel_input[1] = input.get<real>("imbh_parameters.BH_initial_velocity.1", 0.0);
+#if DIM == 3
+        bh_vel_input[2] = input.get<real>("imbh_parameters.BH_initial_velocity.2", 0.0);
+#endif
+        // Convert velocity to code units
         std::vector<real> bh_vel(DIM);
         for(int d = 0; d < DIM; ++d) {
-            real vel_cgs = bh_vel_kms[d] * UnitSystem::KM_TO_CM;  // km/s → cm/s
-            bh_vel[d] = m_units.from_physical_velocity(vel_cgs);  // cm/s → code units
+            if(use_code_units) {
+                // Velocity already in code units
+                bh_vel[d] = bh_vel_input[d];
+            } else {
+                // Velocity in km/s, convert to code units
+                real vel_cgs = bh_vel_input[d] * UnitSystem::KM_TO_CM;
+                bh_vel[d] = m_units.from_physical_velocity(vel_cgs);
+            }
         }
         
         // Check if BH is moving
@@ -1185,18 +1210,27 @@ void Solver::read_parameterfile(const char * filename)
             }
         }
         
-        // Read softening epsilon (in pc, convert to code units)
-        // Default: 0.001 pc (~200 AU) - prevents singularity near BH
-        real softening_pc = input.get<real>("imbh_parameters.softening_epsilon", 0.001);
-        real softening_cgs = softening_pc * UnitSystem::PC_TO_CM;  // pc → cm
-        real softening_code = m_units.from_physical_length(softening_cgs);  // cm → code units
+        // Read softening epsilon
+        // Default: 0.001 pc (~200 AU) or code units if use_code_units=true
+        real softening_input = input.get<real>("imbh_parameters.softening_epsilon", 0.001);
+        real softening_code;
+        if(use_code_units) {
+            softening_code = softening_input;
+        } else {
+            real softening_cgs = softening_input * UnitSystem::PC_TO_CM;
+            softening_code = m_units.from_physical_length(softening_cgs);
+        }
 
-        // Read sink radius (in pc, convert to code units)
-        // Default: 0.005 pc (~1000 AU) - accretion boundary
-        // Particles inside r_sink that are bound and moving inward are removed.
-        real sink_radius_pc = input.get<real>("imbh_parameters.sink_radius", 0.005);
-        real sink_radius_cgs = sink_radius_pc * UnitSystem::PC_TO_CM;  // pc → cm
-        real sink_radius_code = m_units.from_physical_length(sink_radius_cgs);  // cm → code units
+        // Read sink radius
+        // Default: 0.005 pc (~1000 AU) or code units if use_code_units=true
+        real sink_radius_input = input.get<real>("imbh_parameters.sink_radius", 0.005);
+        real sink_radius_code;
+        if(use_code_units) {
+            sink_radius_code = sink_radius_input;
+        } else {
+            real sink_radius_cgs = sink_radius_input * UnitSystem::PC_TO_CM;
+            sink_radius_code = m_units.from_physical_length(sink_radius_cgs);
+        }
 
         // Read sink enable flag (default: true for fixed BH simulations)
         bool enable_sink = input.get<bool>("imbh_parameters.enable_sink", true);
@@ -1233,19 +1267,24 @@ void Solver::read_parameterfile(const char * filename)
         m_param->external_bh.position = pos_vec;
         m_param->external_bh.G_constant = m_param->gravity.constant;
         
-        std::cout << "  BH mass: " << M_BH_msun << " M_☉ (" << M_BH_code << " code units)" << std::endl;
-        std::cout << "  Initial position: [" << bh_pos_pc[0];
-        for(size_t i = 1; i < bh_pos_pc.size(); ++i) std::cout << ", " << bh_pos_pc[i];
-        std::cout << "] pc = [" << bh_pos[0];
+        // Print BH parameters with appropriate unit labels
+        std::string mass_unit = use_code_units ? "code" : "M_☉";
+        std::string len_unit = use_code_units ? "code" : "pc";
+        std::string vel_unit = use_code_units ? "code" : "km/s";
+        
+        std::cout << "  BH mass: " << M_BH_input << " " << mass_unit << " (" << M_BH_code << " code units)" << std::endl;
+        std::cout << "  Initial position: [" << bh_pos_input[0];
+        for(size_t i = 1; i < bh_pos_input.size(); ++i) std::cout << ", " << bh_pos_input[i];
+        std::cout << "] " << len_unit << " = [" << bh_pos[0];
         for(size_t i = 1; i < bh_pos.size(); ++i) std::cout << ", " << bh_pos[i];
         std::cout << "] code" << std::endl;
-        std::cout << "  Initial velocity: [" << bh_vel_kms[0];
-        for(size_t i = 1; i < bh_vel_kms.size(); ++i) std::cout << ", " << bh_vel_kms[i];
-        std::cout << "] km/s = [" << bh_vel[0];
+        std::cout << "  Initial velocity: [" << bh_vel_input[0];
+        for(size_t i = 1; i < bh_vel_input.size(); ++i) std::cout << ", " << bh_vel_input[i];
+        std::cout << "] " << vel_unit << " = [" << bh_vel[0];
         for(size_t i = 1; i < bh_vel.size(); ++i) std::cout << ", " << bh_vel[i];
         std::cout << "] code" << std::endl;
-        std::cout << "  Softening epsilon: " << softening_pc << " pc = " << softening_code << " code" << std::endl;
-        std::cout << "  Sink radius: " << sink_radius_pc << " pc = " << sink_radius_code << " code" << std::endl;
+        std::cout << "  Softening epsilon: " << softening_input << " " << len_unit << " = " << softening_code << " code" << std::endl;
+        std::cout << "  Sink radius: " << sink_radius_input << " " << len_unit << " = " << sink_radius_code << " code" << std::endl;
         std::cout << "  Sink accretion: " << (enable_sink ? "enabled" : "disabled") << std::endl;
         std::cout << "  Is moving: " << (is_moving ? "yes (WARNING: fixed BH recommended)" : "no (fixed at origin)") << std::endl;
         std::cout << "=========================================\n" << std::endl;
@@ -1280,33 +1319,47 @@ void Solver::read_parameterfile(const char * filename)
             }
             
             m_has_cloud_initial_conditions = true;
-            // Convert from pc to code units
+            
+            // Convert from pc to code units (or use directly if use_code_units is true)
+            if(use_code_units) {
+                // Direct: values already in code units (pc, km/s)
 #if DIM == 2
-            m_cloud_initial_position = vec_t(
-                m_units.from_physical_length(cloud_pos_pc[0] * UnitSystem::PC_TO_CM),
-                m_units.from_physical_length(cloud_pos_pc[1] * UnitSystem::PC_TO_CM)
-            );
+                m_cloud_initial_position = vec_t(cloud_pos_pc[0], cloud_pos_pc[1]);
+                m_cloud_initial_velocity = vec_t(cloud_vel_kms[0], cloud_vel_kms[1]);
 #elif DIM == 3
-            m_cloud_initial_position = vec_t(
-                m_units.from_physical_length(cloud_pos_pc[0] * UnitSystem::PC_TO_CM),
-                m_units.from_physical_length(cloud_pos_pc[1] * UnitSystem::PC_TO_CM),
-                m_units.from_physical_length(cloud_pos_pc[2] * UnitSystem::PC_TO_CM)
-            );
+                m_cloud_initial_position = vec_t(cloud_pos_pc[0], cloud_pos_pc[1], cloud_pos_pc[2]);
+                m_cloud_initial_velocity = vec_t(cloud_vel_kms[0], cloud_vel_kms[1], cloud_vel_kms[2]);
+#endif
+                std::cout << "  Using code units directly (no conversion)" << std::endl;
+            } else {
+                // Convert from physical units (pc, km/s) to code units via CGS
+#if DIM == 2
+                m_cloud_initial_position = vec_t(
+                    m_units.from_physical_length(cloud_pos_pc[0] * UnitSystem::PC_TO_CM),
+                    m_units.from_physical_length(cloud_pos_pc[1] * UnitSystem::PC_TO_CM)
+                );
+#elif DIM == 3
+                m_cloud_initial_position = vec_t(
+                    m_units.from_physical_length(cloud_pos_pc[0] * UnitSystem::PC_TO_CM),
+                    m_units.from_physical_length(cloud_pos_pc[1] * UnitSystem::PC_TO_CM),
+                    m_units.from_physical_length(cloud_pos_pc[2] * UnitSystem::PC_TO_CM)
+                );
 #endif
             
-            // Convert velocity from km/s to code units
+                // Convert velocity from km/s to code units
 #if DIM == 2
-            m_cloud_initial_velocity = vec_t(
-                m_units.from_physical_velocity(cloud_vel_kms[0] * UnitSystem::KM_TO_CM),
-                m_units.from_physical_velocity(cloud_vel_kms[1] * UnitSystem::KM_TO_CM)
-            );
+                m_cloud_initial_velocity = vec_t(
+                    m_units.from_physical_velocity(cloud_vel_kms[0] * UnitSystem::KM_TO_CM),
+                    m_units.from_physical_velocity(cloud_vel_kms[1] * UnitSystem::KM_TO_CM)
+                );
 #elif DIM == 3
-            m_cloud_initial_velocity = vec_t(
-                m_units.from_physical_velocity(cloud_vel_kms[0] * UnitSystem::KM_TO_CM),
-                m_units.from_physical_velocity(cloud_vel_kms[1] * UnitSystem::KM_TO_CM),
-                m_units.from_physical_velocity(cloud_vel_kms[2] * UnitSystem::KM_TO_CM)
-            );
+                m_cloud_initial_velocity = vec_t(
+                    m_units.from_physical_velocity(cloud_vel_kms[0] * UnitSystem::KM_TO_CM),
+                    m_units.from_physical_velocity(cloud_vel_kms[1] * UnitSystem::KM_TO_CM),
+                    m_units.from_physical_velocity(cloud_vel_kms[2] * UnitSystem::KM_TO_CM)
+                );
 #endif
+            }
             
             std::cout << "  Target cloud position: [" << cloud_pos_pc[0];
             for(int d = 1; d < DIM; ++d) std::cout << ", " << cloud_pos_pc[d];

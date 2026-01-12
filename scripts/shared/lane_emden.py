@@ -479,6 +479,8 @@ def get_data_dir() -> Path:
     """Get the path to the Lane-Emden data directory."""
     # Try multiple relative paths
     candidates = [
+        Path(__file__).parent.parent.parent / "simulations" / "astrophysics" / "lane_emden" / "data" / "numerical_solutions",
+        Path("simulations/astrophysics/lane_emden/data/numerical_solutions"),
         Path(__file__).parent.parent.parent / "data" / "lane_emden",
         Path("data/lane_emden"),
         Path("../data/lane_emden"),

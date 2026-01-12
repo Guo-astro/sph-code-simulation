@@ -1,0 +1,64 @@
+{
+  "name": "polytrope_n1_5_ssph_2d",
+  "description": "2D n=1.5 polytrope (γ=5/3) SSPH - Disk simulation",
+  "dimension": 2,
+  "use_case": "2D disk simulations with Standard SPH",
+  "physics": {
+    "polytropic_index": 1.5,
+    "adiabatic_index": 1.6666666666666667,
+    "total_mass": 1.0,
+    "radius": 1.0,
+    "gravitational_constant": 1.0
+  },
+  "initial_conditions": {
+    "data_file": "simulations/astrophysics/lane_emden/data/numerical_solutions/2d/n1.5.dat",
+    "particle_count": 900,
+    "distribution": "polar_grid",
+    "shells": 30
+  },
+  "relaxation": {
+    "enabled": true,
+    "steps": 10000,
+    "convergence_threshold": 1e-06,
+    "output_frequency": 1000,
+    "damping_factor": 0.0
+  },
+  "checkpoint": {
+    "enabled": false,
+    "saveInterval": 1000,
+    "directory": "simulations/astrophysics/lane_emden/results/2d/polytrope_n1_5/checkpoints",
+    "saveOnExit": false,
+    "maxCheckpoints": 5,
+    "autoResume": false,
+    "resumeFile": ""
+  },
+  "simulation": {
+    "end_time": 5.0,
+    "output_time": 0.05,
+    "output_directory": "simulations/astrophysics/lane_emden/results/2d/polytrope_n1_5"
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "numerical": {
+    "neighbor_number": 50,
+    "kernel": "wendland",
+    "sph_type": "ssph",
+    "use_gravity": true,
+    "periodic": false,
+    "iterative_smoothing_length": false,
+    "leaf_particle_number": 32
+  },
+  "artificial_viscosity": {
+    "alpha": 1.0,
+    "use_balsara_switch": true,
+    "use_time_dependent_av": true,
+    "use_artificial_conductivity": false
+  }
+}
