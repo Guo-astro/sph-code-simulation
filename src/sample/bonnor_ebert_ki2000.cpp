@@ -328,6 +328,7 @@ void Solver::make_bonnor_ebert_ki2000()
         env_config.particle_mass = particle_mass;
         env_config.N_neighbor = m_param->physics.neighbor_number;
         env_config.num_layers = envelope_layers;
+        env_config.gamma = m_param->physics.gamma;  // CRITICAL: must match simulation gamma!
 
         // Generate ghost envelope particles
         auto envelope_particles = GhostEnvelopeGenerator::generate(env_config);

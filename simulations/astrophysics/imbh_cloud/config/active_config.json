@@ -1,69 +1,87 @@
 {
-    "_comment": "Active configuration - start with relaxation phase",
-    "_see": "presets/be_sphere_relaxation.json for Phase 1",
-    "_then": "presets/be_sphere_imbh_interaction.json for Phase 2",
-    "_or_use": "make relax && make interact",
+    "_comment": "Phase 1 STABLE: Jeans-stable BE sphere for cooling tests",
+    "_phase": "1 of 4: Damped relaxation to hydrostatic equilibrium",
+    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr, rho=6.77e-23 g/cm³, u=1e10 erg/g",
+    "_physics": "Isothermal BE sphere at T=18K, xi_s=6.0 (7% below critical)",
+    "_stability": "JEANS STABLE: R/λ_J=0.30, M/M_J~0.02, T=18K > T_eq(n=1000)~12K",
+    "_design_notes": [
+        "Original config (T=10K, n=1800, M=40Msun) was M/M_J=1.75 → collapsed with cooling",
+        "This config uses T=18K > K&I equilibrium (~12K at n=1000) → no runaway cooling",
+        "Smaller cloud (R~0.5pc vs 0.75pc) stays well below Jeans length (λ_J=1.65pc)",
+        "n_center mode: mass computed self-consistently from BE profile"
+    ],
+    "_output": "snapshot_0021.csv is the final relaxed state for Phase 2/2.5/3",
 
-    "simulation": {
-        "name": "IMBH-Cloud: Super-Critical BE Sphere with Relaxation",
-        "description": "40 Msun modified isothermal sphere at T=15K with external pressure confinement",
-        "dimension": 3
+    "name": "Phase 1 STABLE: BE Sphere (T=18K, n=1000, Jeans stable)",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "N": 25,
+
+    "_param_mode": "n_center specified → M computed self-consistently",
+    "T_cloud": 18.0,
+    "n_center": 1000.0,
+    "xi_s": 6.0,
+    "mu": 1.27,
+
+    "_derived_estimates": {
+        "R_cloud_estimate": "~0.54 pc (from BE profile)",
+        "M_cloud_estimate": "~13 Msun (from BE profile at T=18K, n=1000)",
+        "n_edge_estimate": "~91 cm^-3 (density contrast 11:1)",
+        "P_ext_estimate": "~1638 K cm^-3"
     },
 
-    "sample": {
-        "type": "hvcc_isothermal",
-        "N": 30,
-        "M_cloud": 40.0,
-        "T_cloud": 15.0,
-        "n_center": 200.0,
-        "P_ext": 3000.0,
-        "M_BH": 0.0,
-        "b_impact": 0.0,
-        "v_rel": 0.0,
-        "useEnvelope": true,
-        "envelopeLayers": 6
-    },
+    "M_BH": 0.0,
+    "b_impact": 0.0,
+    "v_rel": 0.0,
+    "useEnvelope": true,
+    "envelopeLayers": 6,
 
-    "physics": {
-        "gamma": 1.0001,
-        "neighbor_number": 50
-    },
+    "gamma": 1.6666666667,
+    "neighborNumber": 50,
 
-    "gravity": {
-        "constant": 0.00430091,
-        "use_self_gravity": true
-    },
+    "G": 0.00430091,
+    "useGravity": true,
 
-    "sph": {
-        "algorithm": "gsph",
-        "kernel": "wendland_c6",
-        "use_grad_h": true
-    },
+    "SPHType": "gsph",
+    "kernel": "wendland",
+    "useGradH": true,
+    "use2ndOrderGSPH": false,
 
-    "time": {
-        "end_time": 1.0,
-        "output_interval": 0.05,
-        "cfl": 0.3
-    },
+    "endTime": 1.0,
+    "outputTime": 0.1,
+    "cfl": 0.3,
 
     "useRelaxation": true,
-    "relaxationSteps": 5000,
-    "relaxationOutputFreq": 500,
+    "relaxationSteps": 200,
+    "relaxationOutputFreq": 10,
     "relaxationOnly": true,
-    "relaxationTimestepFactor": 0.1,
-    "useGlassRelaxation": true,
-    "glassRelaxationSteps": 2000,
-    "glassTargetNeighbors": 50,
+    "relaxationTimestepFactor": 0.05,
+    "useGlassRelaxation": false,
 
-    "output": {
-        "directory": "results/be_sphere_relaxation",
-        "format": "hdf5"
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/phase1_stable",
+    "outputFormat": "csv",
+
+    "stability_analysis": {
+        "T_cloud": 18.0,
+        "T_eq_KI2000": "~12K at n=1000 cm^-3",
+        "T_margin": "+6K above equilibrium → no runaway cooling",
+        "xi_s": 6.0,
+        "xi_crit": 6.451,
+        "BE_stability_margin": "7% below critical",
+        "jeans_length": "1.65 pc",
+        "jeans_mass": "74 Msun",
+        "R_over_lambda_J": "~0.33 (well below 1)",
+        "M_over_M_J": "~0.18 (well below 1)",
+        "status": "JEANS STABLE + THERMALLY STABLE"
     },
 
-    "units": {
-        "mass": "Msun",
-        "length": "pc",
-        "velocity": "km/s",
-        "time": "Myr"
-    }
+    "notes": [
+        "STABLE: T=18K > T_eq(n=1000)~12K → minimal cooling, no collapse",
+        "STABLE: R~0.5pc << λ_J=1.65pc → Jeans stable",
+        "STABLE: M~13Msun << M_J=74Msun → gravitationally stable",
+        "Uses n_center mode: mass derived self-consistently from BE profile",
+        "Ghost envelope provides external pressure confinement",
+        "Should relax smoothly, then cooling test should be stable"
+    ]
 }

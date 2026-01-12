@@ -40,6 +40,7 @@ struct GhostEnvelopeConfig {
     int N_neighbor;         // Target neighbor number (typically 50)
     int num_layers = 4;     // Number of envelope layers (default: 4)
     real envelope_factor = 2.0;  // Envelope extends to R_cloud * (1 + factor * h/R)
+    real gamma = 5.0/3.0;   // Adiabatic index (MUST match simulation gamma!)
 };
 
 /**
@@ -150,7 +151,7 @@ public:
                 p.mass = config.particle_mass;
                 p.dens = config.rho_edge;  // Assign edge density
                 p.ene = config.u_envelope;
-                p.pres = (1.0001 - 1.0) * config.rho_edge * config.u_envelope;  // γ ≈ 1
+                p.pres = (config.gamma - 1.0) * config.rho_edge * config.u_envelope;  // Use actual gamma!
                 p.sml = h_edge;
                 p.is_ghost = true;  // CRITICAL: exclude from time integration
                 p.id = particle_id++;

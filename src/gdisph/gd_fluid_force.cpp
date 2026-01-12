@@ -5,7 +5,7 @@
 #include "bhtree.hpp"
 #include "kernel/kernel_function.hpp"
 #include "gdisph/gd_fluid_force.hpp"
-#include "thermal/inoue_inutsuka_cooling.hpp"
+#include "thermal/koyama_inutsuka_cooling.hpp"
 
 #include <iostream>  // For debug output
 #include <cstdio>    // For FILE debug output
@@ -25,20 +25,21 @@ void FluidForce::initialize(std::shared_ptr<SPHParameters> param)
     m_is_2nd_order = param->gsph.is_2nd_order;
     m_gamma = param->physics.gamma;
 
-    // Initialize ISM cooling if enabled - Inoue & Inutsuka (2008)
-    // Analytic fit to Koyama & Inutsuka (2000) cooling rates
+    // Initialize ISM cooling if enabled - Koyama & Inutsuka (2000)
+    // Full tabulated cooling with column density dependence
     m_enable_cooling = param->thermal.enable_cooling;
     if (m_enable_cooling) {
-        m_cooling = std::make_shared<thermal::InoueInutsukaCooling>(m_gamma);
+        m_cooling = std::make_shared<thermal::KoyamaInutsukaCooling>(m_gamma);
         m_density_to_n_H = param->thermal.density_to_n_H;
         m_u_to_cgs = param->thermal.u_to_cgs;
         m_t_to_cgs = param->thermal.t_to_cgs;
+        m_N_H_column = param->thermal.N_H_column;
 
-        std::cout << "[COOLING] Inoue & Inutsuka (2008) ISM cooling initialized (GDISPH)" << std::endl;
+        std::cout << "[COOLING] Koyama & Inutsuka (2000) ISM cooling initialized (GDISPH)" << std::endl;
+        std::cout << "  N_H_column = " << m_N_H_column << " cm^-2" << std::endl;
         std::cout << "  density_to_n_H = " << m_density_to_n_H << " cm^-3 per code" << std::endl;
         std::cout << "  u_to_cgs = " << m_u_to_cgs << " erg/g per code" << std::endl;
         std::cout << "  t_to_cgs = " << m_t_to_cgs << " s per code" << std::endl;
-        std::cout << "  Expected equilibrium: WNM (n~0.5) T~6000K, CNM (n~30) T~100K" << std::endl;
     }
 
     hll_solver();
@@ -205,19 +206,20 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
                   + dene_ac;
         }
         
-        // Apply ISM cooling/heating if enabled - Inoue & Inutsuka (2008)
+        // Apply ISM cooling/heating if enabled - Koyama & Inutsuka (2000)
         // Uses proper unit conversion and implicit subcycling for stiff cooling
         if (m_enable_cooling && p_i.dens > 0 && p_i.ene > 0) {
-            // Call the analytic cooling function with unit conversion
+            // Call the tabulated cooling function with unit conversion
             // cooling_rate_sph() handles:
             //   1. Convert code units to CGS
             //   2. Get temperature from energy using correct thermodynamics
-            //   3. Find equilibrium temperature from analytic formula
+            //   3. Find equilibrium temperature from tabulated data
             //   4. Apply implicit relaxation (stable for stiff cooling)
             //   5. Convert back to code units
             const real du_dt_cooling = m_cooling->cooling_rate_sph(
                 p_i.dens,           // Code density
                 p_i.ene,            // Code specific internal energy
+                m_N_H_column,       // Column density [cm^-2]
                 dt,                 // Code timestep
                 m_density_to_n_H,   // Conversion: code density -> n_H [cm^-3]
                 m_u_to_cgs,         // Conversion: code energy -> erg/g

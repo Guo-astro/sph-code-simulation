@@ -1,0 +1,99 @@
+{
+    "_comment": "Phase 2.5 STABLE: Cooling test with Jeans-stable truncated BE sphere",
+    "_phase": "2.5 of 4: Test ISM cooling equilibrium before IMBH interaction",
+    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr, rho=6.77e-23 g/cm³, u=1e10 erg/g",
+    "_physics": "K&I 2000 cooling: T_eq~6K at n=3000cm⁻³, starts at 20K",
+    "_stability": "TRULY STABLE: xi_s=3.0 gives R/λ_J=0.48, M/M_J=0.45",
+    "_input": "Resumes from phase1_stable/snapshot_0021.csv (T=20K, n=3000, xi_s=3.0)",
+    "_expected": "Cloud cools from 20K → ~6-10K equilibrium, remains STABLE",
+
+    "_design_notes": [
+        "CRITICAL: Critical BE (xi_s=6) ALWAYS has R/λ_J≈0.95 → marginal stability",
+        "Solution: Use TRUNCATED BE (xi_s=3.0) → R/λ_J=0.48 << 1 → truly stable",
+        "Even if T drops to 6K, Jeans length only shrinks to λ_J~0.6pc",
+        "With R=0.48pc, still R/λ_J=0.8 < 1 → stable even at equilibrium"
+    ],
+
+    "name": "Phase 2.5 STABLE: Truncated BE + K&I 2000 Cooling",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/phase1_stable/snapshot_0021.csv",
+    "resetTimeOnResume": true,
+    "ghostDensityFactor": 1.0,
+    "N": 25,
+
+    "_cloud_params_from_phase1": {
+        "T_cloud": 20.0,
+        "n_center": 3000.0,
+        "R_cloud": "0.48 pc (truncated BE, xi_s=3.0)",
+        "M_cloud": "22.5 Msun (self-consistent)",
+        "n_edge": "1034 cm^-3 (density contrast 2.9:1)",
+        "xi_s": 3.0,
+        "mu": 1.27
+    },
+
+    "M_BH": 0.0,
+    "b_impact": 0.0,
+    "v_rel": 0.0,
+    "useEnvelope": true,
+    "envelopeLayers": 6,
+
+    "gamma": 1.6666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": true,
+    "gravitySofteningType": "wendland_c4",
+
+    "SPHType": "gsph",
+    "kernel": "wendland",
+    "useGradH": true,
+    "use2ndOrderGSPH": false,
+
+    "_cooling_comment": "Enable Koyama & Inutsuka (2000) ISM cooling/heating",
+    "_cooling_physics": [
+        "At n=3000 cm^-3: T_eq ~ 5-7K",
+        "Starting T=20K is ~14K ABOVE equilibrium",
+        "Cloud will cool toward equilibrium over ~few Myr",
+        "But R/λ_J = 0.48 << 1 → cloud remains Jeans stable!"
+    ],
+    "enableCooling": true,
+    "columnDensity": 1.0e20,
+    "densityToNumberDensity": 31.86,
+    "energyToCGS": 1.0e10,
+    "timeToCGS": 3.086e13,
+
+    "endTime": 50.0,
+    "outputTime": 2.5,
+    "cfl": 0.3,
+
+    "useRelaxation": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/phase2.5_stable_cooling",
+    "outputFormat": "csv",
+
+    "stability_check": {
+        "initial_T": 20.0,
+        "equilibrium_T": "~6K at n=3000 (K&I 2000)",
+        "lambda_J_at_20K": "1.0 pc (at n=3000)",
+        "lambda_J_at_6K": "0.55 pc (if fully cooled)",
+        "cloud_R": "0.48 pc",
+        "R_over_lambda_J_initial": "0.48 (STABLE)",
+        "R_over_lambda_J_cooled": "0.87 (still < 1, STABLE)",
+        "M_J_at_20K": "50 Msun",
+        "M_J_at_6K": "8 Msun (critical!)",
+        "cloud_M": "22.5 Msun",
+        "M_over_M_J_initial": "0.45 (STABLE)",
+        "M_over_M_J_cooled": "2.8 (may need monitoring)",
+        "expected_behavior": "Cooling to equilibrium; if approaches Jeans limit, thermal balance prevents further cooling"
+    },
+
+    "notes": [
+        "TRUNCATED BE (xi_s=3.0): Unlike critical BE, truly Jeans stable",
+        "R/λ_J = 0.48 at T=20K → safe margin from instability",
+        "Even at T_eq=6K, R/λ_J ~ 0.87 < 1 → still Jeans stable",
+        "Cloud may approach M_J as it cools, but thermal balance stabilizes",
+        "Should run smoothly without timestep collapse"
+    ]
+}

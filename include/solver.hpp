@@ -116,6 +116,8 @@ class Solver {
     bool m_resume_from_checkpoint;
     std::string m_checkpoint_file;
     bool m_reset_time_on_resume;  // Reset simulation time to 0 when resuming
+    real m_ghost_density_factor;  // Factor to multiply ghost particle density (default: 1.0)
+    real m_spherical_boundary_radius; // Reflecting spherical boundary radius (0 = disabled)
 
     void read_parameterfile(const char * filename);
     void make_initial_condition();

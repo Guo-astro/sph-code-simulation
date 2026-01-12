@@ -1,0 +1,52 @@
+{
+    "_comment": "Phase 2: Hydrostatic stability test WITHOUT cooling (stable truncated BE)",
+    "_phase": "2 of 4: Verify cloud maintains hydrostatic equilibrium (no cooling)",
+    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr, rho=6.77e-23 g/cm³, u=1e10 erg/g",
+    "_physics": "Adiabatic evolution from Phase 1 stable (T=20K, xi_s=3.0), tests gravitational stability",
+    "_input": "Resumes from phase1_stable/snapshot_0021.csv (T=20K, Jeans-stable)",
+
+    "name": "Phase 2: Hydrostatic Stability Test (no cooling, stable BE)",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/phase1_stable/snapshot_0021.csv",
+    "resetTimeOnResume": true,
+    "ghostDensityFactor": 1.2,
+    "N": 25,
+
+    "M_cloud": 22.5,
+    "T_cloud": 20.0,
+    "n_center": 3000.0,
+    "n_edge": 270.0,
+    "P_ext": 3780.0,
+    "xi_s": 3.0,
+    "mu": 1.27,
+    "R_cloud": 0.48,
+
+    "M_BH": 0.0,
+    "b_impact": 0.0,
+    "v_rel": 0.0,
+    "useEnvelope": true,
+    "envelopeLayers": 6,
+
+    "gamma": 1.6666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": true,
+    "gravitySofteningType": "wendland_c4",
+
+    "SPHType": "gsph",
+    "kernel": "wendland",
+    "useGradH": true,
+    "use2ndOrderGSPH": false,
+
+    "endTime": 100.0,
+    "outputTime": 5.0,
+    "cfl": 0.3,
+
+    "useRelaxation": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/phase2_hydrostatic_long",
+    "outputFormat": "csv"
+}

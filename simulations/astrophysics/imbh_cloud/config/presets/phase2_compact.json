@@ -1,0 +1,49 @@
+{
+    "_comment": "Phase 2 COMPACT: Hydrostatic stability test WITHOUT cooling",
+    "_phase": "2 of 4: Verify compact cloud maintains hydrostatic equilibrium (no cooling)",
+    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr",
+    "_physics": "Adiabatic evolution from Phase 1 compact (n=500, T=35K, xi_s=3.0)",
+    "_input": "Resumes from phase1_compact/snapshot_0021.csv",
+
+    "name": "Phase 2 COMPACT: Hydrostatic Stability Test (no cooling)",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/phase1_compact/snapshot_0021.csv",
+    "resetTimeOnResume": true,
+    "ghostDensityFactor": 1.2,
+    "N": 25,
+
+    "M_cloud": 127.5,
+    "T_cloud": 35.0,
+    "n_center": 500.0,
+    "xi_s": 3.0,
+    "mu": 1.27,
+    "R_cloud": 1.55,
+
+    "M_BH": 0.0,
+    "b_impact": 0.0,
+    "v_rel": 0.0,
+    "useEnvelope": true,
+    "envelopeLayers": 6,
+
+    "gamma": 1.6666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": true,
+
+    "SPHType": "gsph",
+    "kernel": "wendland",
+    "useGradH": true,
+    "use2ndOrderGSPH": false,
+
+    "endTime": 50.0,
+    "outputTime": 2.5,
+    "cfl": 0.3,
+
+    "useRelaxation": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/phase2_compact",
+    "outputFormat": "csv"
+}

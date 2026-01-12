@@ -1050,12 +1050,17 @@ void Solver::read_parameterfile(const char * filename)
     
     m_resume_from_checkpoint = !m_checkpoint_file.empty();
     m_reset_time_on_resume = input.get<bool>("resetTimeOnResume", false);
+    m_ghost_density_factor = input.get<real>("ghostDensityFactor", 1.0);
+    m_spherical_boundary_radius = input.get<real>("sphericalBoundaryRadius", 0.0);
     
     if(m_resume_from_checkpoint) {
         std::cout << "Resume mode enabled:" << std::endl;
         std::cout << "  - Will resume from: " << m_checkpoint_file << std::endl;
         std::cout << "  - Reset time to 0: " << (m_reset_time_on_resume ? "yes" : "no (continue from snapshot time)") << std::endl;
         std::cout << "  - JSON config as SSOT: all physics parameters from config" << std::endl;
+        if(m_ghost_density_factor != 1.0) {
+            std::cout << "  - Ghost density factor: " << m_ghost_density_factor << std::endl;
+        }
     }
     
     // Unit system configuration
@@ -1583,6 +1588,38 @@ void Solver::initialize()
                 m_sample_parameters["R"] = snapshot_data.R;
                 m_sample_parameters["M_total"] = snapshot_data.M_total;
                 std::cout << "  - Restored Lane-Emden parameters from snapshot" << std::endl;
+            }
+            
+            // Apply ghost density factor if specified
+            // This strengthens/weakens the ghost envelope pressure confinement
+            if(m_ghost_density_factor != 1.0) {
+                std::cout << "\n=== Applying Ghost Density Factor ===" << std::endl;
+                auto& particles = m_sim->get_particles();
+                const int num_p = m_sim->get_particle_num();
+                const real gamma = m_param->physics.gamma;
+                int ghost_count = 0;
+                real old_rho_sum = 0.0, new_rho_sum = 0.0;
+                
+                for(int i = 0; i < num_p; ++i) {
+                    if(particles[i].is_ghost) {
+                        old_rho_sum += particles[i].dens;
+                        // Scale density
+                        particles[i].dens *= m_ghost_density_factor;
+                        new_rho_sum += particles[i].dens;
+                        // Recalculate pressure for isothermal/polytropic EOS: P = ρ × u × (γ-1)
+                        // Since u stays constant, P scales with ρ
+                        particles[i].pres *= m_ghost_density_factor;
+                        ghost_count++;
+                    }
+                }
+                
+                if(ghost_count > 0) {
+                    std::cout << "  Modified " << ghost_count << " ghost particles" << std::endl;
+                    std::cout << "  Avg density: " << (old_rho_sum/ghost_count) << " → " 
+                              << (new_rho_sum/ghost_count) << " M☉/pc³" << std::endl;
+                    std::cout << "  Pressure also scaled by " << m_ghost_density_factor << std::endl;
+                    std::cout << "======================================\n" << std::endl;
+                }
             }
             
             // For ALL resumes, find the highest existing snapshot number and continue from there
@@ -3611,6 +3648,40 @@ void Solver::predict()
             p[i].sound = std::sqrt(c_sound * p[i].ene);
 
             periodic->apply(p[i].pos);
+            
+            // Apply spherical reflecting boundary if enabled
+            if(m_spherical_boundary_radius > 0.0) {
+                real r2 = p[i].pos[0] * p[i].pos[0] + p[i].pos[1] * p[i].pos[1];
+#if DIM == 3
+                r2 += p[i].pos[2] * p[i].pos[2];
+#endif
+                real r = std::sqrt(r2);
+                if(r > m_spherical_boundary_radius) {
+                    // Reflecting boundary: push particle back and reflect velocity
+                    real scale = m_spherical_boundary_radius * 0.99 / r;
+                    p[i].pos[0] *= scale;
+                    p[i].pos[1] *= scale;
+#if DIM == 3
+                    p[i].pos[2] *= scale;
+#endif
+                    // Also reduce radial velocity component
+                    real v_r = (p[i].vel[0] * p[i].pos[0] + p[i].vel[1] * p[i].pos[1]) / r;
+#if DIM == 3
+                    v_r += p[i].vel[2] * p[i].pos[2] / r;
+#endif
+                    if(v_r > 0) {  // Only if moving outward
+                        // Reflect radial velocity component
+                        real n_x = p[i].pos[0] / r;
+                        real n_y = p[i].pos[1] / r;
+                        p[i].vel[0] -= 2.0 * v_r * n_x;
+                        p[i].vel[1] -= 2.0 * v_r * n_y;
+#if DIM == 3
+                        real n_z = p[i].pos[2] / r;
+                        p[i].vel[2] -= 2.0 * v_r * n_z;
+#endif
+                    }
+                }
+            }
         }
     }
 }

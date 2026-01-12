@@ -711,6 +711,7 @@ void Solver::make_isothermal_bonnor_ebert()
         env_config.particle_mass = particle_mass;
         env_config.N_neighbor = m_param->physics.neighbor_number;
         env_config.num_layers = envelope_layers;
+        env_config.gamma = gamma;  // CRITICAL: must match simulation gamma!
 
         auto envelope_particles = GhostEnvelopeGenerator::generate(env_config);
 

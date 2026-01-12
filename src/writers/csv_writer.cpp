@@ -412,22 +412,27 @@ bool CSVWriter::read_particles(const std::string& filepath, std::vector<SPHParti
             fields.push_back(field);
         }
         
-        // Verify we have expected number of columns
+        // Verify we have minimum expected number of columns
         // DIM=3: 25 columns (id, pos*3, vel*3, acc*3, mass, dens, pres, ene, sml, sound, alpha, balsara, gradh, phi, grav_acc*3, neighbor, is_ghost)
         // DIM=2: 21 columns, DIM=1: 18 columns (with vel_t)
         // Also accept old format without grav_acc (22 columns for DIM=3)
+        // Accept extra columns (e.g., MHD fields B_x, B_y, B_z, vy_mhd, vz_mhd) - they will be ignored
 #if DIM == 3
         const size_t expected_cols_new = 25;
         const size_t expected_cols_old = 22;
+        const size_t min_cols = expected_cols_old;  // Minimum required
 #elif DIM == 2
         const size_t expected_cols_new = 21;
         const size_t expected_cols_old = 18;
+        const size_t min_cols = expected_cols_old;
 #else
         const size_t expected_cols_new = 18;
         const size_t expected_cols_old = 15;
+        const size_t min_cols = expected_cols_old;
 #endif
-        const bool has_grav_acc = (fields.size() == expected_cols_new);
-        if (fields.size() != expected_cols_new && fields.size() != expected_cols_old) {
+        // Accept if we have at least the minimum columns (extra columns like MHD fields are ignored)
+        const bool has_grav_acc = (fields.size() >= expected_cols_new);
+        if (fields.size() < min_cols) {
             // Clean up allocated particles
             for (auto* p : particles) {
                 delete p;
@@ -509,6 +514,19 @@ bool CSVWriter::read_particles(const std::string& filepath, std::vector<SPHParti
             } else {
                 // Old format without grav_acc - initialize to zero
                 p->grav_acc = vec_t(0.0);
+            }
+            
+            // Check for MHD columns (B_x, B_y, B_z, vy_mhd, vz_mhd) between grav_acc and neighbor
+            // New format with MHD: 30 columns for DIM=3 (25 + 5 MHD fields)
+            // If we have more than expected_cols_new columns, MHD fields are present
+            const size_t mhd_cols = 5;  // B_x, B_y, B_z, vy_mhd, vz_mhd
+            const bool has_mhd = (fields.size() >= expected_cols_new + mhd_cols);
+            if (has_mhd) {
+                // Skip MHD fields (we don't need them for most simulations)
+                // B_x, B_y, B_z
+                idx += 3;
+                // vy_mhd, vz_mhd
+                idx += 2;
             }
             
             p->neighbor = std::stoi(fields[idx++]);

@@ -692,6 +692,7 @@ void Solver::make_hvcc_isothermal_10k()
         env_config.particle_mass = particle_mass;
         env_config.N_neighbor = m_param->physics.neighbor_number;
         env_config.num_layers = config.envelope_layers;
+        env_config.gamma = m_param->physics.gamma;  // CRITICAL: must match simulation gamma!
 
         auto envelope = GhostEnvelopeGenerator::generate(env_config);
 
