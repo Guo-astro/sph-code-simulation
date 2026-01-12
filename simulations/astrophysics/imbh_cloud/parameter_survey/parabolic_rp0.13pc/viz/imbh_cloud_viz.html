@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMBH Cloud Tidal Disruption - Three.js Visualization</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #0a0a15;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        #container { width: 100vw; height: 100vh; }
+
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(20, 20, 40, 0.9);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid #4a4a6a;
+            max-width: 350px;
+            z-index: 100;
+        }
+        #info-panel h2 {
+            color: #7eb0ff;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        #info-panel .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+        #info-panel .label { color: #aaa; }
+        #info-panel .value { color: #7eb0ff; font-family: monospace; }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 40, 0.9);
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 1px solid #4a4a6a;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            z-index: 100;
+        }
+        #controls button {
+            background: #3a3a5a;
+            border: 1px solid #5a5a7a;
+            color: #e0e0e0;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+        #controls button:hover { background: #4a4a7a; }
+        #controls button.active { background: #5a7a5a; border-color: #7a9a7a; }
+
+        #timeline {
+            width: 300px;
+            height: 6px;
+            -webkit-appearance: none;
+            background: #3a3a5a;
+            border-radius: 3px;
+            outline: none;
+        }
+        #timeline::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #7eb0ff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        #sim-select {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(20, 20, 40, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #4a4a6a;
+            z-index: 100;
+        }
+        #sim-select label { margin-right: 10px; }
+        #sim-select select {
+            background: #3a3a5a;
+            border: 1px solid #5a5a7a;
+            color: #e0e0e0;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        #colorbar {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 200px;
+            background: linear-gradient(to bottom, #ff3030, #ffff00, #30ff30, #3080ff, #3030ff);
+            border-radius: 4px;
+            border: 1px solid #4a4a6a;
+        }
+        #colorbar-labels {
+            position: absolute;
+            right: 50px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 0.8em;
+            color: #aaa;
+        }
+
+        #legend {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(20, 20, 40, 0.9);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #4a4a6a;
+            font-size: 0.85em;
+        }
+        #legend .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        #legend .legend-color {
+            width: 30px;
+            height: 3px;
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 40, 0.95);
+            padding: 30px 50px;
+            border-radius: 10px;
+            border: 1px solid #4a4a6a;
+            text-align: center;
+            z-index: 200;
+        }
+        #loading.hidden { display: none; }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #3a3a5a;
+            border-top-color: #7eb0ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <div id="info-panel">
+        <h2>IMBH-Cloud Tidal Disruption</h2>
+        <div class="info-row"><span class="label">Orbit:</span><span class="value">Parabolic (E=0)</span></div>
+        <div class="info-row"><span class="label">Pericenter:</span><span class="value">r_p = 0.13 pc</span></div>
+        <div class="info-row"><span class="label">M_BH:</span><span class="value">10⁵ M☉</span></div>
+        <div class="info-row"><span class="label">M_cloud:</span><span class="value">127.5 M☉</span></div>
+        <hr style="margin: 10px 0; border-color: #4a4a6a;">
+        <div class="info-row"><span class="label">Time:</span><span class="value" id="time-display">0.00 Myr</span></div>
+        <div class="info-row"><span class="label">Particles:</span><span class="value" id="particle-count">--</span></div>
+        <div class="info-row"><span class="label">Snapshot:</span><span class="value" id="snapshot-num">--</span></div>
+        <div class="info-row"><span class="label">COM distance:</span><span class="value" id="com-distance">-- pc</span></div>
+    </div>
+
+    <div id="sim-select">
+        <label>Simulation:</label>
+        <select id="sim-type">
+            <option value="adiabatic">Adiabatic</option>
+            <option value="cooling">Cooling (K&I 2000)</option>
+        </select>
+    </div>
+
+    <div id="controls">
+        <button id="btn-prev">◀ Prev</button>
+        <button id="btn-play">▶ Play</button>
+        <button id="btn-next">Next ▶</button>
+        <input type="range" id="timeline" min="1" max="100" value="1">
+        <span id="frame-display">1 / --</span>
+    </div>
+
+    <div id="colorbar"></div>
+    <div id="colorbar-labels">
+        <span>High ρ</span>
+        <span>Low ρ</span>
+    </div>
+
+    <div id="legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff4444;"></div>
+            <span>Black Hole</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(90deg, #ffaa00, #00ff88);"></div>
+            <span>Analytic Orbit</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffffff; width: 8px; height: 8px; border-radius: 50%;"></div>
+            <span>Cloud COM</span>
+        </div>
+    </div>
+
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Loading simulation data...</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // ============================================================
+        // IMBH-Cloud Tidal Disruption Visualization
+        // Parabolic orbit: r_p = 0.13 pc, v_p = 81 km/s
+        // ============================================================
+
+        // Physical constants (code units: L=pc, M=M_sun, V=km/s)
+        const G = 0.00430091;  // Gravitational constant in code units
+        const M_BH = 100000.0; // Black hole mass [M_sun]
+        const r_peri = 0.13;   // Pericenter distance [pc]
+
+        // Initial conditions from config
+        const cloud_pos0 = [-15.0, 2.8049, 0.0];
+        const cloud_vel0 = [7.2211, -2.0553, 0.0];
+
+        // Compute orbital angular momentum (per unit mass)
+        // L = |r × v|
+        const L_vec = [
+            cloud_pos0[1] * cloud_vel0[2] - cloud_pos0[2] * cloud_vel0[1],
+            cloud_pos0[2] * cloud_vel0[0] - cloud_pos0[0] * cloud_vel0[2],
+            cloud_pos0[0] * cloud_vel0[1] - cloud_pos0[1] * cloud_vel0[0]
+        ];
+        const L = Math.sqrt(L_vec[0]**2 + L_vec[1]**2 + L_vec[2]**2);
+
+        // Semi-latus rectum for parabola: p = L²/(GM)
+        const p = L * L / (G * M_BH);
+
+        // Three.js setup
+        let scene, camera, renderer, controls;
+        let particleSystem, bhMesh, orbitLine, comMarker;
+        let snapshots = [];
+        let currentFrame = 0;
+        let isPlaying = false;
+        let playInterval = null;
+        let simType = 'adiabatic';
+
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a15);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 1000);
+            camera.position.set(0, 0, 25);
+            camera.lookAt(0, 0, 0);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 1;
+            controls.maxDistance = 100;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+
+            // Black hole (red sphere at origin)
+            const bhGeometry = new THREE.SphereGeometry(0.15, 32, 32);
+            const bhMaterial = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+            bhMesh = new THREE.Mesh(bhGeometry, bhMaterial);
+            bhMesh.position.set(0, 0, 0);
+            scene.add(bhMesh);
+
+            // Black hole glow
+            const glowGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff2222,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+            scene.add(glowMesh);
+
+            // Analytic orbit (parabola)
+            createAnalyticOrbit();
+
+            // Grid helper (orbital plane)
+            const gridHelper = new THREE.GridHelper(40, 20, 0x2a2a4a, 0x1a1a3a);
+            gridHelper.rotation.x = Math.PI / 2;
+            scene.add(gridHelper);
+
+            // Axes helper
+            const axesHelper = new THREE.AxesHelper(5);
+            scene.add(axesHelper);
+
+            // COM marker
+            const comGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+            const comMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            comMarker = new THREE.Mesh(comGeometry, comMaterial);
+            scene.add(comMarker);
+
+            // Event listeners
+            window.addEventListener('resize', onWindowResize);
+            document.getElementById('btn-play').addEventListener('click', togglePlay);
+            document.getElementById('btn-prev').addEventListener('click', prevFrame);
+            document.getElementById('btn-next').addEventListener('click', nextFrame);
+            document.getElementById('timeline').addEventListener('input', onTimelineChange);
+            document.getElementById('sim-type').addEventListener('change', onSimTypeChange);
+
+            // Load initial data
+            loadSnapshots();
+
+            animate();
+        }
+
+        function createAnalyticOrbit() {
+            // Parabolic orbit: r = p / (1 + cos(θ))
+            // θ ranges from -π to π (pericenter at θ=0)
+
+            const points = [];
+            const colors = [];
+
+            // Compute orbit orientation from initial conditions
+            // The orbit lies in the plane defined by r₀ and v₀
+            const r0 = Math.sqrt(cloud_pos0[0]**2 + cloud_pos0[1]**2 + cloud_pos0[2]**2);
+
+            // True anomaly at initial position
+            // For parabola: r = p/(1 + cos(θ)) → cos(θ) = p/r - 1
+            const cosTheta0 = p / r0 - 1;
+            const theta0 = -Math.acos(Math.max(-1, Math.min(1, cosTheta0)));
+
+            // Orbital plane normal (L direction)
+            const L_norm = [L_vec[0]/L, L_vec[1]/L, L_vec[2]/L];
+
+            // Eccentricity vector points toward pericenter
+            // For parabola, e = 1
+            // e_vec = (v × L)/(GM) - r_hat
+            const v_cross_L = [
+                cloud_vel0[1] * L_vec[2] - cloud_vel0[2] * L_vec[1],
+                cloud_vel0[2] * L_vec[0] - cloud_vel0[0] * L_vec[2],
+                cloud_vel0[0] * L_vec[1] - cloud_vel0[1] * L_vec[0]
+            ];
+            const r_hat = [cloud_pos0[0]/r0, cloud_pos0[1]/r0, cloud_pos0[2]/r0];
+            const e_vec = [
+                v_cross_L[0]/(G*M_BH) - r_hat[0],
+                v_cross_L[1]/(G*M_BH) - r_hat[1],
+                v_cross_L[2]/(G*M_BH) - r_hat[2]
+            ];
+            const e_mag = Math.sqrt(e_vec[0]**2 + e_vec[1]**2 + e_vec[2]**2);
+            const e_hat = [e_vec[0]/e_mag, e_vec[1]/e_mag, e_vec[2]/e_mag];
+
+            // Perpendicular vector in orbital plane
+            const p_hat = [
+                L_norm[1]*e_hat[2] - L_norm[2]*e_hat[1],
+                L_norm[2]*e_hat[0] - L_norm[0]*e_hat[2],
+                L_norm[0]*e_hat[1] - L_norm[1]*e_hat[0]
+            ];
+
+            // Generate orbit points
+            for (let i = 0; i <= 200; i++) {
+                const theta = -Math.PI * 0.95 + i * (Math.PI * 1.9) / 200;
+                const r = p / (1 + Math.cos(theta));
+
+                if (r > 50 || r < 0) continue;  // Skip points too far or invalid
+
+                // Position in orbital plane
+                const x_orb = r * Math.cos(theta);
+                const y_orb = r * Math.sin(theta);
+
+                // Transform to 3D coordinates
+                const x = x_orb * e_hat[0] + y_orb * p_hat[0];
+                const y = x_orb * e_hat[1] + y_orb * p_hat[1];
+                const z = x_orb * e_hat[2] + y_orb * p_hat[2];
+
+                points.push(new THREE.Vector3(x, y, z));
+
+                // Color gradient: orange at start, green near pericenter
+                const t = (theta + Math.PI) / (2 * Math.PI);
+                const hue = 0.1 + 0.2 * (1 - Math.abs(theta) / Math.PI);
+                colors.push(new THREE.Color().setHSL(hue, 1, 0.5));
+            }
+
+            // Create line geometry
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+
+            // Add colors
+            const colorArray = new Float32Array(colors.length * 3);
+            colors.forEach((c, i) => {
+                colorArray[i*3] = c.r;
+                colorArray[i*3+1] = c.g;
+                colorArray[i*3+2] = c.b;
+            });
+            geometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+
+            const material = new THREE.LineBasicMaterial({
+                vertexColors: true,
+                linewidth: 2
+            });
+
+            orbitLine = new THREE.Line(geometry, material);
+            scene.add(orbitLine);
+
+            // Add pericenter marker
+            const periGeom = new THREE.RingGeometry(0.08, 0.12, 32);
+            const periMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, side: THREE.DoubleSide });
+            const periMarker = new THREE.Mesh(periGeom, periMat);
+            periMarker.position.set(r_peri * e_hat[0], r_peri * e_hat[1], r_peri * e_hat[2]);
+            periMarker.lookAt(0, 0, 0);
+            scene.add(periMarker);
+        }
+
+        async function loadSnapshots() {
+            document.getElementById('loading').classList.remove('hidden');
+
+            const basePath = simType === 'adiabatic'
+                ? '../adiabatic/results/'
+                : '../cooling/results/';
+
+            snapshots = [];
+            let snapshotNum = 1;
+            let consecutiveFailures = 0;
+
+            while (consecutiveFailures < 3) {
+                const filename = `snapshot_${String(snapshotNum).padStart(4, '0')}.csv`;
+                try {
+                    const response = await fetch(basePath + filename);
+                    if (!response.ok) {
+                        consecutiveFailures++;
+                        snapshotNum++;
+                        continue;
+                    }
+
+                    const text = await response.text();
+                    const data = parseCSV(text);
+                    if (data.particles.length > 0) {
+                        snapshots.push(data);
+                        consecutiveFailures = 0;
+                    }
+                } catch (e) {
+                    consecutiveFailures++;
+                }
+                snapshotNum++;
+
+                // Safety limit
+                if (snapshotNum > 500) break;
+            }
+
+            if (snapshots.length > 0) {
+                document.getElementById('timeline').max = snapshots.length;
+                document.getElementById('frame-display').textContent = `1 / ${snapshots.length}`;
+                updateVisualization(0);
+            }
+
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function parseCSV(text) {
+            const lines = text.split('\n');
+            let time = 0;
+            let particleCount = 0;
+            const particles = [];
+
+            for (const line of lines) {
+                if (line.startsWith('# Time (code):')) {
+                    time = parseFloat(line.split(':')[1].trim());
+                } else if (line.startsWith('# Particle Count:')) {
+                    particleCount = parseInt(line.split(':')[1].trim());
+                } else if (!line.startsWith('#') && line.trim() && !line.startsWith('id,')) {
+                    const parts = line.split(',');
+                    if (parts.length >= 12) {
+                        particles.push({
+                            id: parseInt(parts[0]),
+                            x: parseFloat(parts[1]),
+                            y: parseFloat(parts[2]),
+                            z: parseFloat(parts[3]),
+                            vx: parseFloat(parts[4]),
+                            vy: parseFloat(parts[5]),
+                            vz: parseFloat(parts[6]),
+                            mass: parseFloat(parts[10]),
+                            dens: parseFloat(parts[11])
+                        });
+                    }
+                }
+            }
+
+            return { time, particleCount, particles };
+        }
+
+        function updateVisualization(frameIndex) {
+            if (frameIndex < 0 || frameIndex >= snapshots.length) return;
+
+            currentFrame = frameIndex;
+            const data = snapshots[frameIndex];
+
+            // Remove old particle system
+            if (particleSystem) {
+                scene.remove(particleSystem);
+                particleSystem.geometry.dispose();
+                particleSystem.material.dispose();
+            }
+
+            // Create new particle system
+            const positions = new Float32Array(data.particles.length * 3);
+            const colors = new Float32Array(data.particles.length * 3);
+            const sizes = new Float32Array(data.particles.length);
+
+            // Find density range for coloring
+            let minDens = Infinity, maxDens = -Infinity;
+            for (const p of data.particles) {
+                if (p.dens > 0) {
+                    const logDens = Math.log10(p.dens);
+                    minDens = Math.min(minDens, logDens);
+                    maxDens = Math.max(maxDens, logDens);
+                }
+            }
+
+            // Compute COM
+            let comX = 0, comY = 0, comZ = 0, totalMass = 0;
+
+            data.particles.forEach((p, i) => {
+                positions[i*3] = p.x;
+                positions[i*3+1] = p.y;
+                positions[i*3+2] = p.z;
+
+                // Color by log density
+                const logDens = Math.log10(Math.max(p.dens, 1e-10));
+                const t = (logDens - minDens) / (maxDens - minDens + 1e-10);
+
+                // Blue (cold/low dens) to red (hot/high dens)
+                const color = new THREE.Color();
+                color.setHSL(0.7 - 0.7 * t, 1, 0.5);
+                colors[i*3] = color.r;
+                colors[i*3+1] = color.g;
+                colors[i*3+2] = color.b;
+
+                sizes[i] = 0.03 + 0.02 * t;
+
+                // COM calculation
+                comX += p.x * p.mass;
+                comY += p.y * p.mass;
+                comZ += p.z * p.mass;
+                totalMass += p.mass;
+            });
+
+            comX /= totalMass;
+            comY /= totalMass;
+            comZ /= totalMass;
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.05,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                sizeAttenuation: true
+            });
+
+            particleSystem = new THREE.Points(geometry, material);
+            scene.add(particleSystem);
+
+            // Update COM marker
+            comMarker.position.set(comX, comY, comZ);
+
+            // Update UI
+            const comDist = Math.sqrt(comX*comX + comY*comY + comZ*comZ);
+            document.getElementById('time-display').textContent = `${data.time.toFixed(3)} code`;
+            document.getElementById('particle-count').textContent = data.particles.length.toLocaleString();
+            document.getElementById('snapshot-num').textContent = `${frameIndex + 1}`;
+            document.getElementById('com-distance').textContent = `${comDist.toFixed(2)} pc`;
+            document.getElementById('timeline').value = frameIndex + 1;
+            document.getElementById('frame-display').textContent = `${frameIndex + 1} / ${snapshots.length}`;
+        }
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('btn-play');
+
+            if (isPlaying) {
+                btn.textContent = '⏸ Pause';
+                btn.classList.add('active');
+                playInterval = setInterval(() => {
+                    if (currentFrame < snapshots.length - 1) {
+                        updateVisualization(currentFrame + 1);
+                    } else {
+                        updateVisualization(0);  // Loop
+                    }
+                }, 100);
+            } else {
+                btn.textContent = '▶ Play';
+                btn.classList.remove('active');
+                clearInterval(playInterval);
+            }
+        }
+
+        function prevFrame() {
+            if (currentFrame > 0) {
+                updateVisualization(currentFrame - 1);
+            }
+        }
+
+        function nextFrame() {
+            if (currentFrame < snapshots.length - 1) {
+                updateVisualization(currentFrame + 1);
+            }
+        }
+
+        function onTimelineChange(e) {
+            updateVisualization(parseInt(e.target.value) - 1);
+        }
+
+        function onSimTypeChange(e) {
+            simType = e.target.value;
+            loadSnapshots();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
