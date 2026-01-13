@@ -46,11 +46,9 @@ const STATE = {
     particleSystem: null,
     bhMesh: null,
     orbitLine: null,
-    comMarker: null,
     losArrows: null,
     losSphere: null,
-    tidalCircle: null,
-    hillCirclePeri: null,
+    periMarker: null,
 
     snapshots: [],
     currentFrame: 0,
@@ -65,9 +63,13 @@ const STATE = {
 
     // Dynamic data
     cloudMass: 0,
+    cloudRadius: 0,
+    initialCloudParticles: 0,  // Initial cloud particle count (for accretion tracking)
     currentDataset: null,
     datasets: [],
     basePath: '',
+    isLoading: false,  // Guard against concurrent loads
+    loadId: 0,  // Unique ID for each load operation
 
     // Global color ranges - use log scale for wide-ranging quantities
     colorRanges: {
@@ -101,10 +103,16 @@ async function loadDatasets() {
             });
         }
 
-        // Select first dataset by default
-        if (STATE.datasets.length > 0) {
-            selectDataset(STATE.datasets[0].id);
+        // Use the global SELECTED_DATASET variable if defined, otherwise use first dataset
+        const datasetId = (typeof SELECTED_DATASET !== 'undefined') ? SELECTED_DATASET : STATE.datasets[0].id;
+        selectDataset(datasetId);
+
+        // Update selector to show selected dataset
+        if (selector) {
+            selector.value = datasetId;
         }
+
+        console.log('Loaded dataset:', datasetId);
     } catch (error) {
         console.error('Failed to load datasets:', error);
     }
@@ -160,13 +168,28 @@ function computeOrbitalParams() {
 
 // Update dataset info in UI
 function updateDatasetInfo(dataset) {
-    const infoEl = document.getElementById('dataset-info');
-    if (infoEl) {
-        infoEl.innerHTML = `
-            <div class="info-row"><span class="label">Pericenter:</span><span class="value">r_p = ${CONFIG.r_peri} pc</span></div>
-            <div class="info-row"><span class="label">Description:</span><span class="value">${dataset.config.description || ''}</span></div>
-        `;
+    const periEl = document.getElementById('pericenter-display');
+    if (periEl) {
+        periEl.textContent = `${CONFIG.r_peri} pc`;
     }
+    console.log(`Dataset: ${dataset.name}, r_peri = ${CONFIG.r_peri} pc`);
+}
+
+// Update penetration factor display (called after data loads)
+function updatePenetrationFactor() {
+    if (STATE.cloudMass <= 0 || STATE.cloudRadius <= 0) return;
+
+    // Calculate penetration factor β = r_t / r_p
+    // r_t = R_cloud * (M_BH / M_cloud)^(1/3)
+    const r_tidal = STATE.cloudRadius * Math.pow(CONFIG.M_BH / STATE.cloudMass, 1/3);
+    const beta = r_tidal / CONFIG.r_peri;
+
+    const betaEl = document.getElementById('penetration-display');
+    if (betaEl) {
+        betaEl.textContent = `${beta.toFixed(2)}`;
+    }
+
+    console.log(`Penetration factor: β = ${beta.toFixed(2)} (r_t = ${r_tidal.toFixed(3)} pc, r_p = ${CONFIG.r_peri} pc)`);
 }
 
 // Precompute global ranges from all snapshots

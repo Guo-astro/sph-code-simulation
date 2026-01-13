@@ -37,21 +37,17 @@ function initScene() {
     const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
     STATE.scene.add(ambientLight);
 
-    // Black hole (red sphere at origin)
-    const bhGeometry = new THREE.SphereGeometry(0.15, 32, 32);
-    const bhMaterial = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+    // Black hole sphere = accretion/sink radius (0.01 pc)
+    const sinkRadius = 0.01;
+    const bhGeometry = new THREE.SphereGeometry(sinkRadius, 32, 32);
+    const bhMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff4444,
+        transparent: true,
+        opacity: 0.7
+    });
     STATE.bhMesh = new THREE.Mesh(bhGeometry, bhMaterial);
     STATE.bhMesh.position.set(0, 0, 0);
     STATE.scene.add(STATE.bhMesh);
-
-    // Black hole glow
-    const glowGeometry = new THREE.SphereGeometry(0.3, 32, 32);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff2222,
-        transparent: true,
-        opacity: 0.3
-    });
-    STATE.scene.add(new THREE.Mesh(glowGeometry, glowMaterial));
 
     // Grid helper (orbital plane)
     const gridHelper = new THREE.GridHelper(40, 20, 0x2a2a4a, 0x1a1a3a);
@@ -62,37 +58,9 @@ function initScene() {
     const axesHelper = new THREE.AxesHelper(5);
     STATE.scene.add(axesHelper);
 
-    // COM marker
-    const comGeometry = new THREE.SphereGeometry(0.1, 16, 16);
-    const comMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    STATE.comMarker = new THREE.Mesh(comGeometry, comMaterial);
-    STATE.scene.add(STATE.comMarker);
+    // COM marker removed per user request
 
-    // Tidal radius circle (around COM)
-    const tidalCircleGeom = new THREE.RingGeometry(0.9, 1.0, 64);
-    const tidalCircleMat = new THREE.MeshBasicMaterial({
-        color: 0xff8800,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.7
-    });
-    STATE.tidalCircle = new THREE.Mesh(tidalCircleGeom, tidalCircleMat);
-    STATE.scene.add(STATE.tidalCircle);
-
-    // Hill sphere at pericenter (reference circle at BH)
-    // Will be updated when data is loaded
-    const r_peri = CONFIG.r_peri;
-    const r_hill_peri = r_peri * 0.05;  // Placeholder, updated when data loads
-    const hillCircleGeom = new THREE.RingGeometry(r_hill_peri * 0.95, r_hill_peri * 1.05, 64);
-    const hillCircleMat = new THREE.MeshBasicMaterial({
-        color: 0x00ff88,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.5
-    });
-    STATE.hillCirclePeri = new THREE.Mesh(hillCircleGeom, hillCircleMat);
-    STATE.hillCirclePeri.position.set(r_peri, 0, 0);  // At pericenter on x-axis
-    STATE.scene.add(STATE.hillCirclePeri);
+    // Tidal and Hill circles removed per user request
 
     // Create analytic orbit
     createAnalyticOrbit();
@@ -189,17 +157,27 @@ function createAnalyticOrbit() {
     STATE.orbitLine = new THREE.Line(geometry, material);
     STATE.scene.add(STATE.orbitLine);
 
-    // Pericenter marker
-    const periGeom = new THREE.RingGeometry(0.08, 0.12, 32);
-    const periMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, side: THREE.DoubleSide });
-    const periMarker = new THREE.Mesh(periGeom, periMat);
-    periMarker.position.set(
+    // Pericenter position
+    const periPos = new THREE.Vector3(
         CONFIG.r_peri * e_hat[0],
         CONFIG.r_peri * e_hat[1],
         CONFIG.r_peri * e_hat[2]
     );
-    periMarker.lookAt(0, 0, 0);
-    STATE.scene.add(periMarker);
+
+    // Pericenter marker
+    if (STATE.periMarker) {
+        STATE.scene.remove(STATE.periMarker);
+        STATE.periMarker.geometry.dispose();
+        STATE.periMarker.material.dispose();
+    }
+    const periGeom = new THREE.RingGeometry(0.08, 0.12, 32);
+    const periMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, side: THREE.DoubleSide });
+    STATE.periMarker = new THREE.Mesh(periGeom, periMat);
+    STATE.periMarker.position.copy(periPos);
+    STATE.periMarker.lookAt(0, 0, 0);
+    STATE.scene.add(STATE.periMarker);
+
+    console.log(`Orbit created: r_peri=${CONFIG.r_peri} pc, p=${CONFIG.p.toFixed(4)} pc, pericenter at (${periPos.x.toFixed(3)}, ${periPos.y.toFixed(3)}, ${periPos.z.toFixed(3)})`);
 }
 
 function createImpactParameterViz() {
@@ -269,26 +247,7 @@ function createImpactParameterViz() {
     // Label for impact parameter (using sprite or text)
     console.log(`Impact parameter b = ${impactParam.toFixed(3)} pc (from velocity asymptote)`);
 
-    // Actually for parabolic orbit, the proper "impact parameter" is related to angular momentum
-    // b = L / v_infinity, but v_infinity = 0 for parabolic...
-    // Instead, show the pericenter line
-    const periLine = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(CONFIG.r_peri, 0, 0)
-    ]);
-    const periMat = new THREE.LineBasicMaterial({
-        color: 0x00ff88,
-        linewidth: 2
-    });
-    const periLineViz = new THREE.Line(periLine, periMat);
-    STATE.scene.add(periLineViz);
-
-    // Add text label for pericenter (as simple line with marker)
-    const periMarkerGeom = new THREE.SphereGeometry(0.05, 8, 8);
-    const periMarkerMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
-    const periMarker = new THREE.Mesh(periMarkerGeom, periMarkerMat);
-    periMarker.position.set(CONFIG.r_peri / 2, 0.1, 0);
-    STATE.scene.add(periMarker);
+    // Pericenter markers removed per user request
 }
 
 function createLOSControl() {
@@ -555,36 +514,24 @@ function updateVisualization(frameIndex) {
     STATE.particleSystem = new THREE.Points(geometry, material);
     STATE.scene.add(STATE.particleSystem);
 
-    // Update COM marker
-    STATE.comMarker.position.set(comX, comY, comZ);
-
-    // Update tidal radius circle (follows COM)
+    // COM distance for display
     const comDist = Math.sqrt(comX*comX + comY*comY + comZ*comZ);
-    const r_tidal = comDist * Math.pow(STATE.cloudMass / (3 * CONFIG.M_BH), 1/3);
 
-    // Remove old tidal circle and create new one with correct size
-    if (STATE.tidalCircle) {
-        STATE.scene.remove(STATE.tidalCircle);
-        STATE.tidalCircle.geometry.dispose();
+    // Count current cloud particles (non-ghost)
+    let currentCloudParticles = 0;
+    for (const p of data.particles) {
+        if (p.is_ghost !== 1) {
+            currentCloudParticles++;
+        }
     }
-    const tidalGeom = new THREE.RingGeometry(r_tidal * 0.95, r_tidal * 1.05, 64);
-    const tidalMat = new THREE.MeshBasicMaterial({
-        color: 0xff8800,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.7
-    });
-    STATE.tidalCircle = new THREE.Mesh(tidalGeom, tidalMat);
-    STATE.tidalCircle.position.set(comX, comY, comZ);
-    // Orient circle to face camera
-    STATE.tidalCircle.lookAt(STATE.camera.position);
-    STATE.scene.add(STATE.tidalCircle);
+    const accretedCount = STATE.initialCloudParticles - currentCloudParticles;
 
     // Update UI with physical units
     const timeMyr = data.time * CONFIG.timeToMyr;
 
     document.getElementById('time-display').textContent = `${timeMyr.toFixed(3)} Myr`;
     document.getElementById('particle-count').textContent = data.particles.length.toLocaleString();
+    document.getElementById('accreted-count').textContent = accretedCount.toLocaleString();
     document.getElementById('snapshot-num').textContent = `${frameIndex + 1}`;
     document.getElementById('com-distance').textContent = `${comDist.toFixed(2)} pc`;
     document.getElementById('timeline').value = frameIndex + 1;

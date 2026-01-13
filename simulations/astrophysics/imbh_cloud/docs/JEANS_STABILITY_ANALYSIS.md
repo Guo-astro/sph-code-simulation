@@ -247,15 +247,139 @@ The only viable options for high-density (n > 300 cm⁻³) simulations are:
 
 For realistic ISM physics with self-gravity, the maximum viable density is **n ~ 200 cm⁻³**.
 
+## Parameter Survey Collapse Analysis (2026-01-13)
+
+### Observed Behavior
+
+During the IMBH-cloud parameter survey with r_p = 0.4 pc and K&I 2000 cooling enabled:
+
+| Metric | Adiabatic | Cooling |
+|--------|-----------|---------|
+| Snapshots completed | 68 | 10 (stuck) |
+| Max density | 2.3×10⁴ | **3.5×10⁷** |
+| Max temperature | 691,821 K | 63.5 K |
+| Timestep at end | ~10⁻³ | **10⁻⁸** (collapsed) |
+
+### First Principles Derivation
+
+#### 1. Jeans Instability from Fluid Equations
+
+Starting from the linearized fluid equations with self-gravity:
+
+**Continuity:** ∂ρ/∂t + ∇·(ρv) = 0
+
+**Momentum:** ∂v/∂t = -∇P/ρ - ∇Φ
+
+**Poisson:** ∇²Φ = 4πGρ
+
+Linearizing with ρ = ρ₀ + ρ₁, assuming plane wave solutions ∝ exp[i(k·r - ωt)]:
+
+$$\omega^2 = c_s^2 k^2 - 4\pi G \rho_0$$
+
+Instability occurs when ω² < 0, giving the **Jeans wavenumber**:
+
+$$k_J = \sqrt{\frac{4\pi G \rho_0}{c_s^2}}$$
+
+And the **Jeans mass**:
+
+$$M_J = \frac{\pi^{5/2}}{6} \frac{c_s^3}{G^{3/2} \rho_0^{1/2}}$$
+
+#### 2. Effect of Equation of State on Collapse
+
+For compression (∇·v < 0), the energy equation gives:
+
+$$\frac{du}{dt} = -\frac{P}{\rho} \nabla \cdot v - \Lambda(T, \rho)$$
+
+**Case A: Adiabatic (Λ = 0)**
+
+PdV work heats the gas: T ∝ ρ^(γ-1)
+
+Since c_s² ∝ T:
+$$M_J \propto \frac{c_s^3}{\rho^{1/2}} \propto \rho^{\frac{3(\gamma-1)}{2} - \frac{1}{2}} = \rho^{\frac{3\gamma - 4}{2}}$$
+
+For γ = 5/3: **M_J ∝ ρ^(1/6)** → Jeans mass INCREASES with compression → STABLE
+
+**Case B: Isothermal/Efficient Cooling**
+
+Temperature remains constant, cooling removes PdV heat:
+$$M_J \propto \rho^{-1/2}$$
+
+**Jeans mass DECREASES with compression → RUNAWAY COLLAPSE**
+
+#### 3. Quantitative Analysis of Observed Collapse
+
+Initial condition (from resume snapshot):
+- Core density: ρ₀ = 1318 code units
+- Temperature: T ≈ 20 K
+- Sound speed: c_s ≈ 0.27 km/s
+- Core mass: M_core ≈ 4.0 M☉
+
+**CRITICAL: Unit Conversion**
+
+The simulation uses density_to_n_H = 31.9 cm⁻³ per code unit:
+- Code density (max): 1318 → **n_H = 42,044 cm⁻³**
+- Code density (median): 5.6 → n_H = 178 cm⁻³
+
+**The core density is 210× higher than the stability limit of 200 cm⁻³!**
+
+This explains why the config setting "n_center = 500 cm⁻³" doesn't match reality:
+1. The BE sphere was generated with n_center = 500 cm⁻³
+2. But the snapshot was from phase2.5 which already underwent cooling-driven compression
+3. The core has compressed to n ~ 42,000 cm⁻³ before the parameter survey even started
+
+Initial Jeans mass:
+$$M_J = \frac{c_s^3}{G^{3/2} \sqrt{\rho_0}} = \frac{(0.27)^3}{(0.0043)^{3/2} \sqrt{1318}} \approx 1.9 \, M_\odot$$
+
+**Stability ratio: M_core/M_J = 4.0/1.9 ≈ 2.1 > 1 → UNSTABLE**
+
+#### 4. Free-Fall Time Verification
+
+$$t_{ff} = \sqrt{\frac{3\pi}{32 G \rho}} \approx 0.21 \text{ code time}$$
+
+Observed collapse time: t ≈ 0.18 code time — **matches free-fall prediction!**
+
+#### 5. Timestep Collapse Mechanism
+
+CFL condition: Δt < C × h/c_s
+
+Smoothing length scales as: h ∝ ρ^(-1/3)
+
+Therefore: Δt_max ∝ ρ^(-1/3)
+
+When density increases 10⁴× (from 10³ to 10⁷):
+- Timestep decreases by 10^(4/3) ≈ 20×
+- But collapse accelerates (shorter t_ff)
+- Creates positive feedback → **timestep death spiral**
+
+### Summary Table
+
+| Quantity | Formula | Adiabatic | Cooling |
+|----------|---------|-----------|---------|
+| T response to compression | - | T ↑↑ (691,000 K) | T = const (63 K) |
+| M_J scaling | M_J ∝ T^(3/2) ρ^(-1/2) | ∝ ρ^(+1/6) | ∝ ρ^(-1/2) |
+| Stability | - | Self-limiting | Runaway |
+| Outcome | - | Runs to completion | Timestep collapse |
+
+### Recommendations for Parameter Survey
+
+1. **Use adiabatic runs** for studying tidal disruption dynamics
+2. **If cooling required**, either:
+   - Start with lower density cloud (n < 200 cm⁻³)
+   - Add temperature floor to prevent runaway cooling
+   - Implement sink particles for collapsing regions
+3. **Monitor Jeans ratio** M/M_J throughout simulation
+
 ## References
 
 - Bonnor, W.B. (1956). "Boyle's Law and gravitational instability"
 - Ebert, R. (1955). "Über die Verdichtung von H I-Gebieten"
 - Koyama, H. & Inutsuka, S. (2000). "Molecular Cloud Formation in Shock-compressed Layers"
+- Truelove et al. (1997). "The Jeans Condition" - Resolution requirements for collapse
 
 ---
 *Generated: 2026-01-12*
 *Updated: 2026-01-13 - Added K&I 2000 compatible sphere analysis*
+*Updated: 2026-01-13 - Added parameter survey collapse analysis with first principles derivation*
 *Analysis scripts:*
 - *simulations/astrophysics/ism_cooling/scripts/design_stable_cloud.py*
 - *scripts/find_optimal_density.py*

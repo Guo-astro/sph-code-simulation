@@ -3,12 +3,106 @@
 // Multi-dataset support
 // ============================================================
 
+// ============================================================
+// Draggable Panel Functionality
+// ============================================================
+function initDraggablePanels() {
+    const draggables = document.querySelectorAll('.draggable');
+    
+    draggables.forEach(panel => {
+        const header = panel.querySelector('.drag-header');
+        if (!header) return;
+        
+        let isDragging = false;
+        let startX, startY;
+        let initialLeft, initialTop;
+        
+        header.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return; // Only left click
+            
+            isDragging = true;
+            panel.classList.add('dragging');
+            
+            // Get current computed position
+            const rect = panel.getBoundingClientRect();
+            const style = window.getComputedStyle(panel);
+            
+            // Handle transform (e.g., translateX(-50%))
+            const transform = style.transform;
+            let translateX = 0, translateY = 0;
+            if (transform && transform !== 'none') {
+                const matrix = new DOMMatrix(transform);
+                translateX = matrix.m41;
+                translateY = matrix.m42;
+            }
+            
+            // Convert to left/top positioning
+            // Remove any centering transforms by using actual bounding rect
+            initialLeft = rect.left;
+            initialTop = rect.top;
+            
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            // Clear positioning properties that might interfere
+            panel.style.right = 'auto';
+            panel.style.bottom = 'auto';
+            panel.style.transform = 'none';
+            panel.style.left = initialLeft + 'px';
+            panel.style.top = initialTop + 'px';
+            
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            
+            let newLeft = initialLeft + dx;
+            let newTop = initialTop + dy;
+            
+            // Constrain to viewport
+            const rect = panel.getBoundingClientRect();
+            const maxLeft = window.innerWidth - rect.width;
+            const maxTop = window.innerHeight - rect.height;
+            
+            newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+            newTop = Math.max(0, Math.min(newTop, maxTop));
+            
+            panel.style.left = newLeft + 'px';
+            panel.style.top = newTop + 'px';
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                panel.classList.remove('dragging');
+            }
+        });
+    });
+}
+
 async function loadSnapshots() {
+    // Cancel any previous load in progress
+    STATE.loadId++;
+    const currentLoadId = STATE.loadId;
+
+    // Wait if another load is in progress
+    if (STATE.isLoading) {
+        console.log('Cancelling previous load...');
+        // Give previous load time to notice cancellation
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    STATE.isLoading = true;
     document.getElementById('loading').classList.remove('hidden');
 
     if (!STATE.currentDataset) {
         console.error('No dataset selected');
         document.getElementById('loading').classList.add('hidden');
+        STATE.isLoading = false;
         return;
     }
 
@@ -21,6 +115,12 @@ async function loadSnapshots() {
     let consecutiveFailures = 0;
 
     while (consecutiveFailures < 3) {
+        // Check if this load was cancelled
+        if (currentLoadId !== STATE.loadId) {
+            console.log('Load cancelled');
+            return;
+        }
+
         const filename = `snapshot_${String(snapshotNum).padStart(4, '0')}.csv`;
         try {
             const response = await fetch(basePath + filename);
@@ -35,6 +135,8 @@ async function loadSnapshots() {
             if (data.particles.length > 0) {
                 STATE.snapshots.push(data);
                 consecutiveFailures = 0;
+                // Update loading progress
+                document.getElementById('loading').textContent = `Loading... ${STATE.snapshots.length} snapshots`;
             }
         } catch (e) {
             consecutiveFailures++;
@@ -44,16 +146,55 @@ async function loadSnapshots() {
         if (snapshotNum > 500) break;
     }
 
+    // Check again if cancelled before processing
+    if (currentLoadId !== STATE.loadId) {
+        console.log('Load cancelled after fetch');
+        return;
+    }
+
+    // Sort snapshots by time to ensure correct order
+    STATE.snapshots.sort((a, b) => a.time - b.time);
+
     if (STATE.snapshots.length > 0) {
-        // Compute cloud mass from first snapshot
+        // Compute cloud mass, radius, and initial particle count from first snapshot
         let cloudMass = 0;
+        let cloudParticles = 0;
+        let comX = 0, comY = 0, comZ = 0;
+
+        // First pass: compute mass and COM
         for (const p of STATE.snapshots[0].particles) {
             if (p.is_ghost !== 1) {
                 cloudMass += p.mass;
+                cloudParticles++;
+                comX += p.x * p.mass;
+                comY += p.y * p.mass;
+                comZ += p.z * p.mass;
             }
         }
+        comX /= cloudMass;
+        comY /= cloudMass;
+        comZ /= cloudMass;
+
+        // Second pass: compute cloud radius (90th percentile distance from COM)
+        const distances = [];
+        for (const p of STATE.snapshots[0].particles) {
+            if (p.is_ghost !== 1) {
+                const dx = p.x - comX;
+                const dy = p.y - comY;
+                const dz = p.z - comZ;
+                distances.push(Math.sqrt(dx*dx + dy*dy + dz*dz));
+            }
+        }
+        distances.sort((a, b) => a - b);
+        const cloudRadius = distances[Math.floor(distances.length * 0.9)];  // 90th percentile
+
         STATE.cloudMass = cloudMass;
-        console.log(`Cloud mass computed from data: ${cloudMass.toFixed(2)} M_sun`);
+        STATE.cloudRadius = cloudRadius;
+        STATE.initialCloudParticles = cloudParticles;
+        console.log(`Cloud mass: ${cloudMass.toFixed(2)} M_sun, R_cloud: ${cloudRadius.toFixed(3)} pc, particles: ${cloudParticles}`);
+
+        // Update penetration factor display
+        updatePenetrationFactor();
 
         // Update Hill circle at pericenter
         if (STATE.hillCirclePeri) {
@@ -78,6 +219,9 @@ async function loadSnapshots() {
         // Compute global color ranges
         computeGlobalColorRanges();
 
+        // Update range sliders to match computed ranges
+        updateRangeSliders();
+
         // Update colorbar
         updateColorbar();
 
@@ -92,7 +236,10 @@ async function loadSnapshots() {
         document.getElementById('particle-count').textContent = 'No data';
     }
 
+    STATE.isLoading = false;
+    document.getElementById('loading').textContent = 'Loading...';
     document.getElementById('loading').classList.add('hidden');
+    console.log(`Loaded ${STATE.snapshots.length} snapshots`);
 }
 
 function parseCSV(text) {
@@ -178,43 +325,126 @@ function onTimelineChange(e) {
 
 function onSimTypeChange(e) {
     STATE.simType = e.target.value;
+    // Reset state but don't recreate orbit (same dataset, different sim type)
+    if (STATE.isPlaying) {
+        togglePlay();
+    }
+    STATE.currentFrame = 0;
+    STATE.snapshots = [];
+    STATE.initialCloudParticles = 0;
+
+    // Clear particle system
+    if (STATE.particleSystem) {
+        STATE.scene.remove(STATE.particleSystem);
+        STATE.particleSystem.geometry.dispose();
+        STATE.particleSystem.material.dispose();
+        STATE.particleSystem = null;
+    }
+
+    // Reset UI
+    document.getElementById('timeline').value = 1;
+    document.getElementById('frame-display').textContent = '1 / --';
+    document.getElementById('accreted-count').textContent = '0';
+
     loadSnapshots();
 }
 
 function onColorModeChange(e) {
     STATE.colorMode = e.target.value;
+    // Update sliders to match current mode's range
+    updateRangeSliders();
     updateColorbar();
     if (STATE.snapshots.length > 0) {
         updateVisualization(STATE.currentFrame);
     }
 }
 
+function onRangeChange() {
+    const minVal = parseFloat(document.getElementById('range-min').value);
+    const maxVal = parseFloat(document.getElementById('range-max').value);
+
+    // Update display
+    document.getElementById('range-min-value').textContent = minVal.toFixed(1);
+    document.getElementById('range-max-value').textContent = maxVal.toFixed(1);
+
+    // Ensure min < max
+    const actualMin = Math.min(minVal, maxVal);
+    const actualMax = Math.max(minVal, maxVal);
+
+    // Update current color mode's range
+    STATE.colorRanges[STATE.colorMode].min = actualMin;
+    STATE.colorRanges[STATE.colorMode].max = actualMax;
+
+    // Refresh visualization
+    updateColorbar();
+    if (STATE.snapshots.length > 0) {
+        updateVisualization(STATE.currentFrame);
+    }
+}
+
+function updateRangeSliders() {
+    const range = STATE.colorRanges[STATE.colorMode];
+    document.getElementById('range-min').value = range.min;
+    document.getElementById('range-max').value = range.max;
+    document.getElementById('range-min-value').textContent = range.min.toFixed(1);
+    document.getElementById('range-max-value').textContent = range.max.toFixed(1);
+}
+
 function onDatasetChange(e) {
     const datasetId = e.target.value;
     selectDataset(datasetId);
-
-    // Reinitialize scene elements for new dataset
-    reinitializeForDataset();
-
-    // Reload data
+    resetVisualizationState();
     loadSnapshots();
 }
 
-function reinitializeForDataset() {
-    // Clear old orbit line
+function resetVisualizationState() {
+    // Stop playback
+    if (STATE.isPlaying) {
+        togglePlay();
+    }
+
+    // Reset frame counter
+    STATE.currentFrame = 0;
+    STATE.snapshots = [];
+    STATE.initialCloudParticles = 0;
+    STATE.cloudMass = 0;
+
+    // Clear old orbit line and pericenter marker
     if (STATE.orbitLine) {
         STATE.scene.remove(STATE.orbitLine);
         STATE.orbitLine.geometry.dispose();
+        STATE.orbitLine = null;
+    }
+    if (STATE.periMarker) {
+        STATE.scene.remove(STATE.periMarker);
+        STATE.periMarker.geometry.dispose();
+        STATE.periMarker.material.dispose();
+        STATE.periMarker = null;
     }
 
-    // Remove old impact parameter elements (if any) - they have no explicit reference
-    // Just recreate the orbit and impact viz
+    // Clear particle system
+    if (STATE.particleSystem) {
+        STATE.scene.remove(STATE.particleSystem);
+        STATE.particleSystem.geometry.dispose();
+        STATE.particleSystem.material.dispose();
+        STATE.particleSystem = null;
+    }
+
+    // Recreate orbit for new dataset
     createAnalyticOrbit();
-    createImpactParameterViz();
+
+    // Reset UI
+    document.getElementById('timeline').value = 1;
+    document.getElementById('frame-display').textContent = '1 / --';
+    document.getElementById('accreted-count').textContent = '0';
 }
+
 
 // Initialization
 async function init() {
+    // Initialize draggable panels
+    initDraggablePanels();
+    
     // Load datasets configuration first
     await loadDatasets();
 
@@ -229,7 +459,12 @@ async function init() {
     document.getElementById('timeline').addEventListener('input', onTimelineChange);
     document.getElementById('sim-type').addEventListener('change', onSimTypeChange);
     document.getElementById('color-mode').addEventListener('change', onColorModeChange);
+    document.getElementById('range-min').addEventListener('input', onRangeChange);
+    document.getElementById('range-max').addEventListener('input', onRangeChange);
     document.getElementById('dataset-select').addEventListener('change', onDatasetChange);
+
+    // Initialize range sliders
+    updateRangeSliders();
 
     // Load data
     loadSnapshots();

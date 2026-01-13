@@ -20,7 +20,7 @@
     "dimension": 3,
 
     "sample": "isothermal_bonnor_ebert",
-    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/phase2.5_compact_cooling/snapshot_0002.csv",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/phase1_compact/snapshot_0021.csv",
     "resetTimeOnResume": true,
     "useSnapshotSSOT": false,
     "N": 25,
@@ -71,9 +71,10 @@
         "_cloud_note": "Parabolic orbit: r_p=0.4pc, v_p=46km/s, WIDER PASSAGE"
     },
 
-    "sphAlgorithm": "gsph",
+    "SPHType": "gsph",
     "kernel": "wendland",
     "riemannSolver": "hll",
+    "use2ndOrderGSPH": false,
     "useGradH": false,
 
     "useBalsaraSwitch": true,
@@ -85,7 +86,7 @@
     "cfl": 0.2,
 
     "useRelaxation": false,
-    "useCooling": true,
+    "enableCooling": true,
     "coolingFunction": "koyama_inutsuka_2000",
 
     "outputDirectory": "simulations/astrophysics/imbh_cloud/parameter_survey/parabolic_rp0.4pc/cooling/results",

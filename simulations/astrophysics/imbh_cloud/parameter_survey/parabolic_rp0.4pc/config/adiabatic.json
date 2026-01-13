@@ -71,9 +71,10 @@
         "_cloud_note": "Parabolic orbit: r_p=0.4pc, v_p=46km/s, WIDER PASSAGE"
     },
 
-    "sphAlgorithm": "gsph",
+    "SPHType": "gsph",
     "kernel": "wendland",
     "riemannSolver": "hll",
+    "use2ndOrderGSPH": false,
     "useGradH": false,
 
     "useBalsaraSwitch": true,
@@ -85,7 +86,7 @@
     "cfl": 0.2,
 
     "useRelaxation": false,
-    "useCooling": false,
+    "enableCooling": false,
 
     "outputDirectory": "simulations/astrophysics/imbh_cloud/parameter_survey/parabolic_rp0.4pc/adiabatic/results",
     "outputFormat": "csv",

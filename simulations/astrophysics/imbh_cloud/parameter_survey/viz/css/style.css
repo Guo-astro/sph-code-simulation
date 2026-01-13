@@ -23,6 +23,10 @@ body {
     max-width: 300px;
     z-index: 100;
 }
+#info-panel .drag-header {
+    margin: -15px -20px 10px -20px;
+    padding: 6px 20px;
+}
 #info-panel h2 {
     color: #7eb0ff;
     margin-bottom: 10px;
@@ -48,9 +52,15 @@ body {
     border-radius: 8px;
     border: 1px solid #4a4a6a;
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     align-items: center;
     z-index: 100;
+}
+#controls .drag-header {
+    width: 100%;
+    margin: -12px -20px 8px -20px;
+    padding: 4px 20px;
 }
 #controls button {
     background: #3a3a5a;
@@ -93,6 +103,10 @@ body {
     border: 1px solid #4a4a6a;
     z-index: 100;
 }
+#sim-select .drag-header {
+    margin: -12px -12px 10px -12px;
+    padding: 5px 12px;
+}
 #sim-select label { margin-right: 8px; font-size: 0.85em; }
 #sim-select select {
     background: #3a3a5a;
@@ -103,28 +117,34 @@ body {
     font-size: 0.85em;
 }
 
-/* View Buttons - Below sim-select */
+/* View Buttons - Bottom center-right (next to controls) */
 #view-buttons {
     position: absolute;
-    top: 95px;
-    right: 10px;
+    bottom: 15px;
+    right: 200px;
     background: rgba(20, 20, 40, 0.9);
     padding: 8px 12px;
     border-radius: 8px;
     border: 1px solid #4a4a6a;
     z-index: 100;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+#view-buttons .drag-header {
+    width: 100%;
+    margin: -8px -12px 6px -12px;
+    padding: 3px 12px;
 }
 #view-buttons button {
-    display: block;
-    width: 100%;
     background: #3a3a5a;
     border: 1px solid #5a5a7a;
     color: #e0e0e0;
     padding: 5px 10px;
     border-radius: 4px;
     cursor: pointer;
-    margin: 3px 0;
     font-size: 0.8em;
+    white-space: nowrap;
 }
 #view-buttons button:hover { background: #4a4a7a; }
 
@@ -136,13 +156,20 @@ body {
     transform: translateY(-50%);
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     z-index: 100;
     background: rgba(20, 20, 40, 0.8);
     padding: 10px;
     border-radius: 6px;
     border: 1px solid #4a4a6a;
+}
+#colorbar-container .drag-header {
+    width: 100%;
+    margin: -10px -10px 6px -10px;
+    padding: 3px 10px;
 }
 #colorbar {
     width: 18px;
@@ -178,6 +205,10 @@ body {
     font-size: 0.8em;
     z-index: 100;
 }
+#legend .drag-header {
+    margin: -8px -12px 6px -12px;
+    padding: 4px 12px;
+}
 #legend .legend-item {
     display: flex;
     align-items: center;
@@ -200,6 +231,10 @@ body {
     border-radius: 8px;
     border: 1px solid #4a4a6a;
     z-index: 100;
+}
+#pv-panel .drag-header {
+    margin: -10px -10px 6px -10px;
+    padding: 4px 10px;
 }
 #pv-panel h3 {
     color: #7eb0ff;
@@ -260,3 +295,36 @@ body {
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Draggable Panel Styles */
+.draggable {
+    cursor: default;
+    user-select: none;
+}
+.draggable .drag-header {
+    cursor: grab;
+    padding: 4px 8px;
+    margin: -10px -12px 8px -12px;
+    background: rgba(74, 74, 106, 0.5);
+    border-radius: 6px 6px 0 0;
+    font-size: 0.7em;
+    color: #888;
+    text-align: center;
+    letter-spacing: 1px;
+}
+.draggable .drag-header:hover {
+    background: rgba(94, 94, 136, 0.6);
+    color: #aaa;
+}
+.draggable .drag-header:active {
+    cursor: grabbing;
+}
+.draggable.dragging {
+    opacity: 0.9;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+.draggable.dragging .drag-header {
+    cursor: grabbing;
+    background: rgba(126, 176, 255, 0.3);
+    color: #7eb0ff;
+}
