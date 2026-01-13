@@ -75,7 +75,9 @@ const STATE = {
     colorRanges: {
         density: { min: 3, max: 6, unit: 'log10(cm^-3)', isLog: true },
         temperature: { min: 1, max: 5, unit: 'log10(K)', isLog: true },
-        velocity: { min: 0, max: 1.5, unit: 'log10(km/s)', isLog: true }
+        velocity: { min: 0, max: 1.5, unit: 'log10(km/s)', isLog: true },
+        vrel: { min: 0, max: 5, unit: 'km/s', isLog: false },  // Linear |v - v_COM|
+        mach: { min: 0, max: 3, unit: 'Mach', isLog: false }   // Linear scale for Mach
     }
 };
 
@@ -197,6 +199,8 @@ function computeGlobalColorRanges() {
     let logDensMin = Infinity, logDensMax = -Infinity;
     let logTempMin = Infinity, logTempMax = -Infinity;
     let logVelDispMin = Infinity, logVelDispMax = -Infinity;
+    let vrelMax = 0;
+    let machMax = 0;
 
     for (const snapshot of STATE.snapshots) {
         let comVx = 0, comVy = 0, comVz = 0, totalMass = 0;
@@ -225,14 +229,25 @@ function computeGlobalColorRanges() {
             logTempMin = Math.min(logTempMin, logTemp);
             logTempMax = Math.max(logTempMax, logTemp);
 
-            // Log velocity dispersion
+            // Velocity dispersion (relative to COM)
             const dvx = p.vx - comVx;
             const dvy = p.vy - comVy;
             const dvz = p.vz - comVz;
             const velDisp = Math.sqrt(dvx*dvx + dvy*dvy + dvz*dvz);
+
+            // Log velocity for log mode
             const logVelDisp = Math.log10(Math.max(velDisp, 0.1));
             logVelDispMin = Math.min(logVelDispMin, logVelDisp);
             logVelDispMax = Math.max(logVelDispMax, logVelDisp);
+
+            // Linear |v - v_COM|
+            vrelMax = Math.max(vrelMax, velDisp);
+
+            // Mach number
+            if (p.sound > 0) {
+                const mach = velDisp / p.sound;
+                machMax = Math.max(machMax, mach);
+            }
         }
     }
 
@@ -258,6 +273,22 @@ function computeGlobalColorRanges() {
         isLog: true
     };
 
+    // Linear |v - v_COM| in km/s
+    STATE.colorRanges.vrel = {
+        min: 0,
+        max: Math.max(1, Math.ceil(vrelMax)),
+        unit: 'km/s',
+        isLog: false
+    };
+
+    // Mach number: linear scale, 0 to rounded max
+    STATE.colorRanges.mach = {
+        min: 0,
+        max: Math.max(3, Math.ceil(machMax)),
+        unit: 'Mach',
+        isLog: false
+    };
+
     console.log('Global color ranges computed:', STATE.colorRanges);
 }
 
@@ -281,6 +312,29 @@ function getColorForValue(particle, comVelocity) {
                 velDisp = particle.vel_mag;
             }
             value = Math.log10(Math.max(velDisp, 0.1));
+            break;
+        case 'vrel':
+            // Linear |v - v_COM| in km/s
+            if (comVelocity) {
+                const dvx = particle.vx - comVelocity.x;
+                const dvy = particle.vy - comVelocity.y;
+                const dvz = particle.vz - comVelocity.z;
+                value = Math.sqrt(dvx*dvx + dvy*dvy + dvz*dvz);
+            } else {
+                value = particle.vel_mag;
+            }
+            break;
+        case 'mach':
+            // Mach number: relative velocity / sound speed (linear scale)
+            if (comVelocity && particle.sound > 0) {
+                const dvx = particle.vx - comVelocity.x;
+                const dvy = particle.vy - comVelocity.y;
+                const dvz = particle.vz - comVelocity.z;
+                const vRel = Math.sqrt(dvx*dvx + dvy*dvy + dvz*dvz);
+                value = vRel / particle.sound;
+            } else {
+                value = 0;
+            }
             break;
         case 'density':
         default:

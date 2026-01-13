@@ -386,6 +386,33 @@ function onRangeChange() {
 
 function updateRangeSliders() {
     const range = STATE.colorRanges[STATE.colorMode];
+    const isLog = range.isLog;
+
+    // Update slider attributes based on log vs linear
+    const minSlider = document.getElementById('range-min');
+    const maxSlider = document.getElementById('range-max');
+
+    if (isLog) {
+        minSlider.min = 0;
+        minSlider.max = 8;
+        minSlider.step = 0.5;
+        maxSlider.min = 0;
+        maxSlider.max = 8;
+        maxSlider.step = 0.5;
+        document.getElementById('range-min-label').textContent = 'Min (log10)';
+        document.getElementById('range-max-label').textContent = 'Max (log10)';
+    } else {
+        // Linear mode (e.g., Mach number)
+        minSlider.min = 0;
+        minSlider.max = 10;
+        minSlider.step = 0.5;
+        maxSlider.min = 0;
+        maxSlider.max = 10;
+        maxSlider.step = 0.5;
+        document.getElementById('range-min-label').textContent = 'Min';
+        document.getElementById('range-max-label').textContent = 'Max';
+    }
+
     document.getElementById('range-min').value = range.min;
     document.getElementById('range-max').value = range.max;
     document.getElementById('range-min-value').textContent = range.min.toFixed(1);

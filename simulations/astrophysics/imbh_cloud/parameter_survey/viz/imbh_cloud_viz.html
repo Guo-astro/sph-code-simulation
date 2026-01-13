@@ -65,17 +65,18 @@
             <select id="color-mode">
                 <option value="density">Density</option>
                 <option value="temperature">Temperature</option>
-                <option value="velocity">Velocity</option>
-                <option value="mach">Mach Number (shock)</option>
+                <option value="velocity">Velocity (log)</option>
+                <option value="vrel">|v - v_COM|</option>
+                <option value="mach">Mach Number</option>
             </select>
         </div>
         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #4a4a6a;">
             <div style="margin-bottom: 8px;">
-                <label style="display: block; margin-bottom: 4px;">Min (log10): <span id="range-min-value">2</span></label>
+                <label style="display: block; margin-bottom: 4px;"><span id="range-min-label">Min (log10)</span>: <span id="range-min-value">2</span></label>
                 <input type="range" id="range-min" min="0" max="8" step="0.5" value="2" style="width: 100%;">
             </div>
             <div>
-                <label style="display: block; margin-bottom: 4px;">Max (log10): <span id="range-max-value">6</span></label>
+                <label style="display: block; margin-bottom: 4px;"><span id="range-max-label">Max (log10)</span>: <span id="range-max-value">6</span></label>
                 <input type="range" id="range-max" min="0" max="8" step="0.5" value="6" style="width: 100%;">
             </div>
         </div>
