@@ -526,6 +526,47 @@ function updateVisualization(frameIndex) {
     }
     const accretedCount = STATE.initialCloudParticles - currentCloudParticles;
 
+    // Calculate shock tracers (Godunov SPH - no artificial viscosity)
+    let maxMach = 0;
+    let supersonicCount = 0;
+    let maxEntropy = 0;
+    let maxDensity = 0;
+    let sumDensity = 0;
+    let validParticles = 0;
+    const gamma = 1.6667;
+
+    for (const p of data.particles) {
+        if (p.is_ghost === 1) continue;
+        validParticles++;
+
+        // Mach number: |v - v_COM| / c_s
+        const dvx = p.vx - comVelocity.x;
+        const dvy = p.vy - comVelocity.y;
+        const dvz = p.vz - comVelocity.z;
+        const v_rel = Math.sqrt(dvx*dvx + dvy*dvy + dvz*dvz);
+        const mach = v_rel / p.sound;
+        if (mach > maxMach) maxMach = mach;
+        if (mach > 1) supersonicCount++;
+
+        // Entropy: s = P / rho^gamma
+        const entropy = p.pres / Math.pow(p.dens, gamma);
+        if (entropy > maxEntropy) maxEntropy = entropy;
+
+        // Density for compression ratio
+        if (p.dens > maxDensity) maxDensity = p.dens;
+        sumDensity += p.dens;
+    }
+
+    const supersonicFrac = (supersonicCount / validParticles * 100).toFixed(1);
+    const meanDensity = sumDensity / validParticles;
+    const densityRatio = maxDensity / meanDensity;
+
+    // Update shock panel
+    document.getElementById('max-mach').textContent = maxMach.toFixed(2);
+    document.getElementById('supersonic-frac').textContent = `${supersonicFrac}%`;
+    document.getElementById('density-ratio').textContent = densityRatio.toFixed(1);
+    document.getElementById('max-entropy').textContent = maxEntropy.toExponential(2);
+
     // Update UI with physical units
     const timeMyr = data.time * CONFIG.timeToMyr;
 

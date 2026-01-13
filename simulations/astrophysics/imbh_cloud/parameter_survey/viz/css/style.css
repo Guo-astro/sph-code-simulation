@@ -41,6 +41,31 @@ body {
 #info-panel .label { color: #aaa; }
 #info-panel .value { color: #7eb0ff; font-family: monospace; }
 
+/* Shock Tracking Panel - Below Info Panel */
+#shock-panel {
+    position: absolute;
+    top: 260px;
+    left: 10px;
+    background: rgba(20, 20, 40, 0.9);
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid #4a4a6a;
+    max-width: 250px;
+    z-index: 100;
+}
+#shock-panel .drag-header {
+    margin: -10px -15px 8px -15px;
+    padding: 4px 15px;
+}
+#shock-panel .info-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 3px 0;
+    font-size: 0.8em;
+}
+#shock-panel .label { color: #aaa; }
+#shock-panel .value { color: #ff9966; font-family: monospace; }
+
 /* Playback Controls - Bottom Center */
 #controls {
     position: absolute;

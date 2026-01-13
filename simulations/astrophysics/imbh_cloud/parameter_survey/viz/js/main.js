@@ -274,7 +274,9 @@ function parseCSV(text) {
                     vel_mag: Math.sqrt(vx*vx + vy*vy + vz*vz),
                     mass: parseFloat(parts[10]),
                     dens: parseFloat(parts[11]),
+                    pres: parseFloat(parts[12]),      // pressure for entropy
                     ene: ene,
+                    sound: parseFloat(parts[15]),     // sound speed for Mach
                     temp: ene * CONFIG.tempConversion,
                     is_ghost: is_ghost
                 });

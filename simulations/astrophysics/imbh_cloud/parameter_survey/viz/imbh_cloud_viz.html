@@ -35,6 +35,15 @@
         <div class="info-row"><span class="label">COM distance:</span><span class="value" id="com-distance">-- pc</span></div>
     </div>
 
+    <!-- Shock Tracking Panel -->
+    <div id="shock-panel" class="draggable">
+        <div class="drag-header">SHOCK TRACERS</div>
+        <div class="info-row"><span class="label">Max Mach:</span><span class="value" id="max-mach">--</span></div>
+        <div class="info-row"><span class="label">Supersonic %:</span><span class="value" id="supersonic-frac">--</span></div>
+        <div class="info-row"><span class="label">Max ρ/⟨ρ⟩:</span><span class="value" id="density-ratio">--</span></div>
+        <div class="info-row"><span class="label">Max entropy:</span><span class="value" id="max-entropy">--</span></div>
+    </div>
+
     <!-- Simulation & Color Select -->
     <div id="sim-select" class="draggable">
         <div class="drag-header">DRAG TO MOVE</div>
@@ -57,6 +66,7 @@
                 <option value="density">Density</option>
                 <option value="temperature">Temperature</option>
                 <option value="velocity">Velocity</option>
+                <option value="mach">Mach Number (shock)</option>
             </select>
         </div>
         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #4a4a6a;">
