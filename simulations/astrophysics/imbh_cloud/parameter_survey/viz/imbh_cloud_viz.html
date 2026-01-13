@@ -154,17 +154,48 @@
             <span id="pv-x-label">Offset (pc)</span> vs
             <span id="pv-v-label">V_LOS (km/s)</span>
         </div>
-        <div id="los-select">
-            <label>LOS:</label>
-            <select id="los-direction" onchange="onLOSChange(this.value)">
-                <option value="x">X-axis</option>
-                <option value="y">Y-axis</option>
-                <option value="z" selected>Z-axis</option>
-            </select>
+        <div id="los-select" style="display: flex; align-items: center; gap: 10px;">
+            <div>
+                <label>LOS:</label>
+                <select id="los-direction" onchange="onLOSChange(this.value)">
+                    <option value="x">X-axis</option>
+                    <option value="y">Y-axis</option>
+                    <option value="z" selected>Z-axis</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 4px;">
+                <button onclick="pvZoom(1.5)" title="Zoom In" style="padding: 2px 8px; font-size: 14px;">+</button>
+                <button onclick="pvZoom(0.67)" title="Zoom Out" style="padding: 2px 8px; font-size: 14px;">−</button>
+                <button onclick="pvZoomReset()" title="Reset Zoom" style="padding: 2px 6px; font-size: 11px;">1:1</button>
+            </div>
         </div>
-        <div style="font-size: 0.7em; color: #666; margin-top: 4px;">
-            Drag cyan sphere to change LOS
+        <div style="font-size: 0.7em; color: #888; margin-top: 4px;">
+            Drag to select particles on PV diagram
         </div>
+    </div>
+
+    <!-- Selection Analysis Panel -->
+    <div id="selection-panel" class="draggable" style="display: none; top: 400px; right: 20px;">
+        <div class="drag-header">SELECTION ANALYSIS</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="color: #ff8866; font-weight: bold;">Selected: <span id="sel-count">0</span> particles</span>
+            <button onclick="clearSelection()" style="padding: 2px 8px; font-size: 11px;">Clear</button>
+        </div>
+        <div class="info-row"><span class="label">Total Mass:</span><span class="value" id="sel-mass">--</span></div>
+        <hr style="margin: 6px 0; border-color: #4a4a6a;">
+        <div style="font-size: 0.8em; color: #aaa; margin-bottom: 4px;">Position (mean ± σ)</div>
+        <div class="info-row"><span class="label">X:</span><span class="value" id="sel-x">--</span></div>
+        <div class="info-row"><span class="label">Y:</span><span class="value" id="sel-y">--</span></div>
+        <div class="info-row"><span class="label">Z:</span><span class="value" id="sel-z">--</span></div>
+        <hr style="margin: 6px 0; border-color: #4a4a6a;">
+        <div style="font-size: 0.8em; color: #aaa; margin-bottom: 4px;">Properties (mean / max)</div>
+        <div class="info-row"><span class="label">Density:</span><span class="value" id="sel-dens">--</span></div>
+        <div class="info-row"><span class="label">Temp:</span><span class="value" id="sel-temp">--</span></div>
+        <div class="info-row"><span class="label">|v|:</span><span class="value" id="sel-vel">--</span></div>
+        <div class="info-row"><span class="label">Mach:</span><span class="value" id="sel-mach">--</span></div>
+        <hr style="margin: 6px 0; border-color: #4a4a6a;">
+        <div style="font-size: 0.8em; color: #aaa; margin-bottom: 4px;">Phase Diagram (T vs ρ)</div>
+        <canvas id="phase-canvas" width="200" height="120"></canvas>
     </div>
 
     <!-- Loading Overlay -->

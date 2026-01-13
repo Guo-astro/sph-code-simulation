@@ -60,6 +60,13 @@ const STATE = {
 
     losVector: new THREE.Vector3(0, 0, 1),
     isDraggingLOS: false,
+    pvZoom: 1.0,  // PV diagram zoom level
+
+    // PV selection state
+    pvSelection: null,       // { x1, y1, x2, y2 } in canvas coords
+    pvSelecting: false,      // Currently dragging selection
+    selectedParticles: [],   // Array of selected particle indices
+    pvRanges: null,          // { minPos, maxPos, minVel, maxVel } for coord conversion
 
     // Dynamic data
     cloudMass: 0,

@@ -84,6 +84,115 @@ function initDraggablePanels() {
     });
 }
 
+// Load binary format snapshots
+async function loadBinarySnapshots(manifest, dsInfo, loadId) {
+    const basePath = `data/${dsInfo.path}`;
+    const columns = manifest.columns; // ["x", "y", "z", "vx", "vy", "vz", "dens", "temp", "mass", "sound"]
+    const snapshots = dsInfo.snapshots;
+    const total = snapshots.length;
+
+    for (let i = 0; i < total; i++) {
+        if (STATE.loadId !== loadId) return;
+
+        const filename = snapshots[i];
+        try {
+            const response = await fetch(`${basePath}/${filename}`);
+            if (!response.ok) continue;
+
+            const buffer = await response.arrayBuffer();
+            const snapshot = parseBinarySnapshot(buffer, columns, i);
+            STATE.snapshots.push(snapshot);
+
+            document.getElementById('loading').textContent = `Loading... ${i + 1}/${total} snapshots`;
+        } catch (error) {
+            console.error(`Error loading ${filename}:`, error);
+        }
+    }
+    console.log(`Loaded ${STATE.snapshots.length} binary snapshots`);
+}
+
+// Parse binary snapshot buffer
+function parseBinarySnapshot(buffer, columns, frameIndex) {
+    const dataView = new DataView(buffer);
+    const nParticles = dataView.getUint32(0, true);
+    let offset = 4;
+
+    // Read column data
+    const columnData = {};
+    for (const col of columns) {
+        columnData[col] = new Float32Array(buffer, offset, nParticles);
+        offset += nParticles * 4;
+    }
+
+    // Convert to particle objects
+    const particles = [];
+    for (let i = 0; i < nParticles; i++) {
+        const vx = columnData.vx[i];
+        const vy = columnData.vy[i];
+        const vz = columnData.vz[i];
+        const dens = columnData.dens[i];
+        const temp = columnData.temp[i];
+
+        // Estimate pressure from ideal gas: P = (gamma-1) * rho * e, where T = (gamma-1)*mu*mH*e/kB
+        // For simplicity, use P ~ rho * T (arbitrary units for entropy calculation)
+        const pres = dens * temp;
+
+        particles.push({
+            x: columnData.x[i],
+            y: columnData.y[i],
+            z: columnData.z[i],
+            vx: vx, vy: vy, vz: vz,
+            vel_mag: Math.sqrt(vx*vx + vy*vy + vz*vz),
+            dens: dens,
+            temp: temp,
+            mass: columnData.mass[i],
+            sound: columnData.sound[i],
+            pres: pres,
+            ene: temp / CONFIG.tempConversion,
+            is_ghost: 0
+        });
+    }
+
+    return { time: frameIndex * 0.05, particles };
+}
+
+// Load CSV format snapshots
+async function loadCSVSnapshots(loadId) {
+    const basePath = STATE.basePath + '/' + (STATE.simType === 'adiabatic'
+        ? 'adiabatic/results/'
+        : 'cooling/results/');
+
+    let snapshotNum = 1;
+    let consecutiveFailures = 0;
+
+    while (consecutiveFailures < 3) {
+        if (STATE.loadId !== loadId) return;
+
+        const filename = `snapshot_${String(snapshotNum).padStart(4, '0')}.csv`;
+        try {
+            const response = await fetch(basePath + filename);
+            if (!response.ok) {
+                consecutiveFailures++;
+                snapshotNum++;
+                continue;
+            }
+
+            const text = await response.text();
+            const data = parseCSV(text);
+            if (data.particles.length > 0) {
+                STATE.snapshots.push(data);
+                consecutiveFailures = 0;
+                document.getElementById('loading').textContent = `Loading... ${STATE.snapshots.length} snapshots`;
+            }
+        } catch (e) {
+            consecutiveFailures++;
+        }
+        snapshotNum++;
+        if (snapshotNum > 500) break;
+    }
+    console.log(`Loaded ${STATE.snapshots.length} CSV snapshots`);
+}
+
 async function loadSnapshots() {
     // Cancel any previous load in progress
     STATE.loadId++;
@@ -106,44 +215,28 @@ async function loadSnapshots() {
         return;
     }
 
-    const basePath = STATE.basePath + '/' + (STATE.simType === 'adiabatic'
-        ? 'adiabatic/results/'
-        : 'cooling/results/');
-
     STATE.snapshots = [];
-    let snapshotNum = 1;
-    let consecutiveFailures = 0;
 
-    while (consecutiveFailures < 3) {
-        // Check if this load was cancelled
-        if (currentLoadId !== STATE.loadId) {
-            console.log('Load cancelled');
-            return;
-        }
-
-        const filename = `snapshot_${String(snapshotNum).padStart(4, '0')}.csv`;
-        try {
-            const response = await fetch(basePath + filename);
-            if (!response.ok) {
-                consecutiveFailures++;
-                snapshotNum++;
-                continue;
+    // Try binary format first (check for manifest.json)
+    let usedBinary = false;
+    try {
+        const manifestResponse = await fetch('data/manifest.json');
+        if (manifestResponse.ok) {
+            const manifest = await manifestResponse.json();
+            const dsInfo = manifest.datasets.find(d => d.id === STATE.currentDataset.id);
+            if (dsInfo && dsInfo.snapshots && dsInfo.snapshots.length > 0) {
+                console.log('Binary format detected, loading from manifest');
+                await loadBinarySnapshots(manifest, dsInfo, currentLoadId);
+                usedBinary = true;
             }
-
-            const text = await response.text();
-            const data = parseCSV(text);
-            if (data.particles.length > 0) {
-                STATE.snapshots.push(data);
-                consecutiveFailures = 0;
-                // Update loading progress
-                document.getElementById('loading').textContent = `Loading... ${STATE.snapshots.length} snapshots`;
-            }
-        } catch (e) {
-            consecutiveFailures++;
         }
-        snapshotNum++;
+    } catch (e) {
+        console.log('No binary manifest, falling back to CSV');
+    }
 
-        if (snapshotNum > 500) break;
+    // Fall back to CSV format
+    if (!usedBinary) {
+        await loadCSVSnapshots(currentLoadId);
     }
 
     // Check again if cancelled before processing

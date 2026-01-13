@@ -503,6 +503,9 @@ function updateVisualization(frameIndex) {
     const colors = new Float32Array(data.particles.length * 3);
     const sizes = new Float32Array(data.particles.length);
 
+    // Create set of selected indices for fast lookup
+    const selectedSet = new Set(STATE.selectedParticles || []);
+
     // Second pass: set colors using GLOBAL ranges
     data.particles.forEach((p, i) => {
         positions[i*3] = p.x;
@@ -510,14 +513,25 @@ function updateVisualization(frameIndex) {
         positions[i*3+2] = p.z;
 
         let color;
+        const isSelected = selectedSet.has(i);
 
         if (p.is_ghost === 1) {
             color = new THREE.Color(0.4, 0.4, 0.5);
             sizes[i] = 0.02;
+        } else if (isSelected) {
+            // Highlight selected particles in orange
+            color = new THREE.Color(1.0, 0.53, 0.4);  // #ff8866
+            sizes[i] = 0.06;  // Larger size
         } else {
             const t = getColorForValue(p, comVelocity);
             color = valueToColor(t);
-            sizes[i] = 0.03 + 0.02 * t;
+            // Dim non-selected when selection exists
+            if (selectedSet.size > 0) {
+                color.multiplyScalar(0.4);
+                sizes[i] = 0.02;
+            } else {
+                sizes[i] = 0.03 + 0.02 * t;
+            }
         }
 
         colors[i*3] = color.r;

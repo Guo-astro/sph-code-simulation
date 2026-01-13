@@ -66,6 +66,37 @@ body {
 #shock-panel .label { color: #aaa; }
 #shock-panel .value { color: #ff9966; font-family: monospace; }
 
+/* Selection Analysis Panel */
+#selection-panel {
+    position: absolute;
+    background: rgba(20, 20, 40, 0.95);
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid #ff8866;
+    max-width: 220px;
+    z-index: 100;
+}
+#selection-panel .drag-header {
+    margin: -10px -15px 8px -15px;
+    padding: 4px 15px;
+    background: rgba(255, 136, 102, 0.3);
+    color: #ff8866;
+    font-weight: bold;
+}
+#selection-panel .info-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 3px 0;
+    font-size: 0.8em;
+}
+#selection-panel .label { color: #aaa; }
+#selection-panel .value { color: #ff8866; font-family: monospace; font-size: 0.9em; }
+#phase-canvas {
+    background: #1a1a2a;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+}
+
 /* Playback Controls - Bottom Center */
 #controls {
     position: absolute;

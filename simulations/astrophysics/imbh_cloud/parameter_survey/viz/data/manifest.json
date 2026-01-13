@@ -1,0 +1,124 @@
+{
+  "format": "binary",
+  "version": 1,
+  "columns": [
+    "x",
+    "y",
+    "z",
+    "vx",
+    "vy",
+    "vz",
+    "dens",
+    "temp",
+    "mass",
+    "sound"
+  ],
+  "datasets": [
+    {
+      "id": "parabolic_rp0.13pc",
+      "name": "Parabolic r_p = 0.13 pc (Close)",
+      "path": "parabolic_rp0.13pc",
+      "snapshots": [
+        "snapshot_0001.bin",
+        "snapshot_0003.bin",
+        "snapshot_0005.bin",
+        "snapshot_0007.bin",
+        "snapshot_0009.bin",
+        "snapshot_0011.bin",
+        "snapshot_0013.bin",
+        "snapshot_0015.bin",
+        "snapshot_0017.bin",
+        "snapshot_0019.bin",
+        "snapshot_0021.bin",
+        "snapshot_0023.bin",
+        "snapshot_0025.bin",
+        "snapshot_0027.bin",
+        "snapshot_0029.bin",
+        "snapshot_0031.bin",
+        "snapshot_0033.bin",
+        "snapshot_0035.bin",
+        "snapshot_0037.bin",
+        "snapshot_0039.bin",
+        "snapshot_0041.bin",
+        "snapshot_0043.bin",
+        "snapshot_0045.bin",
+        "snapshot_0047.bin",
+        "snapshot_0049.bin",
+        "snapshot_0051.bin",
+        "snapshot_0053.bin",
+        "snapshot_0055.bin",
+        "snapshot_0057.bin",
+        "snapshot_0059.bin",
+        "snapshot_0061.bin",
+        "snapshot_0063.bin"
+      ],
+      "config": {
+        "r_peri": 0.13,
+        "cloud_pos0": [
+          -15.0,
+          2.8049,
+          0.0
+        ],
+        "cloud_vel0": [
+          7.2211,
+          -2.0553,
+          0.0
+        ]
+      }
+    },
+    {
+      "id": "parabolic_rp0.4pc",
+      "name": "Parabolic r_p = 0.4 pc (Wide)",
+      "path": "parabolic_rp0.4pc",
+      "snapshots": [
+        "snapshot_0001.bin",
+        "snapshot_0003.bin",
+        "snapshot_0005.bin",
+        "snapshot_0007.bin",
+        "snapshot_0009.bin",
+        "snapshot_0011.bin",
+        "snapshot_0013.bin",
+        "snapshot_0015.bin",
+        "snapshot_0017.bin",
+        "snapshot_0019.bin",
+        "snapshot_0021.bin",
+        "snapshot_0023.bin",
+        "snapshot_0025.bin",
+        "snapshot_0027.bin",
+        "snapshot_0029.bin",
+        "snapshot_0031.bin",
+        "snapshot_0033.bin",
+        "snapshot_0035.bin",
+        "snapshot_0037.bin",
+        "snapshot_0039.bin",
+        "snapshot_0041.bin",
+        "snapshot_0043.bin",
+        "snapshot_0045.bin",
+        "snapshot_0047.bin",
+        "snapshot_0049.bin",
+        "snapshot_0051.bin",
+        "snapshot_0053.bin",
+        "snapshot_0055.bin",
+        "snapshot_0057.bin",
+        "snapshot_0059.bin",
+        "snapshot_0061.bin",
+        "snapshot_0063.bin",
+        "snapshot_0065.bin",
+        "snapshot_0067.bin"
+      ],
+      "config": {
+        "r_peri": 0.4,
+        "cloud_pos0": [
+          -14.4675,
+          4.8773,
+          0.0
+        ],
+        "cloud_vel0": [
+          7.4071,
+          -1.2149,
+          0.0
+        ]
+      }
+    }
+  ]
+}
