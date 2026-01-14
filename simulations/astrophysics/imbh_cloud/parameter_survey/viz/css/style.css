@@ -1,4 +1,5 @@
 /* IMBH Cloud Tidal Disruption Visualization Styles */
+/* Optimized panel layout for maximum canvas visibility */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -11,129 +12,257 @@ body {
 
 #container { width: 100vw; height: 100vh; }
 
-/* Info Panel - Top Left */
+/* ============================================================
+   PANEL BASE STYLES
+   ============================================================ */
+.panel-base {
+    background: rgba(20, 20, 40, 0.92);
+    border-radius: 6px;
+    border: 1px solid #4a4a6a;
+    z-index: 100;
+}
+
+/* ============================================================
+   TOP-LEFT: Info Panel (compact)
+   ============================================================ */
 #info-panel {
     position: absolute;
     top: 10px;
     left: 10px;
-    background: rgba(20, 20, 40, 0.9);
-    padding: 15px 20px;
-    border-radius: 8px;
+    background: rgba(20, 20, 40, 0.92);
+    padding: 10px 14px;
+    border-radius: 6px;
     border: 1px solid #4a4a6a;
-    max-width: 300px;
+    max-width: 200px;
     z-index: 100;
 }
 #info-panel .drag-header {
-    margin: -15px -20px 10px -20px;
-    padding: 6px 20px;
+    margin: -10px -14px 8px -14px;
+    padding: 4px 14px;
 }
 #info-panel h2 {
     color: #7eb0ff;
-    margin-bottom: 10px;
-    font-size: 1.1em;
+    margin-bottom: 6px;
+    font-size: 0.9em;
 }
 #info-panel .info-row {
     display: flex;
     justify-content: space-between;
-    margin: 4px 0;
-    font-size: 0.85em;
+    margin: 2px 0;
+    font-size: 0.75em;
 }
-#info-panel .label { color: #aaa; }
-#info-panel .value { color: #7eb0ff; font-family: monospace; }
+#info-panel .label { color: #999; }
+#info-panel .value { color: #7eb0ff; font-family: monospace; font-size: 0.95em; }
 
-/* Shock Tracking Panel - Below Info Panel */
+/* ============================================================
+   TOP-LEFT: Shock Panel (below Info, compact)
+   ============================================================ */
 #shock-panel {
     position: absolute;
-    top: 260px;
+    top: 195px;
     left: 10px;
-    background: rgba(20, 20, 40, 0.9);
-    padding: 10px 15px;
-    border-radius: 8px;
+    background: rgba(20, 20, 40, 0.92);
+    padding: 8px 12px;
+    border-radius: 6px;
     border: 1px solid #4a4a6a;
-    max-width: 250px;
+    max-width: 180px;
     z-index: 100;
 }
 #shock-panel .drag-header {
-    margin: -10px -15px 8px -15px;
-    padding: 4px 15px;
+    margin: -8px -12px 6px -12px;
+    padding: 3px 12px;
 }
 #shock-panel .info-row {
     display: flex;
     justify-content: space-between;
-    margin: 3px 0;
-    font-size: 0.8em;
+    margin: 2px 0;
+    font-size: 0.72em;
 }
-#shock-panel .label { color: #aaa; }
+#shock-panel .label { color: #999; }
 #shock-panel .value { color: #ff9966; font-family: monospace; }
 
-/* Selection Analysis Panel */
-#selection-panel {
+/* ============================================================
+   TOP-LEFT: Display Toggles Panel (below Shock)
+   ============================================================ */
+#toggle-panel {
     position: absolute;
-    background: rgba(20, 20, 40, 0.95);
-    padding: 10px 15px;
-    border-radius: 8px;
-    border: 1px solid #ff8866;
+    top: 305px;
+    left: 10px;
+    background: rgba(20, 20, 40, 0.92);
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #4a4a6a;
+    max-width: 175px;
+    z-index: 100;
+}
+#toggle-panel .drag-header {
+    margin: -8px -10px 6px -10px;
+    padding: 3px 10px;
+}
+#toggle-panel button {
+    background: #3a3a5a;
+    border: 1px solid #5a5a7a;
+    color: #ddd;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.15s;
+    font-size: 0.7em;
+    margin-bottom: 2px;
+}
+#toggle-panel button:last-child { margin-bottom: 0; }
+#toggle-panel button:hover { background: #4a4a7a; }
+
+/* ============================================================
+   TOP-RIGHT: Simulation & Color Select (compact)
+   ============================================================ */
+#sim-select {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(20, 20, 40, 0.92);
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #4a4a6a;
     max-width: 220px;
     z-index: 100;
 }
-#selection-panel .drag-header {
-    margin: -10px -15px 8px -15px;
-    padding: 4px 15px;
-    background: rgba(255, 136, 102, 0.3);
-    color: #ff8866;
-    font-weight: bold;
+#sim-select .drag-header {
+    margin: -10px -10px 8px -10px;
+    padding: 4px 10px;
 }
-#selection-panel .info-row {
-    display: flex;
-    justify-content: space-between;
-    margin: 3px 0;
-    font-size: 0.8em;
-}
-#selection-panel .label { color: #aaa; }
-#selection-panel .value { color: #ff8866; font-family: monospace; font-size: 0.9em; }
-#phase-canvas {
-    background: #1a1a2a;
-    border: 1px solid #4a4a6a;
+#sim-select > div { margin-bottom: 6px; }
+#sim-select > div:last-child { margin-bottom: 0; }
+#sim-select label { margin-right: 6px; font-size: 0.75em; color: #aaa; }
+#sim-select select {
+    background: #3a3a5a;
+    border: 1px solid #5a5a7a;
+    color: #e0e0e0;
+    padding: 3px 6px;
     border-radius: 4px;
+    font-size: 0.75em;
+}
+#sim-select input[type="range"] {
+    height: 4px;
 }
 
-/* Playback Controls - Bottom Center */
+/* ============================================================
+   RIGHT-MIDDLE: Colorbar (vertical, slim)
+   ============================================================ */
+#colorbar-container {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    z-index: 100;
+    background: rgba(20, 20, 40, 0.85);
+    padding: 8px 6px;
+    border-radius: 6px;
+    border: 1px solid #4a4a6a;
+}
+#colorbar-container .drag-header {
+    display: none; /* Hide drag header for slim design */
+}
+#colorbar {
+    width: 14px;
+    height: 140px;
+    border-radius: 3px;
+    border: 1px solid #4a4a6a;
+}
+#colorbar-labels {
+    height: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 0.65em;
+    color: #bbb;
+    font-family: monospace;
+}
+#colorbar-title {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-weight: bold;
+    font-size: 0.7em;
+    color: #7eb0ff;
+}
+
+/* ============================================================
+   BOTTOM-RIGHT: Legend (compact)
+   ============================================================ */
+#legend {
+    position: absolute;
+    bottom: 60px;
+    right: 10px;
+    background: rgba(20, 20, 40, 0.92);
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #4a4a6a;
+    font-size: 0.7em;
+    max-width: 160px;
+    z-index: 100;
+}
+#legend .drag-header {
+    margin: -6px -10px 4px -10px;
+    padding: 3px 10px;
+}
+#legend .legend-item {
+    display: flex;
+    align-items: center;
+    margin: 2px 0;
+}
+#legend .legend-color {
+    width: 20px;
+    height: 2px;
+    margin-right: 6px;
+    border-radius: 1px;
+}
+#legend hr {
+    margin: 4px 0;
+    border-color: #4a4a6a;
+}
+
+/* ============================================================
+   BOTTOM-CENTER: Playback Controls (slim)
+   ============================================================ */
 #controls {
     position: absolute;
-    bottom: 15px;
+    bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(20, 20, 40, 0.9);
-    padding: 12px 20px;
-    border-radius: 8px;
+    background: rgba(20, 20, 40, 0.92);
+    padding: 8px 16px;
+    border-radius: 6px;
     border: 1px solid #4a4a6a;
     display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
+    flex-wrap: nowrap;
+    gap: 10px;
     align-items: center;
     z-index: 100;
 }
 #controls .drag-header {
-    width: 100%;
-    margin: -12px -20px 8px -20px;
-    padding: 4px 20px;
+    display: none; /* Slim design - no drag header */
 }
 #controls button {
     background: #3a3a5a;
     border: 1px solid #5a5a7a;
     color: #e0e0e0;
-    padding: 6px 14px;
-    border-radius: 5px;
+    padding: 5px 12px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 0.85em;
-    transition: all 0.2s;
+    font-size: 0.8em;
+    transition: all 0.15s;
 }
 #controls button:hover { background: #4a4a7a; }
 #controls button.active { background: #5a7a5a; border-color: #7a9a7a; }
 
 #timeline {
-    width: 250px;
-    height: 6px;
+    width: 200px;
+    height: 5px;
     -webkit-appearance: none;
     background: #3a3a5a;
     border-radius: 3px;
@@ -141,161 +270,71 @@ body {
 }
 #timeline::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     background: #7eb0ff;
     border-radius: 50%;
     cursor: pointer;
 }
-
-/* Simulation/Color Select - Top Right */
-#sim-select {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: rgba(20, 20, 40, 0.9);
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #4a4a6a;
-    z-index: 100;
-}
-#sim-select .drag-header {
-    margin: -12px -12px 10px -12px;
-    padding: 5px 12px;
-}
-#sim-select label { margin-right: 8px; font-size: 0.85em; }
-#sim-select select {
-    background: #3a3a5a;
-    border: 1px solid #5a5a7a;
-    color: #e0e0e0;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.85em;
+#frame-display {
+    font-size: 0.75em;
+    font-family: monospace;
+    color: #aaa;
+    min-width: 50px;
 }
 
-/* View Buttons - Bottom center-right (next to controls) */
+/* ============================================================
+   BOTTOM-CENTER-RIGHT: View Buttons (integrated, slim)
+   ============================================================ */
 #view-buttons {
     position: absolute;
-    bottom: 15px;
-    right: 200px;
-    background: rgba(20, 20, 40, 0.9);
-    padding: 8px 12px;
-    border-radius: 8px;
+    bottom: 10px;
+    right: 180px;
+    background: rgba(20, 20, 40, 0.92);
+    padding: 6px 10px;
+    border-radius: 6px;
     border: 1px solid #4a4a6a;
     z-index: 100;
     display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
+    gap: 4px;
 }
 #view-buttons .drag-header {
-    width: 100%;
-    margin: -8px -12px 6px -12px;
-    padding: 3px 12px;
+    display: none;
 }
 #view-buttons button {
     background: #3a3a5a;
     border: 1px solid #5a5a7a;
-    color: #e0e0e0;
-    padding: 5px 10px;
+    color: #ddd;
+    padding: 4px 8px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 0.8em;
+    font-size: 0.7em;
     white-space: nowrap;
 }
 #view-buttons button:hover { background: #4a4a7a; }
 
-/* Colorbar - Right side, middle */
-#colorbar-container {
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    z-index: 100;
-    background: rgba(20, 20, 40, 0.8);
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid #4a4a6a;
-}
-#colorbar-container .drag-header {
-    width: 100%;
-    margin: -10px -10px 6px -10px;
-    padding: 3px 10px;
-}
-#colorbar {
-    width: 18px;
-    height: 180px;
-    border-radius: 3px;
-    border: 1px solid #4a4a6a;
-}
-#colorbar-labels {
-    height: 180px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    font-size: 0.75em;
-    color: #ccc;
-    font-family: monospace;
-}
-#colorbar-title {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    font-weight: bold;
-    color: #7eb0ff;
-}
-
-/* Legend - Bottom Right */
-#legend {
-    position: absolute;
-    bottom: 70px;
-    right: 10px;
-    background: rgba(20, 20, 40, 0.9);
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: 1px solid #4a4a6a;
-    font-size: 0.8em;
-    z-index: 100;
-}
-#legend .drag-header {
-    margin: -8px -12px 6px -12px;
-    padding: 4px 12px;
-}
-#legend .legend-item {
-    display: flex;
-    align-items: center;
-    margin: 3px 0;
-}
-#legend .legend-color {
-    width: 25px;
-    height: 3px;
-    margin-right: 8px;
-    border-radius: 2px;
-}
-
-/* PV Diagram Panel - Bottom Left */
+/* ============================================================
+   BOTTOM-LEFT: PV Diagram Panel (compact, essential only)
+   ============================================================ */
 #pv-panel {
     position: absolute;
-    bottom: 70px;
+    bottom: 10px;
     left: 10px;
     background: rgba(20, 20, 40, 0.95);
-    padding: 10px;
-    border-radius: 8px;
+    padding: 8px;
+    border-radius: 6px;
     border: 1px solid #4a4a6a;
     z-index: 100;
+    max-width: 300px;
 }
 #pv-panel .drag-header {
-    margin: -10px -10px 6px -10px;
-    padding: 4px 10px;
+    margin: -8px -8px 6px -8px;
+    padding: 3px 8px;
 }
 #pv-panel h3 {
     color: #7eb0ff;
-    font-size: 0.85em;
-    margin-bottom: 6px;
+    font-size: 0.75em;
+    margin-bottom: 4px;
     text-align: center;
 }
 #pv-canvas {
@@ -304,28 +343,96 @@ body {
     border-radius: 4px;
 }
 #pv-axes {
-    font-size: 0.7em;
-    color: #888;
-    margin-top: 4px;
+    font-size: 0.65em;
+    color: #777;
+    margin-top: 3px;
     text-align: center;
 }
 #los-select {
-    margin-top: 6px;
+    margin-top: 4px;
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.8em;
+    font-size: 0.72em;
 }
 #los-select select {
     background: #3a3a5a;
     border: 1px solid #5a5a7a;
     color: #e0e0e0;
-    padding: 2px 5px;
-    border-radius: 4px;
-    font-size: 0.85em;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+#los-select button {
+    padding: 2px 6px;
+    font-size: 0.9em;
 }
 
-/* Loading Overlay */
+/* PV Panel collapsible sections */
+#pv-panel hr {
+    margin: 6px 0;
+    border-color: #4a4a6a;
+}
+#pv-panel .info-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 2px 0;
+    font-size: 0.7em;
+}
+#pv-panel .label { color: #999; }
+#pv-panel .value { color: #7eb0ff; font-family: monospace; }
+
+/* LSR controls styling */
+#pv-panel input[type="checkbox"] {
+    transform: scale(0.9);
+}
+#pv-panel input[type="range"] {
+    height: 4px;
+}
+
+/* ============================================================
+   Selection Analysis Panel (appears on selection)
+   ============================================================ */
+#selection-panel {
+    position: absolute;
+    top: 50%;
+    right: 50px;
+    transform: translateY(-50%);
+    background: rgba(20, 20, 40, 0.95);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #ff8866;
+    max-width: 200px;
+    z-index: 100;
+}
+#selection-panel .drag-header {
+    margin: -8px -12px 6px -12px;
+    padding: 3px 12px;
+    background: rgba(255, 136, 102, 0.3);
+    color: #ff8866;
+    font-weight: bold;
+}
+#selection-panel .info-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 2px 0;
+    font-size: 0.72em;
+}
+#selection-panel .label { color: #999; }
+#selection-panel .value { color: #ff8866; font-family: monospace; font-size: 0.9em; }
+#selection-panel hr {
+    margin: 5px 0;
+    border-color: #4a4a6a;
+}
+#phase-canvas {
+    background: #1a1a2a;
+    border: 1px solid #4a4a6a;
+    border-radius: 3px;
+}
+
+/* ============================================================
+   Loading Overlay
+   ============================================================ */
 #loading {
     position: absolute;
     top: 50%;
@@ -352,25 +459,28 @@ body {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Draggable Panel Styles */
+/* ============================================================
+   Draggable Panel Styles
+   ============================================================ */
 .draggable {
     cursor: default;
     user-select: none;
 }
 .draggable .drag-header {
     cursor: grab;
-    padding: 4px 8px;
-    margin: -10px -12px 8px -12px;
-    background: rgba(74, 74, 106, 0.5);
-    border-radius: 6px 6px 0 0;
-    font-size: 0.7em;
-    color: #888;
+    padding: 3px 8px;
+    margin: -8px -10px 6px -10px;
+    background: rgba(74, 74, 106, 0.4);
+    border-radius: 5px 5px 0 0;
+    font-size: 0.6em;
+    color: #666;
     text-align: center;
     letter-spacing: 1px;
+    text-transform: uppercase;
 }
 .draggable .drag-header:hover {
-    background: rgba(94, 94, 136, 0.6);
-    color: #aaa;
+    background: rgba(94, 94, 136, 0.5);
+    color: #888;
 }
 .draggable .drag-header:active {
     cursor: grabbing;
@@ -383,4 +493,130 @@ body {
     cursor: grabbing;
     background: rgba(126, 176, 255, 0.3);
     color: #7eb0ff;
+}
+
+/* ============================================================
+   Responsive adjustments for smaller screens
+   ============================================================ */
+@media (max-width: 1400px) {
+    #pv-panel {
+        max-width: 260px;
+    }
+    #pv-canvas {
+        width: 240px !important;
+        height: 170px !important;
+    }
+    #timeline {
+        width: 150px;
+    }
+}
+
+@media (max-width: 1200px) {
+    #info-panel {
+        max-width: 180px;
+    }
+    #shock-panel {
+        top: 175px;
+        max-width: 160px;
+    }
+    #toggle-panel {
+        top: 275px;
+        max-width: 160px;
+    }
+    #legend {
+        max-width: 140px;
+    }
+}
+
+/* ============================================================
+   High-DPI display adjustments
+   ============================================================ */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    #colorbar {
+        width: 16px;
+        height: 150px;
+    }
+}
+
+/* ============================================================
+   Panel Resize Handle
+   ============================================================ */
+.resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg, transparent 50%, rgba(126, 176, 255, 0.3) 50%);
+    border-radius: 0 0 5px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: rgba(126, 176, 255, 0.5);
+    letter-spacing: -2px;
+    line-height: 1;
+    transition: all 0.15s;
+    z-index: 10;
+}
+
+.resize-handle:hover {
+    background: linear-gradient(135deg, transparent 40%, rgba(126, 176, 255, 0.5) 40%);
+    color: rgba(126, 176, 255, 0.8);
+}
+
+.resize-handle:active {
+    background: linear-gradient(135deg, transparent 30%, rgba(126, 176, 255, 0.7) 30%);
+}
+
+/* Panel resizing state */
+.resizing {
+    opacity: 0.95;
+    box-shadow: 0 0 20px rgba(126, 176, 255, 0.3);
+    border-color: #7eb0ff !important;
+}
+
+.resizing .resize-handle {
+    background: linear-gradient(135deg, transparent 30%, rgba(126, 176, 255, 0.7) 30%);
+    color: #7eb0ff;
+}
+
+/* Ensure panels have overflow handling when resized */
+#info-panel,
+#shock-panel,
+#toggle-panel,
+#sim-select,
+#legend,
+#pv-panel,
+#selection-panel {
+    overflow: auto;
+    min-width: 100px;
+    min-height: 60px;
+}
+
+/* PV panel specific - allow canvas container to grow */
+#pv-panel {
+    overflow: visible;
+}
+
+#pv-panel canvas {
+    display: block;
+    max-width: 100%;
+}
+
+/* Colorbar container resize behavior */
+#colorbar-container {
+    overflow: hidden;
+    flex-wrap: nowrap;
+}
+
+/* Toggle panel scrollable when small */
+#toggle-panel {
+    max-height: calc(100vh - 320px);
+}
+
+#toggle-panel > div {
+    overflow-y: auto;
+    max-height: 100%;
 }

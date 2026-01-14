@@ -105,128 +105,147 @@
 
     <!-- Legend -->
     <div id="legend" class="draggable">
-        <div class="drag-header">DRAG TO MOVE</div>
+        <div class="drag-header">LEGEND</div>
+        <div style="font-size: 0.75em; color: #aaa; margin-bottom: 4px;">Simulation:</div>
         <div class="legend-item">
             <div class="legend-color" style="background: #ff4444;"></div>
-            <span>Black Hole</span>
+            <span>IMBH (10⁵ M☉)</span>
         </div>
         <div class="legend-item">
             <div class="legend-color" style="background: linear-gradient(90deg, #ffaa00, #00ff88);"></div>
             <span>Analytic Orbit</span>
         </div>
         <div class="legend-item">
-            <div class="legend-color" style="background: #ffffff; width: 8px; height: 8px; border-radius: 50%;"></div>
-            <span>Cloud COM</span>
-        </div>
-        <div class="legend-item">
             <div class="legend-color" style="background: #666680;"></div>
-            <span>Ghost (envelope)</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #00ffff;"></div>
-            <span>Orbital Pole (drag)</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #ffff00;"></div>
-            <span>LOS to Sun (fixed)</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #ff8800;"></div>
-            <span>Tidal Radius</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #00ff88;"></div>
-            <span>Hill Radius (peri)</span>
+            <span>Ghost Particles</span>
         </div>
         <hr style="margin: 6px 0; border-color: #4a4a6a;">
-        <div style="font-size: 0.8em; color: #888;">Galaxy Context:</div>
+        <div style="font-size: 0.75em; color: #aaa; margin-bottom: 4px;">Sky Plane (⊥ to LOS):</div>
         <div class="legend-item">
-            <div class="legend-color" style="background: #ffcc00;"></div>
-            <span>Sgr A* (SMBH)</span>
+            <div class="legend-color" style="background: #ffff00;"></div>
+            <span>LOS→Sun (yellow)</span>
         </div>
         <div class="legend-item">
+            <div class="legend-color" style="background: #88ff88;"></div>
+            <span>N = PA 0°</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff8888;"></div>
+            <span>E = PA 90°</span>
+        </div>
+        <hr style="margin: 6px 0; border-color: #4a4a6a;">
+        <div style="font-size: 0.75em; color: #aaa; margin-bottom: 4px;">Orbital Pole (drag to change):</div>
+        <div class="legend-item">
             <div class="legend-color" style="background: #00ffff;"></div>
-            <span>HVCC CO-0.40-0.22</span>
+            <span>Pole direction (cyan)</span>
+        </div>
+        <hr style="margin: 6px 0; border-color: #4a4a6a;">
+        <div style="font-size: 0.75em; color: #aaa; margin-bottom: 4px;">Galaxy Context (toggle):</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #66aaff;"></div>
+            <span>Galactic rotation arrows</span>
         </div>
         <div class="legend-item">
             <div class="legend-color" style="background: #ffff00;"></div>
-            <span>☉ Sun / Earth</span>
+            <span>Sun's orbital velocity</span>
         </div>
     </div>
 
     <!-- View Buttons -->
     <div id="view-buttons" class="draggable">
-        <div class="drag-header">DRAG</div>
+        <div class="drag-header">CAMERA VIEWS</div>
         <button onclick="setEdgeOnView()">Edge-on (X-Y)</button>
         <button onclick="setFaceOnView()">Face-on (X-Z)</button>
         <button onclick="setTopView()">Top (Y-Z)</button>
         <button onclick="resetView()">Reset View</button>
-        <hr style="margin: 8px 0; border-color: #4a4a6a;">
-        <button onclick="toggleGalaxyContext()" style="background: #335544;">
-            Show Galaxy Context
-        </button>
     </div>
 
-    <!-- PV Diagram Panel -->
+    <!-- Display Toggles Panel -->
+    <div id="toggle-panel" class="draggable">
+        <div class="drag-header">DISPLAY TOGGLES</div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <button onclick="toggleCoordinateLabels()" style="font-size: 11px; padding: 4px 8px; text-align: left;">
+                ☑ Coordinate Axes (X,Y,Z)
+            </button>
+            <button onclick="toggleSkyPlane()" style="font-size: 11px; padding: 4px 8px; text-align: left;">
+                ☑ Sky Plane + LOS (yellow)
+            </button>
+            <button onclick="toggleOrbitalPole()" style="font-size: 11px; padding: 4px 8px; text-align: left;">
+                ☑ Orbital Pole (cyan)
+            </button>
+            <button onclick="toggleOrbitLine()" style="font-size: 11px; padding: 4px 8px; text-align: left;">
+                ☑ Analytic Orbit
+            </button>
+            <button onclick="toggleGrid()" style="font-size: 11px; padding: 4px 8px; text-align: left;">
+                ☑ Grid
+            </button>
+            <hr style="margin: 4px 0; border-color: #4a4a6a;">
+            <button onclick="toggleGalaxyContext()" style="font-size: 11px; padding: 4px 8px; background: #335544; text-align: left;">
+                ☐ Galaxy Context (60 pc)
+            </button>
+            <button onclick="toggleGalacticRotation()" style="font-size: 11px; padding: 4px 8px; background: #334455; text-align: left;">
+                ☑ Rotation Arrows (in Galaxy)
+            </button>
+            <hr style="margin: 4px 0; border-color: #4a4a6a;">
+            <button onclick="togglePanels()" style="font-size: 11px; padding: 4px 8px; background: #553344; text-align: left;">
+                ⌨ Focus Mode (H)
+            </button>
+            <button onclick="resetAllPanelSizes()" style="font-size: 11px; padding: 4px 8px; background: #444455; text-align: left;">
+                ↺ Reset Panel Sizes
+            </button>
+        </div>
+    </div>
+
+    <!-- PV Diagram Panel (compact) -->
     <div id="pv-panel" class="draggable">
-        <div class="drag-header">DRAG TO MOVE</div>
-        <h3>Position-Velocity Diagram</h3>
-        <canvas id="pv-canvas" width="280" height="200"></canvas>
+        <div class="drag-header">PV DIAGRAM</div>
+        <canvas id="pv-canvas" width="260" height="180"></canvas>
         <div id="pv-axes">
-            <span id="pv-x-label">Offset (pc)</span> vs
-            <span id="pv-v-label">V_LOS (km/s)</span>
+            <span id="pv-x-label">Offset</span> vs <span id="pv-v-label">V_LOS</span>
         </div>
-        <div id="los-select" style="display: flex; align-items: center; gap: 10px;">
-            <div>
-                <label>LOS:</label>
-                <select id="los-direction" onchange="onLOSChange(this.value)">
-                    <option value="x">X-axis</option>
-                    <option value="y">Y-axis</option>
-                    <option value="z" selected>Z-axis</option>
-                </select>
+        <div id="los-select">
+            <label>LOS:</label>
+            <select id="los-direction" onchange="onLOSChange(this.value)">
+                <option value="x">X</option>
+                <option value="y">Y</option>
+                <option value="z" selected>Z</option>
+            </select>
+            <button onclick="pvZoom(1.5)" title="Zoom In">+</button>
+            <button onclick="pvZoom(0.67)" title="Zoom Out">−</button>
+            <button onclick="pvZoomReset()" title="Reset">1:1</button>
+        </div>
+        <!-- LSR Toggle (compact) -->
+        <div style="background: rgba(100, 170, 255, 0.12); padding: 4px 6px; border-radius: 3px; margin-top: 6px;">
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <input type="checkbox" id="lsr-toggle" onchange="toggleLSRFrame()">
+                <label for="lsr-toggle" style="font-size: 0.72em; color: #88ddff; cursor: pointer;">V_LSR mode</label>
+                <span id="lsr-offset-display" style="font-size: 0.68em; color: #666; margin-left: auto; display: none;">
+                    (<span id="lsr-offset-value">-150</span> km/s)
+                </span>
             </div>
-            <div style="display: flex; gap: 4px;">
-                <button onclick="pvZoom(1.5)" title="Zoom In" style="padding: 2px 8px; font-size: 14px;">+</button>
-                <button onclick="pvZoom(0.67)" title="Zoom Out" style="padding: 2px 8px; font-size: 14px;">−</button>
-                <button onclick="pvZoomReset()" title="Reset Zoom" style="padding: 2px 6px; font-size: 11px;">1:1</button>
+            <div id="lsr-slider-container" style="display: none; margin-top: 3px;">
+                <input type="range" id="lsr-offset" min="-300" max="0" step="10" value="-150"
+                    style="width: 100%;" onchange="updateLSROffset(this.value)">
             </div>
         </div>
-        <div style="font-size: 0.7em; color: #888; margin-top: 4px;">
-            Drag to select particles on PV diagram
-        </div>
-        <hr style="margin: 8px 0; border-color: #4a4a6a;">
-        <div style="font-size: 0.8em; color: #ffaa00; margin-bottom: 4px; font-weight: bold;">
-            Orbital Pole (drag cyan sphere)
-        </div>
-        <div style="font-size: 0.65em; color: #888; margin-bottom: 6px;">
-            The sphere controls the orbital plane orientation.<br>
-            LOS to Sun is FIXED (actual Earth view).
-        </div>
-        <div class="info-row"><span class="label">Orbital pole:</span><span class="value" id="los-vector">--</span></div>
-        <div class="info-row"><span class="label">θ (polar):</span><span class="value" id="los-theta">--</span></div>
-        <div class="info-row"><span class="label">φ (azimuth):</span><span class="value" id="los-phi">--</span></div>
-        <hr style="margin: 6px 0; border-color: #4a4a6a;">
-        <div style="font-size: 0.8em; color: #00ffff; margin-bottom: 4px;">
-            As seen from Earth (fixed LOS):
-        </div>
-        <div class="info-row"><span class="label">Inclination i:</span><span class="value" id="los-inclination">--</span></div>
-        <div class="info-row"><span class="label">PA (from N):</span><span class="value" id="los-pa">--</span></div>
-        <div style="font-size: 0.65em; color: #666; margin-top: 4px;">
-            i=0°: face-on (pole toward Earth)<br>
-            i=90°: edge-on (pole ⊥ to Earth LOS)<br>
-            PA: orbital plane orientation in sky
-        </div>
-        <div style="margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap;">
-            <button onclick="toggleCoordinateLabels()" style="font-size: 11px; padding: 4px 8px;">
-                Toggle Coord Labels
-            </button>
-            <button onclick="setOrbitalPoleToFaceOn()" style="font-size: 11px; padding: 4px 8px;">
-                Face-on (i=0°)
-            </button>
-            <button onclick="setOrbitalPoleToEdgeOn()" style="font-size: 11px; padding: 4px 8px;">
-                Edge-on (i=90°)
-            </button>
-        </div>
+        <hr>
+        <!-- Orbital Info (collapsible) -->
+        <details style="font-size: 0.72em;">
+            <summary style="color: #ffaa00; cursor: pointer; padding: 2px 0;">
+                Orbital Pole <span style="color: #00ffff; margin-left: 8px;">i=<span id="los-inclination">--</span> PA=<span id="los-pa">--</span></span>
+            </summary>
+            <div style="margin-top: 4px; padding-left: 4px; border-left: 2px solid #4a4a6a;">
+                <div class="info-row"><span class="label">Pole (θ,φ):</span><span class="value"><span id="los-theta">--</span>, <span id="los-phi">--</span></span></div>
+                <div class="info-row"><span class="label">Vector:</span><span class="value" id="los-vector">--</span></div>
+                <div style="margin-top: 4px; display: flex; gap: 3px;">
+                    <button onclick="setOrbitalPoleToFaceOn()" style="font-size: 10px; padding: 2px 6px;">Face-on</button>
+                    <button onclick="setOrbitalPoleToEdgeOn()" style="font-size: 10px; padding: 2px 6px;">Edge-on</button>
+                </div>
+                <div style="font-size: 0.9em; color: #555; margin-top: 3px;">
+                    Drag cyan sphere to change orientation
+                </div>
+            </div>
+        </details>
     </div>
 
     <!-- Selection Analysis Panel -->
@@ -263,11 +282,29 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
-    <!-- Application Modules -->
+    <!-- Application Modules (load order matters!) -->
+    <!-- 1. Configuration and state -->
     <script src="js/config.js"></script>
-    <script src="js/visualization.js"></script>
+
+    <!-- 2. Utility modules (no dependencies on other modules) -->
+    <script src="js/colors.js"></script>
+    <script src="js/labels.js"></script>
+
+    <!-- 3. Core visualization modules -->
+    <script src="js/orbital-plane.js"></script>
+    <script src="js/galaxy-context.js"></script>
+    <script src="js/orbit.js"></script>
+    <script src="js/los-control.js"></script>
+    <script src="js/particles.js"></script>
+    <script src="js/scene-init.js"></script>
+
+    <!-- 4. Interactive features -->
     <script src="js/pv-diagram.js"></script>
     <script src="js/views.js"></script>
+    <script src="js/panel-resize.js"></script>
+    <script src="js/panel-autohide.js"></script>
+
+    <!-- 5. Main entry point -->
     <script src="js/main.js"></script>
 </body>
 </html>

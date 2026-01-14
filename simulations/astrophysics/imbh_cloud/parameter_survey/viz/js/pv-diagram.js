@@ -1,7 +1,40 @@
 // ============================================================
 // IMBH-Cloud Visualization - Position-Velocity Diagram
 // Uses arbitrary LOS direction (draggable)
+// Supports LSR velocity frame transformation
 // ============================================================
+
+// LSR frame state
+STATE.useLSRFrame = false;
+STATE.lsrVelocityOffset = -150;  // V_IMBH in LSR frame (km/s)
+
+// Toggle LSR frame display
+function toggleLSRFrame() {
+    STATE.useLSRFrame = document.getElementById('lsr-toggle').checked;
+    const sliderContainer = document.getElementById('lsr-slider-container');
+    const offsetDisplay = document.getElementById('lsr-offset-display');
+
+    sliderContainer.style.display = STATE.useLSRFrame ? 'block' : 'none';
+    if (offsetDisplay) {
+        offsetDisplay.style.display = STATE.useLSRFrame ? 'inline' : 'none';
+    }
+
+    // Update PV diagram
+    if (STATE.snapshots.length > 0) {
+        updatePVDiagram(STATE.snapshots[STATE.currentFrame]);
+    }
+}
+
+// Update LSR velocity offset
+function updateLSROffset(value) {
+    STATE.lsrVelocityOffset = parseFloat(value);
+    document.getElementById('lsr-offset-value').textContent = value;
+
+    // Update PV diagram
+    if (STATE.snapshots.length > 0) {
+        updatePVDiagram(STATE.snapshots[STATE.currentFrame]);
+    }
+}
 
 function updatePVDiagram(data) {
     const canvas = document.getElementById('pv-canvas');
@@ -33,6 +66,9 @@ function updatePVDiagram(data) {
     // Compute position along perp1 and velocity along LOS for each particle
     let posValues = [];
 
+    // Get LSR offset if enabled
+    const lsrOffset = STATE.useLSRFrame ? STATE.lsrVelocityOffset : 0;
+
     realParticles.forEach(p => {
         const pos3d = new THREE.Vector3(p.x, p.y, p.z);
         const vel3d = new THREE.Vector3(p.vx, p.vy, p.vz);
@@ -41,7 +77,8 @@ function updatePVDiagram(data) {
         const pos = pos3d.dot(perp1);
 
         // Velocity projected onto LOS (v_LOS)
-        const vel = vel3d.dot(los);
+        // In LSR frame: V_LSR = V_sim + V_IMBH_LSR (where V_IMBH_LSR is the IMBH bulk velocity)
+        const vel = vel3d.dot(los) + lsrOffset;
 
         posValues.push({ pos, vel, particle: p });
     });
@@ -104,11 +141,16 @@ function updatePVDiagram(data) {
     // X-axis: position perpendicular to LOS
     ctx.fillText('Offset (pc)', margin.left + plotWidth/2, height - 3);
 
-    // Y-axis: V_LOS
+    // Y-axis: V_LOS or V_LSR
     ctx.save();
     ctx.translate(12, margin.top + plotHeight/2);
     ctx.rotate(-Math.PI/2);
-    ctx.fillText('V_LOS (km/s)', 0, 0);
+    if (STATE.useLSRFrame) {
+        ctx.fillStyle = '#88ddff';  // Light blue for LSR
+        ctx.fillText('V_LSR (km/s)', 0, 0);
+    } else {
+        ctx.fillText('V_LOS (km/s)', 0, 0);
+    }
     ctx.restore();
 
     // Tick marks
@@ -210,9 +252,20 @@ function updatePVDiagram(data) {
         ctx.setLineDash([]);
     }
 
+    // Draw LSR frame indicator if active
+    if (STATE.useLSRFrame) {
+        ctx.fillStyle = 'rgba(100, 170, 255, 0.2)';
+        ctx.fillRect(margin.left, margin.top, plotWidth, 18);
+
+        ctx.fillStyle = '#88ddff';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`LSR Frame (V_IMBH = ${STATE.lsrVelocityOffset} km/s)`, margin.left + 4, margin.top + 12);
+    }
+
     // Update axis labels in HTML
     document.getElementById('pv-x-label').textContent = 'Offset (pc)';
-    document.getElementById('pv-v-label').textContent = 'V_LOS (km/s)';
+    document.getElementById('pv-v-label').textContent = STATE.useLSRFrame ? 'V_LSR (km/s)' : 'V_LOS (km/s)';
 }
 
 function onLOSChange(direction) {
@@ -346,6 +399,9 @@ function selectParticlesInPVBox() {
 
     STATE.selectedParticles = [];
 
+    // Get LSR offset if enabled
+    const lsrOffset = STATE.useLSRFrame ? STATE.lsrVelocityOffset : 0;
+
     data.particles.forEach((p, idx) => {
         if (p.is_ghost === 1) return;
 
@@ -353,7 +409,7 @@ function selectParticlesInPVBox() {
         const vel3d = new THREE.Vector3(p.vx, p.vy, p.vz);
 
         const pos = pos3d.dot(perp1);
-        const vel = vel3d.dot(los);
+        const vel = vel3d.dot(los) + lsrOffset;  // Apply same offset as in diagram
 
         if (pos >= posMin && pos <= posMax && vel >= velMin && vel <= velMax) {
             STATE.selectedParticles.push(idx);
