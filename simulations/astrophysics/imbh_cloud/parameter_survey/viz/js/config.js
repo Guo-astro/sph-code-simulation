@@ -58,7 +58,23 @@ const STATE = {
     simType: 'adiabatic',
     colorMode: 'density',
 
-    losVector: new THREE.Vector3(0, 0, 1),
+    // Orbital pole direction (controlled by draggable cyan sphere)
+    // This represents the orbital angular momentum direction
+    losVector: new THREE.Vector3(0, 0, 1),  // Current orbital pole (user-controlled)
+
+    // Original orbital pole from simulation (computed from CONFIG.L_vec)
+    // This is the "default" orientation - rotation is computed relative to this
+    originalOrbitalPole: new THREE.Vector3(0, 0, 1),  // Will be set from L_vec
+
+    // Group containing all orbital elements (orbit line, particles)
+    // This group is rotated when the orbital pole changes
+    orbitalPlaneGroup: null,
+
+    // Fixed LOS direction toward Sun (from HVCC)
+    // This is the actual observation direction from Earth - FIXED, not user-controllable
+    // Direction computed from HVCC's galactic position: (l=-0.40°, b=-0.22°)
+    fixedLOStoSun: new THREE.Vector3(0, 0, 1),  // Will be updated when galaxy context loads
+
     isDraggingLOS: false,
     pvZoom: 1.0,  // PV diagram zoom level
 
@@ -112,8 +128,18 @@ async function loadDatasets() {
             });
         }
 
-        // Use the global SELECTED_DATASET variable if defined, otherwise use first dataset
-        const datasetId = (typeof SELECTED_DATASET !== 'undefined') ? SELECTED_DATASET : STATE.datasets[0].id;
+        // Check URL parameter first, then global variable, then use first dataset (cooling)
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlDataset = urlParams.get('dataset');
+        let datasetId;
+        if (urlDataset && STATE.datasets.find(d => d.id === urlDataset)) {
+            datasetId = urlDataset;
+        } else if (typeof SELECTED_DATASET !== 'undefined') {
+            datasetId = SELECTED_DATASET;
+        } else {
+            datasetId = STATE.datasets[0].id;  // First dataset is cooling
+        }
+        console.log('Selecting dataset:', datasetId);
         selectDataset(datasetId);
 
         // Update selector to show selected dataset
@@ -144,6 +170,13 @@ function selectDataset(datasetId) {
         CONFIG.cloud_pos0 = dataset.config.cloud_pos0;
         CONFIG.cloud_vel0 = dataset.config.cloud_vel0;
         CONFIG.bulkVelocity = dataset.config.cloud_vel0;
+    }
+
+    // Set simType based on dataset (cooling datasets default to 'cooling')
+    if (datasetId.includes('cooling')) {
+        STATE.simType = 'cooling';
+        const simTypeSelect = document.getElementById('sim-type');
+        if (simTypeSelect) simTypeSelect.value = 'cooling';
     }
 
     // Recompute orbital parameters

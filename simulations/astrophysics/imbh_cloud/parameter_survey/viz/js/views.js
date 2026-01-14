@@ -86,3 +86,58 @@ function setCameraFollowCOM() {
         com.clone()
     );
 }
+
+// Toggle coordinate labels visibility
+function toggleCoordinateLabels() {
+    if (!STATE.coordinateLabels) return;
+
+    STATE.coordLabelsVisible = !STATE.coordLabelsVisible;
+
+    // Toggle visibility of all coordinate labels
+    Object.values(STATE.coordinateLabels).forEach(obj => {
+        if (obj && obj.visible !== undefined) {
+            obj.visible = STATE.coordLabelsVisible;
+        }
+    });
+
+    console.log('Coordinate labels:', STATE.coordLabelsVisible ? 'visible' : 'hidden');
+}
+
+// Initialize coordinate labels visibility state
+STATE.coordLabelsVisible = true;
+
+// ============================================================
+// Orbital Pole Presets (for inclination relative to fixed LOS to Sun)
+// ============================================================
+
+// Set orbital pole to face-on view (i=0°)
+// Orbital pole aligned with fixed LOS to Sun - we look straight down the pole
+function setOrbitalPoleToFaceOn() {
+    // Copy the fixed LOS direction to the orbital pole
+    STATE.losVector.copy(STATE.fixedLOStoSun);
+    updateLOSArrows();
+    updatePVDiagram();
+    console.log('Orbital pole set to face-on (i=0°): pole aligned with LOS to Sun');
+}
+
+// Set orbital pole to edge-on view (i=90°)
+// Orbital pole perpendicular to fixed LOS to Sun - we look in the orbital plane
+function setOrbitalPoleToEdgeOn() {
+    // Find a direction perpendicular to the fixed LOS
+    const n_sun = STATE.fixedLOStoSun;
+
+    // Use cross product with a reference vector to get perpendicular direction
+    // Choose reference that's not parallel to n_sun
+    let ref = new THREE.Vector3(0, 0, 1);
+    if (Math.abs(n_sun.z) > 0.9) {
+        ref = new THREE.Vector3(1, 0, 0);  // Use X if LOS is near Z
+    }
+
+    // Perpendicular direction = n_sun × ref, normalized
+    const perp = new THREE.Vector3().crossVectors(n_sun, ref).normalize();
+
+    STATE.losVector.copy(perp);
+    updateLOSArrows();
+    updatePVDiagram();
+    console.log('Orbital pole set to edge-on (i=90°): pole perpendicular to LOS to Sun');
+}

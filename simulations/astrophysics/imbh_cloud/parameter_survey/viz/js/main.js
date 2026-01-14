@@ -84,83 +84,11 @@ function initDraggablePanels() {
     });
 }
 
-// Load binary format snapshots
-async function loadBinarySnapshots(manifest, dsInfo, loadId) {
-    const basePath = `data/${dsInfo.path}`;
-    const columns = manifest.columns; // ["x", "y", "z", "vx", "vy", "vz", "dens", "temp", "mass", "sound"]
-    const snapshots = dsInfo.snapshots;
-    const total = snapshots.length;
-
-    for (let i = 0; i < total; i++) {
-        if (STATE.loadId !== loadId) return;
-
-        const filename = snapshots[i];
-        try {
-            const response = await fetch(`${basePath}/${filename}`);
-            if (!response.ok) continue;
-
-            const buffer = await response.arrayBuffer();
-            const snapshot = parseBinarySnapshot(buffer, columns, i);
-            STATE.snapshots.push(snapshot);
-
-            document.getElementById('loading').textContent = `Loading... ${i + 1}/${total} snapshots`;
-        } catch (error) {
-            console.error(`Error loading ${filename}:`, error);
-        }
-    }
-    console.log(`Loaded ${STATE.snapshots.length} binary snapshots`);
-}
-
-// Parse binary snapshot buffer
-function parseBinarySnapshot(buffer, columns, frameIndex) {
-    const dataView = new DataView(buffer);
-    const nParticles = dataView.getUint32(0, true);
-    let offset = 4;
-
-    // Read column data
-    const columnData = {};
-    for (const col of columns) {
-        columnData[col] = new Float32Array(buffer, offset, nParticles);
-        offset += nParticles * 4;
-    }
-
-    // Convert to particle objects
-    const particles = [];
-    for (let i = 0; i < nParticles; i++) {
-        const vx = columnData.vx[i];
-        const vy = columnData.vy[i];
-        const vz = columnData.vz[i];
-        const dens = columnData.dens[i];
-        const temp = columnData.temp[i];
-
-        // Estimate pressure from ideal gas: P = (gamma-1) * rho * e, where T = (gamma-1)*mu*mH*e/kB
-        // For simplicity, use P ~ rho * T (arbitrary units for entropy calculation)
-        const pres = dens * temp;
-
-        particles.push({
-            x: columnData.x[i],
-            y: columnData.y[i],
-            z: columnData.z[i],
-            vx: vx, vy: vy, vz: vz,
-            vel_mag: Math.sqrt(vx*vx + vy*vy + vz*vz),
-            dens: dens,
-            temp: temp,
-            mass: columnData.mass[i],
-            sound: columnData.sound[i],
-            pres: pres,
-            ene: temp / CONFIG.tempConversion,
-            is_ghost: 0
-        });
-    }
-
-    return { time: frameIndex * 0.05, particles };
-}
-
 // Load CSV format snapshots
 async function loadCSVSnapshots(loadId) {
-    const basePath = STATE.basePath + '/' + (STATE.simType === 'adiabatic'
-        ? 'adiabatic/results/'
-        : 'cooling/results/');
+    // Use path directly from dataset config
+    const basePath = STATE.currentDataset.path + '/';
+    console.log('Loading CSV from:', basePath);
 
     let snapshotNum = 1;
     let consecutiveFailures = 0;
@@ -217,27 +145,8 @@ async function loadSnapshots() {
 
     STATE.snapshots = [];
 
-    // Try binary format first (check for manifest.json)
-    let usedBinary = false;
-    try {
-        const manifestResponse = await fetch('data/manifest.json');
-        if (manifestResponse.ok) {
-            const manifest = await manifestResponse.json();
-            const dsInfo = manifest.datasets.find(d => d.id === STATE.currentDataset.id);
-            if (dsInfo && dsInfo.snapshots && dsInfo.snapshots.length > 0) {
-                console.log('Binary format detected, loading from manifest');
-                await loadBinarySnapshots(manifest, dsInfo, currentLoadId);
-                usedBinary = true;
-            }
-        }
-    } catch (e) {
-        console.log('No binary manifest, falling back to CSV');
-    }
-
-    // Fall back to CSV format
-    if (!usedBinary) {
-        await loadCSVSnapshots(currentLoadId);
-    }
+    // Load CSV snapshots directly
+    await loadCSVSnapshots(currentLoadId);
 
     // Check again if cancelled before processing
     if (currentLoadId !== STATE.loadId) {
@@ -289,9 +198,13 @@ async function loadSnapshots() {
         // Update penetration factor display
         updatePenetrationFactor();
 
-        // Update Hill circle at pericenter
+        // Update Hill circle at pericenter - add to orbital plane group so it rotates
         if (STATE.hillCirclePeri) {
-            STATE.scene.remove(STATE.hillCirclePeri);
+            if (STATE.orbitalPlaneGroup) {
+                STATE.orbitalPlaneGroup.remove(STATE.hillCirclePeri);
+            } else {
+                STATE.scene.remove(STATE.hillCirclePeri);
+            }
             STATE.hillCirclePeri.geometry.dispose();
 
             const r_peri = CONFIG.r_peri;
@@ -305,7 +218,11 @@ async function loadSnapshots() {
             });
             STATE.hillCirclePeri = new THREE.Mesh(hillCircleGeom, hillCircleMat);
             STATE.hillCirclePeri.position.set(r_peri, 0, 0);
-            STATE.scene.add(STATE.hillCirclePeri);
+            if (STATE.orbitalPlaneGroup) {
+                STATE.orbitalPlaneGroup.add(STATE.hillCirclePeri);
+            } else {
+                STATE.scene.add(STATE.hillCirclePeri);
+            }
             console.log(`Hill radius at pericenter: ${r_hill_peri.toFixed(4)} pc`);
         }
 
@@ -428,9 +345,13 @@ function onSimTypeChange(e) {
     STATE.snapshots = [];
     STATE.initialCloudParticles = 0;
 
-    // Clear particle system
+    // Clear particle system from orbital plane group
     if (STATE.particleSystem) {
-        STATE.scene.remove(STATE.particleSystem);
+        if (STATE.orbitalPlaneGroup) {
+            STATE.orbitalPlaneGroup.remove(STATE.particleSystem);
+        } else {
+            STATE.scene.remove(STATE.particleSystem);
+        }
         STATE.particleSystem.geometry.dispose();
         STATE.particleSystem.material.dispose();
         STATE.particleSystem = null;
@@ -531,22 +452,34 @@ function resetVisualizationState() {
     STATE.initialCloudParticles = 0;
     STATE.cloudMass = 0;
 
-    // Clear old orbit line and pericenter marker
+    // Clear old orbit line and pericenter marker from orbital plane group
     if (STATE.orbitLine) {
-        STATE.scene.remove(STATE.orbitLine);
+        if (STATE.orbitalPlaneGroup) {
+            STATE.orbitalPlaneGroup.remove(STATE.orbitLine);
+        } else {
+            STATE.scene.remove(STATE.orbitLine);
+        }
         STATE.orbitLine.geometry.dispose();
         STATE.orbitLine = null;
     }
     if (STATE.periMarker) {
-        STATE.scene.remove(STATE.periMarker);
+        if (STATE.orbitalPlaneGroup) {
+            STATE.orbitalPlaneGroup.remove(STATE.periMarker);
+        } else {
+            STATE.scene.remove(STATE.periMarker);
+        }
         STATE.periMarker.geometry.dispose();
         STATE.periMarker.material.dispose();
         STATE.periMarker = null;
     }
 
-    // Clear particle system
+    // Clear particle system from orbital plane group
     if (STATE.particleSystem) {
-        STATE.scene.remove(STATE.particleSystem);
+        if (STATE.orbitalPlaneGroup) {
+            STATE.orbitalPlaneGroup.remove(STATE.particleSystem);
+        } else {
+            STATE.scene.remove(STATE.particleSystem);
+        }
         STATE.particleSystem.geometry.dispose();
         STATE.particleSystem.material.dispose();
         STATE.particleSystem = null;

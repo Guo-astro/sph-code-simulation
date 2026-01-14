@@ -124,7 +124,11 @@
         </div>
         <div class="legend-item">
             <div class="legend-color" style="background: #00ffff;"></div>
-            <span>LOS Direction</span>
+            <span>Orbital Pole (drag)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffff00;"></div>
+            <span>LOS to Sun (fixed)</span>
         </div>
         <div class="legend-item">
             <div class="legend-color" style="background: #ff8800;"></div>
@@ -133,6 +137,20 @@
         <div class="legend-item">
             <div class="legend-color" style="background: #00ff88;"></div>
             <span>Hill Radius (peri)</span>
+        </div>
+        <hr style="margin: 6px 0; border-color: #4a4a6a;">
+        <div style="font-size: 0.8em; color: #888;">Galaxy Context:</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffcc00;"></div>
+            <span>Sgr A* (SMBH)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #00ffff;"></div>
+            <span>HVCC CO-0.40-0.22</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffff00;"></div>
+            <span>☉ Sun / Earth</span>
         </div>
     </div>
 
@@ -143,6 +161,10 @@
         <button onclick="setFaceOnView()">Face-on (X-Z)</button>
         <button onclick="setTopView()">Top (Y-Z)</button>
         <button onclick="resetView()">Reset View</button>
+        <hr style="margin: 8px 0; border-color: #4a4a6a;">
+        <button onclick="toggleGalaxyContext()" style="background: #335544;">
+            Show Galaxy Context
+        </button>
     </div>
 
     <!-- PV Diagram Panel -->
@@ -171,6 +193,39 @@
         </div>
         <div style="font-size: 0.7em; color: #888; margin-top: 4px;">
             Drag to select particles on PV diagram
+        </div>
+        <hr style="margin: 8px 0; border-color: #4a4a6a;">
+        <div style="font-size: 0.8em; color: #ffaa00; margin-bottom: 4px; font-weight: bold;">
+            Orbital Pole (drag cyan sphere)
+        </div>
+        <div style="font-size: 0.65em; color: #888; margin-bottom: 6px;">
+            The sphere controls the orbital plane orientation.<br>
+            LOS to Sun is FIXED (actual Earth view).
+        </div>
+        <div class="info-row"><span class="label">Orbital pole:</span><span class="value" id="los-vector">--</span></div>
+        <div class="info-row"><span class="label">θ (polar):</span><span class="value" id="los-theta">--</span></div>
+        <div class="info-row"><span class="label">φ (azimuth):</span><span class="value" id="los-phi">--</span></div>
+        <hr style="margin: 6px 0; border-color: #4a4a6a;">
+        <div style="font-size: 0.8em; color: #00ffff; margin-bottom: 4px;">
+            As seen from Earth (fixed LOS):
+        </div>
+        <div class="info-row"><span class="label">Inclination i:</span><span class="value" id="los-inclination">--</span></div>
+        <div class="info-row"><span class="label">PA (from N):</span><span class="value" id="los-pa">--</span></div>
+        <div style="font-size: 0.65em; color: #666; margin-top: 4px;">
+            i=0°: face-on (pole toward Earth)<br>
+            i=90°: edge-on (pole ⊥ to Earth LOS)<br>
+            PA: orbital plane orientation in sky
+        </div>
+        <div style="margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap;">
+            <button onclick="toggleCoordinateLabels()" style="font-size: 11px; padding: 4px 8px;">
+                Toggle Coord Labels
+            </button>
+            <button onclick="setOrbitalPoleToFaceOn()" style="font-size: 11px; padding: 4px 8px;">
+                Face-on (i=0°)
+            </button>
+            <button onclick="setOrbitalPoleToEdgeOn()" style="font-size: 11px; padding: 4px 8px;">
+                Edge-on (i=90°)
+            </button>
         </div>
     </div>
 
