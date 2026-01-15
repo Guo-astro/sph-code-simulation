@@ -89,7 +89,8 @@ function computeGlobalProfileRanges() {
         vz: { min: Infinity, max: -Infinity },
         mach: { min: 0, max: -Infinity },
         a_BH: { min: Infinity, max: -Infinity },
-        coolingEff: { min: Infinity, max: -Infinity }
+        coolingEff: { min: Infinity, max: -Infinity },
+        entropy: { min: Infinity, max: -Infinity }
     };
 
     // Process each sampled frame
@@ -184,6 +185,17 @@ function computeGlobalProfileRanges() {
                     if (logEta > ranges.coolingEff.max) ranges.coolingEff.max = logEta;
                 }
             }
+
+            // Entropy s = P / rho^gamma (log scale)
+            if (p.pres !== undefined && p.dens > 0) {
+                const gamma = 5 / 3;
+                const entropy = p.pres / Math.pow(p.dens, gamma);
+                if (entropy > 0) {
+                    const logS = Math.log10(entropy);
+                    if (logS < ranges.entropy.min) ranges.entropy.min = logS;
+                    if (logS > ranges.entropy.max) ranges.entropy.max = logS;
+                }
+            }
         }
     }
 
@@ -206,6 +218,7 @@ function computeGlobalProfileRanges() {
     if (ranges.mach.max > 0) ranges.mach.max *= 1.2;
     pad(ranges.a_BH);
     pad(ranges.coolingEff);
+    pad(ranges.entropy);
 
     TRACKING.globalRanges = ranges;
     console.log('Global ranges computed:', ranges);
@@ -1034,14 +1047,14 @@ function updateProfileCanvas() {
     const planeCount = TRACKING.plane.selectedIds.size;
 
     if (!TRACKING.profiles || TRACKING.profiles.count === 0) {
-        ctx.fillStyle = '#666';
+        ctx.fillStyle = '#aaa';
         ctx.font = '11px sans-serif';
         ctx.textAlign = 'center';
         const msg = TRACKING.displayMode === 'column'
             ? 'Click to place column center'
             : 'Drag the green plane to select';
         ctx.fillText(msg, W / 2, H / 2 - 10);
-        ctx.fillStyle = '#555';
+        ctx.fillStyle = '#888';
         ctx.font = '9px sans-serif';
         ctx.fillText(`Column: ${columnCount} | Plane: ${planeCount}`, W / 2, H / 2 + 10);
         return;
@@ -1055,7 +1068,7 @@ function updateProfileCanvas() {
         drawPlaneProfiles(ctx, W, H, p);
     }
 
-    ctx.fillStyle = '#888';
+    ctx.fillStyle = '#bbb';
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText(`N=${TRACKING.profiles.count}`, 5, H - 5);
@@ -1095,7 +1108,7 @@ function drawColumnProfiles(ctx, W, H, particles) {
             'z', v.key, v.label, v.color, v.log, zMin, zMax, v.yMin, v.yMax);
     });
 
-    ctx.fillStyle = '#888';
+    ctx.fillStyle = '#bbb';
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('z (pc)', W / 2, H - 8);
@@ -1122,7 +1135,7 @@ function drawPlaneProfiles(ctx, W, H, particles) {
         mach: { label: 'Mach', color: '#ffff66', log: false,
                 yMin: gr?.mach.min ?? 0, yMax: gr?.mach.max },
         entropy: { label: 'log s', color: '#66aaff', log: true,
-                   yMin: -10, yMax: 0 },  // entropy doesn't have global range yet
+                   yMin: gr?.entropy.min, yMax: gr?.entropy.max },
         coolingEff: { label: 'log η', color: '#ff66ff', log: true,
                       yMin: gr?.coolingEff.min, yMax: gr?.coolingEff.max }
     };
@@ -1140,7 +1153,7 @@ function drawPlaneProfiles(ctx, W, H, particles) {
     draw2DScatterFixed(ctx, margin.left, scatterY, scatterW, scatterH,
         particles, xMin, xMax, yMin, yMax, TRACKING.colorVariable, vc.log, vc.yMin, vc.yMax);
 
-    ctx.fillStyle = '#888';
+    ctx.fillStyle = '#bbb';
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('x (pc)', margin.left + profileW / 2, margin.top + profileH + 12);
@@ -1226,7 +1239,7 @@ function drawScatterPlotFixed(ctx, x0, y0, w, h, particles, xKey, yKey, label, c
     ctx.fillText(label, x0 + 3, y0 + 9);
 
     // Y-axis labels
-    ctx.fillStyle = '#666';
+    ctx.fillStyle = '#aaa';
     ctx.font = '7px sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText(yMax.toFixed(1), x0 - 2, y0 + 8);
@@ -1320,13 +1333,13 @@ function draw2DScatterFixed(ctx, x0, y0, w, h, particles, xMin, xMax, yMin, yMax
         ctx.fillRect(cbX, cbY + i, cbW, 1);
     }
 
-    ctx.fillStyle = '#888';
+    ctx.fillStyle = '#bbb';
     ctx.font = '7px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText(colorMax.toFixed(1), cbX + cbW + 2, cbY + 6);
     ctx.fillText(colorMin.toFixed(1), cbX + cbW + 2, cbY + cbH);
 
-    ctx.fillStyle = '#666';
+    ctx.fillStyle = '#aaa';
     ctx.textAlign = 'center';
     ctx.fillText(xMin.toFixed(1), x0, y0 + h + 10);
     ctx.fillText(xMax.toFixed(1), x0 + w, y0 + h + 10);
