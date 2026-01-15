@@ -252,8 +252,18 @@ function setTrackingMode(mode) {
     if (TRACKING.selectionModeActive) {
         if (mode === 'plane') {
             createDraggablePlane();
+            // Disable orbit controls for plane dragging
+            if (STATE.controls) {
+                STATE.controls.enabled = false;
+                console.log('OrbitControls disabled for plane mode');
+            }
         } else {
             removeDraggablePlanePreview();
+            // Re-enable orbit controls for column mode (click-based)
+            if (STATE.controls) {
+                STATE.controls.enabled = true;
+                console.log('OrbitControls re-enabled for column mode');
+            }
         }
     }
 
@@ -280,9 +290,14 @@ function toggleSelectionMode() {
         instruction.style.display = 'block';
         updateInstructionText();
 
-        // For plane mode, create draggable plane immediately
+        // For plane mode, create draggable plane and disable orbit controls
         if (TRACKING.displayMode === 'plane') {
             createDraggablePlane();
+            // Disable orbit controls in plane mode so we can drag the plane
+            if (STATE.controls) {
+                STATE.controls.enabled = false;
+                console.log('OrbitControls disabled for plane dragging');
+            }
         }
     } else {
         btn.textContent = 'Enter Selection Mode';
@@ -295,6 +310,12 @@ function toggleSelectionMode() {
 
         // Remove draggable plane preview
         removeDraggablePlanePreview();
+
+        // Re-enable orbit controls
+        if (STATE.controls) {
+            STATE.controls.enabled = true;
+            console.log('OrbitControls re-enabled');
+        }
     }
 
     console.log('Selection mode:', TRACKING.selectionModeActive ? 'ON' : 'OFF');
@@ -307,7 +328,7 @@ function updateInstructionText() {
     if (TRACKING.displayMode === 'column') {
         instruction.textContent = 'Click on cloud to place column center';
     } else {
-        instruction.textContent = 'Drag the green plane up/down to position';
+        instruction.textContent = 'Click and drag up/down to move the plane';
     }
 }
 
@@ -367,12 +388,29 @@ function onGlobalClick(event) {
 }
 
 function onMouseDown(event) {
-    if (!TRACKING.selectionModeActive) return;
-    if (event.button !== 0) return;
-    if (event.target.closest('.draggable, #controls, #timeline-container')) return;
+    console.log('onMouseDown:', {
+        selectionMode: TRACKING.selectionModeActive,
+        displayMode: TRACKING.displayMode,
+        button: event.button,
+        target: event.target.tagName
+    });
+
+    if (!TRACKING.selectionModeActive) {
+        console.log('Selection mode not active, ignoring');
+        return;
+    }
+    if (event.button !== 0) {
+        console.log('Not left button, ignoring');
+        return;
+    }
+    if (event.target.closest('.draggable, #controls, #timeline-container')) {
+        console.log('Click on UI element, ignoring');
+        return;
+    }
 
     // Plane mode: check if clicking on the draggable plane
     if (TRACKING.displayMode === 'plane') {
+        console.log('Calling handlePlaneDragStart');
         handlePlaneDragStart(event);
     }
 }
@@ -550,30 +588,23 @@ function removeDraggablePlanePreview() {
 }
 
 function handlePlaneDragStart(event) {
-    if (!TRACKING.plane.draggableMesh) return;
+    console.log('handlePlaneDragStart called');
+    console.log('draggableMesh exists:', !!TRACKING.plane.draggableMesh);
+    console.log('zPosition:', TRACKING.plane.zPosition);
 
-    const container = document.getElementById('container');
-    const rect = container.getBoundingClientRect();
-    const mouse = new THREE.Vector2(
-        ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        -((event.clientY - rect.top) / rect.height) * 2 + 1
-    );
-
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, STATE.camera);
-
-    const intersects = raycaster.intersectObject(TRACKING.plane.draggableMesh);
-    if (intersects.length > 0) {
-        // Start dragging
-        TRACKING.plane.isDragging = true;
-        TRACKING.plane.dragStartY = event.clientY;
-        TRACKING.plane.dragStartZ = TRACKING.plane.zPosition;
-
-        if (STATE.controls) STATE.controls.enabled = false;
-        document.body.style.cursor = 'ns-resize';
-
-        console.log('Plane drag started');
+    if (!TRACKING.plane.draggableMesh) {
+        console.log('No draggable mesh - aborting');
+        return;
     }
+
+    // In plane selection mode, start dragging from anywhere in the canvas
+    // (no need to click exactly on the plane mesh)
+    TRACKING.plane.isDragging = true;
+    TRACKING.plane.dragStartY = event.clientY;
+    TRACKING.plane.dragStartZ = TRACKING.plane.zPosition;
+
+    document.body.style.cursor = 'ns-resize';
+    console.log('Plane drag started at z =', TRACKING.plane.zPosition);
 }
 
 function handlePlaneDrag(event) {
@@ -606,7 +637,8 @@ function handlePlaneDragEnd(event) {
     TRACKING.plane.isDragging = false;
     document.body.style.cursor = 'default';
 
-    if (STATE.controls) STATE.controls.enabled = true;
+    // Don't re-enable orbit controls here - keep them disabled until exiting selection mode
+    // if (STATE.controls) STATE.controls.enabled = true;
 
     // Select particles at this z with current thickness
     selectParticlesAtPlanePosition();
