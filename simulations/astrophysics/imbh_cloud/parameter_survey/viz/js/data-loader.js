@@ -105,6 +105,7 @@ function parseBinarySnapshot(buffer, columns, frameIndex) {
         const vz = columnData.vz[i];
 
         particles.push({
+            id: columnData.id ? columnData.id[i] : i,  // Use file ID or array index
             x: columnData.x[i],
             y: columnData.y[i],
             z: columnData.z[i],
@@ -115,6 +116,7 @@ function parseBinarySnapshot(buffer, columns, frameIndex) {
             temp: columnData.temp[i],
             mass: columnData.mass[i],
             sound: columnData.sound[i],
+            pres: columnData.pres ? columnData.pres[i] : 0,
             vel_mag: Math.sqrt(vx*vx + vy*vy + vz*vz),
             is_ghost: 0
         });
@@ -194,6 +196,11 @@ function parseCSVSnapshot(csvText, frameIndex) {
             particle[h] = values[idx];
         });
 
+        // Ensure particle has an ID for Lagrangian tracking
+        if (particle.id === undefined) {
+            particle.id = i - 1;  // Use array index as ID
+        }
+
         // Add derived values
         if (particle.vx !== undefined) {
             particle.vel_mag = Math.sqrt(
@@ -242,8 +249,21 @@ function onDataLoaded() {
         STATE.cloudRadius = distances[Math.floor(distances.length * 0.9)] || 1.0;
     }
 
-    // Compute global color ranges
-    computeGlobalColorRanges();
+    // Compute global color ranges (with error handling)
+    try {
+        computeGlobalColorRanges();
+    } catch (e) {
+        console.warn('Error computing color ranges:', e);
+    }
+
+    // Compute global profile ranges for fixed plot scales (with error handling)
+    try {
+        if (typeof computeGlobalProfileRanges === 'function') {
+            computeGlobalProfileRanges();
+        }
+    } catch (e) {
+        console.warn('Error computing profile ranges:', e);
+    }
 
     // Update UI
     updatePenetrationFactor();

@@ -151,6 +151,34 @@ function onResizeMove(e) {
     if (panelId === 'colorbar-container') {
         resizeColorbar(newWidth, newHeight);
     }
+
+    // Special handling for selection panel - resize phase canvas
+    if (panelId === 'selection-panel') {
+        resizePhaseCanvas(newWidth, newHeight);
+    }
+}
+
+// Resize phase canvas in selection panel
+function resizePhaseCanvas(panelWidth, panelHeight) {
+    const canvas = document.getElementById('phase-canvas');
+    if (!canvas) return;
+
+    // Calculate available space (accounting for other content)
+    const availableWidth = panelWidth - 24;  // padding
+    const availableHeight = Math.max(60, panelHeight - 280); // space for other info
+
+    const canvasWidth = Math.max(120, Math.floor(availableWidth));
+    const canvasHeight = Math.max(60, Math.floor(availableHeight));
+
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    canvas.style.width = canvasWidth + 'px';
+    canvas.style.height = canvasHeight + 'px';
+
+    // Redraw phase diagram if selection exists
+    if (typeof STATE !== 'undefined' && STATE.selectedParticles && STATE.selectedParticles.length > 0) {
+        updateSelectionAnalysis();
+    }
 }
 
 // End resize operation
@@ -172,23 +200,43 @@ function onResizeEnd(e) {
 // Resize PV canvas when panel is resized
 function resizePVCanvas(panelWidth, panelHeight) {
     const canvas = document.getElementById('pv-canvas');
-    if (!canvas) return;
+    const panel = document.getElementById('pv-panel');
+    if (!canvas || !panel) return;
 
-    // Calculate available space for canvas (accounting for padding and other elements)
-    const availableWidth = panelWidth - 20;  // padding
-    const availableHeight = panelHeight - 120; // space for controls below
+    // Get other elements' heights
+    const header = panel.querySelector('.drag-header');
+    const h3 = panel.querySelector('h3');
+    const axes = document.getElementById('pv-axes');
+    const losSelect = document.getElementById('los-select');
+    const details = panel.querySelector('details');
+    const lsrDiv = panel.querySelector('[style*="rgba(100, 170, 255"]');
+    const hr = panel.querySelector('hr');
+
+    let otherHeight = 16; // padding
+    if (header) otherHeight += header.offsetHeight + 6;
+    if (h3) otherHeight += h3.offsetHeight + 4;
+    if (axes) otherHeight += axes.offsetHeight + 3;
+    if (losSelect) otherHeight += losSelect.offsetHeight + 4;
+    if (lsrDiv) otherHeight += lsrDiv.offsetHeight + 6;
+    if (hr) otherHeight += 12;
+    if (details) otherHeight += details.offsetHeight + 6;
+
+    // Calculate available space for canvas
+    const availableWidth = panelWidth - 16;  // padding
+    const availableHeight = panelHeight - otherHeight;
 
     // Minimum canvas size
-    const canvasWidth = Math.max(180, availableWidth);
-    const canvasHeight = Math.max(120, availableHeight);
+    const canvasWidth = Math.max(160, Math.floor(availableWidth));
+    const canvasHeight = Math.max(100, Math.floor(availableHeight));
 
+    // Update canvas dimensions (both the drawing surface and CSS size)
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
     canvas.style.width = canvasWidth + 'px';
     canvas.style.height = canvasHeight + 'px';
 
     // Redraw PV diagram with new size
-    if (STATE.snapshots && STATE.snapshots.length > 0) {
+    if (typeof STATE !== 'undefined' && STATE.snapshots && STATE.snapshots.length > 0) {
         updatePVDiagram(STATE.snapshots[STATE.currentFrame]);
     }
 }
@@ -225,11 +273,39 @@ function resetPanelSize(panelId) {
             canvas.height = 180;
             canvas.style.width = '260px';
             canvas.style.height = '180px';
-            if (STATE.snapshots && STATE.snapshots.length > 0) {
+            if (typeof STATE !== 'undefined' && STATE.snapshots && STATE.snapshots.length > 0) {
                 updatePVDiagram(STATE.snapshots[STATE.currentFrame]);
             }
         }
     }
+
+    // Reset phase canvas if needed
+    if (panelId === 'selection-panel') {
+        const canvas = document.getElementById('phase-canvas');
+        if (canvas) {
+            canvas.width = 200;
+            canvas.height = 120;
+            canvas.style.width = '200px';
+            canvas.style.height = '120px';
+            if (typeof STATE !== 'undefined' && STATE.selectedParticles && STATE.selectedParticles.length > 0) {
+                updateSelectionAnalysis();
+            }
+        }
+    }
+
+    // Reset colorbar if needed
+    if (panelId === 'colorbar-container') {
+        const colorbar = document.getElementById('colorbar');
+        const labels = document.getElementById('colorbar-labels');
+        if (colorbar) {
+            colorbar.style.height = '140px';
+        }
+        if (labels) {
+            labels.style.height = '140px';
+        }
+    }
+
+    console.log(`Panel ${panelId} reset to default size`);
 }
 
 // Reset all panels to default sizes

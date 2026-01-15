@@ -253,7 +253,7 @@
         <div class="drag-header">SELECTION ANALYSIS</div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <span style="color: #ff8866; font-weight: bold;">Selected: <span id="sel-count">0</span> particles</span>
-            <button onclick="clearSelection()" style="padding: 2px 8px; font-size: 11px;">Clear</button>
+            <button onclick="clearPVSelection()" style="padding: 2px 8px; font-size: 11px;">Clear</button>
         </div>
         <div class="info-row"><span class="label">Total Mass:</span><span class="value" id="sel-mass">--</span></div>
         <hr style="margin: 6px 0; border-color: #4a4a6a;">
@@ -270,6 +270,78 @@
         <hr style="margin: 6px 0; border-color: #4a4a6a;">
         <div style="font-size: 0.8em; color: #aaa; margin-bottom: 4px;">Phase Diagram (T vs ρ)</div>
         <canvas id="phase-canvas" width="200" height="120"></canvas>
+    </div>
+
+    <!-- Profile Analysis Panel -->
+    <div id="tracking-panel" class="draggable">
+        <div class="drag-header">PROFILE ANALYSIS</div>
+
+        <!-- Mode Tabs -->
+        <div style="display: flex; gap: 2px; margin-bottom: 8px;">
+            <button id="btn-column-mode" class="mode-tab active" onclick="setTrackingMode('column')" style="flex: 1; padding: 4px 6px; font-size: 0.7em; background: #446688; border: 1px solid #668899; color: #aaddff; border-radius: 3px 3px 0 0; cursor: pointer;">
+                Column (z)
+            </button>
+            <button id="btn-plane-mode" class="mode-tab" onclick="setTrackingMode('plane')" style="flex: 1; padding: 4px 6px; font-size: 0.7em; background: #334455; border: 1px solid #556677; color: #88aacc; border-radius: 3px 3px 0 0; cursor: pointer;">
+                Plane (xy)
+            </button>
+        </div>
+
+        <!-- Selection Mode Toggle -->
+        <button id="btn-select-mode" onclick="toggleSelectionMode()"
+            style="width: 100%; padding: 6px 8px; font-size: 0.72em; background: #334455; border: 1px solid #556677; color: #aabbcc; border-radius: 3px; cursor: pointer; margin-bottom: 6px;">
+            Enter Selection Mode
+        </button>
+        <div id="drag-instruction" style="width: 100%; padding: 4px 8px; font-size: 0.65em; background: #1a2233; border: 1px solid #334455; color: #88aacc; border-radius: 3px; margin-bottom: 6px; text-align: center; display: none;">
+            Click on cloud to place column center
+        </div>
+
+        <!-- Column Mode Controls -->
+        <div id="column-controls">
+            <div style="display: flex; justify-content: space-between; font-size: 0.68em; color: #888;">
+                <span>Radius:</span>
+                <span id="column-radius-value">0.3 pc</span>
+            </div>
+            <input type="range" id="column-radius" min="0.1" max="1.0" step="0.05" value="0.3"
+                style="width: 100%; height: 4px; margin-bottom: 4px;" onchange="updateColumnRadius(this.value)">
+        </div>
+
+        <!-- Plane Mode Controls (hidden by default) -->
+        <div id="plane-controls" style="display: none;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.68em; color: #888; margin-bottom: 4px;">
+                <span>z position:</span>
+                <span id="plane-z-value">--</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; font-size: 0.68em; color: #888;">
+                <span>Thickness:</span>
+                <span id="plane-thickness-value">0.20 pc</span>
+            </div>
+            <input type="range" id="plane-thickness" min="0.05" max="0.5" step="0.05" value="0.2"
+                style="width: 100%; height: 4px; margin-bottom: 4px;" onchange="updatePlaneThickness(this.value)">
+
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.68em; color: #888; margin-top: 4px;">
+                <span>Color by:</span>
+                <select id="color-var-select" onchange="setColorVariable(this.value)"
+                    style="font-size: 0.9em; background: #223344; border: 1px solid #445566; color: #aaddff; padding: 2px 4px; border-radius: 3px;">
+                    <option value="density">Density</option>
+                    <option value="temperature">Temperature</option>
+                    <option value="mach">Mach</option>
+                    <option value="entropy">Entropy</option>
+                    <option value="coolingEff">Cooling Eff</option>
+                </select>
+            </div>
+        </div>
+
+        <hr style="margin: 6px 0; border-color: #4a4a6a;">
+
+        <!-- Profile Canvas -->
+        <canvas id="profile-canvas" width="320" height="400" style="background: #12141a; border: 1px solid #334455; border-radius: 3px; display: block;"></canvas>
+
+        <hr style="margin: 6px 0; border-color: #4a4a6a;">
+
+        <button onclick="clearProfileSelection()" style="width: 100%; padding: 3px 6px; font-size: 0.68em; background: #443333; border: 1px solid #664444; color: #ffaaaa; border-radius: 3px; cursor: pointer;">
+            Clear Selection
+        </button>
     </div>
 
     <!-- Loading Overlay -->
@@ -295,6 +367,7 @@
     <script src="js/galaxy-context.js"></script>
     <script src="js/orbit.js"></script>
     <script src="js/los-control.js"></script>
+    <script src="js/particle-tracking.js"></script>
     <script src="js/particles.js"></script>
     <script src="js/scene-init.js"></script>
 

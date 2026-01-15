@@ -234,40 +234,68 @@ function updatePenetrationFactor() {
     console.log(`Penetration factor: β = ${beta.toFixed(2)} (r_t = ${r_tidal.toFixed(3)} pc, r_p = ${CONFIG.r_peri} pc)`);
 }
 
-// Precompute global ranges from all snapshots
+// Precompute global ranges from sampled snapshots (optimized to avoid memory issues)
 function computeGlobalColorRanges() {
+    if (!STATE.snapshots || STATE.snapshots.length === 0) return;
+
+    const numFrames = STATE.snapshots.length;
+
+    // Sample frames: first, last, and evenly spaced (max 10 frames)
+    const maxSamples = Math.min(10, numFrames);
+    const sampleIndices = new Set([0, numFrames - 1]);
+    for (let i = 1; i < maxSamples - 1; i++) {
+        sampleIndices.add(Math.floor(i * numFrames / (maxSamples - 1)));
+    }
+    const framesToScan = Array.from(sampleIndices).sort((a, b) => a - b);
+
+    console.log(`Computing color ranges from ${framesToScan.length} sampled frames...`);
+
     let logDensMin = Infinity, logDensMax = -Infinity;
     let logTempMin = Infinity, logTempMax = -Infinity;
     let logVelDispMin = Infinity, logVelDispMax = -Infinity;
     let vrelMax = 0;
     let machMax = 0;
 
-    for (const snapshot of STATE.snapshots) {
+    for (const frameIdx of framesToScan) {
+        const snapshot = STATE.snapshots[frameIdx];
+        if (!snapshot || !snapshot.particles) continue;
+
+        const particles = snapshot.particles;
+        const nParticles = particles.length;
+
+        // Sample particles (max 2000 per frame)
+        const sampleRate = Math.max(1, Math.floor(nParticles / 2000));
+
+        // Quick COM from sampled particles
         let comVx = 0, comVy = 0, comVz = 0, totalMass = 0;
-        for (const p of snapshot.particles) {
+        for (let i = 0; i < nParticles; i += sampleRate) {
+            const p = particles[i];
             if (p.is_ghost === 1) continue;
             comVx += p.vx * p.mass;
             comVy += p.vy * p.mass;
             comVz += p.vz * p.mass;
             totalMass += p.mass;
         }
-        comVx /= totalMass;
-        comVy /= totalMass;
-        comVz /= totalMass;
+        if (totalMass > 0) {
+            comVx /= totalMass;
+            comVy /= totalMass;
+            comVz /= totalMass;
+        }
 
-        for (const p of snapshot.particles) {
+        for (let i = 0; i < nParticles; i += sampleRate) {
+            const p = particles[i];
             if (p.is_ghost === 1) continue;
 
             // Log density
             const n_H2 = p.dens * CONFIG.densityToNH2;
             const logDens = Math.log10(Math.max(n_H2, 1));
-            logDensMin = Math.min(logDensMin, logDens);
-            logDensMax = Math.max(logDensMax, logDens);
+            if (logDens < logDensMin) logDensMin = logDens;
+            if (logDens > logDensMax) logDensMax = logDens;
 
             // Log temperature
             const logTemp = Math.log10(Math.max(p.temp, 1));
-            logTempMin = Math.min(logTempMin, logTemp);
-            logTempMax = Math.max(logTempMax, logTemp);
+            if (logTemp < logTempMin) logTempMin = logTemp;
+            if (logTemp > logTempMax) logTempMax = logTemp;
 
             // Velocity dispersion (relative to COM)
             const dvx = p.vx - comVx;
@@ -277,16 +305,16 @@ function computeGlobalColorRanges() {
 
             // Log velocity for log mode
             const logVelDisp = Math.log10(Math.max(velDisp, 0.1));
-            logVelDispMin = Math.min(logVelDispMin, logVelDisp);
-            logVelDispMax = Math.max(logVelDispMax, logVelDisp);
+            if (logVelDisp < logVelDispMin) logVelDispMin = logVelDisp;
+            if (logVelDisp > logVelDispMax) logVelDispMax = logVelDisp;
 
             // Linear |v - v_COM|
-            vrelMax = Math.max(vrelMax, velDisp);
+            if (velDisp > vrelMax) vrelMax = velDisp;
 
             // Mach number
             if (p.sound > 0) {
                 const mach = velDisp / p.sound;
-                machMax = Math.max(machMax, mach);
+                if (mach > machMax) machMax = mach;
             }
         }
     }

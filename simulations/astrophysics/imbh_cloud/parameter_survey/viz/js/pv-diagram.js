@@ -375,7 +375,7 @@ function selectParticlesInPVBox() {
 
     // Min selection size
     if (Math.abs(x2 - x1) < 5 && Math.abs(y2 - y1) < 5) {
-        clearSelection();
+        clearPVSelection();
         return;
     }
 
@@ -419,6 +419,11 @@ function selectParticlesInPVBox() {
     // Update analysis panel
     updateSelectionAnalysis();
 
+    // Sync with Lagrangian tracking system
+    if (typeof syncTrackingFromPVSelection === 'function') {
+        syncTrackingFromPVSelection();
+    }
+
     // Redraw to show selection
     updatePVDiagram(data);
 
@@ -426,10 +431,15 @@ function selectParticlesInPVBox() {
     updateVisualization(STATE.currentFrame);
 }
 
-function clearSelection() {
+function clearPVSelection() {
     STATE.pvSelection = null;
     STATE.selectedParticles = [];
     document.getElementById('selection-panel').style.display = 'none';
+
+    // Clear profile selection if exists
+    if (typeof clearProfileSelection === 'function') {
+        clearProfileSelection();
+    }
 
     if (STATE.snapshots.length > 0) {
         updatePVDiagram(STATE.snapshots[STATE.currentFrame]);

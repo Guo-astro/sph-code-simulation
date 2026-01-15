@@ -582,7 +582,11 @@ body {
     color: #7eb0ff;
 }
 
-/* Ensure panels have overflow handling when resized */
+/* ============================================================
+   Responsive Panel Contents (adapt to resize)
+   ============================================================ */
+
+/* All resizable panels - flex container for content */
 #info-panel,
 #shock-panel,
 #toggle-panel,
@@ -590,33 +594,316 @@ body {
 #legend,
 #pv-panel,
 #selection-panel {
-    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     min-width: 100px;
     min-height: 60px;
 }
 
-/* PV panel specific - allow canvas container to grow */
-#pv-panel {
-    overflow: visible;
+/* Drag headers stay fixed at top */
+.draggable .drag-header {
+    flex-shrink: 0;
 }
 
-#pv-panel canvas {
-    display: block;
-    max-width: 100%;
+/* Info rows adapt to width */
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
-/* Colorbar container resize behavior */
-#colorbar-container {
-    overflow: hidden;
-    flex-wrap: nowrap;
+.info-row .label {
+    flex-shrink: 0;
 }
 
-/* Toggle panel scrollable when small */
+.info-row .value {
+    flex: 1;
+    text-align: right;
+    word-break: break-all;
+    min-width: 0;
+}
+
+/* Info panel content scrollable */
+#info-panel {
+    max-height: calc(100vh - 30px);
+}
+
+#info-panel h2 {
+    flex-shrink: 0;
+}
+
+#info-panel .info-row {
+    flex-shrink: 0;
+}
+
+/* Shock panel content */
+#shock-panel .info-row {
+    flex-shrink: 0;
+}
+
+/* Toggle panel - buttons fill width, scrollable */
 #toggle-panel {
     max-height: calc(100vh - 320px);
 }
 
 #toggle-panel > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     overflow-y: auto;
-    max-height: 100%;
+    flex: 1;
+    min-height: 0;
+}
+
+#toggle-panel button {
+    flex-shrink: 0;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Sim-select - selects fill available width */
+#sim-select > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+#sim-select select {
+    flex: 1;
+    min-width: 80px;
+    max-width: 100%;
+}
+
+#sim-select input[type="range"] {
+    width: 100%;
+}
+
+/* Legend - items wrap and scroll */
+#legend {
+    max-height: calc(100vh - 80px);
+}
+
+#legend .legend-item {
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* PV Panel - canvas fills available space */
+#pv-panel {
+    overflow: visible;
+}
+
+#pv-panel h3 {
+    flex-shrink: 0;
+}
+
+#pv-panel canvas {
+    display: block;
+    width: 100% !important;
+    height: auto;
+    min-height: 120px;
+    flex: 1;
+    min-width: 0;
+}
+
+#pv-axes {
+    flex-shrink: 0;
+}
+
+#los-select {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+#los-select select {
+    min-width: 40px;
+}
+
+#los-select button {
+    flex-shrink: 0;
+}
+
+/* PV panel details section */
+#pv-panel details {
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+#pv-panel details[open] {
+    overflow: auto;
+    max-height: 200px;
+}
+
+/* Selection panel - scrollable content */
+#selection-panel {
+    max-height: calc(100vh - 100px);
+}
+
+#selection-panel > * {
+    flex-shrink: 0;
+}
+
+#phase-canvas {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 80px;
+}
+
+/* Colorbar container - vertical flex */
+#colorbar-container {
+    overflow: hidden;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+}
+
+#colorbar {
+    flex: 1;
+    min-height: 80px;
+    width: 14px !important;
+}
+
+#colorbar-labels {
+    flex: 1;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+#colorbar-title {
+    flex-shrink: 0;
+}
+
+/* Responsive text in all panels */
+#info-panel,
+#shock-panel,
+#toggle-panel,
+#sim-select,
+#legend,
+#pv-panel,
+#selection-panel {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* ============================================================
+   BOTTOM-RIGHT: Profile Analysis Panel
+   ============================================================ */
+#tracking-panel {
+    position: absolute;
+    bottom: 50px;
+    right: 10px;
+    background: rgba(25, 30, 40, 0.95);
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #557788;
+    max-width: 350px;
+    min-width: 340px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+}
+
+#tracking-panel .drag-header {
+    margin: -10px -12px 8px -12px;
+    padding: 4px 12px;
+    background: rgba(85, 119, 136, 0.4);
+    color: #88bbcc;
+    border-radius: 5px 5px 0 0;
+    font-size: 0.65em;
+    text-align: center;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: grab;
+}
+
+#tracking-panel .drag-header:hover {
+    background: rgba(100, 140, 160, 0.5);
+    color: #99ccdd;
+}
+
+/* Mode tabs styling */
+#tracking-panel .mode-tab {
+    transition: all 0.15s ease;
+}
+
+#tracking-panel .mode-tab.active {
+    background: #446688 !important;
+    border-color: #668899 !important;
+    color: #aaddff !important;
+}
+
+#tracking-panel .mode-tab:not(.active) {
+    background: #223344 !important;
+    border-color: #445566 !important;
+    color: #668899 !important;
+}
+
+#tracking-panel .mode-tab:hover {
+    filter: brightness(1.15);
+}
+
+#tracking-panel button:hover {
+    filter: brightness(1.2);
+}
+
+#tracking-panel button:active {
+    filter: brightness(0.9);
+}
+
+#tracking-panel input[type="range"] {
+    -webkit-appearance: none;
+    background: #334455;
+    border-radius: 3px;
+    outline: none;
+}
+
+#tracking-panel input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    background: #88bbcc;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+#profile-canvas {
+    background: #12141a;
+    border: 1px solid #334455;
+    border-radius: 3px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+    #tracking-panel {
+        right: 10px;
+        bottom: 40px;
+        max-width: 320px;
+        min-width: 300px;
+    }
+
+    #profile-canvas {
+        width: 290px !important;
+        height: 360px !important;
+    }
+}
+
+@media (max-width: 1200px) {
+    #tracking-panel {
+        max-width: 280px;
+        min-width: 260px;
+    }
+
+    #profile-canvas {
+        width: 250px !important;
+        height: 320px !important;
+    }
 }

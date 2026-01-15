@@ -9,6 +9,11 @@ function updateVisualization(frameIndex) {
     STATE.currentFrame = frameIndex;
     const data = STATE.snapshots[frameIndex];
 
+    // Sync selected particles from tracked IDs BEFORE rendering
+    if (typeof syncSelectedParticlesBeforeRender === 'function') {
+        syncSelectedParticlesBeforeRender();
+    }
+
     // Remove old particle system from orbital plane group
     if (STATE.particleSystem) {
         if (STATE.orbitalPlaneGroup) {
@@ -43,6 +48,7 @@ function updateVisualization(frameIndex) {
     comVy /= totalMass;
     comVz /= totalMass;
 
+    // COM velocity for color mapping
     const comVelocity = { x: comVx, y: comVy, z: comVz };
 
     // Prepare arrays
@@ -174,4 +180,9 @@ function updateVisualization(frameIndex) {
 
     // Update PV diagram
     updatePVDiagram(data);
+
+    // Update Lagrangian tracking plots if computed
+    if (typeof onFrameChangeUpdateTracking === 'function') {
+        onFrameChangeUpdateTracking();
+    }
 }
