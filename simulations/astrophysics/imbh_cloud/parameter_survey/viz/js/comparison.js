@@ -76,7 +76,23 @@ const COMPARISON = {
         },
         // Visualization meshes for both sides
         leftMesh: null,
-        rightMesh: null
+        rightMesh: null,
+        // Lagrangian tracking (track same particles across frames)
+        trackingMode: 'lagrangian',  // 'spatial' or 'lagrangian'
+        trackedIds: {
+            left: new Set(),   // Particle IDs from left (cooling) dataset
+            right: new Set()   // Particle IDs from right (adiabatic) dataset
+        },
+        selectionFrame: { left: 0, right: 0 },  // Frame at which selection was made
+        showMesh: true  // Whether to show selection cylinder/plane
+    },
+
+    // Color mode and ranges for comparison view
+    colorMode: 'density',
+    colorRanges: {
+        density: { min: 3, max: 6, isLog: true },
+        temperature: { min: 1, max: 4, isLog: true },
+        velocity: { min: -1, max: 2, isLog: true }
     }
 };
 
@@ -110,6 +126,27 @@ async function initComparisonMode(comparisonId) {
     COMPARISON.right.datasetId = rightDataset.id;
     COMPARISON.right.basePath = rightDataset.path;
 
+    // Set up CONFIG with dataset values (both datasets have same orbit params)
+    // Use left dataset config as the reference
+    if (leftDataset.config) {
+        CONFIG.cloud_pos0 = leftDataset.config.cloud_pos0;
+        CONFIG.cloud_vel0 = leftDataset.config.cloud_vel0;
+        CONFIG.r_peri = leftDataset.config.r_peri;
+    }
+    // Common physics constants
+    if (data.common) {
+        CONFIG.G = data.common.G;
+        CONFIG.M_BH = data.common.M_BH;
+        CONFIG.tempConversion = data.common.tempConversion;
+        CONFIG.densityToNH2 = data.common.densityToNH2;
+        CONFIG.timeToMyr = data.common.timeToMyr;
+    }
+    // Compute derived orbital parameters (L_vec, L, p)
+    if (typeof computeOrbitalParams === 'function') {
+        computeOrbitalParams();
+        console.log('Comparison mode: orbital params computed - r_peri:', CONFIG.r_peri, 'p:', CONFIG.p?.toFixed(4));
+    }
+
     // Show comparison UI
     showComparisonUI();
 
@@ -118,6 +155,12 @@ async function initComparisonMode(comparisonId) {
 
     // Initialize selection handlers
     initComparisonSelection();
+
+    // Initialize color range sliders
+    initComparisonRangeSliders();
+
+    // Initialize profile panel drag/resize
+    initComparisonProfilePanel();
 
     // Scan for files and build time index (lightweight - only reads headers)
     COMPARISON.isLoading = true;
@@ -412,9 +455,11 @@ async function syncToTime(time) {
     // Compute comparison metrics
     computeComparisonMetrics();
 
-    // Update selection info if active
+    // Update selection visuals, info and profiles if active
     if (COMPARISON.selection.active) {
+        updateComparisonSelectionVisuals();  // Move cylinder/plane with tracked particles
         updateComparisonSelectionInfo();
+        updateComparisonProfiles();
     }
 
     // Update UI
@@ -472,6 +517,10 @@ function initDualRenderers() {
     addIMBHMarker(COMPARISON.left.scene);
     addIMBHMarker(COMPARISON.right.scene);
 
+    // Add orbit lines to both scenes
+    addOrbitLine(COMPARISON.left.scene);
+    addOrbitLine(COMPARISON.right.scene);
+
     // Sync cameras: when left camera moves, update right camera
     COMPARISON.left.controls.addEventListener('change', syncRightCamera);
 
@@ -498,6 +547,106 @@ function addIMBHMarker(scene) {
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
     ring.rotation.x = Math.PI / 2;
     scene.add(ring);
+}
+
+function addOrbitLine(scene) {
+    // Use CONFIG values (should be initialized from datasets.json)
+    if (!CONFIG || !CONFIG.cloud_pos0 || !CONFIG.cloud_vel0) {
+        console.warn('CONFIG not ready for orbit creation');
+        return;
+    }
+
+    const points = [];
+    const colors = [];
+
+    const r0 = Math.sqrt(
+        CONFIG.cloud_pos0[0]**2 +
+        CONFIG.cloud_pos0[1]**2 +
+        CONFIG.cloud_pos0[2]**2
+    );
+
+    const L_norm = [
+        CONFIG.L_vec[0]/CONFIG.L,
+        CONFIG.L_vec[1]/CONFIG.L,
+        CONFIG.L_vec[2]/CONFIG.L
+    ];
+
+    const v_cross_L = [
+        CONFIG.cloud_vel0[1] * CONFIG.L_vec[2] - CONFIG.cloud_vel0[2] * CONFIG.L_vec[1],
+        CONFIG.cloud_vel0[2] * CONFIG.L_vec[0] - CONFIG.cloud_vel0[0] * CONFIG.L_vec[2],
+        CONFIG.cloud_vel0[0] * CONFIG.L_vec[1] - CONFIG.cloud_vel0[1] * CONFIG.L_vec[0]
+    ];
+    const r_hat = [
+        CONFIG.cloud_pos0[0]/r0,
+        CONFIG.cloud_pos0[1]/r0,
+        CONFIG.cloud_pos0[2]/r0
+    ];
+    const e_vec = [
+        v_cross_L[0]/(CONFIG.G*CONFIG.M_BH) - r_hat[0],
+        v_cross_L[1]/(CONFIG.G*CONFIG.M_BH) - r_hat[1],
+        v_cross_L[2]/(CONFIG.G*CONFIG.M_BH) - r_hat[2]
+    ];
+    const e_mag = Math.sqrt(e_vec[0]**2 + e_vec[1]**2 + e_vec[2]**2);
+    const e_hat = [e_vec[0]/e_mag, e_vec[1]/e_mag, e_vec[2]/e_mag];
+
+    const p_hat = [
+        L_norm[1]*e_hat[2] - L_norm[2]*e_hat[1],
+        L_norm[2]*e_hat[0] - L_norm[0]*e_hat[2],
+        L_norm[0]*e_hat[1] - L_norm[1]*e_hat[0]
+    ];
+
+    for (let i = 0; i <= 200; i++) {
+        const theta = -Math.PI * 0.95 + i * (Math.PI * 1.9) / 200;
+        const r = CONFIG.p / (1 + Math.cos(theta));
+
+        if (r > 50 || r < 0) continue;
+
+        const x_orb = r * Math.cos(theta);
+        const y_orb = r * Math.sin(theta);
+
+        const x = x_orb * e_hat[0] + y_orb * p_hat[0];
+        const y = x_orb * e_hat[1] + y_orb * p_hat[1];
+        const z = x_orb * e_hat[2] + y_orb * p_hat[2];
+
+        points.push(new THREE.Vector3(x, y, z));
+
+        const hue = 0.1 + 0.2 * (1 - Math.abs(theta) / Math.PI);
+        colors.push(new THREE.Color().setHSL(hue, 1, 0.5));
+    }
+
+    if (points.length === 0) return;
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const colorArray = new Float32Array(colors.length * 3);
+    colors.forEach((c, i) => {
+        colorArray[i*3] = c.r;
+        colorArray[i*3+1] = c.g;
+        colorArray[i*3+2] = c.b;
+    });
+    geometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+
+    const material = new THREE.LineBasicMaterial({
+        vertexColors: true,
+        linewidth: 2
+    });
+
+    const orbitLine = new THREE.Line(geometry, material);
+    scene.add(orbitLine);
+
+    // Pericenter marker
+    const periPos = new THREE.Vector3(
+        CONFIG.r_peri * e_hat[0],
+        CONFIG.r_peri * e_hat[1],
+        CONFIG.r_peri * e_hat[2]
+    );
+    const periGeom = new THREE.RingGeometry(0.08, 0.12, 32);
+    const periMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, side: THREE.DoubleSide });
+    const periMarker = new THREE.Mesh(periGeom, periMat);
+    periMarker.position.copy(periPos);
+    periMarker.lookAt(0, 0, 0);
+    scene.add(periMarker);
+
+    console.log('Orbit line added to comparison scene');
 }
 
 function syncRightCamera() {
@@ -579,7 +728,7 @@ function updateComparisonParticles(side) {
         positions[i * 3 + 2] = p.z;
 
         // Check if particle is selected
-        const selected = isParticleSelected(p);
+        const selected = isParticleSelected(p, side);
 
         // Color by density (same as main viz), or highlight if selected
         const colorValue = getComparisonColorValue(p, comVel);
@@ -619,26 +768,29 @@ function updateComparisonParticles(side) {
 }
 
 function getComparisonColorValue(particle, comVel) {
-    const colorMode = STATE?.colorMode || 'density';
-    const range = STATE?.colorRanges?.[colorMode] || { min: 3, max: 6 };
+    const colorMode = COMPARISON.colorMode || 'density';
+    const range = COMPARISON.colorRanges[colorMode] || { min: 3, max: 6, isLog: true };
+    const isLog = range.isLog !== false; // default to log
 
-    let value;
+    let rawValue;
     switch (colorMode) {
         case 'temperature':
-            value = Math.log10(Math.max(particle.temp, 1));
+            rawValue = particle.temp;
             break;
         case 'velocity':
             const dvx = particle.vx - comVel.x;
             const dvy = particle.vy - comVel.y;
             const dvz = particle.vz - comVel.z;
-            value = Math.log10(Math.max(Math.sqrt(dvx*dvx + dvy*dvy + dvz*dvz), 0.1));
+            rawValue = Math.sqrt(dvx*dvx + dvy*dvy + dvz*dvz);
             break;
         case 'density':
         default:
-            const n_H2 = particle.dens * (CONFIG?.densityToNH2 || 20.3);
-            value = Math.log10(Math.max(n_H2, 1));
+            rawValue = particle.dens * (CONFIG?.densityToNH2 || 20.3);
             break;
     }
+
+    // Apply log transform if needed
+    const value = isLog ? Math.log10(Math.max(rawValue, 1e-10)) : rawValue;
 
     return Math.max(0, Math.min(1, (value - range.min) / (range.max - range.min)));
 }
@@ -980,19 +1132,19 @@ function onComparisonCanvasClick(event, side) {
                 COMPARISON.selection.active = true;
 
                 console.log(`Column selection at (${point.x.toFixed(2)}, ${point.y.toFixed(2)})`);
-
-                updateComparisonSelectionVisuals();
-                updateComparisonParticlesWithSelection();
             } else {
                 // Set plane z position
                 COMPARISON.selection.plane.zPosition = point.z;
                 COMPARISON.selection.active = true;
 
                 console.log(`Plane selection at z = ${point.z.toFixed(2)}`);
-
-                updateComparisonSelectionVisuals();
-                updateComparisonParticlesWithSelection();
             }
+
+            // Capture particle IDs for Lagrangian tracking
+            captureTrackedParticleIds();
+
+            updateComparisonSelectionVisuals();
+            updateComparisonParticlesWithSelection();
         }
     }
 }
@@ -1002,12 +1154,32 @@ function updateComparisonSelectionVisuals() {
     removeComparisonSelectionMeshes();
 
     if (!COMPARISON.selection.active) return;
+    if (!COMPARISON.selection.showMesh) return;  // Skip if mesh hidden
 
     if (COMPARISON.selection.mode === 'column') {
         createComparisonColumnMeshes();
     } else {
         createComparisonPlaneMeshes();
     }
+}
+
+function toggleComparisonSelectionMesh() {
+    COMPARISON.selection.showMesh = !COMPARISON.selection.showMesh;
+
+    // Update button appearance
+    const btn = document.getElementById('comp-show-mesh');
+    if (btn) {
+        if (COMPARISON.selection.showMesh) {
+            btn.textContent = 'Mesh ✓';
+            btn.style.background = '#446688';
+        } else {
+            btn.textContent = 'Mesh ✗';
+            btn.style.background = '#334';
+        }
+    }
+
+    // Update visuals
+    updateComparisonSelectionVisuals();
 }
 
 function removeComparisonSelectionMeshes() {
@@ -1023,6 +1195,28 @@ function removeComparisonSelectionMeshes() {
         COMPARISON.selection.rightMesh.material?.dispose();
         COMPARISON.selection.rightMesh = null;
     }
+}
+
+// Compute centroid of tracked particles for a given side
+function computeTrackedParticleCentroid(side) {
+    const snap = COMPARISON[side].snapshotCache[COMPARISON[side].currentFrame];
+    if (!snap) return null;
+
+    const trackedIds = COMPARISON.selection.trackedIds[side];
+    if (trackedIds.size === 0) return null;
+
+    let sumX = 0, sumY = 0, sumZ = 0, count = 0;
+    for (const p of snap.particles) {
+        if (trackedIds.has(p.id)) {
+            sumX += p.x;
+            sumY += p.y;
+            sumZ += p.z;
+            count++;
+        }
+    }
+
+    if (count === 0) return null;
+    return { x: sumX / count, y: sumY / count, z: sumZ / count };
 }
 
 function createComparisonColumnMeshes() {
@@ -1041,11 +1235,23 @@ function createComparisonColumnMeshes() {
         depthWrite: false
     });
 
+    // In Lagrangian mode, position cylinder at tracked particles' centroid
+    const isLagrangian = COMPARISON.selection.trackingMode === 'lagrangian';
+
     // Left scene
     if (COMPARISON.left.scene) {
         COMPARISON.selection.leftMesh = new THREE.Mesh(geometry.clone(), material.clone());
         COMPARISON.selection.leftMesh.rotation.x = Math.PI / 2;
-        COMPARISON.selection.leftMesh.position.set(center.x, center.y, 0);
+
+        let posX = center.x, posY = center.y;
+        if (isLagrangian) {
+            const centroid = computeTrackedParticleCentroid('left');
+            if (centroid) {
+                posX = centroid.x;
+                posY = centroid.y;
+            }
+        }
+        COMPARISON.selection.leftMesh.position.set(posX, posY, 0);
         COMPARISON.left.scene.add(COMPARISON.selection.leftMesh);
     }
 
@@ -1053,7 +1259,16 @@ function createComparisonColumnMeshes() {
     if (COMPARISON.right.scene) {
         COMPARISON.selection.rightMesh = new THREE.Mesh(geometry.clone(), material.clone());
         COMPARISON.selection.rightMesh.rotation.x = Math.PI / 2;
-        COMPARISON.selection.rightMesh.position.set(center.x, center.y, 0);
+
+        let posX = center.x, posY = center.y;
+        if (isLagrangian) {
+            const centroid = computeTrackedParticleCentroid('right');
+            if (centroid) {
+                posX = centroid.x;
+                posY = centroid.y;
+            }
+        }
+        COMPARISON.selection.rightMesh.position.set(posX, posY, 0);
         COMPARISON.right.scene.add(COMPARISON.selection.rightMesh);
     }
 }
@@ -1070,17 +1285,45 @@ function createComparisonPlaneMeshes() {
         depthWrite: false
     });
 
+    // In Lagrangian mode, position plane at tracked particles' centroid
+    const isLagrangian = COMPARISON.selection.trackingMode === 'lagrangian';
+
     // Left scene
     if (COMPARISON.left.scene) {
         COMPARISON.selection.leftMesh = new THREE.Mesh(geometry.clone(), material.clone());
-        COMPARISON.selection.leftMesh.position.set(0, 0, zPosition);
+
+        let posZ = zPosition;
+        if (isLagrangian) {
+            const centroid = computeTrackedParticleCentroid('left');
+            if (centroid) {
+                posZ = centroid.z;
+                // Also move plane x,y to follow the cloud
+                COMPARISON.selection.leftMesh.position.set(centroid.x, centroid.y, posZ);
+            } else {
+                COMPARISON.selection.leftMesh.position.set(0, 0, posZ);
+            }
+        } else {
+            COMPARISON.selection.leftMesh.position.set(0, 0, posZ);
+        }
         COMPARISON.left.scene.add(COMPARISON.selection.leftMesh);
     }
 
     // Right scene
     if (COMPARISON.right.scene) {
         COMPARISON.selection.rightMesh = new THREE.Mesh(geometry.clone(), material.clone());
-        COMPARISON.selection.rightMesh.position.set(0, 0, zPosition);
+
+        let posZ = zPosition;
+        if (isLagrangian) {
+            const centroid = computeTrackedParticleCentroid('right');
+            if (centroid) {
+                posZ = centroid.z;
+                COMPARISON.selection.rightMesh.position.set(centroid.x, centroid.y, posZ);
+            } else {
+                COMPARISON.selection.rightMesh.position.set(0, 0, posZ);
+            }
+        } else {
+            COMPARISON.selection.rightMesh.position.set(0, 0, posZ);
+        }
         COMPARISON.right.scene.add(COMPARISON.selection.rightMesh);
     }
 }
@@ -1090,13 +1333,18 @@ function updateComparisonParticlesWithSelection() {
     updateComparisonParticles('left');
     updateComparisonParticles('right');
 
+    // Update selection visualization (moves with tracked particles in Lagrangian mode)
+    updateComparisonSelectionVisuals();
+
     // Update selection info
     updateComparisonSelectionInfo();
+
+    // Update profile plots
+    updateComparisonProfiles();
 }
 
-function isParticleSelected(particle) {
-    if (!COMPARISON.selection.active) return false;
-
+// Check if particle is within spatial selection (column or plane)
+function isParticleInSpatialSelection(particle) {
     if (COMPARISON.selection.mode === 'column') {
         const { center, radius } = COMPARISON.selection.column;
         if (!center) return false;
@@ -1107,6 +1355,56 @@ function isParticleSelected(particle) {
         const { zPosition, thickness } = COMPARISON.selection.plane;
         const halfThick = thickness / 2;
         return particle.z >= (zPosition - halfThick) && particle.z <= (zPosition + halfThick);
+    }
+}
+
+// Capture particle IDs at current frame for Lagrangian tracking
+function captureTrackedParticleIds() {
+    // Clear previous tracked IDs
+    COMPARISON.selection.trackedIds.left.clear();
+    COMPARISON.selection.trackedIds.right.clear();
+
+    // Record selection frame
+    COMPARISON.selection.selectionFrame.left = COMPARISON.left.currentFrame;
+    COMPARISON.selection.selectionFrame.right = COMPARISON.right.currentFrame;
+
+    // Get particles from current frame
+    const leftSnap = COMPARISON.left.snapshotCache[COMPARISON.left.currentFrame];
+    const rightSnap = COMPARISON.right.snapshotCache[COMPARISON.right.currentFrame];
+
+    // Capture IDs of particles within spatial selection
+    if (leftSnap) {
+        for (const p of leftSnap.particles) {
+            if (isParticleInSpatialSelection(p)) {
+                COMPARISON.selection.trackedIds.left.add(p.id);
+            }
+        }
+    }
+
+    if (rightSnap) {
+        for (const p of rightSnap.particles) {
+            if (isParticleInSpatialSelection(p)) {
+                COMPARISON.selection.trackedIds.right.add(p.id);
+            }
+        }
+    }
+
+    console.log(`Captured ${COMPARISON.selection.trackedIds.left.size} left, ${COMPARISON.selection.trackedIds.right.size} right particles for tracking`);
+}
+
+// Check if particle is selected (uses Lagrangian or spatial mode)
+function isParticleSelected(particle, side) {
+    if (!COMPARISON.selection.active) return false;
+
+    if (COMPARISON.selection.trackingMode === 'lagrangian') {
+        // Use tracked particle IDs
+        const trackedSet = side === 'left'
+            ? COMPARISON.selection.trackedIds.left
+            : COMPARISON.selection.trackedIds.right;
+        return trackedSet.has(particle.id);
+    } else {
+        // Use spatial selection
+        return isParticleInSpatialSelection(particle);
     }
 }
 
@@ -1128,7 +1426,7 @@ function updateComparisonSelectionInfo() {
 
     if (leftSnap) {
         for (const p of leftSnap.particles) {
-            if (isParticleSelected(p)) {
+            if (isParticleSelected(p, 'left')) {
                 leftCount++;
                 leftMass += p.mass;
             }
@@ -1137,7 +1435,7 @@ function updateComparisonSelectionInfo() {
 
     if (rightSnap) {
         for (const p of rightSnap.particles) {
-            if (isParticleSelected(p)) {
+            if (isParticleSelected(p, 'right')) {
                 rightCount++;
                 rightMass += p.mass;
             }
@@ -1145,12 +1443,22 @@ function updateComparisonSelectionInfo() {
     }
 
     const modeLabel = COMPARISON.selection.mode === 'column' ? 'Column' : 'Plane';
+    const trackLabel = COMPARISON.selection.trackingMode === 'lagrangian' ? 'Lagrangian' : 'Spatial';
     const deltaN = leftCount - rightCount;
     const deltaM = leftMass - rightMass;
 
+    // For Lagrangian mode, show initial vs current count
+    let trackInfo = '';
+    if (COMPARISON.selection.trackingMode === 'lagrangian') {
+        const initLeft = COMPARISON.selection.trackedIds.left.size;
+        const initRight = COMPARISON.selection.trackedIds.right.size;
+        trackInfo = `<span style="color: #aaa; font-size: 10px;">(tracking ${initLeft}/${initRight} IDs)</span>`;
+    }
+
     infoEl.innerHTML = `
-        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-            <span style="color: #88ddff;">${modeLabel} Selection</span>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
+            <span style="color: #88ddff;">${modeLabel} [${trackLabel}]</span>
+            ${trackInfo}
             <span>Cooling: <b style="color: #66ddff;">${leftCount}</b> (${leftMass.toFixed(1)} M☉)</span>
             <span>Adiabatic: <b style="color: #ffcc88;">${rightCount}</b> (${rightMass.toFixed(1)} M☉)</span>
             <span>ΔN: <b style="color: ${deltaN < 0 ? '#faa' : '#afa'};">${deltaN > 0 ? '+' : ''}${deltaN}</b></span>
@@ -1175,6 +1483,29 @@ function setComparisonSelectionMode(mode) {
     console.log('Comparison selection mode:', mode);
 }
 
+function setComparisonTrackingMode(mode) {
+    COMPARISON.selection.trackingMode = mode;
+
+    // Update button styles
+    const lagBtn = document.getElementById('comp-track-lagrangian');
+    const spatBtn = document.getElementById('comp-track-spatial');
+
+    if (lagBtn) lagBtn.style.background = mode === 'lagrangian' ? '#446688' : '#334';
+    if (spatBtn) spatBtn.style.background = mode === 'spatial' ? '#446688' : '#334';
+
+    // If switching to lagrangian and we have an active selection, recapture IDs
+    if (mode === 'lagrangian' && COMPARISON.selection.active) {
+        captureTrackedParticleIds();
+    }
+
+    // Re-render particles with updated selection mode
+    if (COMPARISON.selection.active) {
+        updateComparisonParticlesWithSelection();
+    }
+
+    console.log('Comparison tracking mode:', mode);
+}
+
 function updateComparisonSelectionRadius(value) {
     COMPARISON.selection.column.radius = parseFloat(value);
 
@@ -1182,6 +1513,10 @@ function updateComparisonSelectionRadius(value) {
     if (display) display.textContent = value + ' pc';
 
     if (COMPARISON.selection.active && COMPARISON.selection.mode === 'column') {
+        // Recapture particle IDs if in Lagrangian mode
+        if (COMPARISON.selection.trackingMode === 'lagrangian') {
+            captureTrackedParticleIds();
+        }
         updateComparisonSelectionVisuals();
         updateComparisonParticlesWithSelection();
     }
@@ -1194,6 +1529,10 @@ function updateComparisonSelectionThickness(value) {
     if (display) display.textContent = value + ' pc';
 
     if (COMPARISON.selection.active && COMPARISON.selection.mode === 'plane') {
+        // Recapture particle IDs if in Lagrangian mode
+        if (COMPARISON.selection.trackingMode === 'lagrangian') {
+            captureTrackedParticleIds();
+        }
         updateComparisonParticlesWithSelection();
     }
 }
@@ -1201,8 +1540,480 @@ function updateComparisonSelectionThickness(value) {
 function clearComparisonSelection() {
     COMPARISON.selection.active = false;
     COMPARISON.selection.column.center = null;
+    // Clear tracked particle IDs
+    COMPARISON.selection.trackedIds.left.clear();
+    COMPARISON.selection.trackedIds.right.clear();
     removeComparisonSelectionMeshes();
     updateComparisonParticles('left');
     updateComparisonParticles('right');
     updateComparisonSelectionInfo();
+    updateComparisonProfiles();  // Hide profile panel
+}
+
+// ============================================================
+// Color Mode and Range Control
+// ============================================================
+
+function onComparisonColorModeChange(mode) {
+    COMPARISON.colorMode = mode;
+
+    // Update range sliders to match mode's range
+    updateComparisonRangeSliders();
+
+    // Refresh visualization
+    syncToTime(COMPARISON.currentTime);
+}
+
+function onComparisonColormapChange(colormapName) {
+    if (setColormap(colormapName)) {
+        // Refresh visualization with new colormap
+        updateComparisonParticles('left');
+        updateComparisonParticles('right');
+    }
+}
+
+function onComparisonRangeChange() {
+    const minSlider = document.getElementById('comp-range-min');
+    const maxSlider = document.getElementById('comp-range-max');
+
+    if (!minSlider || !maxSlider) return;
+
+    const minVal = parseFloat(minSlider.value);
+    const maxVal = parseFloat(maxSlider.value);
+
+    // Update display
+    document.getElementById('comp-range-min-value').textContent = minVal.toFixed(1);
+    document.getElementById('comp-range-max-value').textContent = maxVal.toFixed(1);
+
+    // Ensure min < max
+    const actualMin = Math.min(minVal, maxVal);
+    const actualMax = Math.max(minVal, maxVal);
+
+    // Update current color mode's range
+    COMPARISON.colorRanges[COMPARISON.colorMode].min = actualMin;
+    COMPARISON.colorRanges[COMPARISON.colorMode].max = actualMax;
+
+    // Refresh visualization
+    updateComparisonParticles('left');
+    updateComparisonParticles('right');
+}
+
+function updateComparisonRangeSliders() {
+    const range = COMPARISON.colorRanges[COMPARISON.colorMode];
+    const isLog = range.isLog;
+
+    const minSlider = document.getElementById('comp-range-min');
+    const maxSlider = document.getElementById('comp-range-max');
+    const label = document.getElementById('comp-range-label');
+
+    if (!minSlider || !maxSlider) return;
+
+    // Update slider attributes based on log vs linear
+    if (isLog) {
+        minSlider.min = -2;
+        minSlider.max = 8;
+        minSlider.step = 0.5;
+        maxSlider.min = -2;
+        maxSlider.max = 8;
+        maxSlider.step = 0.5;
+        if (label) label.textContent = 'Range (log₁₀):';
+    } else {
+        minSlider.min = 0;
+        minSlider.max = 100;
+        minSlider.step = 1;
+        maxSlider.min = 0;
+        maxSlider.max = 100;
+        maxSlider.step = 1;
+        if (label) label.textContent = 'Range:';
+    }
+
+    minSlider.value = range.min;
+    maxSlider.value = range.max;
+    document.getElementById('comp-range-min-value').textContent = range.min.toFixed(1);
+    document.getElementById('comp-range-max-value').textContent = range.max.toFixed(1);
+
+    // Update log toggle button
+    const logBtn = document.getElementById('comp-log-toggle');
+    if (logBtn) {
+        if (isLog) {
+            logBtn.textContent = 'Log';
+            logBtn.style.background = '#446688';
+        } else {
+            logBtn.textContent = 'Linear';
+            logBtn.style.background = '#664488';
+        }
+    }
+}
+
+function toggleComparisonLogScale() {
+    const range = COMPARISON.colorRanges[COMPARISON.colorMode];
+    const wasLog = range.isLog;
+
+    // Toggle the scale
+    range.isLog = !wasLog;
+
+    // Convert range values between log and linear
+    if (wasLog) {
+        // Converting from log to linear: 10^x
+        range.min = Math.pow(10, range.min);
+        range.max = Math.pow(10, range.max);
+    } else {
+        // Converting from linear to log: log10(x)
+        range.min = range.min > 0 ? Math.log10(range.min) : 0;
+        range.max = range.max > 0 ? Math.log10(range.max) : 1;
+    }
+
+    // Update UI
+    updateComparisonRangeSliders();
+
+    // Refresh visualization
+    updateComparisonParticles('left');
+    updateComparisonParticles('right');
+}
+
+function initComparisonRangeSliders() {
+    // Set initial values based on default color mode
+    updateComparisonRangeSliders();
+
+    // Sync dropdown with state
+    const dropdown = document.getElementById('comparison-color-mode');
+    if (dropdown) {
+        dropdown.value = COMPARISON.colorMode;
+    }
+}
+
+// ============================================================
+// Profile Plots for Selected Particles
+// ============================================================
+
+const COMP_PROFILE_CONFIG = {
+    density: { label: 'log n_H₂ (cm⁻³)', color: '#ff9966', isLog: true,
+               getValue: (p) => Math.log10(Math.max(p.dens * 20.3, 1)) },
+    temperature: { label: 'log T (K)', color: '#ff6688', isLog: true,
+                   getValue: (p) => Math.log10(Math.max(p.temp, 1)) },
+    mach: { label: 'Mach', color: '#ffff66', isLog: false,
+            getValue: (p) => p.mach || 0 },
+    entropy: { label: 'log s', color: '#66aaff', isLog: true,
+               getValue: (p) => {
+                   const gamma = 5/3;
+                   const s = p.pres / Math.pow(p.dens, gamma);
+                   return s > 0 ? Math.log10(s) : -10;
+               }},
+    pressure: { label: 'log P', color: '#ff66ff', isLog: true,
+                getValue: (p) => p.pres > 0 ? Math.log10(p.pres) : -10 }
+};
+
+function updateComparisonProfiles() {
+    if (!COMPARISON.selection.active) {
+        hideComparisonProfilePanel();
+        return;
+    }
+
+    showComparisonProfilePanel();
+
+    // Get selected particles from both datasets
+    const leftSnap = COMPARISON.left.snapshotCache[COMPARISON.left.currentFrame];
+    const rightSnap = COMPARISON.right.snapshotCache[COMPARISON.right.currentFrame];
+
+    const leftSelected = leftSnap ? getComparisonSelectedParticles(leftSnap.particles, 'left') : [];
+    const rightSelected = rightSnap ? getComparisonSelectedParticles(rightSnap.particles, 'right') : [];
+
+    // Get variable config
+    const varKey = document.getElementById('comp-profile-var')?.value || 'density';
+    const config = COMP_PROFILE_CONFIG[varKey];
+
+    // Compute shared range for both plots (for fair comparison)
+    const allSelected = [...leftSelected, ...rightSelected];
+    let yMin = Infinity, yMax = -Infinity;
+    for (const p of allSelected) {
+        const val = config.getValue(p);
+        if (isFinite(val)) {
+            if (val < yMin) yMin = val;
+            if (val > yMax) yMax = val;
+        }
+    }
+
+    // Handle empty selection or invalid range
+    if (!isFinite(yMin) || !isFinite(yMax)) {
+        yMin = 0;
+        yMax = 1;
+    }
+
+    // Add padding
+    const yPad = (yMax - yMin) * 0.1 || 0.5;
+    yMin -= yPad;
+    yMax += yPad;
+
+    // Draw both profiles
+    drawComparisonProfilePlot('comp-profile-left', leftSelected, config, yMin, yMax, '#66ddff');
+    drawComparisonProfilePlot('comp-profile-right', rightSelected, config, yMin, yMax, '#ffcc88');
+}
+
+function getComparisonSelectedParticles(particles, side) {
+    if (!particles) return [];
+    return particles.filter(p => isParticleSelected(p, side));
+}
+
+function drawComparisonProfilePlot(canvasId, particles, config, fixedYMin, fixedYMax, accentColor) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
+    // Get display size and set canvas buffer size for sharp rendering
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const W = rect.width;
+    const H = rect.height;
+
+    // Update canvas internal size if needed
+    if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+    }
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);  // Reset transform
+    ctx.scale(dpr, dpr);
+
+    // Clear
+    ctx.fillStyle = '#0a0c12';
+    ctx.fillRect(0, 0, W, H);
+
+    if (particles.length === 0) {
+        ctx.fillStyle = '#666';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No particles selected', W/2, H/2);
+        return;
+    }
+
+    const margin = { left: 50, right: 15, top: 20, bottom: 30 };
+    const plotW = W - margin.left - margin.right;
+    const plotH = H - margin.top - margin.bottom;
+
+    // Determine x-axis based on selection mode
+    const isColumn = COMPARISON.selection.mode === 'column';
+    const xKey = isColumn ? 'z' : 'x';
+    const xLabel = isColumn ? 'z (pc)' : 'x (pc)';
+
+    // Get data
+    const xVals = particles.map(p => p[xKey]);
+    const yVals = particles.map(p => config.getValue(p));
+
+    // X range
+    let xMin = Math.min(...xVals.filter(v => isFinite(v)));
+    let xMax = Math.max(...xVals.filter(v => isFinite(v)));
+    const xPad = (xMax - xMin) * 0.05 || 1;
+    xMin -= xPad;
+    xMax += xPad;
+
+    const xRange = xMax - xMin || 1;
+    const yRange = fixedYMax - fixedYMin || 1;
+
+    // Draw grid
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 4; i++) {
+        const gx = margin.left + plotW * i / 4;
+        const gy = margin.top + plotH * i / 4;
+        ctx.beginPath();
+        ctx.moveTo(gx, margin.top);
+        ctx.lineTo(gx, margin.top + plotH);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(margin.left, gy);
+        ctx.lineTo(margin.left + plotW, gy);
+        ctx.stroke();
+    }
+
+    // Plot border
+    ctx.strokeStyle = '#334';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(margin.left, margin.top, plotW, plotH);
+
+    // Draw points
+    ctx.fillStyle = config.color;
+    ctx.globalAlpha = 0.4;
+    for (let i = 0; i < particles.length; i++) {
+        const px = margin.left + plotW * (xVals[i] - xMin) / xRange;
+        const py = margin.top + plotH * (1 - (yVals[i] - fixedYMin) / yRange);
+        if (isFinite(px) && isFinite(py) && px >= margin.left && px <= margin.left + plotW) {
+            ctx.beginPath();
+            ctx.arc(px, Math.max(margin.top, Math.min(margin.top + plotH, py)), 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    ctx.globalAlpha = 1;
+
+    // Labels
+    ctx.fillStyle = config.color;
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(config.label, margin.left + 5, margin.top + 14);
+
+    // Particle count
+    ctx.fillStyle = accentColor;
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`N = ${particles.length}`, W - margin.right - 5, margin.top + 12);
+
+    // X-axis label
+    ctx.fillStyle = '#aaa';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(xLabel, margin.left + plotW / 2, H - 8);
+
+    // X-axis ticks
+    ctx.fillStyle = '#888';
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(xMin.toFixed(1), margin.left, H - 18);
+    ctx.fillText(xMax.toFixed(1), margin.left + plotW, H - 18);
+
+    // Y-axis ticks
+    ctx.textAlign = 'right';
+    ctx.fillText(fixedYMax.toFixed(1), margin.left - 4, margin.top + 10);
+    ctx.fillText(fixedYMin.toFixed(1), margin.left - 4, margin.top + plotH);
+}
+
+function drawComparisonMedian(ctx, x0, y0, w, h, xVals, yVals, xMin, xMax, yMin, yMax, color) {
+    const sorted = xVals.map((x, i) => ({ x, y: yVals[i] }))
+        .filter(p => isFinite(p.x) && isFinite(p.y))
+        .sort((a, b) => a.x - b.x);
+
+    if (sorted.length < 5) return;
+
+    const xRange = xMax - xMin || 1;
+    const yRange = yMax - yMin || 1;
+    const numBins = Math.min(20, Math.floor(sorted.length / 3));
+    const binSize = sorted.length / numBins;
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+
+    let started = false;
+    for (let i = 0; i < numBins; i++) {
+        const binData = sorted.slice(Math.floor(i * binSize), Math.floor((i + 1) * binSize));
+        if (binData.length === 0) continue;
+
+        const xMed = binData[Math.floor(binData.length / 2)].x;
+        const yValues = binData.map(p => p.y).sort((a, b) => a - b);
+        const yMed = yValues[Math.floor(yValues.length / 2)];
+
+        const px = x0 + w * (xMed - xMin) / xRange;
+        const py = y0 + h * (1 - (yMed - yMin) / yRange);
+        const clippedPy = Math.max(y0, Math.min(y0 + h, py));
+
+        if (!started) { ctx.moveTo(px, clippedPy); started = true; }
+        else { ctx.lineTo(px, clippedPy); }
+    }
+    ctx.stroke();
+}
+
+// ============================================================
+// Profile Panel Drag & Resize
+// ============================================================
+
+let profilePanelDrag = { active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 };
+let profilePanelResize = { active: false, startX: 0, startY: 0, startW: 0, startH: 0 };
+
+function initComparisonProfilePanel() {
+    const panel = document.getElementById('comparison-profile-panel');
+    const header = document.getElementById('comp-profile-header');
+    const resizeHandle = document.getElementById('comp-profile-resize');
+
+    if (!panel || !header || !resizeHandle) return;
+
+    // Drag functionality
+    header.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') return;
+        profilePanelDrag.active = true;
+        profilePanelDrag.startX = e.clientX;
+        profilePanelDrag.startY = e.clientY;
+        profilePanelDrag.startLeft = panel.offsetLeft;
+        profilePanelDrag.startTop = panel.offsetTop;
+        e.preventDefault();
+    });
+
+    // Resize functionality
+    resizeHandle.addEventListener('mousedown', (e) => {
+        profilePanelResize.active = true;
+        profilePanelResize.startX = e.clientX;
+        profilePanelResize.startY = e.clientY;
+        profilePanelResize.startW = panel.offsetWidth;
+        profilePanelResize.startH = panel.offsetHeight;
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    // Mouse move handler
+    document.addEventListener('mousemove', (e) => {
+        if (profilePanelDrag.active) {
+            const dx = e.clientX - profilePanelDrag.startX;
+            const dy = e.clientY - profilePanelDrag.startY;
+            panel.style.left = (profilePanelDrag.startLeft + dx) + 'px';
+            panel.style.top = (profilePanelDrag.startTop + dy) + 'px';
+            panel.style.right = 'auto';
+        }
+        if (profilePanelResize.active) {
+            const dx = e.clientX - profilePanelResize.startX;
+            const dy = e.clientY - profilePanelResize.startY;
+            const newW = Math.max(400, profilePanelResize.startW + dx);
+            const newH = Math.max(200, profilePanelResize.startH + dy);
+            panel.style.width = newW + 'px';
+            panel.style.height = newH + 'px';
+            // Update canvas sizes
+            resizeProfileCanvases();
+        }
+    });
+
+    // Mouse up handler
+    document.addEventListener('mouseup', () => {
+        if (profilePanelDrag.active || profilePanelResize.active) {
+            profilePanelDrag.active = false;
+            profilePanelResize.active = false;
+            // Redraw after resize
+            if (COMPARISON.selection.active) {
+                updateComparisonProfiles();
+            }
+        }
+    });
+
+    console.log('Profile panel drag/resize initialized');
+}
+
+function resizeProfileCanvases() {
+    const leftCanvas = document.getElementById('comp-profile-left');
+    const rightCanvas = document.getElementById('comp-profile-right');
+
+    if (leftCanvas) {
+        const rect = leftCanvas.getBoundingClientRect();
+        leftCanvas.width = rect.width * window.devicePixelRatio;
+        leftCanvas.height = rect.height * window.devicePixelRatio;
+        const ctx = leftCanvas.getContext('2d');
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    if (rightCanvas) {
+        const rect = rightCanvas.getBoundingClientRect();
+        rightCanvas.width = rect.width * window.devicePixelRatio;
+        rightCanvas.height = rect.height * window.devicePixelRatio;
+        const ctx = rightCanvas.getContext('2d');
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+}
+
+function showComparisonProfilePanel() {
+    const panel = document.getElementById('comparison-profile-panel');
+    if (panel) {
+        panel.style.display = 'block';
+        // Initialize canvas sizes
+        resizeProfileCanvases();
+    }
+}
+
+function hideComparisonProfilePanel() {
+    const panel = document.getElementById('comparison-profile-panel');
+    if (panel) {
+        panel.style.display = 'none';
+    }
 }
