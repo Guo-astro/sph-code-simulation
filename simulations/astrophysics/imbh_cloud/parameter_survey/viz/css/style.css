@@ -907,3 +907,80 @@ body {
         height: 320px !important;
     }
 }
+
+/* ============================================================
+   COMPARISON MODE STYLES
+   ============================================================ */
+
+#comparison-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2000;
+}
+
+#comparison-container .metric-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#comparison-container .metric-label {
+    color: #888;
+    font-size: 11px;
+}
+
+#comparison-container .metric-value {
+    color: #adf;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+#comparison-container .metric-value.negative {
+    color: #faa;
+}
+
+#comparison-left-canvas canvas,
+#comparison-right-canvas canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+#comparison-timeline {
+    -webkit-appearance: none;
+    background: #334;
+    border-radius: 3px;
+    height: 8px;
+}
+
+#comparison-timeline::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #88ddff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 4px rgba(136, 221, 255, 0.5);
+}
+
+#comparison-timeline::-webkit-slider-thumb:hover {
+    background: #aaeeff;
+    box-shadow: 0 0 8px rgba(136, 221, 255, 0.8);
+}
+
+#comparison-loading .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #334;
+    border-top-color: #88ddff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Comparison button gradient animation */
+button[onclick*="initComparisonMode"]:hover {
+    background: linear-gradient(90deg, #2a4455, #554433) !important;
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+}

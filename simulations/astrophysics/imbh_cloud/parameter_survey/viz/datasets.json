@@ -2,15 +2,36 @@
     "datasets": [
         {
             "id": "cooling_results",
-            "name": "Parabolic r_p = 0.4 pc + Cooling",
+            "name": "Cooling (Koyama-Inutsuka)",
             "path": "data/cooling_results",
             "forceCSV": true,
             "config": {
                 "r_peri": 0.4,
                 "cloud_pos0": [-14.4675, 4.8773, 0.0],
                 "cloud_vel0": [7.4071, -1.2149, 0.0],
-                "description": "Wider passage with Koyama-Inutsuka cooling"
+                "description": "Parabolic r_p=0.4pc with Koyama-Inutsuka cooling"
             }
+        },
+        {
+            "id": "adiabatic_results",
+            "name": "Adiabatic (No Cooling)",
+            "path": "data/adiabatic_results",
+            "forceCSV": true,
+            "config": {
+                "r_peri": 0.4,
+                "cloud_pos0": [-14.4675, 4.8773, 0.0],
+                "cloud_vel0": [7.4071, -1.2149, 0.0],
+                "description": "Parabolic r_p=0.4pc without cooling (reference)"
+            }
+        }
+    ],
+    "comparisons": [
+        {
+            "id": "cooling_vs_adiabatic",
+            "name": "Cooling vs Adiabatic",
+            "left": "cooling_results",
+            "right": "adiabatic_results",
+            "description": "Effect of radiative cooling on tidal disruption"
         }
     ],
     "common": {
