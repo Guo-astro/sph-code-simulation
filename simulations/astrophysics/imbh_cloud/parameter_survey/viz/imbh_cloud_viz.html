@@ -405,8 +405,30 @@
                 style="flex: 1; height: 6px;" onchange="onComparisonTimelineChange(this.value)">
         </div>
 
+        <!-- Selection Controls -->
+        <div style="padding: 6px 16px; background: #1a1c24; border-top: 1px solid #334; display: flex; align-items: center; gap: 12px; font-size: 11px;">
+            <span style="color: #888;">Selection:</span>
+            <button id="comp-sel-column" onclick="setComparisonSelectionMode('column')" style="padding: 3px 10px; background: #446688; border: 1px solid #668; color: #adf; border-radius: 3px; cursor: pointer;">Column</button>
+            <button id="comp-sel-plane" onclick="setComparisonSelectionMode('plane')" style="padding: 3px 10px; background: #334; border: 1px solid #556; color: #aaa; border-radius: 3px; cursor: pointer;">Plane</button>
+            <span style="color: #666;">|</span>
+            <span style="color: #888;">Radius:</span>
+            <input type="range" id="comp-sel-radius" min="0.1" max="2" step="0.1" value="0.3" onchange="updateComparisonSelectionRadius(this.value)" style="width: 80px;">
+            <span id="comp-sel-radius-value" style="color: #aaa; width: 40px;">0.3 pc</span>
+            <span style="color: #666;">|</span>
+            <span style="color: #888;">Thickness:</span>
+            <input type="range" id="comp-sel-thickness" min="0.1" max="1" step="0.1" value="0.2" onchange="updateComparisonSelectionThickness(this.value)" style="width: 80px;">
+            <span id="comp-sel-thickness-value" style="color: #aaa; width: 40px;">0.2 pc</span>
+            <span style="color: #666;">|</span>
+            <button onclick="clearComparisonSelection()" style="padding: 3px 10px; background: #433; border: 1px solid #655; color: #faa; border-radius: 3px; cursor: pointer;">Clear</button>
+        </div>
+
+        <!-- Selection Info -->
+        <div id="comparison-selection-info" style="padding: 6px 16px; background: #12141a; border-top: 1px solid #223; font-size: 11px;">
+            <span style="color: #666;">Click on particles to select</span>
+        </div>
+
         <!-- Metrics Panel -->
-        <div style="padding: 8px 16px; background: #12141a; border-top: 1px solid #223; display: flex; gap: 24px; font-size: 11px;">
+        <div style="padding: 8px 16px; background: #0a0c14; border-top: 1px solid #223; display: flex; gap: 24px; font-size: 11px;">
             <div id="comparison-metrics" style="display: flex; gap: 20px; flex-wrap: wrap;">
                 <div class="metric-row"><span class="metric-label" style="color: #888;">Loading metrics...</span></div>
             </div>

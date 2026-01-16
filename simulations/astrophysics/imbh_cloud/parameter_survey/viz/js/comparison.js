@@ -58,7 +58,26 @@ const COMPARISON = {
 
     // UI state
     isLoading: false,
-    loadProgress: { left: 0, right: 0 }
+    loadProgress: { left: 0, right: 0 },
+
+    // Synchronized selection (shared between both views)
+    selection: {
+        mode: 'column',  // 'column' or 'plane'
+        active: false,
+        // Column selection
+        column: {
+            center: null,  // {x, y}
+            radius: 0.3
+        },
+        // Plane selection
+        plane: {
+            zPosition: 0,
+            thickness: 0.2
+        },
+        // Visualization meshes for both sides
+        leftMesh: null,
+        rightMesh: null
+    }
 };
 
 // ============================================================
@@ -96,6 +115,9 @@ async function initComparisonMode(comparisonId) {
 
     // Initialize dual renderers
     initDualRenderers();
+
+    // Initialize selection handlers
+    initComparisonSelection();
 
     // Scan for files and build time index (lightweight - only reads headers)
     COMPARISON.isLoading = true;
@@ -390,6 +412,11 @@ async function syncToTime(time) {
     // Compute comparison metrics
     computeComparisonMetrics();
 
+    // Update selection info if active
+    if (COMPARISON.selection.active) {
+        updateComparisonSelectionInfo();
+    }
+
     // Update UI
     updateComparisonTimeDisplay();
 }
@@ -551,13 +578,28 @@ function updateComparisonParticles(side) {
         positions[i * 3 + 1] = p.y;
         positions[i * 3 + 2] = p.z;
 
-        // Color by density (same as main viz)
+        // Check if particle is selected
+        const selected = isParticleSelected(p);
+
+        // Color by density (same as main viz), or highlight if selected
         const colorValue = getComparisonColorValue(p, comVel);
         const color = valueToColor(colorValue);
 
-        colors[i * 3] = color.r;
-        colors[i * 3 + 1] = color.g;
-        colors[i * 3 + 2] = color.b;
+        if (selected) {
+            // Brighten selected particles
+            colors[i * 3] = Math.min(1, color.r + 0.3);
+            colors[i * 3 + 1] = Math.min(1, color.g + 0.3);
+            colors[i * 3 + 2] = Math.min(1, color.b + 0.3);
+        } else if (COMPARISON.selection.active) {
+            // Dim non-selected particles when selection is active
+            colors[i * 3] = color.r * 0.3;
+            colors[i * 3 + 1] = color.g * 0.3;
+            colors[i * 3 + 2] = color.b * 0.3;
+        } else {
+            colors[i * 3] = color.r;
+            colors[i * 3 + 1] = color.g;
+            colors[i * 3 + 2] = color.b;
+        }
     }
 
     const geometry = new THREE.BufferGeometry();
@@ -875,8 +917,292 @@ function exitComparisonMode() {
     COMPARISON.left.scene = null;
     COMPARISON.right.scene = null;
 
+    // Clear selection
+    clearComparisonSelection();
+
     // Restore main UI
     hideComparisonUI();
 
     console.log('Exited comparison mode');
+}
+
+// ============================================================
+// Synchronized Selection
+// ============================================================
+
+function initComparisonSelection() {
+    // Add click handlers to both canvases
+    const leftCanvas = document.getElementById('comparison-left-canvas');
+    const rightCanvas = document.getElementById('comparison-right-canvas');
+
+    if (leftCanvas) {
+        leftCanvas.addEventListener('click', (e) => onComparisonCanvasClick(e, 'left'));
+    }
+    if (rightCanvas) {
+        rightCanvas.addEventListener('click', (e) => onComparisonCanvasClick(e, 'right'));
+    }
+
+    console.log('Comparison selection handlers initialized');
+}
+
+function onComparisonCanvasClick(event, side) {
+    if (!COMPARISON.enabled) return;
+
+    // Skip if clicking on UI elements
+    if (event.target.closest('button, select, input')) return;
+
+    const data = COMPARISON[side];
+    if (!data.renderer) return;
+
+    const container = event.target.closest('#comparison-left-canvas, #comparison-right-canvas');
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const mouse = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+    );
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, data.camera);
+
+    // Try to hit particles
+    if (data.particleSystem) {
+        raycaster.params.Points.threshold = 0.3;
+        const intersects = raycaster.intersectObject(data.particleSystem);
+
+        if (intersects.length > 0) {
+            const point = intersects[0].point;
+
+            if (COMPARISON.selection.mode === 'column') {
+                // Set column center
+                COMPARISON.selection.column.center = { x: point.x, y: point.y };
+                COMPARISON.selection.active = true;
+
+                console.log(`Column selection at (${point.x.toFixed(2)}, ${point.y.toFixed(2)})`);
+
+                updateComparisonSelectionVisuals();
+                updateComparisonParticlesWithSelection();
+            } else {
+                // Set plane z position
+                COMPARISON.selection.plane.zPosition = point.z;
+                COMPARISON.selection.active = true;
+
+                console.log(`Plane selection at z = ${point.z.toFixed(2)}`);
+
+                updateComparisonSelectionVisuals();
+                updateComparisonParticlesWithSelection();
+            }
+        }
+    }
+}
+
+function updateComparisonSelectionVisuals() {
+    // Remove old meshes
+    removeComparisonSelectionMeshes();
+
+    if (!COMPARISON.selection.active) return;
+
+    if (COMPARISON.selection.mode === 'column') {
+        createComparisonColumnMeshes();
+    } else {
+        createComparisonPlaneMeshes();
+    }
+}
+
+function removeComparisonSelectionMeshes() {
+    if (COMPARISON.selection.leftMesh) {
+        COMPARISON.left.scene?.remove(COMPARISON.selection.leftMesh);
+        COMPARISON.selection.leftMesh.geometry?.dispose();
+        COMPARISON.selection.leftMesh.material?.dispose();
+        COMPARISON.selection.leftMesh = null;
+    }
+    if (COMPARISON.selection.rightMesh) {
+        COMPARISON.right.scene?.remove(COMPARISON.selection.rightMesh);
+        COMPARISON.selection.rightMesh.geometry?.dispose();
+        COMPARISON.selection.rightMesh.material?.dispose();
+        COMPARISON.selection.rightMesh = null;
+    }
+}
+
+function createComparisonColumnMeshes() {
+    const { center, radius } = COMPARISON.selection.column;
+    if (!center) return;
+
+    // Estimate column height from data
+    const height = 10;  // Default height
+
+    const geometry = new THREE.CylinderGeometry(radius, radius, height, 32, 1, true);
+    const material = new THREE.MeshBasicMaterial({
+        color: 0x00ffff,
+        transparent: true,
+        opacity: 0.15,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    });
+
+    // Left scene
+    if (COMPARISON.left.scene) {
+        COMPARISON.selection.leftMesh = new THREE.Mesh(geometry.clone(), material.clone());
+        COMPARISON.selection.leftMesh.rotation.x = Math.PI / 2;
+        COMPARISON.selection.leftMesh.position.set(center.x, center.y, 0);
+        COMPARISON.left.scene.add(COMPARISON.selection.leftMesh);
+    }
+
+    // Right scene
+    if (COMPARISON.right.scene) {
+        COMPARISON.selection.rightMesh = new THREE.Mesh(geometry.clone(), material.clone());
+        COMPARISON.selection.rightMesh.rotation.x = Math.PI / 2;
+        COMPARISON.selection.rightMesh.position.set(center.x, center.y, 0);
+        COMPARISON.right.scene.add(COMPARISON.selection.rightMesh);
+    }
+}
+
+function createComparisonPlaneMeshes() {
+    const { zPosition, thickness } = COMPARISON.selection.plane;
+
+    const geometry = new THREE.PlaneGeometry(20, 20);
+    const material = new THREE.MeshBasicMaterial({
+        color: 0x00ff88,
+        transparent: true,
+        opacity: 0.15,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    });
+
+    // Left scene
+    if (COMPARISON.left.scene) {
+        COMPARISON.selection.leftMesh = new THREE.Mesh(geometry.clone(), material.clone());
+        COMPARISON.selection.leftMesh.position.set(0, 0, zPosition);
+        COMPARISON.left.scene.add(COMPARISON.selection.leftMesh);
+    }
+
+    // Right scene
+    if (COMPARISON.right.scene) {
+        COMPARISON.selection.rightMesh = new THREE.Mesh(geometry.clone(), material.clone());
+        COMPARISON.selection.rightMesh.position.set(0, 0, zPosition);
+        COMPARISON.right.scene.add(COMPARISON.selection.rightMesh);
+    }
+}
+
+function updateComparisonParticlesWithSelection() {
+    // Re-render particles with selection highlighting
+    updateComparisonParticles('left');
+    updateComparisonParticles('right');
+
+    // Update selection info
+    updateComparisonSelectionInfo();
+}
+
+function isParticleSelected(particle) {
+    if (!COMPARISON.selection.active) return false;
+
+    if (COMPARISON.selection.mode === 'column') {
+        const { center, radius } = COMPARISON.selection.column;
+        if (!center) return false;
+        const dx = particle.x - center.x;
+        const dy = particle.y - center.y;
+        return (dx * dx + dy * dy) <= (radius * radius);
+    } else {
+        const { zPosition, thickness } = COMPARISON.selection.plane;
+        const halfThick = thickness / 2;
+        return particle.z >= (zPosition - halfThick) && particle.z <= (zPosition + halfThick);
+    }
+}
+
+function updateComparisonSelectionInfo() {
+    const infoEl = document.getElementById('comparison-selection-info');
+    if (!infoEl) return;
+
+    if (!COMPARISON.selection.active) {
+        infoEl.innerHTML = '<span style="color: #666;">Click on particles to select</span>';
+        return;
+    }
+
+    // Count selected particles in both datasets
+    const leftSnap = COMPARISON.left.snapshotCache[COMPARISON.left.currentFrame];
+    const rightSnap = COMPARISON.right.snapshotCache[COMPARISON.right.currentFrame];
+
+    let leftCount = 0, rightCount = 0;
+    let leftMass = 0, rightMass = 0;
+
+    if (leftSnap) {
+        for (const p of leftSnap.particles) {
+            if (isParticleSelected(p)) {
+                leftCount++;
+                leftMass += p.mass;
+            }
+        }
+    }
+
+    if (rightSnap) {
+        for (const p of rightSnap.particles) {
+            if (isParticleSelected(p)) {
+                rightCount++;
+                rightMass += p.mass;
+            }
+        }
+    }
+
+    const modeLabel = COMPARISON.selection.mode === 'column' ? 'Column' : 'Plane';
+    const deltaN = leftCount - rightCount;
+    const deltaM = leftMass - rightMass;
+
+    infoEl.innerHTML = `
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <span style="color: #88ddff;">${modeLabel} Selection</span>
+            <span>Cooling: <b style="color: #66ddff;">${leftCount}</b> (${leftMass.toFixed(1)} M☉)</span>
+            <span>Adiabatic: <b style="color: #ffcc88;">${rightCount}</b> (${rightMass.toFixed(1)} M☉)</span>
+            <span>ΔN: <b style="color: ${deltaN < 0 ? '#faa' : '#afa'};">${deltaN > 0 ? '+' : ''}${deltaN}</b></span>
+            <span>ΔM: <b style="color: ${deltaM < 0 ? '#faa' : '#afa'};">${deltaM.toFixed(2)} M☉</b></span>
+        </div>
+    `;
+}
+
+function setComparisonSelectionMode(mode) {
+    COMPARISON.selection.mode = mode;
+    COMPARISON.selection.active = false;
+    removeComparisonSelectionMeshes();
+    updateComparisonSelectionInfo();
+
+    // Update mode button styles
+    const colBtn = document.getElementById('comp-sel-column');
+    const planeBtn = document.getElementById('comp-sel-plane');
+
+    if (colBtn) colBtn.style.background = mode === 'column' ? '#446688' : '#334';
+    if (planeBtn) planeBtn.style.background = mode === 'plane' ? '#446688' : '#334';
+
+    console.log('Comparison selection mode:', mode);
+}
+
+function updateComparisonSelectionRadius(value) {
+    COMPARISON.selection.column.radius = parseFloat(value);
+
+    const display = document.getElementById('comp-sel-radius-value');
+    if (display) display.textContent = value + ' pc';
+
+    if (COMPARISON.selection.active && COMPARISON.selection.mode === 'column') {
+        updateComparisonSelectionVisuals();
+        updateComparisonParticlesWithSelection();
+    }
+}
+
+function updateComparisonSelectionThickness(value) {
+    COMPARISON.selection.plane.thickness = parseFloat(value);
+
+    const display = document.getElementById('comp-sel-thickness-value');
+    if (display) display.textContent = value + ' pc';
+
+    if (COMPARISON.selection.active && COMPARISON.selection.mode === 'plane') {
+        updateComparisonParticlesWithSelection();
+    }
+}
+
+function clearComparisonSelection() {
+    COMPARISON.selection.active = false;
+    COMPARISON.selection.column.center = null;
+    removeComparisonSelectionMeshes();
+    updateComparisonParticles('left');
+    updateComparisonParticles('right');
+    updateComparisonSelectionInfo();
 }
