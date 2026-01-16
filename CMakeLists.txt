@@ -147,4 +147,22 @@ if(BUILD_TESTS)
     )
     target_compile_options(test_kernel_gravity PRIVATE -Wall -Wno-sign-compare)
     gtest_discover_tests(test_kernel_gravity)
+
+    # Neighbor search validation tests (tree vs exhaustive search comparison)
+    add_executable(test_neighbor_search
+        tests/test_neighbor_search.cpp
+        src/bhtree.cpp
+        src/exhaustive_search.cpp
+    )
+    target_compile_features(test_neighbor_search PUBLIC cxx_std_14)
+    target_compile_definitions(test_neighbor_search PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_neighbor_search PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_neighbor_search
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_neighbor_search PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_neighbor_search)
 endif()

@@ -129,6 +129,7 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
     auto * periodic = sim->get_periodic().get();
     const int num = sim->get_particle_num();
     auto * kernel = sim->get_kernel().get();
+    auto * tree = sim->get_tree().get();
 
     // Reset derivatives (stored in dS, de like SR-GSPH)
 #pragma omp parallel for
