@@ -9,8 +9,10 @@ const COMPARISON = {
     // Left panel (primary - cooling)
     left: {
         datasetId: null,
-        snapshots: [],
-        timeIndex: [],  // [{ time, frameIdx }, ...]
+        basePath: null,
+        snapshotFiles: [],      // List of filenames
+        snapshotCache: {},      // { frameIdx: snapshotData } - sparse cache
+        timeIndex: [],          // [{ time, frameIdx, filename }, ...]
         currentFrame: 0,
         scene: null,
         camera: null,
@@ -22,7 +24,9 @@ const COMPARISON = {
     // Right panel (secondary - adiabatic)
     right: {
         datasetId: null,
-        snapshots: [],
+        basePath: null,
+        snapshotFiles: [],
+        snapshotCache: {},
         timeIndex: [],
         currentFrame: 0,
         scene: null,
@@ -36,6 +40,9 @@ const COMPARISON = {
     currentTime: 0,
     maxTime: 0,
     minTime: 0,
+
+    // Cache settings (keep only a few frames in memory)
+    maxCacheSize: 10,  // Max frames to keep per side
 
     // Comparison metrics at current time
     metrics: {
@@ -80,7 +87,9 @@ async function initComparisonMode(comparisonId) {
     }
 
     COMPARISON.left.datasetId = leftDataset.id;
+    COMPARISON.left.basePath = leftDataset.path;
     COMPARISON.right.datasetId = rightDataset.id;
+    COMPARISON.right.basePath = rightDataset.path;
 
     // Show comparison UI
     showComparisonUI();
@@ -88,26 +97,30 @@ async function initComparisonMode(comparisonId) {
     // Initialize dual renderers
     initDualRenderers();
 
-    // Load both datasets
+    // Scan for files and build time index (lightweight - only reads headers)
     COMPARISON.isLoading = true;
     updateComparisonLoadingUI();
 
     await Promise.all([
-        loadComparisonDataset('left', leftDataset),
-        loadComparisonDataset('right', rightDataset)
+        scanDatasetFiles('left', leftDataset),
+        scanDatasetFiles('right', rightDataset)
     ]);
-
-    COMPARISON.isLoading = false;
-
-    // Build time indices
-    buildTimeIndices();
 
     // Compute overlapping time range
     computeTimeRange();
 
+    // Load first frames
+    await Promise.all([
+        loadFrameIfNeeded('left', 0),
+        loadFrameIfNeeded('right', 0)
+    ]);
+
+    COMPARISON.isLoading = false;
+    hideComparisonLoading();
+
     // Initialize to t=0
     COMPARISON.currentTime = COMPARISON.minTime;
-    syncToTime(COMPARISON.currentTime);
+    await syncToTime(COMPARISON.currentTime);
 
     COMPARISON.enabled = true;
     console.log('Comparison mode initialized');
@@ -119,14 +132,17 @@ async function initComparisonMode(comparisonId) {
 }
 
 // ============================================================
-// Data Loading
+// Data Loading (Lazy - scan headers first, load data on demand)
 // ============================================================
 
-async function loadComparisonDataset(side, dataset) {
+async function scanDatasetFiles(side, dataset) {
     const basePath = dataset.path;
-    const snapshots = [];
+    const timeIndex = [];
+    const snapshotFiles = [];
 
-    // Scan for snapshot files
+    console.log(`Scanning ${side} dataset: ${basePath}`);
+
+    // Scan for snapshot files and read only headers to get times
     let fileIndex = 1;
     let consecutiveFails = 0;
 
@@ -142,9 +158,20 @@ async function loadComparisonDataset(side, dataset) {
                 continue;
             }
 
-            const csvText = await response.text();
-            const snapshot = parseComparisonSnapshot(csvText, fileIndex - 1);
-            snapshots.push(snapshot);
+            // Only read first 2KB to get header with time info
+            const reader = response.body.getReader();
+            const { value } = await reader.read();
+            reader.cancel();  // Cancel the rest of the download
+
+            const headerText = new TextDecoder().decode(value.slice(0, 2000));
+            const time = extractTimeFromHeader(headerText, fileIndex - 1);
+
+            snapshotFiles.push(filename);
+            timeIndex.push({
+                time: time,
+                frameIdx: fileIndex - 1,
+                filename: filename
+            });
 
             consecutiveFails = 0;
             COMPARISON.loadProgress[side] = fileIndex;
@@ -155,13 +182,75 @@ async function loadComparisonDataset(side, dataset) {
         }
 
         fileIndex++;
-
-        // Safety limit
-        if (fileIndex > 300) break;
+        if (fileIndex > 300) break;  // Safety limit
     }
 
-    COMPARISON[side].snapshots = snapshots;
-    console.log(`Loaded ${snapshots.length} snapshots for ${side} (${dataset.id})`);
+    COMPARISON[side].snapshotFiles = snapshotFiles;
+    COMPARISON[side].timeIndex = timeIndex.sort((a, b) => a.time - b.time);
+    COMPARISON[side].snapshotCache = {};
+
+    console.log(`Scanned ${snapshotFiles.length} files for ${side}`);
+}
+
+function extractTimeFromHeader(headerText, fallbackIndex) {
+    // Extract time from CSV header: "# Time (code): 1.234"
+    const match = headerText.match(/# Time \(code\):\s*([\d.e+-]+)/);
+    if (match) {
+        return parseFloat(match[1]);
+    }
+    return fallbackIndex * 0.02;  // Fallback
+}
+
+async function loadFrameIfNeeded(side, frameIdx) {
+    const data = COMPARISON[side];
+
+    // Already cached?
+    if (data.snapshotCache[frameIdx]) {
+        return data.snapshotCache[frameIdx];
+    }
+
+    // Find the filename for this frame
+    const timeEntry = data.timeIndex.find(t => t.frameIdx === frameIdx);
+    if (!timeEntry) {
+        console.warn(`Frame ${frameIdx} not found in ${side} time index`);
+        return null;
+    }
+
+    const url = `${data.basePath}/${timeEntry.filename}`;
+    console.log(`Loading ${side} frame ${frameIdx}: ${url}`);
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            console.error(`Failed to load ${url}`);
+            return null;
+        }
+
+        const csvText = await response.text();
+        const snapshot = parseComparisonSnapshot(csvText, frameIdx);
+
+        // Cache management: remove oldest if cache is full
+        const cacheKeys = Object.keys(data.snapshotCache).map(Number);
+        if (cacheKeys.length >= COMPARISON.maxCacheSize) {
+            // Remove the frame furthest from current
+            const currentFrame = data.currentFrame;
+            cacheKeys.sort((a, b) => Math.abs(b - currentFrame) - Math.abs(a - currentFrame));
+            const toRemove = cacheKeys[0];
+            delete data.snapshotCache[toRemove];
+            console.log(`Cache evicted frame ${toRemove} from ${side}`);
+        }
+
+        data.snapshotCache[frameIdx] = snapshot;
+        return snapshot;
+
+    } catch (error) {
+        console.error(`Error loading frame ${frameIdx}:`, error);
+        return null;
+    }
+}
+
+function getSnapshot(side, frameIdx) {
+    return COMPARISON[side].snapshotCache[frameIdx] || null;
 }
 
 function parseComparisonSnapshot(csvText, frameIndex) {
@@ -233,34 +322,15 @@ function parseComparisonSnapshot(csvText, frameIndex) {
 }
 
 // ============================================================
-// Time Indexing
+// Time Indexing (time index is built during scan, not here)
 // ============================================================
-
-function buildTimeIndices() {
-    // Build time index for left
-    COMPARISON.left.timeIndex = COMPARISON.left.snapshots.map((snap, idx) => ({
-        time: snap.time,
-        frameIdx: idx
-    })).sort((a, b) => a.time - b.time);
-
-    // Build time index for right
-    COMPARISON.right.timeIndex = COMPARISON.right.snapshots.map((snap, idx) => ({
-        time: snap.time,
-        frameIdx: idx
-    })).sort((a, b) => a.time - b.time);
-
-    console.log('Time indices built:', {
-        left: COMPARISON.left.timeIndex.length,
-        right: COMPARISON.right.timeIndex.length
-    });
-}
 
 function computeTimeRange() {
     const leftTimes = COMPARISON.left.timeIndex;
     const rightTimes = COMPARISON.right.timeIndex;
 
     if (leftTimes.length === 0 || rightTimes.length === 0) {
-        console.error('No snapshots loaded');
+        console.error('No snapshots found');
         return;
     }
 
@@ -273,7 +343,8 @@ function computeTimeRange() {
     COMPARISON.minTime = Math.max(leftMin, rightMin);
     COMPARISON.maxTime = Math.min(leftMax, rightMax);
 
-    console.log('Comparison time range:', COMPARISON.minTime, 'to', COMPARISON.maxTime);
+    console.log('Comparison time range:', COMPARISON.minTime.toFixed(3), 'to', COMPARISON.maxTime.toFixed(3));
+    console.log('Left:', leftTimes.length, 'frames, Right:', rightTimes.length, 'frames');
 
     // Update timeline slider
     updateComparisonTimeline();
@@ -296,12 +367,21 @@ function getFrameAtTime(side, targetTime) {
     return bestIdx;
 }
 
-function syncToTime(time) {
+async function syncToTime(time) {
     COMPARISON.currentTime = Math.max(COMPARISON.minTime, Math.min(COMPARISON.maxTime, time));
 
     // Find nearest frames for both sides
-    COMPARISON.left.currentFrame = getFrameAtTime('left', COMPARISON.currentTime);
-    COMPARISON.right.currentFrame = getFrameAtTime('right', COMPARISON.currentTime);
+    const leftFrame = getFrameAtTime('left', COMPARISON.currentTime);
+    const rightFrame = getFrameAtTime('right', COMPARISON.currentTime);
+
+    COMPARISON.left.currentFrame = leftFrame;
+    COMPARISON.right.currentFrame = rightFrame;
+
+    // Load frames if needed (lazy loading)
+    await Promise.all([
+        loadFrameIfNeeded('left', leftFrame),
+        loadFrameIfNeeded('right', rightFrame)
+    ]);
 
     // Update particle systems
     updateComparisonParticles('left');
@@ -432,9 +512,12 @@ function resizeComparisonRenderers() {
 
 function updateComparisonParticles(side) {
     const data = COMPARISON[side];
-    const snapshot = data.snapshots[data.currentFrame];
+    const snapshot = data.snapshotCache[data.currentFrame];
 
-    if (!snapshot || !data.scene) return;
+    if (!snapshot || !data.scene) {
+        console.log(`No snapshot for ${side} frame ${data.currentFrame}`);
+        return;
+    }
 
     // Remove old particle system
     if (data.particleSystem) {
@@ -523,8 +606,8 @@ function getComparisonColorValue(particle, comVel) {
 // ============================================================
 
 function computeComparisonMetrics() {
-    const leftSnap = COMPARISON.left.snapshots[COMPARISON.left.currentFrame];
-    const rightSnap = COMPARISON.right.snapshots[COMPARISON.right.currentFrame];
+    const leftSnap = COMPARISON.left.snapshotCache[COMPARISON.left.currentFrame];
+    const rightSnap = COMPARISON.right.snapshotCache[COMPARISON.right.currentFrame];
 
     if (!leftSnap || !rightSnap) return;
 
@@ -595,14 +678,19 @@ function updateComparisonLoadingUI() {
     if (COMPARISON.isLoading) {
         loadingEl.style.display = 'flex';
         loadingEl.innerHTML = `
-            <div class="loading-spinner"></div>
-            <div>Loading comparison data...</div>
-            <div>Cooling: ${COMPARISON.loadProgress.left} frames</div>
-            <div>Adiabatic: ${COMPARISON.loadProgress.right} frames</div>
+            <div class="spinner"></div>
+            <div>Scanning files...</div>
+            <div>Cooling: ${COMPARISON.loadProgress.left} files</div>
+            <div>Adiabatic: ${COMPARISON.loadProgress.right} files</div>
         `;
     } else {
         loadingEl.style.display = 'none';
     }
+}
+
+function hideComparisonLoading() {
+    const loadingEl = document.getElementById('comparison-loading');
+    if (loadingEl) loadingEl.style.display = 'none';
 }
 
 function updateComparisonTimeline() {
@@ -629,12 +717,12 @@ function updateComparisonTimeDisplay() {
     const rightTimeEl = document.getElementById('comparison-right-time');
 
     if (leftTimeEl) {
-        const leftSnap = COMPARISON.left.snapshots[COMPARISON.left.currentFrame];
+        const leftSnap = COMPARISON.left.snapshotCache[COMPARISON.left.currentFrame];
         leftTimeEl.textContent = `t = ${(leftSnap?.time * 0.978).toFixed(3)} Myr | N = ${leftSnap?.particles.length || 0}`;
     }
 
     if (rightTimeEl) {
-        const rightSnap = COMPARISON.right.snapshots[COMPARISON.right.currentFrame];
+        const rightSnap = COMPARISON.right.snapshotCache[COMPARISON.right.currentFrame];
         rightTimeEl.textContent = `t = ${(rightSnap?.time * 0.978).toFixed(3)} Myr | N = ${rightSnap?.particles.length || 0}`;
     }
 }
@@ -676,8 +764,8 @@ function updateComparisonMetricsUI() {
 // Timeline Controls
 // ============================================================
 
-function onComparisonTimelineChange(value) {
-    syncToTime(parseFloat(value));
+async function onComparisonTimelineChange(value) {
+    await syncToTime(parseFloat(value));
 }
 
 let comparisonPlaying = false;
@@ -691,29 +779,38 @@ function toggleComparisonPlay() {
 
     if (comparisonPlaying) {
         const timeStep = (COMPARISON.maxTime - COMPARISON.minTime) / 100;
-        comparisonPlayInterval = setInterval(() => {
+
+        const playStep = async () => {
+            if (!comparisonPlaying) return;
+
             let newTime = COMPARISON.currentTime + timeStep;
             if (newTime > COMPARISON.maxTime) {
                 newTime = COMPARISON.minTime;
             }
-            syncToTime(newTime);
+            await syncToTime(newTime);
 
             const slider = document.getElementById('comparison-timeline');
             if (slider) slider.value = COMPARISON.currentTime;
-        }, 100);
+
+            if (comparisonPlaying) {
+                comparisonPlayInterval = setTimeout(playStep, 150);  // Slower for lazy loading
+            }
+        };
+
+        playStep();
     } else {
         if (comparisonPlayInterval) {
-            clearInterval(comparisonPlayInterval);
+            clearTimeout(comparisonPlayInterval);
             comparisonPlayInterval = null;
         }
     }
 }
 
-function stepComparisonFrame(direction) {
+async function stepComparisonFrame(direction) {
     const timeStep = (COMPARISON.maxTime - COMPARISON.minTime) / 50;
     let newTime = COMPARISON.currentTime + direction * timeStep;
     newTime = Math.max(COMPARISON.minTime, Math.min(COMPARISON.maxTime, newTime));
-    syncToTime(newTime);
+    await syncToTime(newTime);
 
     const slider = document.getElementById('comparison-timeline');
     if (slider) slider.value = COMPARISON.currentTime;
@@ -749,7 +846,7 @@ function exitComparisonMode() {
 
     // Stop playback
     if (comparisonPlayInterval) {
-        clearInterval(comparisonPlayInterval);
+        clearTimeout(comparisonPlayInterval);
         comparisonPlayInterval = null;
     }
     comparisonPlaying = false;
@@ -764,9 +861,19 @@ function exitComparisonMode() {
         COMPARISON.right.renderer.domElement.remove();
     }
 
-    // Clear data
-    COMPARISON.left.snapshots = [];
-    COMPARISON.right.snapshots = [];
+    // Clear caches to free memory
+    COMPARISON.left.snapshotCache = {};
+    COMPARISON.left.snapshotFiles = [];
+    COMPARISON.left.timeIndex = [];
+    COMPARISON.right.snapshotCache = {};
+    COMPARISON.right.snapshotFiles = [];
+    COMPARISON.right.timeIndex = [];
+
+    // Reset references
+    COMPARISON.left.renderer = null;
+    COMPARISON.right.renderer = null;
+    COMPARISON.left.scene = null;
+    COMPARISON.right.scene = null;
 
     // Restore main UI
     hideComparisonUI();
