@@ -253,4 +253,23 @@ if(BUILD_TESTS)
     )
     target_compile_options(test_morton PRIVATE -Wall -Wno-sign-compare)
     gtest_discover_tests(test_morton)
+
+    # 3D Shock tube regression tests
+    # Tests numerical reproducibility against stored reference data
+    # L2 error threshold: 1e-10 to catch any numerical changes
+    add_executable(test_shock_tube_3d_regression
+        tests/regression/test_shock_tube_3d_regression.cpp
+    )
+    target_compile_features(test_shock_tube_3d_regression PUBLIC cxx_std_17)
+    target_compile_definitions(test_shock_tube_3d_regression PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_shock_tube_3d_regression PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_shock_tube_3d_regression
+        GTest::gtest_main
+        GTest::gmock
+        nlohmann_json::nlohmann_json
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_shock_tube_3d_regression PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_shock_tube_3d_regression)
 endif()
