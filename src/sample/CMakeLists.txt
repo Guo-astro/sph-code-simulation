@@ -24,6 +24,7 @@ target_sources(sph
         sedov.cpp
         shock_tube.cpp
         shock_tube_2d.cpp
+        shock_tube_3d.cpp
         sinusoidal_perturbation.cpp
         gr_schwarzschild_shock.cpp
         gr_geodesic_test.cpp

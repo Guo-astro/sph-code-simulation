@@ -1,5 +1,5 @@
-libdir=/var/empty/local/lib
-includedir=/var/empty/local/include
+libdir=/usr/local/lib
+includedir=/usr/local/include
 
 Name: gtest_main
 Description: GoogleTest (with main() function)

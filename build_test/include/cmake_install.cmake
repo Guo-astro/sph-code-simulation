@@ -1,8 +1,8 @@
-# Install script for directory: /Users/guo-opt-p148/sph-code-simulation/include
+# Install script for directory: /Users/kunishigehana/sph-code-simulation/include
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/var/empty/local")
+  set(CMAKE_INSTALL_PREFIX "/usr/local")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -39,17 +39,17 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/include/disph/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/include/gsph/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/include/gdisph/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/include/srgsph/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/include/kernel/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/include/disph/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/include/gsph/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/include/gdisph/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/include/srgsph/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/include/kernel/cmake_install.cmake")
 
 endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
 if(CMAKE_INSTALL_LOCAL_ONLY)
-  file(WRITE "/Users/guo-opt-p148/sph-code-simulation/build_test/include/install_local_manifest.txt"
+  file(WRITE "/Users/kunishigehana/sph-code-simulation/build_test/include/install_local_manifest.txt"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()

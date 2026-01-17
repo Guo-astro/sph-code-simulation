@@ -1,11 +1,16 @@
 #include <cassert>
 #include <iostream>
+#include <array>
 
 #include "parameters.hpp"
 #include "bhtree.hpp"
 #include "openmp.hpp"
 #include "exception.hpp"
 #include "periodic.hpp"
+
+#ifdef USE_MORTON_ORDERING
+#include "morton.hpp"
+#endif
 
 namespace sph
 {
@@ -497,5 +502,210 @@ void BHTree::BHNode::calc_force(SPHParticle & p_i, const real theta2, const real
         p_i.grav_acc -= d * (g_constant * mass * pow3(r_inv));
     }
 }
+
+// =============================================================================
+// Iterative Tree Traversal Implementations
+// =============================================================================
+
+#ifdef USE_ITERATIVE_TRAVERSAL
+
+// Maximum tree depth of 64 levels supports 2^64 nodes
+constexpr int ITERATIVE_MAX_TREE_DEPTH = 64;
+
+int BHTree::neighbor_search_iterative(const SPHParticle & p_i, std::vector<int> & neighbor_list,
+                                       const std::vector<SPHParticle> & particles, const bool is_ij)
+{
+    int n_neighbor = 0;
+    const int max_neighbors = static_cast<int>(neighbor_list.size());
+    const vec_t & r_i = p_i.pos;
+
+    // Thread-local stack to avoid recursion
+    thread_local std::array<BHNode*, ITERATIVE_MAX_TREE_DEPTH> stack;
+    int stack_top = 0;
+
+    // Start with root node
+    stack[stack_top++] = &m_root;
+
+    while (stack_top > 0) {
+        BHNode* node = stack[--stack_top];
+
+        // Compute kernel size for this search
+        const real h = is_ij ? std::max(p_i.sml, node->kernel_size) : p_i.sml;
+        const real h2 = h * h;
+        const real l2 = sqr(node->edge * 0.5 + h);
+
+        // AABB overlap test: check if search sphere overlaps node bounding box
+        const vec_t d = m_periodic->calc_r_ij(r_i, node->center);
+        real dx2_max = sqr(d[0]);
+        for (int i = 1; i < DIM; ++i) {
+            const real dx2 = sqr(d[i]);
+            if (dx2 > dx2_max) {
+                dx2_max = dx2;
+            }
+        }
+
+        if (dx2_max > l2) {
+            continue;  // No overlap, skip this node
+        }
+
+        if (node->is_leaf) {
+            // Process particles in leaf node
+            auto * p = node->first;
+            while (p) {
+                // Scalar distance check with periodic boundary handling
+                const vec_t & r_j = p->pos;
+                const vec_t r_ij = m_periodic->calc_r_ij(r_i, r_j);
+                const real r2 = abs2(r_ij);
+                if (r2 < h2) {
+                    if (n_neighbor >= max_neighbors) {
+                        THROW_ERROR("Neighbor list overflow: increase neighbor_list_size in defines.hpp");
+                    }
+                    neighbor_list[n_neighbor++] = p->id;
+                }
+                p = p->next;
+            }
+        } else {
+            // Push children onto stack (reverse order for depth-first traversal)
+            for (int c = NCHILD - 1; c >= 0; --c) {
+                if (node->childs[c]) {
+                    if (stack_top >= ITERATIVE_MAX_TREE_DEPTH) {
+                        THROW_ERROR("Tree depth exceeded ITERATIVE_MAX_TREE_DEPTH (", ITERATIVE_MAX_TREE_DEPTH, ")");
+                    }
+                    stack[stack_top++] = node->childs[c];
+                }
+            }
+        }
+    }
+
+    // Overflow check
+    if (n_neighbor > max_neighbors || n_neighbor < 0) {
+        THROW_ERROR("n_neighbor (", n_neighbor, ") exceeds max_neighbors (", max_neighbors, ") for particle ", p_i.id);
+    }
+
+    // Sort neighbors by distance (same as recursive version)
+    const auto & pos_i = p_i.pos;
+    std::sort(neighbor_list.begin(), neighbor_list.begin() + n_neighbor, [&](const int a, const int b) {
+        const vec_t r_ia = m_periodic->calc_r_ij(pos_i, particles[a].pos);
+        const vec_t r_ib = m_periodic->calc_r_ij(pos_i, particles[b].pos);
+        return abs2(r_ia) < abs2(r_ib);
+    });
+
+    return n_neighbor;
+}
+
+void BHTree::tree_force_iterative(SPHParticle & p_i)
+{
+    p_i.phi = 0.0;
+    p_i.grav_acc = vec_t(0.0);
+
+    const vec_t & r_i = p_i.pos;
+
+    // Thread-local stack
+    thread_local std::array<BHNode*, ITERATIVE_MAX_TREE_DEPTH> stack;
+    int stack_top = 0;
+
+    stack[stack_top++] = &m_root;
+
+    while (stack_top > 0) {
+        BHNode* node = stack[--stack_top];
+
+        const real l2 = node->edge * node->edge;
+        const vec_t d = m_periodic->calc_r_ij(r_i, node->m_center);
+        const real d2 = abs2(d);
+
+        // Barnes-Hut opening criterion
+        const bool theta_open = (l2 > m_theta2 * d2);
+        const bool distance_open = (d2 < l2);
+
+        if (theta_open || distance_open) {
+            // Must open node
+            if (node->is_leaf) {
+                // Direct pairwise forces
+                auto * p = node->first;
+                while (p) {
+                    if (p->id != p_i.id) {
+                        const vec_t & r_j = p->pos;
+                        const vec_t r_ij = m_periodic->calc_r_ij(r_i, r_j);
+                        const real r = std::abs(r_ij);
+
+                        if (m_softening_type == GravitySofteningType::WENDLAND_C4) {
+                            if (m_use_fixed_softening) {
+                                p_i.phi -= m_g_constant * p->mass * wendland_phi(r, m_fixed_softening);
+                                p_i.grav_acc -= r_ij * (m_g_constant * p->mass * wendland_g(r, m_fixed_softening));
+                            } else {
+                                const real h_ij = 0.5 * (p_i.sml + p->sml);
+                                p_i.phi -= m_g_constant * p->mass * wendland_phi(r, h_ij);
+                                p_i.grav_acc -= r_ij * (m_g_constant * p->mass * wendland_g(r, h_ij));
+                            }
+                        } else {
+                            // Hernquist-Katz
+                            if (m_use_fixed_softening) {
+                                const real h_fixed = m_fixed_softening * 2.0;
+                                p_i.phi -= m_g_constant * p->mass * f(r, h_fixed);
+                                p_i.grav_acc -= r_ij * (m_g_constant * p->mass * g(r, h_fixed));
+                            } else {
+                                p_i.phi -= m_g_constant * p->mass * (f(r, p_i.sml) + f(r, p->sml)) * 0.5;
+                                p_i.grav_acc -= r_ij * (m_g_constant * p->mass * (g(r, p_i.sml) + g(r, p->sml)) * 0.5);
+                            }
+                        }
+                    }
+                    p = p->next;
+                }
+            } else {
+                // Push children (reverse order for depth-first)
+                for (int c = NCHILD - 1; c >= 0; --c) {
+                    if (node->childs[c]) {
+                        if (stack_top >= ITERATIVE_MAX_TREE_DEPTH) {
+                            THROW_ERROR("Tree depth exceeded ITERATIVE_MAX_TREE_DEPTH (", ITERATIVE_MAX_TREE_DEPTH, ")");
+                        }
+                        stack[stack_top++] = node->childs[c];
+                    }
+                }
+            }
+        } else {
+            // Use monopole approximation
+            const real r_inv = 1.0 / std::sqrt(d2);
+            p_i.phi -= m_g_constant * node->mass * r_inv;
+            p_i.grav_acc -= d * (m_g_constant * node->mass * pow3(r_inv));
+        }
+    }
+}
+
+#endif // USE_ITERATIVE_TRAVERSAL
+
+// =============================================================================
+// Morton Code Particle Reordering
+// =============================================================================
+
+#ifdef USE_MORTON_ORDERING
+
+void BHTree::reorder_particles_by_morton(std::vector<SPHParticle> & particles, const int particle_num)
+{
+    if (particle_num <= 0) return;
+
+    // Compute domain bounds
+    real domain_min[DIM];
+    real domain_max[DIM];
+    real domain_size[DIM];
+
+    for (int d = 0; d < DIM; ++d) {
+        if (m_is_periodic) {
+            domain_min[d] = m_range_min[d];
+            domain_max[d] = m_range_max[d];
+        } else {
+            domain_min[d] = m_root.center[d] - m_root.edge * 0.5;
+            domain_max[d] = m_root.center[d] + m_root.edge * 0.5;
+        }
+        domain_size[d] = domain_max[d] - domain_min[d];
+        if (domain_size[d] <= 0) {
+            domain_size[d] = 1.0;  // Avoid division by zero
+        }
+    }
+
+    // Reorder particles by Morton code
+    morton::sort_particles_by_morton(particles, domain_min, domain_size);
+}
+
+#endif // USE_MORTON_ORDERING
 
 }

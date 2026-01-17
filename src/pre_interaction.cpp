@@ -32,8 +32,9 @@ void PreInteraction::initialize(std::shared_ptr<SPHParameters> param)
     m_neighbor_number = param->physics.neighbor_number;
     m_c_smooth = param->physics.c_smooth;  // C_smooth: smoothing length expansion factor
     m_iteration = param->iterative_sml;
+    m_preserve_initial_density = param->preserve_initial_density;
     if(m_iteration) {
-        m_kernel_ratio = 1.2;
+        m_kernel_ratio = 1.2;  // Standard value for iterative smoothing
     } else {
         m_kernel_ratio = 1.0;
     }
@@ -247,15 +248,35 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
 {
     std::cout << "\n=== INITIAL_SMOOTHING CALLED ===" << std::endl;
-    
+
     auto & particles = sim->get_particles();
     auto * periodic = sim->get_periodic().get();
     const int num = sim->get_particle_num();
     auto * kernel = sim->get_kernel().get();
     auto * tree = sim->get_tree().get();
-    
-    std::cout << "First particle before smoothing: dens=" << particles[0].dens 
+
+    // Count real particles and ghost particles
+    int n_real = 0, n_ghost = 0;
+    for (int i = 0; i < num; ++i) {
+        if (particles[i].is_ghost) n_ghost++;
+        else n_real++;
+    }
+    std::cout << "Total particles: " << num << " (real: " << n_real << ", ghost: " << n_ghost << ")" << std::endl;
+
+    std::cout << "First particle before smoothing: dens=" << particles[0].dens
              << ", pres=" << particles[0].pres << ", mass=" << particles[0].mass << std::endl;
+
+    // Collect debug info for boundary particles
+    struct BoundaryDebugInfo {
+        int id;
+        real pos_x;
+        real initial_dens;
+        real kernel_sum_dens;
+        int n_neighbor;
+        int n_ghost_neighbor;
+        real sml;
+    };
+    std::vector<BoundaryDebugInfo> boundary_debug;
 
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
@@ -277,16 +298,6 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
                                       4.0 * M_PI / 3.0;
         p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / DIM);
 
-        // DEBUG first particle
-        bool is_first = (i == 0);
-        if (is_first) {
-            #pragma omp critical
-            {
-                std::cout << "Particle 0: initial sml guess = " << p_i.sml 
-                         << " (mass=" << p_i.mass << ", dens=" << p_i.dens << ")" << std::endl;
-            }
-        }
-        
         // neighbor search
 #ifdef EXHAUSTIVE_SEARCH
         int const n_neighbor = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, m_neighbor_number * neighbor_list_size, periodic, false);
@@ -294,15 +305,11 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
         int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, false);
 #endif
 
-        if (is_first) {
-            #pragma omp critical
-            {
-                std::cout << "Particle 0: found " << n_neighbor << " neighbors" << std::endl;
-            }
-        }
-
-        // density
+        // Compute density via SPH kernel sum: ρ = Σ m_j * W(r_ij, h)
         real dens_i = 0.0;
+        real dh_dens_i = 0.0;
+        int n_used = 0;
+        int n_ghost_used = 0;
         for(int n = 0; n < n_neighbor; ++n) {
             int const j = neighbor_list[n];
             auto & p_j = particles[j];
@@ -313,28 +320,72 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
                 break;
             }
 
+            ++n_used;
+            if (p_j.is_ghost) ++n_ghost_used;
             dens_i += p_j.mass * kernel->w(r, p_i.sml);
-            
-            if (is_first && n < 5) {
-                #pragma omp critical
-                {
-                    std::cout << "  neighbor " << n << ": j=" << j << ", r=" << r 
-                             << ", mass=" << p_j.mass << ", w=" << kernel->w(r, p_i.sml) << std::endl;
-                }
+            dh_dens_i += p_j.mass * kernel->dhw(r, p_i.sml);
+        }
+
+        // Debug: check if this is a boundary particle (near x=0 or x=0.5)
+        real pos_x = pos_i[0];
+        bool is_left_boundary = (pos_x < 0.05);
+        bool is_right_boundary = (pos_x > 0.45);
+        bool is_boundary = is_left_boundary || is_right_boundary;
+
+        if (is_boundary) {
+            #pragma omp critical
+            {
+                BoundaryDebugInfo info;
+                info.id = p_i.id;
+                info.pos_x = pos_x;
+                info.initial_dens = p_i.dens;
+                info.kernel_sum_dens = dens_i;
+                info.n_neighbor = n_used;
+                info.n_ghost_neighbor = n_ghost_used;
+                info.sml = p_i.sml;
+                boundary_debug.push_back(info);
             }
         }
 
-        p_i.dens = dens_i;
-        
-        if (is_first) {
-            #pragma omp critical
-            {
-                std::cout << "Particle 0: final dens = " << dens_i << std::endl;
-            }
+        // Store computed density (unless preserveInitialDensity is set for shock tubes)
+        if(!m_preserve_initial_density) {
+            p_i.dens = dens_i;
+            p_i.pres = (m_gamma - 1.0) * dens_i * p_i.ene;
         }
+        // If preserveInitialDensity is set, keep the initial density/pressure values
+
+        // Grad-h correction factor (use kernel-computed density for gradh even if preserving initial)
+        real dens_for_gradh = m_preserve_initial_density ? p_i.dens : dens_i;
+        if(m_use_gradh) {
+            p_i.gradh = 1.0 / (1.0 + p_i.sml / (DIM * dens_for_gradh) * dh_dens_i);
+        } else {
+            p_i.gradh = 1.0;
+        }
+        p_i.neighbor = n_used;
     }
-    
-    std::cout << "First particle after smoothing: dens=" << particles[0].dens 
+
+    // Print boundary particle debug info
+    std::cout << "\n=== BOUNDARY PARTICLE DENSITY DEBUG ===" << std::endl;
+    std::sort(boundary_debug.begin(), boundary_debug.end(),
+              [](const BoundaryDebugInfo& a, const BoundaryDebugInfo& b) { return a.pos_x < b.pos_x; });
+
+    int count = 0;
+    for (const auto& info : boundary_debug) {
+        if (count < 10 || (info.pos_x > 0.45 && count < 20)) {  // First 10 left + first 10 right
+            std::cout << "Particle " << info.id << ": x=" << info.pos_x
+                     << ", initial_dens=" << info.initial_dens
+                     << ", kernel_sum=" << info.kernel_sum_dens
+                     << ", ratio=" << (info.kernel_sum_dens / info.initial_dens)
+                     << ", n_neighbor=" << info.n_neighbor
+                     << ", n_ghost=" << info.n_ghost_neighbor
+                     << ", sml=" << info.sml
+                     << std::endl;
+        }
+        count++;
+    }
+    std::cout << "=== END BOUNDARY DEBUG ===" << std::endl;
+
+    std::cout << "First particle after smoothing: dens=" << particles[0].dens
              << ", pres=" << particles[0].pres << ", mass=" << particles[0].mass << std::endl;
     std::cout << "=== INITIAL_SMOOTHING COMPLETE ===" << std::endl;
 }

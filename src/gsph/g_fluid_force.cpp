@@ -137,24 +137,24 @@ namespace sph
                     // In perfect HSE this gives exact pressure matching. Any residual
                     // mismatch reflects real deviations from HSE in the profile.
                     // ================================================================
-                    
+
                     const real g_i = inner_product(p_i.grav_acc, e_ij);
                     const real g_j = inner_product(p_j.grav_acc, e_ij);
-                    
+
                     // Extrapolate pressures to interface (at r/2 from each particle)
                     const real half_r = 0.5 * r;
                     const real p_i_interface = p_i.pres - p_i.dens * g_i * half_r;
                     const real p_j_interface = p_j.pres + p_j.dens * g_j * half_r;
-                    
+
                     // Ensure pressures remain positive
                     const real p_floor = 1.0e-10;
                     const real p_i_safe = std::max(p_i_interface, p_floor);
                     const real p_j_safe = std::max(p_j_interface, p_floor);
-                    
+
                     // Sound speeds with extrapolated pressures
                     const real c_i_interface = std::sqrt(m_gamma * p_i_safe / p_i.dens);
                     const real c_j_interface = std::sqrt(m_gamma * p_j_safe / p_j.dens);
-                    
+
                     // Solve Riemann problem with well-balanced pressures
                     const real right[4] = {
                         ve_i,

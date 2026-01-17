@@ -47,6 +47,9 @@
 
 // relaxation
 #include "relaxation/lane_emden_relaxation.hpp"
+
+// ghost particle boundaries
+#include "shock_tube_ghost.hpp"
 #include "relaxation/polytropic_slab_relaxation.hpp"
 #include "relaxation/polytropic_slab_2d_relaxation.hpp"
 #include "relaxation/koyama_inutsuka_relaxation.hpp"
@@ -334,6 +337,14 @@ void Solver::read_parameterfile(const char * filename)
             m_sample = Sample::ShockTube2D;
             m_sample_parameters["Nx"] = input.get<int>("Nx", 200);
             m_sample_parameters["Ny"] = input.get<int>("Ny", 40);
+            m_sample_parameters["Ly"] = input.get<real>("Ly", 0.2);  // Default 2D shock tube domain
+        } else if (sample_type == "shock_tube_3d") {
+            m_sample = Sample::ShockTube3D;
+            m_sample_parameters["Nx"] = input.get<int>("Nx", 100);
+            m_sample_parameters["Ny"] = input.get<int>("Ny", 10);
+            m_sample_parameters["Nz"] = input.get<int>("Nz", 10);
+            m_sample_parameters["Ly"] = input.get<real>("Ly", 0.1);
+            m_sample_parameters["Lz"] = input.get<real>("Lz", 0.1);
         } else if (sample_type == "vacuum") {
             m_sample = Sample::Vacuum;
             m_sample_parameters["N"] = input.get<int>("N", 800);
@@ -806,9 +817,35 @@ void Solver::read_parameterfile(const char * filename)
     // smoothing length
     m_param->iterative_sml = input.get<bool>("iterativeSmoothingLength", true);
 
+    // Preserve initial density (for shock tubes - skip density recalculation in initial_smoothing)
+    m_param->preserve_initial_density = input.get<bool>("preserveInitialDensity", false);
+
     // periodic
     m_param->periodic.is_valid = input.get<bool>("periodic", false);
-    
+
+    // Per-dimension periodic flags (default: all dimensions periodic if periodic=true)
+    // JSON format: "periodicDimensions": [false, true, true] for periodic in y,z only (3D shock tube)
+    {
+        auto periodic_dims_opt = input.get_child_optional("periodicDimensions");
+        if(periodic_dims_opt) {
+            auto & periodic_dims = *periodic_dims_opt;
+            if(periodic_dims.size() != DIM) {
+                THROW_ERROR("periodicDimensions array size != DIM");
+            }
+            int i = 0;
+            for(auto & v : periodic_dims) {
+                std::string val = v.second.data();
+                m_param->periodic.per_dimension[i] = (val == "true" || val == "1");
+                ++i;
+            }
+        } else {
+            // Default: all dimensions periodic if periodic=true
+            for(int i = 0; i < DIM; ++i) {
+                m_param->periodic.per_dimension[i] = m_param->periodic.is_valid;
+            }
+        }
+    }
+
     // Always read domain boundaries (rangeMin/rangeMax) - used for ghost particles even without periodic BC
     {
         auto range_max_opt = input.get_child_optional("rangeMax");
@@ -1700,6 +1737,49 @@ void Solver::initialize()
     if(!resumed) {
         make_initial_condition();
         std::cout << "Initial condition made, particle_num = " << m_sim->get_particle_num() << std::endl;
+
+        // Create ghost particles for shock tube samples (non-periodic boundary)
+        if(!m_param->periodic.is_valid &&
+           (m_sample == Sample::ShockTube || m_sample == Sample::ShockTube2D || m_sample == Sample::ShockTube3D)) {
+            std::cout << "Creating ghost particles for shock tube boundary..." << std::endl;
+
+            // Get domain parameters from sample_parameters
+            const int Nx = boost::any_cast<int>(m_sample_parameters["Nx"]);
+            const real Lx = 1.0;  // Shock tube domain is always [0, 1] in x
+            const real dx = Lx / Nx;
+
+#if DIM == 1
+            const real Ly = 1.0;  // Not used in 1D
+            const real Lz = 1.0;  // Not used in 1D
+            const real dy = 1.0;
+            const real dz = 1.0;
+#elif DIM == 2
+            const int Ny = boost::any_cast<int>(m_sample_parameters["Ny"]);
+            const real Ly = boost::any_cast<real>(m_sample_parameters["Ly"]);
+            const real Lz = 1.0;  // Not used in 2D
+            const real dy = Ly / Ny;
+            const real dz = 1.0;
+#else  // DIM == 3
+            const int Ny = boost::any_cast<int>(m_sample_parameters["Ny"]);
+            const int Nz = boost::any_cast<int>(m_sample_parameters["Nz"]);
+            const real Ly = boost::any_cast<real>(m_sample_parameters["Ly"]);
+            const real Lz = boost::any_cast<real>(m_sample_parameters["Lz"]);
+            const real dy = Ly / Ny;
+            const real dz = Lz / Nz;
+#endif
+
+            const real gamma = m_param->physics.gamma;
+            // Kernel support for Wendland C4 is ~2h, where h ≈ 2.3*dx for N_neighbor=50
+            // So we need ~5 ghost layers to fully cover kernel support
+            const int n_ghost_layers = 5;
+
+            auto& particles = m_sim->get_particles();
+            create_shock_tube_ghost_particles(particles, n_ghost_layers, dx, dy, dz, Ly, Lz, gamma);
+
+            // Update particle count to include ghosts
+            m_sim->set_particle_num(particles.size());
+            std::cout << "Ghost particles created, total particle_num = " << particles.size() << std::endl;
+        }
     }
 
     m_timestep = std::make_shared<TimeStep>();
@@ -3917,6 +3997,13 @@ void Solver::update_ghost_particles()
     //
     // For shock tube tests: The gap that forms between ghosts and real
     // particles when bulk flow moves them away is physical (rarefaction wave).
+
+    // Update shock tube ghost particles if this is a shock tube sample
+    if(m_sample == Sample::ShockTube || m_sample == Sample::ShockTube2D || m_sample == Sample::ShockTube3D) {
+        const real gamma = m_param->physics.gamma;
+        auto& particles = m_sim->get_particles();
+        update_shock_tube_ghost_particles(particles, gamma);
+    }
 }
 
 void Solver::make_initial_condition()
@@ -3927,6 +4014,7 @@ void Solver::make_initial_condition()
 #define MAKE_SAMPLE(a, b) case a: std::cout << "Calling make_" #b "()" << std::endl; std::cout.flush(); make_##b(); break
         MAKE_SAMPLE(Sample::ShockTube, shock_tube);
         MAKE_SAMPLE(Sample::ShockTube2D, shock_tube_2d);
+        MAKE_SAMPLE(Sample::ShockTube3D, shock_tube_3d);
         MAKE_SAMPLE(Sample::Vacuum, vacuum);
         MAKE_SAMPLE(Sample::StrongShock, strong_shock);
         MAKE_SAMPLE(Sample::PressureEquilibrium, pressure_equilibrium);

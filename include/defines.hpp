@@ -38,3 +38,18 @@ constexpr int neighbor_list_size = 5000;
 // for debug - DISABLED: tree search validated against exhaustive search
 // Uncomment to enable O(N^2) exhaustive search for debugging
 // #define EXHAUSTIVE_SEARCH
+
+// =============================================================================
+// Tree Optimization Switches
+// =============================================================================
+
+// Morton code particle reordering for cache-friendly tree traversal
+// Reorders particles along Z-order space-filling curve to improve cache locality
+// Expected speedup: 2-3x due to reduced cache misses
+#define USE_MORTON_ORDERING
+
+// Iterative tree traversal instead of recursive
+// Uses explicit stack to eliminate function call overhead
+// Expected speedup: 10-20%
+#define USE_ITERATIVE_TRAVERSAL
+

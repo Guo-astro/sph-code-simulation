@@ -27,7 +27,7 @@ public:
     real gradh;   // grad-h term
 
     real phi = 0.0;      // gravitational potential
-    vec_t grav_acc;      // gravitational acceleration (for gravity-aware Riemann solver)
+    vec_t grav_acc = vec_t(0.0);  // gravitational acceleration (for gravity-aware Riemann solver)
 
     // === Special Relativistic variables (SRGSPH only) ===
     // CONSERVED variables (time-evolved):

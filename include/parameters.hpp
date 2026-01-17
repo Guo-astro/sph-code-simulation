@@ -87,9 +87,11 @@ struct SPHParameters {
     KernelType kernel;
 
     bool iterative_sml;
+    bool preserve_initial_density;  // Skip density recalculation in initial_smoothing (for shock tubes)
 
     struct Periodic {
         bool is_valid;
+        bool per_dimension[DIM];     // Per-dimension periodic flags (default: all true if is_valid)
         real range_max[DIM];
         real range_min[DIM];
         BoundaryType boundary_type;  // Type of ghost boundary: REFLECTING or INFLOW

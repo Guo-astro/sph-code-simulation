@@ -24,7 +24,8 @@ protected:
     real m_c_smooth;  // C_smooth: smoothing length expansion factor for h-adaptation
     bool m_iteration;
     bool m_first;
-    
+    bool m_preserve_initial_density;  // Skip density recalculation (for shock tubes)
+
     // Jeans length resolution check (Truelove et al. 1997 criterion)
     bool m_gravity_enabled;
     real m_G;  // Gravitational constant

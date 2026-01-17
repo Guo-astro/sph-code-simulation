@@ -1,0 +1,30 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/kunishigehana/sph-code-simulation/build_test/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-build/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/include/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/include/disph/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/include/gsph/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/include/gdisph/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/include/srgsph/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/include/kernel/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/disph/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/gsph/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/gdisph/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/srgsph/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/grgsph/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/gspmhd/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/srmhd/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/sample/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/relaxation/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/thermal/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/external_forces/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/src/writers/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/_deps/googletest-build/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/_deps/googletest-build/googlemock/cmake_install.cmake",
+		"/Users/kunishigehana/sph-code-simulation/build_test/_deps/googletest-build/googletest/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

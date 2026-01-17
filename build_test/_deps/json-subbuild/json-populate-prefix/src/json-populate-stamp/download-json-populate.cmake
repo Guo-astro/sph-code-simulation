@@ -1,5 +1,5 @@
 # Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
-# file Copyright.txt or https://cmake.org/licensing for details.
+# file LICENSE.rst or https://cmake.org/licensing for details.
 
 cmake_minimum_required(VERSION ${CMAKE_VERSION}) # this file comes with cmake
 
@@ -22,14 +22,14 @@ function(check_file_hash has_hash hash_is_good)
   set("${has_hash}" TRUE PARENT_SCOPE)
 
   message(VERBOSE "verifying file...
-       file='/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz'")
+       file='/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz'")
 
-  file("" "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz" actual_value)
+  file("" "/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz" actual_value)
 
   if(NOT "${actual_value}" STREQUAL "")
     set("${hash_is_good}" FALSE PARENT_SCOPE)
     message(VERBOSE " hash of
-    /Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz
+    /Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz
   does not match expected value
     expected: ''
       actual: '${actual_value}'")
@@ -71,32 +71,32 @@ function(sleep_before_download attempt)
   execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep "${sleep_seconds}")
 endfunction()
 
-if(EXISTS "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz")
+if(EXISTS "/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz")
   check_file_hash(has_hash hash_is_good)
   if(has_hash)
     if(hash_is_good)
       message(VERBOSE "File already exists and hash match (skip download):
-  file='/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz'
+  file='/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz'
   =''"
       )
       return()
     else()
       message(VERBOSE "File already exists but hash mismatch. Removing...")
-      file(REMOVE "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz")
+      file(REMOVE "/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz")
     endif()
   else()
     message(VERBOSE "File already exists but no hash specified (use URL_HASH):
-  file='/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz'
+  file='/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz'
 Old file will be removed and new file downloaded from URL."
     )
-    file(REMOVE "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz")
+    file(REMOVE "/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz")
   endif()
 endif()
 
 set(retry_number 5)
 
 message(VERBOSE "Downloading...
-   dst='/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz'
+   dst='/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz'
    timeout='none'
    inactivity timeout='none'"
 )
@@ -119,7 +119,7 @@ foreach(i RANGE ${retry_number})
 
       file(
         DOWNLOAD
-        "${url}" "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz"
+        "${url}" "/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz"
         SHOW_PROGRESS
         # no TIMEOUT
         # no INACTIVITY_TIMEOUT
@@ -136,7 +136,7 @@ foreach(i RANGE ${retry_number})
         check_file_hash(has_hash hash_is_good)
         if(has_hash AND NOT hash_is_good)
           message(VERBOSE "Hash mismatch, removing...")
-          file(REMOVE "/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz")
+          file(REMOVE "/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json.tar.xz")
         else()
           message(VERBOSE "Downloading... done")
           return()

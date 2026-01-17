@@ -9,6 +9,7 @@ target_sources(sph
         output_manager.cpp
         output_metadata.cpp
         pre_interaction.cpp
+        shock_tube_ghost.cpp
         simulation.cpp
         solver.cpp
         timestep.cpp

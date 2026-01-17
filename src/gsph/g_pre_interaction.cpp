@@ -150,6 +150,14 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 #pragma omp parallel for
     for(int i = 0; i < num; ++i) {
         auto & p_i = particles[i];
+
+        // Ghost particles: skip density computation, keep initial values
+        // Their properties are set by initialization and maintained by update_ghost_particles()
+        if (p_i.is_ghost) {
+            p_i.gradh = 1.0;  // Set gradh=1.0 so forces don't vanish at boundaries
+            continue;
+        }
+
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
 
         // guess smoothing length

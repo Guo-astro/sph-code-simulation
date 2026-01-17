@@ -22,6 +22,22 @@ message(STATUS "Building for ${SPH_DIM}D simulations (DIM=${SPH_DIM})")
 option(ENABLE_NATIVE_ARCH "Enable -march=native for best performance on this CPU (disable for portable builds)" ON)
 option(ENABLE_LTO "Enable Link-Time Optimization (slower build, faster runtime)" OFF)
 
+# OpenMP setup - handle macOS AppleClang specially
+if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # AppleClang needs Homebrew's libomp
+    execute_process(
+        COMMAND brew --prefix libomp
+        OUTPUT_VARIABLE LIBOMP_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(LIBOMP_PREFIX)
+        set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include")
+        set(OpenMP_CXX_LIB_NAMES "omp")
+        set(OpenMP_omp_LIBRARY "${LIBOMP_PREFIX}/lib/libomp.dylib")
+        message(STATUS "Using Homebrew OpenMP at ${LIBOMP_PREFIX}")
+    endif()
+endif()
 find_package(OpenMP REQUIRED)
 find_package(Boost REQUIRED)
 
@@ -87,6 +103,27 @@ if(NOT ENABLE_SANITIZERS)
             message(WARNING "LTO requested but not supported: ${LTO_ERROR}")
         endif()
     endif()
+endif()
+
+# =============================================================================
+# SIMD detection for tree optimizations
+# =============================================================================
+include(CheckCXXCompilerFlag)
+
+# Check for AVX2 support
+check_cxx_compiler_flag("-mavx2" COMPILER_SUPPORTS_AVX2)
+if(COMPILER_SUPPORTS_AVX2)
+    target_compile_definitions(sph PRIVATE SPH_HAS_AVX2)
+    target_compile_options(sph PRIVATE -mavx2 -mfma)
+    message(STATUS "Enabled AVX2 SIMD optimizations")
+endif()
+
+# Check for AVX-512 support
+check_cxx_compiler_flag("-mavx512f" COMPILER_SUPPORTS_AVX512)
+if(COMPILER_SUPPORTS_AVX512)
+    target_compile_definitions(sph PRIVATE SPH_HAS_AVX512)
+    target_compile_options(sph PRIVATE -mavx512f)
+    message(STATUS "Enabled AVX-512 SIMD optimizations")
 endif()
 
 target_compile_options(sph
@@ -165,4 +202,55 @@ if(BUILD_TESTS)
     )
     target_compile_options(test_neighbor_search PRIVATE -Wall -Wno-sign-compare)
     gtest_discover_tests(test_neighbor_search)
+
+    # Shock tube ghost boundary tests (disabled - test file not yet created)
+    # add_executable(test_shock_tube_ghost
+    #     tests/test_shock_tube_ghost.cpp
+    #     src/shock_tube_ghost.cpp
+    # )
+    # target_compile_features(test_shock_tube_ghost PUBLIC cxx_std_14)
+    # target_compile_definitions(test_shock_tube_ghost PRIVATE DIM=${SPH_DIM})
+    # target_include_directories(test_shock_tube_ghost PUBLIC include ${HDF5_INCLUDE_DIRS})
+    # target_link_libraries(test_shock_tube_ghost
+    #     GTest::gtest_main
+    #     GTest::gmock
+    #     OpenMP::OpenMP_CXX
+    #     Boost::boost
+    # )
+    # target_compile_options(test_shock_tube_ghost PRIVATE -Wall -Wno-sign-compare)
+    # gtest_discover_tests(test_shock_tube_ghost)
+
+    # Boundary particle evolution tests (disabled - test file not yet created)
+    # add_executable(test_boundary_particle_evolution
+    #     tests/test_boundary_particle_evolution.cpp
+    #     src/shock_tube_ghost.cpp
+    # )
+    # target_compile_features(test_boundary_particle_evolution PUBLIC cxx_std_14)
+    # target_compile_definitions(test_boundary_particle_evolution PRIVATE DIM=${SPH_DIM})
+    # target_include_directories(test_boundary_particle_evolution PUBLIC include ${HDF5_INCLUDE_DIRS})
+    # target_link_libraries(test_boundary_particle_evolution
+    #     GTest::gtest_main
+    #     GTest::gmock
+    #     OpenMP::OpenMP_CXX
+    #     Boost::boost
+    # )
+    # target_compile_options(test_boundary_particle_evolution PRIVATE -Wall -Wno-sign-compare)
+    # gtest_discover_tests(test_boundary_particle_evolution)
+
+    # Morton code unit tests for tree optimization
+    add_executable(test_morton
+        tests/test_morton.cpp
+        src/morton.cpp
+    )
+    target_compile_features(test_morton PUBLIC cxx_std_14)
+    target_compile_definitions(test_morton PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_morton PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_morton
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_morton PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_morton)
 endif()

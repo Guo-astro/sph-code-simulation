@@ -3,9 +3,9 @@
 # No other meaning or use of this file is supported.
 
 method=url
-command=/nix/store/qvv2ddin29xa8fqmsv567b6xlnhbvpv0-cmake-3.31.7/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/download-json-populate.cmake;COMMAND;/nix/store/qvv2ddin29xa8fqmsv567b6xlnhbvpv0-cmake-3.31.7/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/verify-json-populate.cmake;COMMAND;/nix/store/qvv2ddin29xa8fqmsv567b6xlnhbvpv0-cmake-3.31.7/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/extract-json-populate.cmake
-source_dir=/Users/guo-opt-p148/sph-code-simulation/build_test/_deps/json-src
-work_dir=/Users/guo-opt-p148/sph-code-simulation/build_test/_deps
+command=/opt/homebrew/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/download-json-populate.cmake;COMMAND;/opt/homebrew/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/verify-json-populate.cmake;COMMAND;/opt/homebrew/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/extract-json-populate.cmake
+source_dir=/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-src
+work_dir=/Users/kunishigehana/sph-code-simulation/build_test/_deps
 url(s)=https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
 hash=
       no_extract=

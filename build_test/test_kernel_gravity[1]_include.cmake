@@ -1,5 +1,5 @@
-if(EXISTS "/Users/guo-opt-p148/sph-code-simulation/build_test/test_kernel_gravity[1]_tests.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/test_kernel_gravity[1]_tests.cmake")
+if(EXISTS "/Users/kunishigehana/sph-code-simulation/build_test/test_kernel_gravity[1]_tests.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/test_kernel_gravity[1]_tests.cmake")
 else()
   add_test(test_kernel_gravity_NOT_BUILT test_kernel_gravity_NOT_BUILT)
 endif()

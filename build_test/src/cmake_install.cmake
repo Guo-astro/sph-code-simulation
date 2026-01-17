@@ -1,8 +1,8 @@
-# Install script for directory: /Users/guo-opt-p148/sph-code-simulation/src
+# Install script for directory: /Users/kunishigehana/sph-code-simulation/src
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/var/empty/local")
+  set(CMAKE_INSTALL_PREFIX "/usr/local")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -39,24 +39,24 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/disph/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/gsph/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/gdisph/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/srgsph/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/grgsph/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/gspmhd/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/srmhd/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/sample/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/relaxation/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/thermal/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/external_forces/cmake_install.cmake")
-  include("/Users/guo-opt-p148/sph-code-simulation/build_test/src/writers/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/disph/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/gsph/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/gdisph/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/srgsph/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/grgsph/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/gspmhd/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/srmhd/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/sample/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/relaxation/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/thermal/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/external_forces/cmake_install.cmake")
+  include("/Users/kunishigehana/sph-code-simulation/build_test/src/writers/cmake_install.cmake")
 
 endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
 if(CMAKE_INSTALL_LOCAL_ONLY)
-  file(WRITE "/Users/guo-opt-p148/sph-code-simulation/build_test/src/install_local_manifest.txt"
+  file(WRITE "/Users/kunishigehana/sph-code-simulation/build_test/src/install_local_manifest.txt"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()
