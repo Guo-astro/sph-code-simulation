@@ -62,7 +62,7 @@ class BHTree
         void create_tree(BHNode * & nodes, int & remaind, const int max_level, const int leaf_particle_num);
         void assign(SPHParticle * particle, BHNode * & nodes, int & remaind);
         real set_kernel();
-        void neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor_list, int & n_neighbor, int max_neighbors, const bool is_ij, const Periodic * periodic);
+        void neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor_list, int & n_neighbor, int max_neighbors, const bool is_ij, const Periodic * periodic, const SPHParticle * particles_base);
         void calc_force(SPHParticle & p_i, const real theta2, const real g_constant, const Periodic * periodic,
                        GravitySofteningType softening_type, bool use_fixed_softening, real fixed_softening);
     };

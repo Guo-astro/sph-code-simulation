@@ -110,6 +110,24 @@ void BHTree::make(std::vector<SPHParticle> & particles, const int particle_num)
         m_root.edge = l;
     }
 
+    // Reorder particles by Morton code for cache-friendly tree traversal
+#ifdef USE_MORTON_ORDERING
+    {
+        real domain_min[DIM];
+        real domain_size[DIM];
+        for (int d = 0; d < DIM; ++d) {
+            if (m_is_periodic) {
+                domain_min[d] = m_range_min[d];
+                domain_size[d] = m_range_max[d] - m_range_min[d];
+            } else {
+                domain_min[d] = m_root.center[d] - m_root.edge * 0.5;
+                domain_size[d] = m_root.edge;
+            }
+        }
+        morton::sort_particles_by_morton(particles, domain_min, domain_size);
+    }
+#endif
+
 #pragma omp parallel for
     for(int i = 0; i < particle_num - 1; ++i) {
         particles[i].next = &particles[i + 1];
@@ -131,7 +149,7 @@ int BHTree::neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor
 {
     int n_neighbor = 0;
     int max_neighbors = neighbor_list.size();
-    m_root.neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, m_periodic.get());
+    m_root.neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, m_periodic.get(), particles.data());
 
     // CRITICAL DEBUG: Log the values to see what's happening
     if(n_neighbor > max_neighbors || n_neighbor < 0) {
@@ -287,7 +305,7 @@ real BHTree::BHNode::set_kernel()
     return kernel_size;
 }
 
-void BHTree::BHNode::neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor_list, int & n_neighbor, int max_neighbors, const bool is_ij, const Periodic * periodic)
+void BHTree::BHNode::neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor_list, int & n_neighbor, int max_neighbors, const bool is_ij, const Periodic * periodic, const SPHParticle * particles_base)
 {
     const vec_t & r_i = p_i.pos;
     const real h = is_ij ? std::max(p_i.sml, kernel_size) : p_i.sml;
@@ -313,7 +331,8 @@ void BHTree::BHNode::neighbor_search(const SPHParticle & p_i, std::vector<int> &
                     if(n_neighbor >= max_neighbors) {
                         THROW_ERROR("Neighbor list overflow: increase neighbor_list_size in defines.hpp");
                     }
-                    neighbor_list[n_neighbor] = p->id;
+                    // Use array index (computed from pointer) instead of particle ID
+                    neighbor_list[n_neighbor] = static_cast<int>(p - particles_base);
                     ++n_neighbor;
                 }
                 p = p->next;
@@ -321,7 +340,7 @@ void BHTree::BHNode::neighbor_search(const SPHParticle & p_i, std::vector<int> &
         } else {
             for(int i = 0; i < NCHILD; ++i) {
                 if(childs[i]) {
-                    childs[i]->neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, periodic);
+                    childs[i]->neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, periodic, particles_base);
                 }
             }
         }
@@ -560,7 +579,8 @@ int BHTree::neighbor_search_iterative(const SPHParticle & p_i, std::vector<int> 
                     if (n_neighbor >= max_neighbors) {
                         THROW_ERROR("Neighbor list overflow: increase neighbor_list_size in defines.hpp");
                     }
-                    neighbor_list[n_neighbor++] = p->id;
+                    // Use array index (computed from pointer) instead of particle ID
+                    neighbor_list[n_neighbor++] = static_cast<int>(p - particles.data());
                 }
                 p = p->next;
             }

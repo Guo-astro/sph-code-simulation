@@ -536,29 +536,32 @@ TEST_F(NeighborSearchTest, GivenParticle_WhenSearching_ThenIncludesSelf) {
     BuildTree(particles);
 
     // WHEN/THEN: Each particle should find itself as a neighbor (distance = 0)
-    for (auto& p : particles) {
+    // Note: neighbor_list now contains array indices (not particle IDs)
+    // after Morton reordering was enabled
+    for (size_t idx = 0; idx < particles.size(); ++idx) {
+        auto& p = particles[idx];
         auto result = CompareSearchMethods(p, particles, false);
 
-        // Check that particle finds itself
+        // Check that particle finds itself (by array index, not ID)
         bool found_self_exhaustive = false;
         bool found_self_tree = false;
 
         for (int i = 0; i < result.exhaustive_count; ++i) {
-            if (result.exhaustive_neighbors[i] == p.id) {
+            if (result.exhaustive_neighbors[i] == static_cast<int>(idx)) {
                 found_self_exhaustive = true;
                 break;
             }
         }
 
         for (int i = 0; i < result.tree_count; ++i) {
-            if (result.tree_neighbors[i] == p.id) {
+            if (result.tree_neighbors[i] == static_cast<int>(idx)) {
                 found_self_tree = true;
                 break;
             }
         }
 
-        EXPECT_TRUE(found_self_exhaustive) << "Exhaustive search didn't find self for particle " << p.id;
-        EXPECT_TRUE(found_self_tree) << "Tree search didn't find self for particle " << p.id;
+        EXPECT_TRUE(found_self_exhaustive) << "Exhaustive search didn't find self for particle at index " << idx;
+        EXPECT_TRUE(found_self_tree) << "Tree search didn't find self for particle at index " << idx;
     }
 }
 

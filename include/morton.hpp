@@ -159,8 +159,8 @@ inline void apply_permutation(std::vector<SPHParticle>& particles,
 #pragma omp parallel for
     for (int i = 0; i < n; ++i) {
         reordered[i] = particles[permutation[i]];
-        // Update particle ID to reflect new position
-        reordered[i].id = i;
+        // NOTE: Preserve original particle ID - do NOT overwrite it
+        // The ID is the particle's unique identifier, not its array index
     }
 
     // Swap back

@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Plot 3D shock tube results with analytical Sod solution overlay."""
+"""Plot 3D shock tube results with analytical Sod solution overlay.
+
+Shows RAW particle data (no binning) with analytic solution.
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+import sys
 
 
 def read_csv_sph(filename):
@@ -19,7 +23,12 @@ def read_csv_sph(filename):
 
 
 def sod_exact_solution(x, t, gamma=1.4, x0=0.5):
-    """Exact solution for the Sod shock tube problem."""
+    """Exact solution for the Sod shock tube problem.
+
+    Initial conditions:
+    - Left (x < 0.5):  rho=1.0, P=1.0, u=0
+    - Right (x > 0.5): rho=0.125, P=0.1, u=0
+    """
     rho_L, P_L, u_L = 1.0, 1.0, 0.0
     rho_R, P_R, u_R = 0.125, 0.1, 0.0
     c_L = np.sqrt(gamma * P_L / rho_L)
@@ -58,83 +67,91 @@ def sod_exact_solution(x, t, gamma=1.4, x0=0.5):
 
 
 def main():
-    # Configuration - use HLL results
-    data_dir = Path("simulations/benchmarks/shock_tube/results/gsph_3d_hll")
-    csv_file = data_dir / "snapshot_0020.csv"
+    # Configuration - updated for Morton/iterative traversal test
+    data_dir = Path("simulations/benchmarks/shock_tube/results/gsph_3d_wendland_n120")
+
+    # Find latest snapshot
+    csv_files = sorted(data_dir.glob("snapshot_*.csv"))
+    if not csv_files:
+        print(f"No CSV files found in {data_dir}")
+        print("Run the simulation first!")
+        sys.exit(1)
+
+    csv_file = csv_files[-1]  # Use latest
+
+    # Extract time from filename (snapshot_NNNN.csv -> t = NNNN * output_time)
+    snap_num = int(csv_file.stem.split('_')[1])
+    t = snap_num * 0.01  # outputTime from config
+
     print(f"Reading: {csv_file}")
+    print(f"Simulation time: t = {t:.3f}")
 
     data = read_csv_sph(csv_file)
     x, vx, rho, pres = data['pos_x'], data['vel_x'], data['dens'], data['pres']
 
     print(f"Total particles: {len(x)}")
     print(f"x range: [{x.min():.3f}, {x.max():.3f}]")
+    print(f"rho range: [{rho.min():.4f}, {rho.max():.4f}]")
 
-    # Bin particles by x and compute averages
-    x_bins = np.linspace(0, 1, 101)
-    x_centers = 0.5 * (x_bins[:-1] + x_bins[1:])
-
-    rho_avg, vx_avg, pres_avg = [], [], []
-
-    for i in range(len(x_bins) - 1):
-        mask = (x >= x_bins[i]) & (x < x_bins[i+1])
-        if np.sum(mask) > 0:
-            rho_avg.append(np.mean(rho[mask]))
-            vx_avg.append(np.mean(vx[mask]))
-            pres_avg.append(np.mean(pres[mask]))
-        else:
-            rho_avg.append(np.nan)
-            vx_avg.append(np.nan)
-            pres_avg.append(np.nan)
-
-    rho_avg, vx_avg, pres_avg = np.array(rho_avg), np.array(vx_avg), np.array(pres_avg)
-
-    # Analytical solution
+    # Analytical solution at simulation time
     x_exact = np.linspace(0, 1, 1000)
-    rho_exact, u_exact, P_exact = sod_exact_solution(x_exact, 0.2)
-
-    # Plot
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-    # Density
-    ax = axes[0, 0]
-    ax.plot(x_exact, rho_exact, 'k-', lw=2, label='Exact')
-    ax.scatter(x, rho, s=3, c='blue', alpha=0.3, label='Particles')
-    ax.plot(x_centers, rho_avg, 'r-', lw=1.5, label='Binned avg')
-    ax.set_xlabel('x'); ax.set_ylabel('Density'); ax.set_title('Density')
-    ax.legend(); ax.set_xlim(0, 1); ax.grid(True, alpha=0.3)
-
-    # Velocity
-    ax = axes[0, 1]
-    ax.plot(x_exact, u_exact, 'k-', lw=2, label='Exact')
-    ax.scatter(x, vx, s=3, c='blue', alpha=0.3, label='Particles')
-    ax.plot(x_centers, vx_avg, 'r-', lw=1.5, label='Binned avg')
-    ax.set_xlabel('x'); ax.set_ylabel('Velocity'); ax.set_title('Velocity')
-    ax.legend(); ax.set_xlim(0, 1); ax.grid(True, alpha=0.3)
-
-    # Pressure
-    ax = axes[1, 0]
-    ax.plot(x_exact, P_exact, 'k-', lw=2, label='Exact')
-    ax.scatter(x, pres, s=3, c='blue', alpha=0.3, label='Particles')
-    ax.plot(x_centers, pres_avg, 'r-', lw=1.5, label='Binned avg')
-    ax.set_xlabel('x'); ax.set_ylabel('Pressure'); ax.set_title('Pressure')
-    ax.legend(); ax.set_xlim(0, 1); ax.grid(True, alpha=0.3)
-
-    # Internal energy
-    ax = axes[1, 1]
+    rho_exact, u_exact, P_exact = sod_exact_solution(x_exact, t)
     gamma = 1.4
+
+    # Plot - RAW particle data (no binning)
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+
+    # Density - RAW particles
+    ax = axes[0, 0]
+    ax.plot(x_exact, rho_exact, 'r-', lw=2, label='Exact solution', zorder=10)
+    ax.scatter(x, rho, s=1, c='blue', alpha=0.5, label=f'Particles (N={len(x)})')
+    ax.set_xlabel('x')
+    ax.set_ylabel('Density')
+    ax.set_title('Density (raw particle data)')
+    ax.legend()
+    ax.set_xlim(0, 1)
+    ax.grid(True, alpha=0.3)
+
+    # Velocity - RAW particles
+    ax = axes[0, 1]
+    ax.plot(x_exact, u_exact, 'r-', lw=2, label='Exact solution', zorder=10)
+    ax.scatter(x, vx, s=1, c='blue', alpha=0.5, label=f'Particles (N={len(x)})')
+    ax.set_xlabel('x')
+    ax.set_ylabel('Velocity')
+    ax.set_title('Velocity (raw particle data)')
+    ax.legend()
+    ax.set_xlim(0, 1)
+    ax.grid(True, alpha=0.3)
+
+    # Pressure - RAW particles
+    ax = axes[1, 0]
+    ax.plot(x_exact, P_exact, 'r-', lw=2, label='Exact solution', zorder=10)
+    ax.scatter(x, pres, s=1, c='blue', alpha=0.5, label=f'Particles (N={len(x)})')
+    ax.set_xlabel('x')
+    ax.set_ylabel('Pressure')
+    ax.set_title('Pressure (raw particle data)')
+    ax.legend()
+    ax.set_xlim(0, 1)
+    ax.grid(True, alpha=0.3)
+
+    # Internal energy - RAW particles
+    ax = axes[1, 1]
     e_exact = P_exact / ((gamma - 1) * rho_exact)
     e_particles = pres / ((gamma - 1) * rho)
-    e_avg = pres_avg / ((gamma - 1) * rho_avg)
-    ax.plot(x_exact, e_exact, 'k-', lw=2, label='Exact')
-    ax.scatter(x, e_particles, s=3, c='blue', alpha=0.3, label='Particles')
-    ax.plot(x_centers, e_avg, 'r-', lw=1.5, label='Binned avg')
-    ax.set_xlabel('x'); ax.set_ylabel('Internal Energy'); ax.set_title('Internal Energy')
-    ax.legend(); ax.set_xlim(0, 1); ax.grid(True, alpha=0.3)
+    ax.plot(x_exact, e_exact, 'r-', lw=2, label='Exact solution', zorder=10)
+    ax.scatter(x, e_particles, s=1, c='blue', alpha=0.5, label=f'Particles (N={len(x)})')
+    ax.set_xlabel('x')
+    ax.set_ylabel('Internal Energy')
+    ax.set_title('Internal Energy (raw particle data)')
+    ax.legend()
+    ax.set_xlim(0, 1)
+    ax.grid(True, alpha=0.3)
 
-    plt.suptitle('3D Sod Shock Tube - GSPH HLL (t=0.2, periodic BC)', fontsize=14)
+    plt.suptitle(f'3D Sod Shock Tube - GSPH HLL Wendland N=120 (t={t:.2f})\n'
+                 f'Morton ordering + Iterative traversal enabled', fontsize=14)
     plt.tight_layout()
 
-    output_file = data_dir / "shock_tube_3d_comparison.png"
+    output_file = data_dir / f"shock_tube_3d_raw_t{t:.2f}.png"
     plt.savefig(output_file, dpi=150, bbox_inches='tight')
     print(f"Plot saved to: {output_file}")
     plt.show()

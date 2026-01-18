@@ -123,8 +123,15 @@ bool HDF5Writer::write_metadata_group(const OutputMetadata& metadata) {
 
 bool HDF5Writer::write_particles_group(const std::vector<SPHParticle*>& particles) {
     const hsize_t N = particles.size();
-    if (N == 0) return false;
-    
+
+    // Handle empty particle list - still create the group for consistency
+    if (N == 0) {
+        hid_t group_id = H5Gcreate(m_file_id, "/particles", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        if (group_id < 0) return false;
+        H5Gclose(group_id);
+        return true;
+    }
+
     // Create particles group
     hid_t group_id = H5Gcreate(m_file_id, "/particles", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     if (group_id < 0) return false;
@@ -401,11 +408,14 @@ bool HDF5Writer::read_particles(const std::string& filepath, std::vector<SPHPart
     }
     
     // Get particle count from id dataset
+    // If the dataset doesn't exist, the group is empty (valid edge case)
     hid_t dataset_id = H5Dopen(group_id, "id", H5P_DEFAULT);
     if (dataset_id < 0) {
+        // Empty particles group - return empty vector
+        particles.clear();
         H5Gclose(group_id);
         H5Fclose(file_id);
-        return false;
+        return true;  // Success - empty is valid
     }
     
     hid_t dataspace_id = H5Dget_space(dataset_id);

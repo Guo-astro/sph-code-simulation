@@ -169,9 +169,11 @@ if(BUILD_TESTS)
     
     # Kernel gravity tests (unit tests for 1D/2D/3D kernel gravity functions)
     # We need to link the gravity_force source since the test uses static member functions
-    add_executable(test_kernel_gravity 
+    # Also need bhtree.cpp since gravity_force uses BHTree::tree_force
+    add_executable(test_kernel_gravity
         tests/test_kernel_gravity.cpp
         src/gravity_force.cpp
+        src/bhtree.cpp
     )
     target_compile_features(test_kernel_gravity PUBLIC cxx_std_14)
     target_compile_definitions(test_kernel_gravity PRIVATE DIM=${SPH_DIM})
@@ -254,7 +256,47 @@ if(BUILD_TESTS)
     target_compile_options(test_morton PRIVATE -Wall -Wno-sign-compare)
     gtest_discover_tests(test_morton)
 
-    # 3D Shock tube regression tests
+    # HDF5 binary dump and resume tests (TDD for checkpointing)
+    add_executable(test_hdf5_resume
+        tests/test_hdf5_resume.cpp
+        src/writers/hdf5_writer.cpp
+        src/output_metadata.cpp
+        src/units.cpp
+    )
+    target_compile_features(test_hdf5_resume PUBLIC cxx_std_14)
+    target_compile_definitions(test_hdf5_resume PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_hdf5_resume PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_hdf5_resume
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+        ${HDF5_LIBRARIES}
+        ${HDF5_CXX_LIBRARIES}
+        nlohmann_json::nlohmann_json
+    )
+    target_compile_options(test_hdf5_resume PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_hdf5_resume)
+
+    # Morton code tree integration tests (TDD for cache optimization)
+    add_executable(test_morton_tree_integration
+        tests/test_morton_tree_integration.cpp
+        src/bhtree.cpp
+        src/morton.cpp
+    )
+    target_compile_features(test_morton_tree_integration PUBLIC cxx_std_14)
+    target_compile_definitions(test_morton_tree_integration PRIVATE DIM=${SPH_DIM} USE_MORTON_ORDERING)
+    target_include_directories(test_morton_tree_integration PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_morton_tree_integration
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_morton_tree_integration PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_morton_tree_integration)
+
+    # 3D Shock tube regression tests (e2e)
     # Tests numerical reproducibility against stored reference data
     # L2 error threshold: 1e-10 to catch any numerical changes
     add_executable(test_shock_tube_3d_regression

@@ -189,19 +189,33 @@ TEST_F(MortonTest, RandomParticlesSorted) {
 }
 
 // Test that particle IDs are updated after reordering
-TEST_F(MortonTest, ParticleIDsUpdated) {
+TEST_F(MortonTest, ParticleIDsPreserved) {
+    // Create particles with specific IDs
     std::vector<SPHParticle> particles;
-    particles.push_back(create_particle(0, 0.9, 0.9, 0.9));
-    particles.push_back(create_particle(1, 0.1, 0.1, 0.1));
-    particles.push_back(create_particle(2, 0.5, 0.5, 0.5));
+    particles.push_back(create_particle(100, 0.9, 0.9, 0.9));  // Original ID = 100
+    particles.push_back(create_particle(200, 0.1, 0.1, 0.1));  // Original ID = 200
+    particles.push_back(create_particle(300, 0.5, 0.5, 0.5));  // Original ID = 300
+
+    // Store original IDs
+    std::set<int> original_ids;
+    for (const auto& p : particles) {
+        original_ids.insert(p.id);
+    }
 
     morton::sort_particles_by_morton(particles, domain_min, domain_size);
 
-    // After reordering, particle IDs should match their new positions
-    for (size_t i = 0; i < particles.size(); ++i) {
-        EXPECT_EQ(particles[i].id, static_cast<int>(i))
-            << "Particle ID not updated at position " << i;
+    // After reordering, original IDs should be PRESERVED (not overwritten)
+    std::set<int> final_ids;
+    for (const auto& p : particles) {
+        final_ids.insert(p.id);
     }
+
+    EXPECT_EQ(original_ids, final_ids) << "Particle IDs were corrupted during Morton reordering";
+
+    // Verify specific IDs still exist
+    EXPECT_TRUE(final_ids.count(100)) << "ID 100 was lost";
+    EXPECT_TRUE(final_ids.count(200)) << "ID 200 was lost";
+    EXPECT_TRUE(final_ids.count(300)) << "ID 300 was lost";
 }
 
 // Test edge case: empty particle list
