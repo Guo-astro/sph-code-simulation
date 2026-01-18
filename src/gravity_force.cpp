@@ -4,6 +4,8 @@
 #include "periodic.hpp"
 #include "simulation.hpp"
 #include "bhtree.hpp"
+#include "hernquist_katz_lookup_table.hpp"
+#include "softening_lookup_table.hpp"
 
 #include <iostream>
 #include <atomic>
@@ -20,48 +22,21 @@ namespace sph
 {
 
 // =============================================================================
-// Hernquist & Katz (1989) softening kernels
+// Hernquist & Katz (1989) softening kernels - using lookup table
 // Softening length ε = h/2, support radius 2ε = h
 // =============================================================================
 inline real f(const real r, const real h)
 {
-    const real e = h * 0.5;
-    const real u = r / e;
-    
-    if(u < 1.0) {
-        return (-0.5 * u * u * (1.0 / 3.0 - 3.0 / 20 * u * u + u * u * u / 20) + 1.4) / e;
-    } else if(u < 2.0) {
-        return -1.0 / (15 * r) + (-u * u * (4.0 / 3.0 - u + 0.3 * u * u - u * u * u / 30) + 1.6) / e;
-    } else {
-        return 1 / r;
-    }
+    return HernquistKatzLookupTable::get_instance().f_full(r, h);
 }
 
 inline real g(const real r, const real h)
 {
-    const real e = h * 0.5;
-    const real u = r / e;
-    
-    if(u < 1.0) {
-        return (4.0 / 3.0 - 1.2 * u * u + 0.5 * u * u * u) / (e * e * e);
-    } else if(u < 2.0) {
-        return (-1.0 / 15 + 8.0 / 3 * u * u * u - 3 * u * u * u * u + 1.2 * u * u * u * u * u - u * u * u * u * u * u / 6.0) / (r * r * r);
-    } else {
-        return 1 / (r * r * r);
-    }
+    return HernquistKatzLookupTable::get_instance().g_full(r, h);
 }
 
 // =============================================================================
-// Wendland C4 kernel gravitational potential
-// Solves ∇²φ̃ = -4πG W(r,h) for the Wendland C4 kernel
-// 
-// W(r,h) = σ/h³ (1-q)⁶₊ (1 + 6q + 35/3 q²)  where q = r/h, σ = 495/(32π)
-// 
-// The gravitational potential is obtained by solving the Poisson equation:
-//   (1/r²) d/dr(r² dφ/dr) = -4π W(r,h)
-// 
-// Method: M(r) = 4π ∫₀^r W(r')r'² dr', then φ(r) = -∫_r^∞ M(r')/r'² dr'
-// 
+// Wendland C4 kernel gravitational potential - using lookup table
 // Reference: Price & Monaghan (2007), Dehnen & Aly (2012)
 // =============================================================================
 
@@ -70,91 +45,19 @@ inline real g(const real r, const real h)
 real GravityForce::wendland_c4_phi(const real r, const real h)
 {
 #if DIM == 3
-    const real q = r / h;
-    
-    if (q >= 1.0) {
-        // Outside kernel support: point mass potential
-        return 1.0 / r;
-    }
-    
-    // Inside kernel (q < 1):
-    // Polynomial fit to numerical solution of Poisson equation
-    const real q2 = q * q;
-    const real q3 = q2 * q;
-    const real q4 = q2 * q2;
-    const real q5 = q4 * q;
-    const real q6 = q3 * q3;
-    const real q7 = q6 * q;
-    const real q8 = q4 * q4;
-    const real q9 = q8 * q;
-    
-    // Coefficients from numerical integration of Poisson equation
-    // φ(q) = (a₀ + a₁q + a₂q² + ... + a₉q⁹) / h
-    // These satisfy: ∇²φ = -4π W  and φ(1) = 1/h (matching point mass)
-    const real a0 =  3.4374743761;
-    const real a1 = -0.0031873250;
-    const real a2 = -10.2154807743;
-    const real a3 = -1.1577720555;
-    const real a4 =  36.1013669755;
-    const real a5 = -26.3399094060;
-    const real a6 = -44.1079372114;
-    const real a7 =  82.6543766683;
-    const real a8 = -50.5921624056;
-    const real a9 =  11.2232565249;
-    
-    return (a0 + a1*q + a2*q2 + a3*q3 + a4*q4 + a5*q5 + a6*q6 + a7*q7 + a8*q8 + a9*q9) / h;
+    return WendlandC4LookupTable::get_instance().phi_full(r, h);
 #else
     // For 1D/2D, fall back to point mass (not implemented)
     return 1.0 / (r + 1e-10);
 #endif
 }
 
-// Force kernel for Wendland C4: g(r,h) = -dφ̃/dr / r
+// Force kernel for Wendland C4: g(r,h) = -dφ̃/dr / r - using lookup table
 // For force: F = -G m_i m_j g(r,h) r_ij
 real GravityForce::wendland_c4_g(const real r, const real h)
 {
 #if DIM == 3
-    const real q = r / h;
-    
-    if (q >= 1.0) {
-        // Outside kernel: point mass force
-        return 1.0 / (r * r * r);
-    }
-    
-    // Handle q → 0 limit: force is zero at center
-    if (q < 1e-10) {
-        return 0.0;
-    }
-    
-    const real q2 = q * q;
-    const real q3 = q2 * q;
-    const real q4 = q2 * q2;
-    const real q5 = q4 * q;
-    const real q6 = q3 * q3;
-    const real q7 = q6 * q;
-    
-    // g(r,h) = -dφ/dr / r where φ(q) = poly/h and r = q*h
-    // dφ/dr = (1/h) * dφ/dq * (1/h) = dφ/dq / h²
-    // g = -dφ/dq / (h² * r) = -dφ/dq / (h³ * q)
-    // 
-    // φ(q) = a0 + a1*q + a2*q² + ... + a9*q⁹
-    // dφ/dq = a1 + 2*a2*q + ... + 9*a9*q⁸ = b0 + b1*q + ... + b8*q⁸
-    
-    // Derivative coefficients from potential fit:
-    const real b0 = -0.0031873250;
-    const real b1 = -20.4309615486;
-    const real b2 = -3.4733161665;
-    const real b3 = 144.4054679020;
-    const real b4 = -131.6995470300;
-    const real b5 = -264.6476232684;
-    const real b6 = 578.5806366781;
-    const real b7 = -404.7372992448;
-    const real b8 = 101.0093087241;
-    
-    const real dphi_dq = b0 + b1*q + b2*q2 + b3*q3 + b4*q4 + b5*q5 + b6*q6 + b7*q7 + b8*q*q7;
-    const real h3 = h * h * h;
-    
-    return -dphi_dq / (h3 * q);
+    return WendlandC4LookupTable::get_instance().g_full(r, h);
 #else
     return 1.0 / (r * r * r + 1e-30);
 #endif

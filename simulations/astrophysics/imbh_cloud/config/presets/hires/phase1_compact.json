@@ -1,0 +1,104 @@
+{
+    "_comment": "Phase 1 COMPACT HIGH-RES: 1M particles, cubic spline, binary output",
+    "_phase": "1 of 4: Damped relaxation to hydrostatic equilibrium",
+    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr",
+    "_physics": "Truncated isothermal BE sphere at T=35K, xi_s=2.0, n_center=500 cm^-3",
+    "_resolution": "N=100 gives 100^3 = 1,000,000 particles",
+
+    "_design_rationale": [
+        "GOAL: Compact cloud (R ~ 1 pc) that remains Jeans stable with K&I 2000",
+        "KEY TRICK: Use small xi_s=2.0 (very truncated, just the core)",
+        "",
+        "At n=500 cm^-3: T_eq(K&I 2000) = 17-20 K",
+        "Initial T = 35 K (above equilibrium, will cool)",
+        "After cooling: M/M_J = 0.19 << 0.8 → SUPER STABLE",
+        "",
+        "This cloud is essentially just the dense core of a larger cloud",
+        "Very safe from Jeans collapse even after significant cooling"
+    ],
+
+    "_stability_analysis": {
+        "initial_state_T35K": {
+            "M_cloud": "23 Msun",
+            "R_cloud": "1.04 pc",
+            "M_over_M_J": "0.11 ✓ SUPER STABLE"
+        },
+        "after_cooling_T20K": {
+            "M_J": "122 Msun",
+            "M_over_M_J": "0.19 ✓ SUPER STABLE"
+        }
+    },
+
+    "name": "Phase 1 COMPACT HIGH-RES: Small BE Sphere (T=35K, n=500, xi_s=3.0, 1M particles)",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "N": 100,
+
+    "_param_mode": "n_center=500 cm^-3, xi_s=3.0, u_code=0.3416",
+    "T_cloud": 35.0,
+    "n_center": 500.0,
+    "xi_s": 3.0,
+    "mu": 1.27,
+
+    "_derived_parameters": {
+        "c_s": "0.41 km/s (at T=35K)",
+        "r_0_scale": "0.52 pc",
+        "R_cloud": "1.04 pc (= xi_s * r_0)",
+        "M_cloud": "23 Msun",
+        "n_edge": "188 cm^-3 (density contrast 2.7:1 for xi_s=2)",
+        "P_ext_over_kB": "6580 K cm^-3"
+    },
+
+    "_timescales": {
+        "free_fall": "10.9 Myr",
+        "sound_crossing": "2.5 Myr"
+    },
+
+    "M_BH": 0.0,
+    "b_impact": 0.0,
+    "v_rel": 0.0,
+    "useEnvelope": true,
+    "envelopeLayers": 6,
+
+    "gamma": 1.6666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": false,
+
+    "_optimization": "Tree and Morton code settings for 1M particles",
+    "treeMaxLevel": 20,
+    "treeLeafParticleNum": 32,
+    "useMortonCode": true,
+    "gravityTheta": 0.5,
+
+    "SPHType": "gsph",
+    "kernel": "cubic_spline",
+    "useGradH": true,
+    "use2ndOrderGSPH": false,
+
+    "endTime": 200.0,
+    "outputTime": 0.2,
+    "cfl": 0.5,
+
+    "useRelaxation": true,
+    "relaxationSteps": 20000,
+    "relaxationOutputFreq": 10,
+    "relaxationOnly": true,
+    "relaxationTimestepFactor": 0.05,
+    "useGlassRelaxation": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/hires/phase1_compact",
+
+    "output": {
+        "formats": [
+            {"type": "hdf5", "compression": 6}
+        ],
+        "enableCSV": false,
+        "enableHDF5": true,
+        "enableVTK": false,
+        "enableEnergyFile": true,
+        "hdf5Compression": 6
+    }
+}

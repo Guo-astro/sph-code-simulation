@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server",
+        "--project",
+        "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation"
+      ]
+    }
+  }
+}

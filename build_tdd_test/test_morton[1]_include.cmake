@@ -1,0 +1,5 @@
+if(EXISTS "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_tdd_test/test_morton[1]_tests.cmake")
+  include("/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_tdd_test/test_morton[1]_tests.cmake")
+else()
+  add_test(test_morton_NOT_BUILT test_morton_NOT_BUILT)
+endif()

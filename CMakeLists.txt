@@ -81,7 +81,7 @@ if(NOT ENABLE_SANITIZERS)
         $<$<CONFIG:Release>:-O3>
         $<$<CONFIG:RelWithDebInfo>:-O2>
     )
-    
+
     # Native architecture tuning (best performance on build machine)
     if(ENABLE_NATIVE_ARCH AND NOT CMAKE_CROSSCOMPILING)
         include(CheckCXXCompilerFlag)
@@ -91,7 +91,7 @@ if(NOT ENABLE_SANITIZERS)
             message(STATUS "Enabled -march=native for CPU-specific optimizations")
         endif()
     endif()
-    
+
     # Link-Time Optimization (optional, slower build but faster runtime)
     if(ENABLE_LTO)
         include(CheckIPOSupported)
@@ -163,10 +163,10 @@ if(BUILD_TESTS)
     # For Windows: Prevent overriding the parent project's compiler/linker settings
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
-    
+
     enable_testing()
     include(GoogleTest)
-    
+
     # Kernel gravity tests (unit tests for 1D/2D/3D kernel gravity functions)
     # We need to link the gravity_force source since the test uses static member functions
     # Also need bhtree.cpp since gravity_force uses BHTree::tree_force
@@ -174,6 +174,8 @@ if(BUILD_TESTS)
         tests/test_kernel_gravity.cpp
         src/gravity_force.cpp
         src/bhtree.cpp
+        src/hernquist_katz_lookup_table_stub.cpp
+        src/softening_lookup_table_stub.cpp
     )
     target_compile_features(test_kernel_gravity PUBLIC cxx_std_14)
     target_compile_definitions(test_kernel_gravity PRIVATE DIM=${SPH_DIM})
@@ -192,6 +194,8 @@ if(BUILD_TESTS)
         tests/test_neighbor_search.cpp
         src/bhtree.cpp
         src/exhaustive_search.cpp
+        src/hernquist_katz_lookup_table_stub.cpp
+        src/softening_lookup_table_stub.cpp
     )
     target_compile_features(test_neighbor_search PUBLIC cxx_std_14)
     target_compile_definitions(test_neighbor_search PRIVATE DIM=${SPH_DIM})
@@ -204,40 +208,6 @@ if(BUILD_TESTS)
     )
     target_compile_options(test_neighbor_search PRIVATE -Wall -Wno-sign-compare)
     gtest_discover_tests(test_neighbor_search)
-
-    # Shock tube ghost boundary tests (disabled - test file not yet created)
-    # add_executable(test_shock_tube_ghost
-    #     tests/test_shock_tube_ghost.cpp
-    #     src/shock_tube_ghost.cpp
-    # )
-    # target_compile_features(test_shock_tube_ghost PUBLIC cxx_std_14)
-    # target_compile_definitions(test_shock_tube_ghost PRIVATE DIM=${SPH_DIM})
-    # target_include_directories(test_shock_tube_ghost PUBLIC include ${HDF5_INCLUDE_DIRS})
-    # target_link_libraries(test_shock_tube_ghost
-    #     GTest::gtest_main
-    #     GTest::gmock
-    #     OpenMP::OpenMP_CXX
-    #     Boost::boost
-    # )
-    # target_compile_options(test_shock_tube_ghost PRIVATE -Wall -Wno-sign-compare)
-    # gtest_discover_tests(test_shock_tube_ghost)
-
-    # Boundary particle evolution tests (disabled - test file not yet created)
-    # add_executable(test_boundary_particle_evolution
-    #     tests/test_boundary_particle_evolution.cpp
-    #     src/shock_tube_ghost.cpp
-    # )
-    # target_compile_features(test_boundary_particle_evolution PUBLIC cxx_std_14)
-    # target_compile_definitions(test_boundary_particle_evolution PRIVATE DIM=${SPH_DIM})
-    # target_include_directories(test_boundary_particle_evolution PUBLIC include ${HDF5_INCLUDE_DIRS})
-    # target_link_libraries(test_boundary_particle_evolution
-    #     GTest::gtest_main
-    #     GTest::gmock
-    #     OpenMP::OpenMP_CXX
-    #     Boost::boost
-    # )
-    # target_compile_options(test_boundary_particle_evolution PRIVATE -Wall -Wno-sign-compare)
-    # gtest_discover_tests(test_boundary_particle_evolution)
 
     # Morton code unit tests for tree optimization
     add_executable(test_morton
@@ -283,6 +253,8 @@ if(BUILD_TESTS)
         tests/test_morton_tree_integration.cpp
         src/bhtree.cpp
         src/morton.cpp
+        src/hernquist_katz_lookup_table_stub.cpp
+        src/softening_lookup_table_stub.cpp
     )
     target_compile_features(test_morton_tree_integration PUBLIC cxx_std_14)
     target_compile_definitions(test_morton_tree_integration PRIVATE DIM=${SPH_DIM} USE_MORTON_ORDERING)
@@ -314,4 +286,124 @@ if(BUILD_TESTS)
     )
     target_compile_options(test_shock_tube_3d_regression PRIVATE -Wall -Wno-sign-compare)
     gtest_discover_tests(test_shock_tube_3d_regression)
+
+    # Softening lookup table TDD tests (TDD red phase - tests will fail until implemented)
+    # Tests verify lookup table matches polynomial within 1e-6 tolerance
+    # Must be built with DIM=3 to test Wendland C4 functions
+    add_executable(test_softening_lookup_table
+        tests/test_softening_lookup_table.cpp
+        src/gravity_force.cpp
+        src/bhtree.cpp
+        src/hernquist_katz_lookup_table_stub.cpp
+        src/softening_lookup_table_stub.cpp
+    )
+    target_compile_features(test_softening_lookup_table PUBLIC cxx_std_14)
+    target_compile_definitions(test_softening_lookup_table PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_softening_lookup_table PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_softening_lookup_table
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_softening_lookup_table PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_softening_lookup_table)
+
+    # =============================================================================
+    # Gravity Optimization TDD Tests (TDD red phase)
+    # =============================================================================
+
+    # Hernquist-Katz lookup table TDD tests
+    # Tests for cubic spline softening kernel lookup table
+    add_executable(test_hernquist_katz_lookup_table
+        tests/test_hernquist_katz_lookup_table.cpp
+        src/hernquist_katz_lookup_table_stub.cpp
+    )
+    target_compile_features(test_hernquist_katz_lookup_table PUBLIC cxx_std_14)
+    target_compile_definitions(test_hernquist_katz_lookup_table PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_hernquist_katz_lookup_table PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_hernquist_katz_lookup_table
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_hernquist_katz_lookup_table PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_hernquist_katz_lookup_table)
+
+    # Analytic gravity 3D tests (uniform sphere validation)
+    # Tests convergence of softened gravity to analytic solution
+    add_executable(test_analytic_gravity_3d
+        tests/test_analytic_gravity_3d.cpp
+        src/analytic_gravity_test_stub.cpp
+    )
+    target_compile_features(test_analytic_gravity_3d PUBLIC cxx_std_14)
+    target_compile_definitions(test_analytic_gravity_3d PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_analytic_gravity_3d PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_analytic_gravity_3d
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_analytic_gravity_3d PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_analytic_gravity_3d)
+
+    # Gravity SoA (Structure-of-Arrays) optimization tests
+    # Tests cache-efficient memory layout for gravity computation
+    add_executable(test_gravity_soa
+        tests/test_gravity_soa.cpp
+        src/gravity_data_soa_stub.cpp
+        src/analytic_gravity_test_stub.cpp
+    )
+    target_compile_features(test_gravity_soa PUBLIC cxx_std_14)
+    target_compile_definitions(test_gravity_soa PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_gravity_soa PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_gravity_soa
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_gravity_soa PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_gravity_soa)
+
+    # Gravity lookup table integration tests
+    # Tests that lookup tables are correctly integrated into gravity calculations
+    add_executable(test_gravity_lookup_integration
+        tests/test_gravity_lookup_integration.cpp
+        src/hernquist_katz_lookup_table_stub.cpp
+        src/softening_lookup_table_stub.cpp
+    )
+    target_compile_features(test_gravity_lookup_integration PUBLIC cxx_std_14)
+    target_compile_definitions(test_gravity_lookup_integration PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_gravity_lookup_integration PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_gravity_lookup_integration
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_gravity_lookup_integration PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_gravity_lookup_integration)
+
+    # First-principles gravity validation tests
+    # Based on Dehnen (2001), Price & Monaghan (2007), Hernquist & Katz (1989)
+    # Tests: kernel accuracy, energy conservation, Newton's 3rd law
+    add_executable(test_gravity_first_principles
+        tests/test_gravity_first_principles.cpp
+        src/hernquist_katz_lookup_table_stub.cpp
+        src/softening_lookup_table_stub.cpp
+    )
+    target_compile_features(test_gravity_first_principles PUBLIC cxx_std_14)
+    target_compile_definitions(test_gravity_first_principles PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_gravity_first_principles PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_gravity_first_principles
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_gravity_first_principles PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_gravity_first_principles)
 endif()

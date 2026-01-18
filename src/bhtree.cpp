@@ -7,6 +7,8 @@
 #include "openmp.hpp"
 #include "exception.hpp"
 #include "periodic.hpp"
+#include "hernquist_katz_lookup_table.hpp"
+#include "softening_lookup_table.hpp"
 
 #ifdef USE_MORTON_ORDERING
 #include "morton.hpp"
@@ -347,112 +349,32 @@ void BHTree::BHNode::neighbor_search(const SPHParticle & p_i, std::vector<int> &
     }
 }
 
- // Hernquist & Katz (1989)
+// Hernquist & Katz (1989) - using lookup table
 inline real f(const real r, const real h)
 {
-    const real e = h * 0.5;
-    const real u = r / e;
-    
-    if(u < 1.0) {
-        return (-0.5 * u * u * (1.0 / 3.0 - 3.0 / 20 * u * u + u * u * u / 20) + 1.4) / e;
-    } else if(u < 2.0) {
-        return -1.0 / (15 * r) + (-u * u * (4.0 / 3.0 - u + 0.3 * u * u - u * u * u / 30) + 1.6) / e;
-    } else {
-        return 1 / r;
-    }
+    return HernquistKatzLookupTable::get_instance().f_full(r, h);
 }
 
 inline real g(const real r, const real h)
 {
-    const real e = h * 0.5;
-    const real u = r / e;
-    
-    if(u < 1.0) {
-        return (4.0 / 3.0 - 1.2 * u * u + 0.5 * u * u * u) / (e * e * e);
-    } else if(u < 2.0) {
-        return (-1.0 / 15 + 8.0 / 3 * u * u * u - 3 * u * u * u * u + 1.2 * u * u * u * u * u - u * u * u * u * u * u / 6.0) / (r * r * r);
-    } else {
-        return 1 / (r * r * r);
-    }
+    return HernquistKatzLookupTable::get_instance().g_full(r, h);
 }
 
-// Wendland C4 gravitational potential kernel (3D only)
-// Derived from solving ∇²φ̃ = -4πG W for Wendland C4 kernel
-// The potential is: φ(r) = -G ∫ M(<r')/r'² dr' where M(<r') is enclosed mass
-// For W_C4(q) = (495/32π)/h³ (1-q)⁶(1 + 6q + 35/3 q²), q = r/h, 0 ≤ q ≤ 1
-// Numerically integrated to get polynomial fit: φ(q)*h = a₀ + a₁q + a₂q² + ... + a₉q⁹
+// Wendland C4 gravitational potential kernel (3D only) - using lookup table
 inline real wendland_phi(const real r, const real h)
 {
 #if DIM == 3
-    const real q = r / h;
-    if (q >= 1.0) {
-        return 1.0 / r;
-    }
-    const real q2 = q * q;
-    const real q3 = q2 * q;
-    const real q4 = q2 * q2;
-    const real q5 = q4 * q;
-    const real q6 = q3 * q3;
-    const real q7 = q6 * q;
-    const real q8 = q4 * q4;
-    const real q9 = q8 * q;
-    
-    // Coefficients from numerical integration of Poisson equation (verified)
-    // φ(0)*h ≈ 3.44 corresponds to enclosed mass integral
-    const real a0 =  3.4374743761;
-    const real a1 = -0.0031873250;  // ≈ 0 (boundary condition)
-    const real a2 = -10.2154807743;
-    const real a3 = -1.1577720555;
-    const real a4 =  36.1013669755;
-    const real a5 = -26.3399094060;
-    const real a6 = -44.1079372114;
-    const real a7 =  82.6543766683;
-    const real a8 = -50.5921624056;
-    const real a9 =  11.2232565249;
-    
-    return (a0 + a1*q + a2*q2 + a3*q3 + a4*q4 + a5*q5 + a6*q6 + a7*q7 + a8*q8 + a9*q9) / h;
+    return WendlandC4LookupTable::get_instance().phi_full(r, h);
 #else
     return 1.0 / (r + 1e-10);
 #endif
 }
 
-// Wendland C4 gravitational force kernel: g(r) = -dφ/dr / r
-// This is derived from the derivative of wendland_phi
-// Force: F = -G m₁ m₂ g(r) r̂
-// g(r) = (1/h³) × [-(d/dq)(φ*h)/q] where the derivative gives the force direction
+// Wendland C4 gravitational force kernel - using lookup table
 inline real wendland_g(const real r, const real h)
 {
 #if DIM == 3
-    const real q = r / h;
-    if (q >= 1.0) {
-        return 1.0 / (r * r * r);
-    }
-    if (q < 1e-10) {
-        // At q=0, the force is zero (symmetric mass distribution)
-        return 0.0;
-    }
-    const real q2 = q * q;
-    const real q3 = q2 * q;
-    const real q4 = q2 * q2;
-    const real q5 = q4 * q;
-    const real q6 = q3 * q3;
-    const real q7 = q6 * q;
-    
-    // Derivative coefficients: bₙ = n × aₙ (from d(φ*h)/dq = b₁ + b₂q + ...)
-    // Then g(r) = -(b₁ + b₂q + b₃q² + ... + b₉q⁸) / (h³ × q)
-    const real b1 = -0.0031873250;   // 1 × a1 ≈ 0
-    const real b2 = -20.4309615486;  // 2 × a2
-    const real b3 = -3.4733161665;   // 3 × a3
-    const real b4 = 144.4054679020;  // 4 × a4
-    const real b5 = -131.6995470300; // 5 × a5
-    const real b6 = -264.6476232684; // 6 × a6
-    const real b7 = 578.5806366781;  // 7 × a7
-    const real b8 = -404.7372992448; // 8 × a8
-    const real b9 = 101.0093087241;  // 9 × a9
-    
-    const real denom = h * h * h;
-    // g(r) = -(b₁/q + b₂ + b₃q + b₄q² + ... + b₉q⁷) / h³
-    return -(b1/q + b2 + b3*q + b4*q2 + b5*q3 + b6*q4 + b7*q5 + b8*q6 + b9*q7) / denom;
+    return WendlandC4LookupTable::get_instance().g_full(r, h);
 #else
     return 1.0 / (r * r * r + 1e-30);
 #endif

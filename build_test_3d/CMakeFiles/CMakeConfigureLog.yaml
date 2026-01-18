@@ -1,0 +1,3033 @@
+
+---
+events:
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineSystem.cmake:12 (find_program)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_UNAME"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "uname"
+    candidate_directories:
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    searched_directories:
+      - "/opt/homebrew/bin/uname"
+      - "/opt/homebrew/sbin/uname"
+      - "/Users/yansongguo/.local/bin/uname"
+      - "/Users/yansongguo/.maestro/bin/uname"
+      - "/Users/yansongguo/.nix-profile/bin/uname"
+      - "/etc/profiles/per-user/yansongguo/bin/uname"
+      - "/run/current-system/sw/bin/uname"
+      - "/nix/var/nix/profiles/default/bin/uname"
+      - "/usr/local/bin/uname"
+    found: "/usr/bin/uname"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineSystem.cmake:212 (message)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      The system is: Darwin - 24.5.0 - arm64
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeUnixFindMake.cmake:5 (find_program)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_MAKE_PROGRAM"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gmake"
+      - "make"
+      - "smake"
+    candidate_directories:
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    searched_directories:
+      - "/opt/homebrew/bin/gmake"
+      - "/opt/homebrew/sbin/gmake"
+      - "/Users/yansongguo/.local/bin/gmake"
+      - "/Users/yansongguo/.maestro/bin/gmake"
+      - "/Users/yansongguo/.nix-profile/bin/gmake"
+      - "/etc/profiles/per-user/yansongguo/bin/gmake"
+      - "/run/current-system/sw/bin/gmake"
+      - "/nix/var/nix/profiles/default/bin/gmake"
+      - "/usr/local/bin/gmake"
+      - "/usr/bin/gmake"
+      - "/bin/gmake"
+      - "/usr/sbin/gmake"
+      - "/sbin/gmake"
+      - "/opt/homebrew/bin/make"
+      - "/opt/homebrew/sbin/make"
+      - "/Users/yansongguo/.local/bin/make"
+      - "/Users/yansongguo/.maestro/bin/make"
+      - "/Users/yansongguo/.nix-profile/bin/make"
+      - "/etc/profiles/per-user/yansongguo/bin/make"
+    found: "/run/current-system/sw/bin/make"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompiler.cmake:73 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:69 (_cmake_find_compiler)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_CXX_COMPILER"
+    description: "CXX compiler"
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "c++"
+      - "g++"
+      - "cl"
+      - "bcc"
+      - "icpx"
+      - "icx"
+      - "clang++"
+    candidate_directories:
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    searched_directories:
+      - "/opt/homebrew/bin/c++"
+      - "/opt/homebrew/sbin/c++"
+      - "/Users/yansongguo/.local/bin/c++"
+      - "/Users/yansongguo/.maestro/bin/c++"
+      - "/Users/yansongguo/.nix-profile/bin/c++"
+      - "/etc/profiles/per-user/yansongguo/bin/c++"
+      - "/run/current-system/sw/bin/c++"
+      - "/nix/var/nix/profiles/default/bin/c++"
+      - "/usr/local/bin/c++"
+    found: "/usr/bin/c++"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:462 (find_file)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:500 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/"
+    found: "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: /usr/bin/c++ 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+      
+      The CXX compiler identification is AppleClang, found in:
+        /Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/4.1.2/CompilerIdCXX/a.out
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:290 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Detecting CXX compiler apple sysroot: "/usr/bin/c++" "-E" "apple-sdk.cpp"
+        # 1 "apple-sdk.cpp"
+        # 1 "<built-in>" 1
+        # 1 "<built-in>" 3
+        # 513 "<built-in>" 3
+        # 1 "<command line>" 1
+        # 1 "<built-in>" 2
+        # 1 "apple-sdk.cpp" 2
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 1 3 4
+        # 89 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityVersions.h" 1 3 4
+        # 90 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 2 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/TargetConditionals.h" 1 3 4
+        # 91 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 2 3 4
+        # 207 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/Availability.h" 1 3 4
+        # 196 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/Availability.h" 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityVersions.h" 1 3 4
+        # 197 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/Availability.h" 2 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h" 1 3 4
+        # 33 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h" 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityVersions.h" 1 3 4
+        # 34 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h" 2 3 4
+        # 198 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/Availability.h" 2 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternalLegacy.h" 1 3 4
+        # 34 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternalLegacy.h" 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h" 1 3 4
+        # 35 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternalLegacy.h" 2 3 4
+        # 199 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/Availability.h" 2 3 4
+        # 208 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 2 3 4
+        # 2 "apple-sdk.cpp" 2
+        
+        
+      Found apple sysroot: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_AR"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ar"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    found: "/usr/bin/ar"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_RANLIB"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ranlib"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    found: "/usr/bin/ranlib"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_STRIP"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "strip"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    found: "/usr/bin/strip"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_LINKER"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ld"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    found: "/usr/bin/ld"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_NM"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "nm"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    found: "/usr/bin/nm"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_OBJDUMP"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "objdump"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    found: "/usr/bin/objdump"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_OBJCOPY"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "objcopy"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    searched_directories:
+      - "/usr/bin/objcopy"
+      - "/opt/homebrew/bin/objcopy"
+      - "/opt/homebrew/sbin/objcopy"
+      - "/Users/yansongguo/.local/bin/objcopy"
+      - "/Users/yansongguo/.maestro/bin/objcopy"
+      - "/Users/yansongguo/.nix-profile/bin/objcopy"
+      - "/etc/profiles/per-user/yansongguo/bin/objcopy"
+      - "/run/current-system/sw/bin/objcopy"
+      - "/nix/var/nix/profiles/default/bin/objcopy"
+      - "/usr/local/bin/objcopy"
+      - "/bin/objcopy"
+      - "/usr/sbin/objcopy"
+      - "/sbin/objcopy"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_READELF"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "readelf"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    searched_directories:
+      - "/usr/bin/readelf"
+      - "/opt/homebrew/bin/readelf"
+      - "/opt/homebrew/sbin/readelf"
+      - "/Users/yansongguo/.local/bin/readelf"
+      - "/Users/yansongguo/.maestro/bin/readelf"
+      - "/Users/yansongguo/.nix-profile/bin/readelf"
+      - "/etc/profiles/per-user/yansongguo/bin/readelf"
+      - "/run/current-system/sw/bin/readelf"
+      - "/nix/var/nix/profiles/default/bin/readelf"
+      - "/usr/local/bin/readelf"
+      - "/bin/readelf"
+      - "/usr/sbin/readelf"
+      - "/sbin/readelf"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_DLLTOOL"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "dlltool"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    searched_directories:
+      - "/usr/bin/dlltool"
+      - "/opt/homebrew/bin/dlltool"
+      - "/opt/homebrew/sbin/dlltool"
+      - "/Users/yansongguo/.local/bin/dlltool"
+      - "/Users/yansongguo/.maestro/bin/dlltool"
+      - "/Users/yansongguo/.nix-profile/bin/dlltool"
+      - "/etc/profiles/per-user/yansongguo/bin/dlltool"
+      - "/run/current-system/sw/bin/dlltool"
+      - "/nix/var/nix/profiles/default/bin/dlltool"
+      - "/usr/local/bin/dlltool"
+      - "/bin/dlltool"
+      - "/usr/sbin/dlltool"
+      - "/sbin/dlltool"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_ADDR2LINE"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "addr2line"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    searched_directories:
+      - "/usr/bin/addr2line"
+      - "/opt/homebrew/bin/addr2line"
+      - "/opt/homebrew/sbin/addr2line"
+      - "/Users/yansongguo/.local/bin/addr2line"
+      - "/Users/yansongguo/.maestro/bin/addr2line"
+      - "/Users/yansongguo/.nix-profile/bin/addr2line"
+      - "/etc/profiles/per-user/yansongguo/bin/addr2line"
+      - "/run/current-system/sw/bin/addr2line"
+      - "/nix/var/nix/profiles/default/bin/addr2line"
+      - "/usr/local/bin/addr2line"
+      - "/bin/addr2line"
+      - "/usr/sbin/addr2line"
+      - "/sbin/addr2line"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_TAPI"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "tapi"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    searched_directories:
+      - "/usr/bin/tapi"
+      - "/opt/homebrew/bin/tapi"
+      - "/opt/homebrew/sbin/tapi"
+      - "/Users/yansongguo/.local/bin/tapi"
+      - "/Users/yansongguo/.maestro/bin/tapi"
+      - "/Users/yansongguo/.nix-profile/bin/tapi"
+      - "/etc/profiles/per-user/yansongguo/bin/tapi"
+      - "/run/current-system/sw/bin/tapi"
+      - "/nix/var/nix/profiles/default/bin/tapi"
+      - "/usr/local/bin/tapi"
+      - "/bin/tapi"
+      - "/usr/sbin/tapi"
+      - "/sbin/tapi"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/Platform/Darwin.cmake:76 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeSystemSpecificInformation.cmake:32 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_INSTALL_NAME_TOOL"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "install_name_tool"
+    candidate_directories:
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+    searched_directories:
+      - "/opt/homebrew/bin/install_name_tool"
+      - "/opt/homebrew/sbin/install_name_tool"
+      - "/Users/yansongguo/.local/bin/install_name_tool"
+      - "/Users/yansongguo/.maestro/bin/install_name_tool"
+      - "/Users/yansongguo/.nix-profile/bin/install_name_tool"
+      - "/etc/profiles/per-user/yansongguo/bin/install_name_tool"
+      - "/run/current-system/sw/bin/install_name_tool"
+      - "/nix/var/nix/profiles/default/bin/install_name_tool"
+      - "/usr/local/bin/install_name_tool"
+    found: "/usr/bin/install_name_tool"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:83 (try_compile)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-NR6Gtt"
+      binary: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-NR6Gtt"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_SCAN_FOR_MODULES: "OFF"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-NR6Gtt'
+        
+        Run Build Command(s): /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E env VERBOSE=1 /run/current-system/sw/bin/make -f Makefile cmTC_fe8e0/fast
+        /run/current-system/sw/bin/make  -f CMakeFiles/cmTC_fe8e0.dir/build.make CMakeFiles/cmTC_fe8e0.dir/build
+        make[1]: Entering directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-NR6Gtt'
+        Building CXX object CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o
+        /usr/bin/c++   -arch arm64   -v -Wl,-v -MD -MT CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o -c /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp
+        Apple clang version 17.0.0 (clang-1700.0.13.5)
+        Target: arm64-apple-darwin24.5.0
+        Thread model: posix
+        InstalledDir: /Library/Developer/CommandLineTools/usr/bin
+        clang++: warning: -Wl,-v: 'linker' input unused [-Wunused-command-line-argument]
+        ignoring nonexistent directory "/Library/Developer/CommandLineTools/usr/bin/../include/c++/v1"
+         "/Library/Developer/CommandLineTools/usr/bin/clang" -cc1 -triple arm64-apple-macosx15.0.0 -Wundef-prefix=TARGET_OS_ -Wdeprecated-objc-isa-usage -Werror=deprecated-objc-isa-usage -Werror=implicit-function-declaration -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -mframe-pointer=non-leaf -fno-strict-return -ffp-contract=on -fno-rounding-math -funwind-tables=1 -fobjc-msgsend-selector-stubs -target-sdk-version=15.5 -fvisibility-inlines-hidden-static-local-var -fdefine-target-os-macros -fno-assume-unique-vtables -fno-modulemap-allow-subdirectory-search -target-cpu apple-m1 -target-feature +zcm -target-feature +zcz -target-feature +v8.5a -target-feature +aes -target-feature +altnzcv -target-feature +ccdp -target-feature +complxnum -target-feature +crc -target-feature +dotprod -target-feature +fp-armv8 -target-feature +fp16fml -target-feature +fptoint -target-feature +fullfp16 -target-feature +jsconv -target-feature +lse -target-feature +neon -target-feature +pauth -target-feature +perfmon -target-feature +predres -target-feature +ras -target-feature +rcpc -target-feature +rdm -target-feature +sb -target-feature +sha2 -target-feature +sha3 -target-feature +specrestrict -target-feature +ssbs -target-abi darwinpcs -debugger-tuning=lldb -fdebug-compilation-dir=/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-NR6Gtt -target-linker-version 1167.5 -v -fcoverage-compilation-dir=/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-NR6Gtt -resource-dir /Library/Developer/CommandLineTools/usr/lib/clang/17 -dependency-file CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o.d -skip-unused-modulemap-deps -MT CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/usr/lib/clang/17/include -internal-externc-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -internal-externc-isystem /Library/Developer/CommandLineTools/usr/include -Wno-reorder-init-list -Wno-implicit-int-float-conversion -Wno-c99-designator -Wno-final-dtor-non-final-class -Wno-extra-semi-stmt -Wno-misleading-indentation -Wno-quoted-include-in-framework-header -Wno-implicit-fallthrough -Wno-enum-enum-conversion -Wno-enum-float-conversion -Wno-elaborated-enum-base -Wno-reserved-identifier -Wno-gnu-folding-constant -fdeprecated-macro -ferror-limit 19 -stack-protector 1 -fstack-check -mdarwin-stkchk-strong-link -fblocks -fencode-extended-block-signature -fregister-global-dtors-with-atexit -fgnuc-version=4.2.1 -fno-cxx-modules -fskip-odr-check-in-gmf -fcxx-exceptions -fexceptions -fmax-type-align=16 -fcommon -clang-vendor-feature=+disableNonDependentMemberExprInCurrentInstantiation -fno-odr-hash-protocols -clang-vendor-feature=+enableAggressiveVLAFolding -clang-vendor-feature=+revert09abecef7bbf -clang-vendor-feature=+thisNoAlignAttr -clang-vendor-feature=+thisNoNullAttr -clang-vendor-feature=+disableAtImportPrivateFrameworkInImplementationError -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o -x c++ /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp
+        clang -cc1 version 17.0.0 (clang-1700.0.13.5) default target arm64-apple-darwin24.5.0
+        ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include"
+        ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks"
+        ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /usr/local/include
+         /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1
+         /Library/Developer/CommandLineTools/usr/lib/clang/17/include
+         /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include
+         /Library/Developer/CommandLineTools/usr/include
+         /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks (framework directory)
+        End of search list.
+        Linking CXX executable cmTC_fe8e0
+        /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E cmake_link_script CMakeFiles/cmTC_fe8e0.dir/link.txt --verbose=1
+        Apple clang version 17.0.0 (clang-1700.0.13.5)
+        Target: arm64-apple-darwin24.5.0
+        Thread model: posix
+        InstalledDir: /Library/Developer/CommandLineTools/usr/bin
+         "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 15.0.0 15.5 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mllvm -enable-linkonceodr-outlining -o cmTC_fe8e0 -L/usr/local/lib -search_paths_first -headerpad_max_install_names -v CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o -lc++ -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a
+        @(#)PROGRAM:ld PROJECT:ld-1167.5
+        BUILD 01:45:05 Apr 30 2025
+        configured to support archs: armv6 armv7 armv7s arm64 arm64e arm64_32 i386 x86_64 x86_64h armv6m armv7k armv7m armv7em
+        will use ld-classic for: armv6 armv7 armv7s i386 armv6m armv7k armv7m armv7em
+        LTO support using: LLVM version 17.0.0 (static support for 29, runtime is 29)
+        TAPI support using: Apple TAPI version 17.0.0 (tapi-1700.0.3.5)
+        Library search paths:
+        	/usr/local/lib
+        	/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib
+        	/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift
+        Framework search paths:
+        	/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks
+        /usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names  -v -Wl,-v CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_fe8e0
+        make[1]: Leaving directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-NR6Gtt'
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:122 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Effective list of requested architectures (possibly empty)  : ""
+      Effective list of architectures found in the ABI info binary: "arm64"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:217 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Parsed CXX implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/usr/local/include]
+          add: [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1]
+          add: [/Library/Developer/CommandLineTools/usr/lib/clang/17/include]
+          add: [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include]
+          add: [/Library/Developer/CommandLineTools/usr/include]
+        end of search list found
+        collapse include dir [/usr/local/include] ==> [/usr/local/include]
+        collapse include dir [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1] ==> [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1]
+        collapse include dir [/Library/Developer/CommandLineTools/usr/lib/clang/17/include] ==> [/Library/Developer/CommandLineTools/usr/lib/clang/17/include]
+        collapse include dir [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include] ==> [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include]
+        collapse include dir [/Library/Developer/CommandLineTools/usr/include] ==> [/Library/Developer/CommandLineTools/usr/include]
+        implicit include dirs: [/usr/local/include;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1;/Library/Developer/CommandLineTools/usr/lib/clang/17/include;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include;/Library/Developer/CommandLineTools/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:253 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Parsed CXX implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
+        ignore line: [Change Dir: '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-NR6Gtt']
+        ignore line: []
+        ignore line: [Run Build Command(s): /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E env VERBOSE=1 /run/current-system/sw/bin/make -f Makefile cmTC_fe8e0/fast]
+        ignore line: [/run/current-system/sw/bin/make  -f CMakeFiles/cmTC_fe8e0.dir/build.make CMakeFiles/cmTC_fe8e0.dir/build]
+        ignore line: [make[1]: Entering directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-NR6Gtt']
+        ignore line: [Building CXX object CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [/usr/bin/c++   -arch arm64   -v -Wl -v -MD -MT CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o -c /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Apple clang version 17.0.0 (clang-1700.0.13.5)]
+        ignore line: [Target: arm64-apple-darwin24.5.0]
+        ignore line: [Thread model: posix]
+        ignore line: [InstalledDir: /Library/Developer/CommandLineTools/usr/bin]
+        ignore line: [clang++: warning: -Wl -v: 'linker' input unused [-Wunused-command-line-argument]]
+        ignore line: [ignoring nonexistent directory "/Library/Developer/CommandLineTools/usr/bin/../include/c++/v1"]
+        ignore line: [ "/Library/Developer/CommandLineTools/usr/bin/clang" -cc1 -triple arm64-apple-macosx15.0.0 -Wundef-prefix=TARGET_OS_ -Wdeprecated-objc-isa-usage -Werror=deprecated-objc-isa-usage -Werror=implicit-function-declaration -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -mframe-pointer=non-leaf -fno-strict-return -ffp-contract=on -fno-rounding-math -funwind-tables=1 -fobjc-msgsend-selector-stubs -target-sdk-version=15.5 -fvisibility-inlines-hidden-static-local-var -fdefine-target-os-macros -fno-assume-unique-vtables -fno-modulemap-allow-subdirectory-search -target-cpu apple-m1 -target-feature +zcm -target-feature +zcz -target-feature +v8.5a -target-feature +aes -target-feature +altnzcv -target-feature +ccdp -target-feature +complxnum -target-feature +crc -target-feature +dotprod -target-feature +fp-armv8 -target-feature +fp16fml -target-feature +fptoint -target-feature +fullfp16 -target-feature +jsconv -target-feature +lse -target-feature +neon -target-feature +pauth -target-feature +perfmon -target-feature +predres -target-feature +ras -target-feature +rcpc -target-feature +rdm -target-feature +sb -target-feature +sha2 -target-feature +sha3 -target-feature +specrestrict -target-feature +ssbs -target-abi darwinpcs -debugger-tuning=lldb -fdebug-compilation-dir=/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-NR6Gtt -target-linker-version 1167.5 -v -fcoverage-compilation-dir=/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-NR6Gtt -resource-dir /Library/Developer/CommandLineTools/usr/lib/clang/17 -dependency-file CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o.d -skip-unused-modulemap-deps -MT CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/usr/lib/clang/17/include -internal-externc-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -internal-externc-isystem /Library/Developer/CommandLineTools/usr/include -Wno-reorder-init-list -Wno-implicit-int-float-conversion -Wno-c99-designator -Wno-final-dtor-non-final-class -Wno-extra-semi-stmt -Wno-misleading-indentation -Wno-quoted-include-in-framework-header -Wno-implicit-fallthrough -Wno-enum-enum-conversion -Wno-enum-float-conversion -Wno-elaborated-enum-base -Wno-reserved-identifier -Wno-gnu-folding-constant -fdeprecated-macro -ferror-limit 19 -stack-protector 1 -fstack-check -mdarwin-stkchk-strong-link -fblocks -fencode-extended-block-signature -fregister-global-dtors-with-atexit -fgnuc-version=4.2.1 -fno-cxx-modules -fskip-odr-check-in-gmf -fcxx-exceptions -fexceptions -fmax-type-align=16 -fcommon -clang-vendor-feature=+disableNonDependentMemberExprInCurrentInstantiation -fno-odr-hash-protocols -clang-vendor-feature=+enableAggressiveVLAFolding -clang-vendor-feature=+revert09abecef7bbf -clang-vendor-feature=+thisNoAlignAttr -clang-vendor-feature=+thisNoNullAttr -clang-vendor-feature=+disableAtImportPrivateFrameworkInImplementationError -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o -x c++ /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [clang -cc1 version 17.0.0 (clang-1700.0.13.5) default target arm64-apple-darwin24.5.0]
+        ignore line: [ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include"]
+        ignore line: [ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks"]
+        ignore line: [ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /usr/local/include]
+        ignore line: [ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1]
+        ignore line: [ /Library/Developer/CommandLineTools/usr/lib/clang/17/include]
+        ignore line: [ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include]
+        ignore line: [ /Library/Developer/CommandLineTools/usr/include]
+        ignore line: [ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks (framework directory)]
+        ignore line: [End of search list.]
+        ignore line: [Linking CXX executable cmTC_fe8e0]
+        ignore line: [/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E cmake_link_script CMakeFiles/cmTC_fe8e0.dir/link.txt --verbose=1]
+        ignore line: [Apple clang version 17.0.0 (clang-1700.0.13.5)]
+        ignore line: [Target: arm64-apple-darwin24.5.0]
+        ignore line: [Thread model: posix]
+        ignore line: [InstalledDir: /Library/Developer/CommandLineTools/usr/bin]
+        link line: [ "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 15.0.0 15.5 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mllvm -enable-linkonceodr-outlining -o cmTC_fe8e0 -L/usr/local/lib -search_paths_first -headerpad_max_install_names -v CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o -lc++ -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a]
+          arg [/Library/Developer/CommandLineTools/usr/bin/ld] ==> ignore
+          arg [-demangle] ==> ignore
+          arg [-lto_library] ==> ignore, skip following value
+          arg [/Library/Developer/CommandLineTools/usr/lib/libLTO.dylib] ==> skip value of -lto_library
+          arg [-dynamic] ==> ignore
+          arg [-arch] ==> ignore
+          arg [arm64] ==> ignore
+          arg [-platform_version] ==> ignore
+          arg [macos] ==> ignore
+          arg [15.0.0] ==> ignore
+          arg [15.5] ==> ignore
+          arg [-syslibroot] ==> ignore
+          arg [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk] ==> ignore
+          arg [-mllvm] ==> ignore
+          arg [-enable-linkonceodr-outlining] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_fe8e0] ==> ignore
+          arg [-L/usr/local/lib] ==> dir [/usr/local/lib]
+          arg [-search_paths_first] ==> ignore
+          arg [-headerpad_max_install_names] ==> ignore
+          arg [-v] ==> ignore
+          arg [CMakeFiles/cmTC_fe8e0.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+          arg [-lc++] ==> lib [c++]
+          arg [-lSystem] ==> lib [System]
+          arg [/Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a] ==> lib [/Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a]
+        linker tool for 'CXX': /Library/Developer/CommandLineTools/usr/bin/ld
+        Library search paths: [;/usr/local/lib;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift]
+        Framework search paths: [;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks]
+        remove lib [System]
+        remove lib [/Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a]
+        collapse library dir [/usr/local/lib] ==> [/usr/local/lib]
+        collapse library dir [/usr/local/lib] ==> [/usr/local/lib]
+        collapse library dir [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib] ==> [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib]
+        collapse library dir [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift] ==> [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift]
+        collapse framework dir [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks] ==> [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks]
+        implicit libs: [c++]
+        implicit objs: []
+        implicit dirs: [/usr/local/lib;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift]
+        implicit fwks: [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/Internal/CMakeDetermineLinkerId.cmake:36 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:299 (cmake_determine_linker_id)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Running the CXX compiler's linker: "/Library/Developer/CommandLineTools/usr/bin/ld" "-v"
+      @(#)PROGRAM:ld PROJECT:ld-1167.5
+      BUILD 01:45:05 Apr 30 2025
+      configured to support archs: armv6 armv7 armv7s arm64 arm64e arm64_32 i386 x86_64 x86_64h armv6m armv7k armv7m armv7em
+      will use ld-classic for: armv6 armv7 armv7s i386 armv6m armv7k armv7m armv7em
+      LTO support using: LLVM version 17.0.0 (static support for 29, runtime is 29)
+      TAPI support using: Apple TAPI version 17.0.0 (tapi-1700.0.3.5)
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindOpenMP.cmake:492 (try_compile)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindOpenMP.cmake:632 (_OPENMP_GET_SPEC_DATE)"
+      - "CMakeLists.txt:41 (find_package)"
+    description: "Detecting CXX OpenMP version"
+    directories:
+      source: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-aB73eA"
+      binary: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-aB73eA"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "OpenMP_SPECTEST_CXX_"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-aB73eA'
+        
+        Run Build Command(s): /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E env VERBOSE=1 /run/current-system/sw/bin/make -f Makefile cmTC_19de2/fast
+        /run/current-system/sw/bin/make  -f CMakeFiles/cmTC_19de2.dir/build.make CMakeFiles/cmTC_19de2.dir/build
+        make[1]: Entering directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-aB73eA'
+        Building CXX object CMakeFiles/cmTC_19de2.dir/OpenMPCheckVersion.cpp.o
+        /usr/bin/c++   -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -arch arm64 -MD -MT CMakeFiles/cmTC_19de2.dir/OpenMPCheckVersion.cpp.o -MF CMakeFiles/cmTC_19de2.dir/OpenMPCheckVersion.cpp.o.d -o CMakeFiles/cmTC_19de2.dir/OpenMPCheckVersion.cpp.o -c /Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-aB73eA/OpenMPCheckVersion.cpp
+        Linking CXX executable cmTC_19de2
+        /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E cmake_link_script CMakeFiles/cmTC_19de2.dir/link.txt --verbose=1
+        /usr/bin/c++  -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cmTC_19de2.dir/OpenMPCheckVersion.cpp.o -o cmTC_19de2
+        make[1]: Leaving directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-aB73eA'
+        
+      exitCode: 0
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "/opt/homebrew/lib/cmake/Boost-1.90.0/BoostConfig.cmake:141 (find_package)"
+      - "/opt/homebrew/lib/cmake/Boost-1.90.0/BoostConfig.cmake:215 (boost_find_component)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindBoost.cmake:609 (find_package)"
+      - "CMakeLists.txt:42 (find_package)"
+    name: "boost_headers"
+    configs:
+      -
+        filename: "boost_headersConfig.cmake"
+        kind: "cmake"
+      -
+        filename: "boost_headers-config.cmake"
+        kind: "cmake"
+    version_request:
+      version: "1.90.0"
+      version_complete: "1.90.0"
+      exact: true
+    settings:
+      required: "required_explicit"
+      quiet: true
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      hints:
+        - "/opt/homebrew/lib/cmake"
+      names:
+        - "boost_headers"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/pkgRedirects/boost_headersConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/pkgRedirects/boost_headers-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_headersConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_headers-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_headers-1.90.0/boost_headersConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+    found:
+      path: "/opt/homebrew/lib/cmake/boost_headers-1.90.0/boost_headers-config.cmake"
+      mode: "config"
+      version: "1.90.0"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2"
+        - "/usr/local"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindBoost.cmake:609 (find_package)"
+      - "CMakeLists.txt:42 (find_package)"
+    name: "Boost"
+    configs:
+      -
+        filename: "BoostConfig.cmake"
+        kind: "cmake"
+      -
+        filename: "boost-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
+    settings:
+      required: "optional"
+      quiet: true
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "Boost"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/pkgRedirects/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/pkgRedirects/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_process-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_process-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_graph-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_graph-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_test_exec_monitor-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_test_exec_monitor-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_unit_test_framework-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_unit_test_framework-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_program_options-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_program_options-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_headers-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_headers-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_filesystem-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_filesystem-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_context-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_context-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_log-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_log-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_coroutine-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_coroutine-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_random-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_random-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_thread-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_thread-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_tr1l-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_tr1l-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_stacktrace_basic-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_stacktrace_basic-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_json-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_json-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_regex-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_regex-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_log_setup-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_log_setup-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_graph_parallel-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_graph_parallel-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_container-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_container-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_tr1f-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_tr1f-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_type_erasure-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_type_erasure-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_date_time-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_date_time-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_stacktrace_addr2line-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_stacktrace_addr2line-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_wserialization-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_wserialization-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_timer-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_timer-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_locale-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_locale-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_nowide-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_nowide-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_tr1-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_tr1-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_prg_exec_monitor-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_prg_exec_monitor-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_url-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_url-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_atomic-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_atomic-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_c99l-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_c99l-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_charconv-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_charconv-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_contract-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_contract-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_exception-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_exception-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_serialization-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_serialization-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_wave-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_wave-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_c99-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_c99-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_iostreams-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_iostreams-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_c99f-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_math_c99f-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_chrono-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_chrono-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_stacktrace_noop-1.90.0/BoostConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/boost_stacktrace_noop-1.90.0/boost-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+    found:
+      path: "/opt/homebrew/lib/cmake/Boost-1.90.0/BoostConfig.cmake"
+      mode: "config"
+      version: "1.90.0"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2"
+        - "/usr/local"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindBoost.cmake:537 (find_path)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindBoost.cmake:642 (_boost_set_legacy_variables_from_config)"
+      - "CMakeLists.txt:42 (find_package)"
+    mode: "path"
+    variable: "Boost_INCLUDE_DIR"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "boost/version.hpp"
+      - "boost/config.hpp"
+    candidate_directories:
+      - "/opt/homebrew/include/"
+    searched_directories:
+      - "/opt/homebrew/include/boost.framework/Headers/version.hpp"
+      - "/opt/homebrew/include/boost.framework/Headers/config.hpp"
+    found: "/opt/homebrew/include/"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2"
+        - "/usr/local"
+      CMAKE_SYSTEM_INCLUDE_PATH:
+        - "/nix/store/qxb493fs3srs8zmbjddrdgrr17km6cq4-libSystem-B/include"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindHDF5.cmake:677 (find_package)"
+      - "CMakeLists.txt:45 (find_package)"
+    name: "HDF5"
+    components:
+      -
+        name: "C"
+        required: true
+        found: false
+      -
+        name: "CXX"
+        required: true
+        found: false
+    configs:
+      -
+        filename: "HDF5Config.cmake"
+        kind: "cmake"
+      -
+        filename: "hdf5-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
+    settings:
+      required: "optional"
+      quiet: true
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "HDF5"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/pkgRedirects/HDF5Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/pkgRedirects/hdf5-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/HDF5Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/hdf5-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cmake/hdf5/HDF5Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+    found:
+      path: "/opt/homebrew/lib/cmake/hdf5/hdf5-config.cmake"
+      mode: "config"
+      version: "1.14.6"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2"
+        - "/usr/local"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindHDF5.cmake:971 (find_program)"
+      - "CMakeLists.txt:45 (find_package)"
+    mode: "program"
+    variable: "HDF5_DIFF_EXECUTABLE"
+    description: "HDF5 file differencing tool."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "h5diff"
+    candidate_directories:
+      - "/opt/homebrew/bin/bin/"
+      - "/opt/homebrew/bin/Bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/bin/"
+      - "/opt/homebrew/sbin/Bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/bin/"
+      - "/Users/yansongguo/.local/bin/Bin/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/bin/"
+      - "/Users/yansongguo/.maestro/bin/Bin/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/Bin/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/Bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/bin/"
+      - "/run/current-system/sw/bin/Bin/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/bin/"
+      - "/nix/var/nix/profiles/default/bin/Bin/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/Bin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/Bin/"
+      - "/usr/bin/"
+      - "/bin/bin/"
+      - "/bin/Bin/"
+      - "/bin/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/Bin/"
+      - "/usr/sbin/"
+      - "/sbin/bin/"
+      - "/sbin/Bin/"
+      - "/sbin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/Bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/sbin/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/sbin/Bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/sbin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/Bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/bin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/Bin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/sbin/bin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/sbin/Bin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/sbin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/Bin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/Bin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/Bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/Bin/"
+      - "/usr/local/"
+    searched_directories:
+      - "/opt/homebrew/bin/bin/h5diff"
+      - "/opt/homebrew/bin/Bin/h5diff"
+    found: "/opt/homebrew/bin/h5diff"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2"
+        - "/usr/local"
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "CMakeLists.txt:49 (find_package)"
+    name: "nlohmann_json"
+    configs:
+      -
+        filename: "nlohmann_jsonConfig.cmake"
+        kind: "cmake"
+      -
+        filename: "nlohmann_json-config.cmake"
+        kind: "cmake"
+    version_request:
+      version: "3.11.0"
+      version_complete: "3.11.0"
+      exact: false
+    settings:
+      required: "optional"
+      quiet: true
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "nlohmann_json"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/pkgRedirects/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/pkgRedirects/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/yansongguo/.local/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/yansongguo/.local/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/etc/profiles/per-user/yansongguo/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/etc/profiles/per-user/yansongguo/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/run/current-system/sw/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/run/current-system/sw/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/nix/var/nix/profiles/default/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/nix/var/nix/profiles/default/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/Library/Frameworks/nlohmann_jsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/Library/Frameworks/nlohmann_json-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+    found: null
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2"
+        - "/usr/local"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/Internal/CheckSourceCompiles.cmake:104 (try_compile)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CheckCXXCompilerFlag.cmake:103 (cmake_check_compiler_flag)"
+      - "CMakeLists.txt:88 (check_cxx_compiler_flag)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_MARCH_NATIVE"
+    directories:
+      source: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-bDGZVh"
+      binary: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-bDGZVh"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "COMPILER_SUPPORTS_MARCH_NATIVE"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-bDGZVh'
+        
+        Run Build Command(s): /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E env VERBOSE=1 /run/current-system/sw/bin/make -f Makefile cmTC_bb18d/fast
+        /run/current-system/sw/bin/make  -f CMakeFiles/cmTC_bb18d.dir/build.make CMakeFiles/cmTC_bb18d.dir/build
+        make[1]: Entering directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-bDGZVh'
+        Building CXX object CMakeFiles/cmTC_bb18d.dir/src.cxx.o
+        /usr/bin/c++ -DCOMPILER_SUPPORTS_MARCH_NATIVE  -arch arm64   -march=native -MD -MT CMakeFiles/cmTC_bb18d.dir/src.cxx.o -MF CMakeFiles/cmTC_bb18d.dir/src.cxx.o.d -o CMakeFiles/cmTC_bb18d.dir/src.cxx.o -c /Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-bDGZVh/src.cxx
+        Linking CXX executable cmTC_bb18d
+        /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E cmake_link_script CMakeFiles/cmTC_bb18d.dir/link.txt --verbose=1
+        /usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cmTC_bb18d.dir/src.cxx.o -o cmTC_bb18d
+        make[1]: Leaving directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-bDGZVh'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/Internal/CheckSourceCompiles.cmake:104 (try_compile)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CheckCXXCompilerFlag.cmake:103 (cmake_check_compiler_flag)"
+      - "CMakeLists.txt:114 (check_cxx_compiler_flag)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_AVX2"
+    directories:
+      source: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-etQR1e"
+      binary: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-etQR1e"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "COMPILER_SUPPORTS_AVX2"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-etQR1e'
+        
+        Run Build Command(s): /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E env VERBOSE=1 /run/current-system/sw/bin/make -f Makefile cmTC_34bfd/fast
+        /run/current-system/sw/bin/make  -f CMakeFiles/cmTC_34bfd.dir/build.make CMakeFiles/cmTC_34bfd.dir/build
+        make[1]: Entering directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-etQR1e'
+        Building CXX object CMakeFiles/cmTC_34bfd.dir/src.cxx.o
+        /usr/bin/c++ -DCOMPILER_SUPPORTS_AVX2  -arch arm64   -mavx2 -MD -MT CMakeFiles/cmTC_34bfd.dir/src.cxx.o -MF CMakeFiles/cmTC_34bfd.dir/src.cxx.o.d -o CMakeFiles/cmTC_34bfd.dir/src.cxx.o -c /Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-etQR1e/src.cxx
+        clang++: error: unsupported option '-mavx2' for target 'arm64-apple-darwin24.5.0'
+        make[1]: *** [CMakeFiles/cmTC_34bfd.dir/build.make:82: CMakeFiles/cmTC_34bfd.dir/src.cxx.o] Error 1
+        make[1]: Leaving directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-etQR1e'
+        make: *** [Makefile:134: cmTC_34bfd/fast] Error 2
+        
+      exitCode: 2
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/Internal/CheckSourceCompiles.cmake:104 (try_compile)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CheckCXXCompilerFlag.cmake:103 (cmake_check_compiler_flag)"
+      - "CMakeLists.txt:122 (check_cxx_compiler_flag)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_AVX512"
+    directories:
+      source: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-oulBeY"
+      binary: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-oulBeY"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "COMPILER_SUPPORTS_AVX512"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-oulBeY'
+        
+        Run Build Command(s): /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E env VERBOSE=1 /run/current-system/sw/bin/make -f Makefile cmTC_11a88/fast
+        /run/current-system/sw/bin/make  -f CMakeFiles/cmTC_11a88.dir/build.make CMakeFiles/cmTC_11a88.dir/build
+        make[1]: Entering directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-oulBeY'
+        Building CXX object CMakeFiles/cmTC_11a88.dir/src.cxx.o
+        /usr/bin/c++ -DCOMPILER_SUPPORTS_AVX512  -arch arm64   -mavx512f -MD -MT CMakeFiles/cmTC_11a88.dir/src.cxx.o -MF CMakeFiles/cmTC_11a88.dir/src.cxx.o.d -o CMakeFiles/cmTC_11a88.dir/src.cxx.o -c /Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-oulBeY/src.cxx
+        clang++: error: unsupported option '-mavx512f' for target 'arm64-apple-darwin24.5.0'
+        make[1]: *** [CMakeFiles/cmTC_11a88.dir/build.make:82: CMakeFiles/cmTC_11a88.dir/src.cxx.o] Error 1
+        make[1]: Leaving directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-oulBeY'
+        make: *** [Makefile:134: cmTC_11a88/fast] Error 2
+        
+      exitCode: 2
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompiler.cmake:54 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:64 (_cmake_find_compiler)"
+      - "build_test_3d/_deps/googletest-src/CMakeLists.txt:6 (project)"
+    mode: "program"
+    variable: "CMAKE_C_COMPILER"
+    description: "C compiler"
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "cc"
+      - "gcc"
+      - "cl"
+      - "bcc"
+      - "xlc"
+      - "icx"
+      - "clang"
+    candidate_directories:
+      - "/usr/bin/"
+    found: "/usr/bin/cc"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2"
+        - "/usr/local"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:462 (find_file)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:500 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "build_test_3d/_deps/googletest-src/CMakeLists.txt:6 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/"
+    found: "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2"
+        - "/usr/local"
+      CMAKE_SYSTEM_INCLUDE_PATH:
+        - "/nix/store/qxb493fs3srs8zmbjddrdgrr17km6cq4-libSystem-B/include"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "build_test_3d/_deps/googletest-src/CMakeLists.txt:6 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: /usr/bin/cc 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+      
+      The C compiler identification is AppleClang, found in:
+        /Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/4.1.2/CompilerIdC/a.out
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:290 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "build_test_3d/_deps/googletest-src/CMakeLists.txt:6 (project)"
+    message: |
+      Detecting C compiler apple sysroot: "/usr/bin/cc" "-E" "apple-sdk.c"
+        # 1 "apple-sdk.c"
+        # 1 "<built-in>" 1
+        # 1 "<built-in>" 3
+        # 465 "<built-in>" 3
+        # 1 "<command line>" 1
+        # 1 "<built-in>" 2
+        # 1 "apple-sdk.c" 2
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 1 3 4
+        # 89 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityVersions.h" 1 3 4
+        # 90 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 2 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/TargetConditionals.h" 1 3 4
+        # 91 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 2 3 4
+        # 207 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/Availability.h" 1 3 4
+        # 196 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/Availability.h" 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityVersions.h" 1 3 4
+        # 197 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/Availability.h" 2 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h" 1 3 4
+        # 33 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h" 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityVersions.h" 1 3 4
+        # 34 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h" 2 3 4
+        # 198 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/Availability.h" 2 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternalLegacy.h" 1 3 4
+        # 34 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternalLegacy.h" 3 4
+        # 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h" 1 3 4
+        # 35 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternalLegacy.h" 2 3 4
+        # 199 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/Availability.h" 2 3 4
+        # 208 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h" 2 3 4
+        # 2 "apple-sdk.c" 2
+        
+        
+      Found apple sysroot: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:83 (try_compile)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "build_test_3d/_deps/googletest-src/CMakeLists.txt:6 (project)"
+    checks:
+      - "Detecting C compiler ABI info"
+    directories:
+      source: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-80wGCq"
+      binary: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-80wGCq"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "CMAKE_C_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-80wGCq'
+        
+        Run Build Command(s): /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E env VERBOSE=1 /run/current-system/sw/bin/make -f Makefile cmTC_48d45/fast
+        /run/current-system/sw/bin/make  -f CMakeFiles/cmTC_48d45.dir/build.make CMakeFiles/cmTC_48d45.dir/build
+        make[1]: Entering directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-80wGCq'
+        Building C object CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o
+        /usr/bin/cc   -arch arm64   -v -Wl,-v -MD -MT CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o -MF CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o.d -o CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o -c /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeCCompilerABI.c
+        Apple clang version 17.0.0 (clang-1700.0.13.5)
+        Target: arm64-apple-darwin24.5.0
+        Thread model: posix
+        InstalledDir: /Library/Developer/CommandLineTools/usr/bin
+        clang: warning: -Wl,-v: 'linker' input unused [-Wunused-command-line-argument]
+         "/Library/Developer/CommandLineTools/usr/bin/clang" -cc1 -triple arm64-apple-macosx15.0.0 -Wundef-prefix=TARGET_OS_ -Wdeprecated-objc-isa-usage -Werror=deprecated-objc-isa-usage -Werror=implicit-function-declaration -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCCompilerABI.c -mrelocation-model pic -pic-level 2 -mframe-pointer=non-leaf -fno-strict-return -ffp-contract=on -fno-rounding-math -funwind-tables=1 -fobjc-msgsend-selector-stubs -target-sdk-version=15.5 -fvisibility-inlines-hidden-static-local-var -fdefine-target-os-macros -fno-assume-unique-vtables -fno-modulemap-allow-subdirectory-search -target-cpu apple-m1 -target-feature +zcm -target-feature +zcz -target-feature +v8.5a -target-feature +aes -target-feature +altnzcv -target-feature +ccdp -target-feature +complxnum -target-feature +crc -target-feature +dotprod -target-feature +fp-armv8 -target-feature +fp16fml -target-feature +fptoint -target-feature +fullfp16 -target-feature +jsconv -target-feature +lse -target-feature +neon -target-feature +pauth -target-feature +perfmon -target-feature +predres -target-feature +ras -target-feature +rcpc -target-feature +rdm -target-feature +sb -target-feature +sha2 -target-feature +sha3 -target-feature +specrestrict -target-feature +ssbs -target-abi darwinpcs -debugger-tuning=lldb -fdebug-compilation-dir=/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-80wGCq -target-linker-version 1167.5 -v -fcoverage-compilation-dir=/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-80wGCq -resource-dir /Library/Developer/CommandLineTools/usr/lib/clang/17 -dependency-file CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o.d -skip-unused-modulemap-deps -MT CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o -sys-header-deps -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/usr/lib/clang/17/include -internal-externc-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -internal-externc-isystem /Library/Developer/CommandLineTools/usr/include -Wno-reorder-init-list -Wno-implicit-int-float-conversion -Wno-c99-designator -Wno-final-dtor-non-final-class -Wno-extra-semi-stmt -Wno-misleading-indentation -Wno-quoted-include-in-framework-header -Wno-implicit-fallthrough -Wno-enum-enum-conversion -Wno-enum-float-conversion -Wno-elaborated-enum-base -Wno-reserved-identifier -Wno-gnu-folding-constant -ferror-limit 19 -stack-protector 1 -fstack-check -mdarwin-stkchk-strong-link -fblocks -fencode-extended-block-signature -fregister-global-dtors-with-atexit -fgnuc-version=4.2.1 -fskip-odr-check-in-gmf -fmax-type-align=16 -fcommon -clang-vendor-feature=+disableNonDependentMemberExprInCurrentInstantiation -fno-odr-hash-protocols -clang-vendor-feature=+enableAggressiveVLAFolding -clang-vendor-feature=+revert09abecef7bbf -clang-vendor-feature=+thisNoAlignAttr -clang-vendor-feature=+thisNoNullAttr -clang-vendor-feature=+disableAtImportPrivateFrameworkInImplementationError -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o -x c /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeCCompilerABI.c
+        clang -cc1 version 17.0.0 (clang-1700.0.13.5) default target arm64-apple-darwin24.5.0
+        ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include"
+        ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks"
+        ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /usr/local/include
+         /Library/Developer/CommandLineTools/usr/lib/clang/17/include
+         /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include
+         /Library/Developer/CommandLineTools/usr/include
+         /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks (framework directory)
+        End of search list.
+        Linking C executable cmTC_48d45
+        /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E cmake_link_script CMakeFiles/cmTC_48d45.dir/link.txt --verbose=1
+        Apple clang version 17.0.0 (clang-1700.0.13.5)
+        Target: arm64-apple-darwin24.5.0
+        Thread model: posix
+        InstalledDir: /Library/Developer/CommandLineTools/usr/bin
+         "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 15.0.0 15.5 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mllvm -enable-linkonceodr-outlining -o cmTC_48d45 -L/usr/local/lib -search_paths_first -headerpad_max_install_names -v CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a
+        @(#)PROGRAM:ld PROJECT:ld-1167.5
+        BUILD 01:45:05 Apr 30 2025
+        configured to support archs: armv6 armv7 armv7s arm64 arm64e arm64_32 i386 x86_64 x86_64h armv6m armv7k armv7m armv7em
+        will use ld-classic for: armv6 armv7 armv7s i386 armv6m armv7k armv7m armv7em
+        LTO support using: LLVM version 17.0.0 (static support for 29, runtime is 29)
+        TAPI support using: Apple TAPI version 17.0.0 (tapi-1700.0.3.5)
+        Library search paths:
+        	/usr/local/lib
+        	/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib
+        	/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift
+        Framework search paths:
+        	/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks
+        /usr/bin/cc  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names  -v -Wl,-v CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o -o cmTC_48d45
+        make[1]: Leaving directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-80wGCq'
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:122 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "build_test_3d/_deps/googletest-src/CMakeLists.txt:6 (project)"
+    message: |
+      Effective list of requested architectures (possibly empty)  : ""
+      Effective list of architectures found in the ABI info binary: "arm64"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:217 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "build_test_3d/_deps/googletest-src/CMakeLists.txt:6 (project)"
+    message: |
+      Parsed C implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/usr/local/include]
+          add: [/Library/Developer/CommandLineTools/usr/lib/clang/17/include]
+          add: [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include]
+          add: [/Library/Developer/CommandLineTools/usr/include]
+        end of search list found
+        collapse include dir [/usr/local/include] ==> [/usr/local/include]
+        collapse include dir [/Library/Developer/CommandLineTools/usr/lib/clang/17/include] ==> [/Library/Developer/CommandLineTools/usr/lib/clang/17/include]
+        collapse include dir [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include] ==> [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include]
+        collapse include dir [/Library/Developer/CommandLineTools/usr/include] ==> [/Library/Developer/CommandLineTools/usr/include]
+        implicit include dirs: [/usr/local/include;/Library/Developer/CommandLineTools/usr/lib/clang/17/include;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include;/Library/Developer/CommandLineTools/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:253 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "build_test_3d/_deps/googletest-src/CMakeLists.txt:6 (project)"
+    message: |
+      Parsed C implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
+        ignore line: [Change Dir: '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-80wGCq']
+        ignore line: []
+        ignore line: [Run Build Command(s): /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E env VERBOSE=1 /run/current-system/sw/bin/make -f Makefile cmTC_48d45/fast]
+        ignore line: [/run/current-system/sw/bin/make  -f CMakeFiles/cmTC_48d45.dir/build.make CMakeFiles/cmTC_48d45.dir/build]
+        ignore line: [make[1]: Entering directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-80wGCq']
+        ignore line: [Building C object CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o]
+        ignore line: [/usr/bin/cc   -arch arm64   -v -Wl -v -MD -MT CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o -MF CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o.d -o CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o -c /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeCCompilerABI.c]
+        ignore line: [Apple clang version 17.0.0 (clang-1700.0.13.5)]
+        ignore line: [Target: arm64-apple-darwin24.5.0]
+        ignore line: [Thread model: posix]
+        ignore line: [InstalledDir: /Library/Developer/CommandLineTools/usr/bin]
+        ignore line: [clang: warning: -Wl -v: 'linker' input unused [-Wunused-command-line-argument]]
+        ignore line: [ "/Library/Developer/CommandLineTools/usr/bin/clang" -cc1 -triple arm64-apple-macosx15.0.0 -Wundef-prefix=TARGET_OS_ -Wdeprecated-objc-isa-usage -Werror=deprecated-objc-isa-usage -Werror=implicit-function-declaration -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCCompilerABI.c -mrelocation-model pic -pic-level 2 -mframe-pointer=non-leaf -fno-strict-return -ffp-contract=on -fno-rounding-math -funwind-tables=1 -fobjc-msgsend-selector-stubs -target-sdk-version=15.5 -fvisibility-inlines-hidden-static-local-var -fdefine-target-os-macros -fno-assume-unique-vtables -fno-modulemap-allow-subdirectory-search -target-cpu apple-m1 -target-feature +zcm -target-feature +zcz -target-feature +v8.5a -target-feature +aes -target-feature +altnzcv -target-feature +ccdp -target-feature +complxnum -target-feature +crc -target-feature +dotprod -target-feature +fp-armv8 -target-feature +fp16fml -target-feature +fptoint -target-feature +fullfp16 -target-feature +jsconv -target-feature +lse -target-feature +neon -target-feature +pauth -target-feature +perfmon -target-feature +predres -target-feature +ras -target-feature +rcpc -target-feature +rdm -target-feature +sb -target-feature +sha2 -target-feature +sha3 -target-feature +specrestrict -target-feature +ssbs -target-abi darwinpcs -debugger-tuning=lldb -fdebug-compilation-dir=/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-80wGCq -target-linker-version 1167.5 -v -fcoverage-compilation-dir=/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-80wGCq -resource-dir /Library/Developer/CommandLineTools/usr/lib/clang/17 -dependency-file CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o.d -skip-unused-modulemap-deps -MT CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o -sys-header-deps -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/usr/lib/clang/17/include -internal-externc-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -internal-externc-isystem /Library/Developer/CommandLineTools/usr/include -Wno-reorder-init-list -Wno-implicit-int-float-conversion -Wno-c99-designator -Wno-final-dtor-non-final-class -Wno-extra-semi-stmt -Wno-misleading-indentation -Wno-quoted-include-in-framework-header -Wno-implicit-fallthrough -Wno-enum-enum-conversion -Wno-enum-float-conversion -Wno-elaborated-enum-base -Wno-reserved-identifier -Wno-gnu-folding-constant -ferror-limit 19 -stack-protector 1 -fstack-check -mdarwin-stkchk-strong-link -fblocks -fencode-extended-block-signature -fregister-global-dtors-with-atexit -fgnuc-version=4.2.1 -fskip-odr-check-in-gmf -fmax-type-align=16 -fcommon -clang-vendor-feature=+disableNonDependentMemberExprInCurrentInstantiation -fno-odr-hash-protocols -clang-vendor-feature=+enableAggressiveVLAFolding -clang-vendor-feature=+revert09abecef7bbf -clang-vendor-feature=+thisNoAlignAttr -clang-vendor-feature=+thisNoNullAttr -clang-vendor-feature=+disableAtImportPrivateFrameworkInImplementationError -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o -x c /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeCCompilerABI.c]
+        ignore line: [clang -cc1 version 17.0.0 (clang-1700.0.13.5) default target arm64-apple-darwin24.5.0]
+        ignore line: [ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include"]
+        ignore line: [ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks"]
+        ignore line: [ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /usr/local/include]
+        ignore line: [ /Library/Developer/CommandLineTools/usr/lib/clang/17/include]
+        ignore line: [ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include]
+        ignore line: [ /Library/Developer/CommandLineTools/usr/include]
+        ignore line: [ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks (framework directory)]
+        ignore line: [End of search list.]
+        ignore line: [Linking C executable cmTC_48d45]
+        ignore line: [/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E cmake_link_script CMakeFiles/cmTC_48d45.dir/link.txt --verbose=1]
+        ignore line: [Apple clang version 17.0.0 (clang-1700.0.13.5)]
+        ignore line: [Target: arm64-apple-darwin24.5.0]
+        ignore line: [Thread model: posix]
+        ignore line: [InstalledDir: /Library/Developer/CommandLineTools/usr/bin]
+        link line: [ "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 15.0.0 15.5 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mllvm -enable-linkonceodr-outlining -o cmTC_48d45 -L/usr/local/lib -search_paths_first -headerpad_max_install_names -v CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a]
+          arg [/Library/Developer/CommandLineTools/usr/bin/ld] ==> ignore
+          arg [-demangle] ==> ignore
+          arg [-lto_library] ==> ignore, skip following value
+          arg [/Library/Developer/CommandLineTools/usr/lib/libLTO.dylib] ==> skip value of -lto_library
+          arg [-dynamic] ==> ignore
+          arg [-arch] ==> ignore
+          arg [arm64] ==> ignore
+          arg [-platform_version] ==> ignore
+          arg [macos] ==> ignore
+          arg [15.0.0] ==> ignore
+          arg [15.5] ==> ignore
+          arg [-syslibroot] ==> ignore
+          arg [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk] ==> ignore
+          arg [-mllvm] ==> ignore
+          arg [-enable-linkonceodr-outlining] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_48d45] ==> ignore
+          arg [-L/usr/local/lib] ==> dir [/usr/local/lib]
+          arg [-search_paths_first] ==> ignore
+          arg [-headerpad_max_install_names] ==> ignore
+          arg [-v] ==> ignore
+          arg [CMakeFiles/cmTC_48d45.dir/CMakeCCompilerABI.c.o] ==> ignore
+          arg [-lSystem] ==> lib [System]
+          arg [/Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a] ==> lib [/Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a]
+        linker tool for 'C': /Library/Developer/CommandLineTools/usr/bin/ld
+        Library search paths: [;/usr/local/lib;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift]
+        Framework search paths: [;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks]
+        remove lib [System]
+        remove lib [/Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a]
+        collapse library dir [/usr/local/lib] ==> [/usr/local/lib]
+        collapse library dir [/usr/local/lib] ==> [/usr/local/lib]
+        collapse library dir [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib] ==> [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib]
+        collapse library dir [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift] ==> [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift]
+        collapse framework dir [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks] ==> [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks]
+        implicit libs: []
+        implicit objs: []
+        implicit dirs: [/usr/local/lib;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift]
+        implicit fwks: [/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/Internal/CMakeDetermineLinkerId.cmake:36 (message)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:299 (cmake_determine_linker_id)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "build_test_3d/_deps/googletest-src/CMakeLists.txt:6 (project)"
+    message: |
+      Running the C compiler's linker: "/Library/Developer/CommandLineTools/usr/bin/ld" "-v"
+      @(#)PROGRAM:ld PROJECT:ld-1167.5
+      BUILD 01:45:05 Apr 30 2025
+      configured to support archs: armv6 armv7 armv7s arm64 arm64e arm64_32 i386 x86_64 x86_64h armv6m armv7k armv7m armv7em
+      will use ld-classic for: armv6 armv7 armv7s i386 armv6m armv7k armv7m armv7em
+      LTO support using: LLVM version 17.0.0 (static support for 29, runtime is 29)
+      TAPI support using: Apple TAPI version 17.0.0 (tapi-1700.0.3.5)
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindPython/Support.cmake:2155 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindPython3.cmake:656 (include)"
+      - "build_test_3d/_deps/googletest-src/googletest/cmake/internal_utils.cmake:250 (find_package)"
+      - "build_test_3d/_deps/googletest-src/googletest/CMakeLists.txt:81 (include)"
+    mode: "program"
+    variable: "_Python3_EXECUTABLE"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: false
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "python3.14mu"
+      - "python3.14m"
+      - "python3.14u"
+      - "python3.14"
+      - "python3.14dmu"
+      - "python3.14dm"
+      - "python3.14du"
+      - "python3.14d"
+      - "python3"
+      - "python"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2"
+        - "/usr/local"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindPython/Support.cmake:2200 (find_program)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindPython3.cmake:656 (include)"
+      - "build_test_3d/_deps/googletest-src/googletest/cmake/internal_utils.cmake:250 (find_package)"
+      - "build_test_3d/_deps/googletest-src/googletest/CMakeLists.txt:81 (include)"
+    mode: "program"
+    variable: "_Python3_EXECUTABLE"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "python3.12mu"
+      - "python3.12m"
+      - "python3.12u"
+      - "python3.12"
+      - "python3.12dmu"
+      - "python3.12dm"
+      - "python3.12du"
+      - "python3.12d"
+      - "python3"
+      - "python"
+    candidate_directories:
+      - "/opt/homebrew/bin/bin/"
+      - "/opt/homebrew/bin/Scripts/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/bin/"
+      - "/opt/homebrew/sbin/Scripts/"
+      - "/opt/homebrew/sbin/"
+      - "/Users/yansongguo/.local/bin/bin/"
+      - "/Users/yansongguo/.local/bin/Scripts/"
+      - "/Users/yansongguo/.local/bin/"
+      - "/Users/yansongguo/.maestro/bin/bin/"
+      - "/Users/yansongguo/.maestro/bin/Scripts/"
+      - "/Users/yansongguo/.maestro/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/bin/"
+      - "/Users/yansongguo/.nix-profile/bin/Scripts/"
+      - "/Users/yansongguo/.nix-profile/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/"
+      - "/etc/profiles/per-user/yansongguo/bin/Scripts/"
+      - "/etc/profiles/per-user/yansongguo/bin/"
+      - "/run/current-system/sw/bin/bin/"
+      - "/run/current-system/sw/bin/Scripts/"
+      - "/run/current-system/sw/bin/"
+      - "/nix/var/nix/profiles/default/bin/bin/"
+      - "/nix/var/nix/profiles/default/bin/Scripts/"
+      - "/nix/var/nix/profiles/default/bin/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/Scripts/"
+      - "/usr/local/bin/"
+      - "/usr/bin/bin/"
+      - "/usr/bin/Scripts/"
+      - "/usr/bin/"
+      - "/bin/bin/"
+      - "/bin/Scripts/"
+      - "/bin/"
+      - "/usr/sbin/bin/"
+      - "/usr/sbin/Scripts/"
+      - "/usr/sbin/"
+      - "/sbin/bin/"
+      - "/sbin/Scripts/"
+      - "/sbin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/Scripts/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/sbin/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/sbin/Scripts/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/sbin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/Scripts/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/bin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/Scripts/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/sbin/bin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/sbin/Scripts/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/sbin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/Scripts/"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/"
+      - "/usr/local/bin/bin/"
+      - "/usr/local/bin/Scripts/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/bin/"
+      - "/usr/local/sbin/Scripts/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/local/Scripts/"
+      - "/usr/local/"
+    searched_directories:
+      - "/opt/homebrew/bin/bin/python3.12mu"
+      - "/opt/homebrew/bin/bin/python3.12m"
+      - "/opt/homebrew/bin/bin/python3.12u"
+      - "/opt/homebrew/bin/bin/python3.12"
+      - "/opt/homebrew/bin/bin/python3.12dmu"
+      - "/opt/homebrew/bin/bin/python3.12dm"
+      - "/opt/homebrew/bin/bin/python3.12du"
+      - "/opt/homebrew/bin/bin/python3.12d"
+      - "/opt/homebrew/bin/bin/python3"
+      - "/opt/homebrew/bin/bin/python"
+      - "/opt/homebrew/bin/Scripts/python3.12mu"
+      - "/opt/homebrew/bin/Scripts/python3.12m"
+      - "/opt/homebrew/bin/Scripts/python3.12u"
+      - "/opt/homebrew/bin/Scripts/python3.12"
+      - "/opt/homebrew/bin/Scripts/python3.12dmu"
+      - "/opt/homebrew/bin/Scripts/python3.12dm"
+      - "/opt/homebrew/bin/Scripts/python3.12du"
+      - "/opt/homebrew/bin/Scripts/python3.12d"
+      - "/opt/homebrew/bin/Scripts/python3"
+      - "/opt/homebrew/bin/Scripts/python"
+      - "/opt/homebrew/bin/python3.12mu"
+      - "/opt/homebrew/bin/python3.12m"
+      - "/opt/homebrew/bin/python3.12u"
+      - "/opt/homebrew/bin/python3.12"
+      - "/opt/homebrew/bin/python3.12dmu"
+      - "/opt/homebrew/bin/python3.12dm"
+      - "/opt/homebrew/bin/python3.12du"
+      - "/opt/homebrew/bin/python3.12d"
+      - "/opt/homebrew/bin/python3"
+      - "/opt/homebrew/bin/python"
+      - "/opt/homebrew/sbin/bin/python3.12mu"
+      - "/opt/homebrew/sbin/bin/python3.12m"
+      - "/opt/homebrew/sbin/bin/python3.12u"
+      - "/opt/homebrew/sbin/bin/python3.12"
+      - "/opt/homebrew/sbin/bin/python3.12dmu"
+      - "/opt/homebrew/sbin/bin/python3.12dm"
+      - "/opt/homebrew/sbin/bin/python3.12du"
+      - "/opt/homebrew/sbin/bin/python3.12d"
+      - "/opt/homebrew/sbin/bin/python3"
+      - "/opt/homebrew/sbin/bin/python"
+      - "/opt/homebrew/sbin/Scripts/python3.12mu"
+      - "/opt/homebrew/sbin/Scripts/python3.12m"
+      - "/opt/homebrew/sbin/Scripts/python3.12u"
+      - "/opt/homebrew/sbin/Scripts/python3.12"
+      - "/opt/homebrew/sbin/Scripts/python3.12dmu"
+      - "/opt/homebrew/sbin/Scripts/python3.12dm"
+      - "/opt/homebrew/sbin/Scripts/python3.12du"
+      - "/opt/homebrew/sbin/Scripts/python3.12d"
+      - "/opt/homebrew/sbin/Scripts/python3"
+      - "/opt/homebrew/sbin/Scripts/python"
+      - "/opt/homebrew/sbin/python3.12mu"
+      - "/opt/homebrew/sbin/python3.12m"
+      - "/opt/homebrew/sbin/python3.12u"
+      - "/opt/homebrew/sbin/python3.12"
+      - "/opt/homebrew/sbin/python3.12dmu"
+      - "/opt/homebrew/sbin/python3.12dm"
+      - "/opt/homebrew/sbin/python3.12du"
+      - "/opt/homebrew/sbin/python3.12d"
+      - "/opt/homebrew/sbin/python3"
+      - "/opt/homebrew/sbin/python"
+      - "/Users/yansongguo/.local/bin/bin/python3.12mu"
+      - "/Users/yansongguo/.local/bin/bin/python3.12m"
+      - "/Users/yansongguo/.local/bin/bin/python3.12u"
+      - "/Users/yansongguo/.local/bin/bin/python3.12"
+      - "/Users/yansongguo/.local/bin/bin/python3.12dmu"
+      - "/Users/yansongguo/.local/bin/bin/python3.12dm"
+      - "/Users/yansongguo/.local/bin/bin/python3.12du"
+      - "/Users/yansongguo/.local/bin/bin/python3.12d"
+      - "/Users/yansongguo/.local/bin/bin/python3"
+      - "/Users/yansongguo/.local/bin/bin/python"
+      - "/Users/yansongguo/.local/bin/Scripts/python3.12mu"
+      - "/Users/yansongguo/.local/bin/Scripts/python3.12m"
+      - "/Users/yansongguo/.local/bin/Scripts/python3.12u"
+      - "/Users/yansongguo/.local/bin/Scripts/python3.12"
+      - "/Users/yansongguo/.local/bin/Scripts/python3.12dmu"
+      - "/Users/yansongguo/.local/bin/Scripts/python3.12dm"
+      - "/Users/yansongguo/.local/bin/Scripts/python3.12du"
+      - "/Users/yansongguo/.local/bin/Scripts/python3.12d"
+      - "/Users/yansongguo/.local/bin/Scripts/python3"
+      - "/Users/yansongguo/.local/bin/Scripts/python"
+      - "/Users/yansongguo/.local/bin/python3.12mu"
+      - "/Users/yansongguo/.local/bin/python3.12m"
+      - "/Users/yansongguo/.local/bin/python3.12u"
+      - "/Users/yansongguo/.local/bin/python3.12"
+      - "/Users/yansongguo/.local/bin/python3.12dmu"
+      - "/Users/yansongguo/.local/bin/python3.12dm"
+      - "/Users/yansongguo/.local/bin/python3.12du"
+      - "/Users/yansongguo/.local/bin/python3.12d"
+      - "/Users/yansongguo/.local/bin/python3"
+      - "/Users/yansongguo/.local/bin/python"
+      - "/Users/yansongguo/.maestro/bin/bin/python3.12mu"
+      - "/Users/yansongguo/.maestro/bin/bin/python3.12m"
+      - "/Users/yansongguo/.maestro/bin/bin/python3.12u"
+      - "/Users/yansongguo/.maestro/bin/bin/python3.12"
+      - "/Users/yansongguo/.maestro/bin/bin/python3.12dmu"
+      - "/Users/yansongguo/.maestro/bin/bin/python3.12dm"
+      - "/Users/yansongguo/.maestro/bin/bin/python3.12du"
+      - "/Users/yansongguo/.maestro/bin/bin/python3.12d"
+      - "/Users/yansongguo/.maestro/bin/bin/python3"
+      - "/Users/yansongguo/.maestro/bin/bin/python"
+      - "/Users/yansongguo/.maestro/bin/Scripts/python3.12mu"
+      - "/Users/yansongguo/.maestro/bin/Scripts/python3.12m"
+      - "/Users/yansongguo/.maestro/bin/Scripts/python3.12u"
+      - "/Users/yansongguo/.maestro/bin/Scripts/python3.12"
+      - "/Users/yansongguo/.maestro/bin/Scripts/python3.12dmu"
+      - "/Users/yansongguo/.maestro/bin/Scripts/python3.12dm"
+      - "/Users/yansongguo/.maestro/bin/Scripts/python3.12du"
+      - "/Users/yansongguo/.maestro/bin/Scripts/python3.12d"
+      - "/Users/yansongguo/.maestro/bin/Scripts/python3"
+      - "/Users/yansongguo/.maestro/bin/Scripts/python"
+      - "/Users/yansongguo/.maestro/bin/python3.12mu"
+      - "/Users/yansongguo/.maestro/bin/python3.12m"
+      - "/Users/yansongguo/.maestro/bin/python3.12u"
+      - "/Users/yansongguo/.maestro/bin/python3.12"
+      - "/Users/yansongguo/.maestro/bin/python3.12dmu"
+      - "/Users/yansongguo/.maestro/bin/python3.12dm"
+      - "/Users/yansongguo/.maestro/bin/python3.12du"
+      - "/Users/yansongguo/.maestro/bin/python3.12d"
+      - "/Users/yansongguo/.maestro/bin/python3"
+      - "/Users/yansongguo/.maestro/bin/python"
+      - "/Users/yansongguo/.nix-profile/bin/bin/python3.12mu"
+      - "/Users/yansongguo/.nix-profile/bin/bin/python3.12m"
+      - "/Users/yansongguo/.nix-profile/bin/bin/python3.12u"
+      - "/Users/yansongguo/.nix-profile/bin/bin/python3.12"
+      - "/Users/yansongguo/.nix-profile/bin/bin/python3.12dmu"
+      - "/Users/yansongguo/.nix-profile/bin/bin/python3.12dm"
+      - "/Users/yansongguo/.nix-profile/bin/bin/python3.12du"
+      - "/Users/yansongguo/.nix-profile/bin/bin/python3.12d"
+      - "/Users/yansongguo/.nix-profile/bin/bin/python3"
+      - "/Users/yansongguo/.nix-profile/bin/bin/python"
+      - "/Users/yansongguo/.nix-profile/bin/Scripts/python3.12mu"
+      - "/Users/yansongguo/.nix-profile/bin/Scripts/python3.12m"
+      - "/Users/yansongguo/.nix-profile/bin/Scripts/python3.12u"
+      - "/Users/yansongguo/.nix-profile/bin/Scripts/python3.12"
+      - "/Users/yansongguo/.nix-profile/bin/Scripts/python3.12dmu"
+      - "/Users/yansongguo/.nix-profile/bin/Scripts/python3.12dm"
+      - "/Users/yansongguo/.nix-profile/bin/Scripts/python3.12du"
+      - "/Users/yansongguo/.nix-profile/bin/Scripts/python3.12d"
+      - "/Users/yansongguo/.nix-profile/bin/Scripts/python3"
+      - "/Users/yansongguo/.nix-profile/bin/Scripts/python"
+      - "/Users/yansongguo/.nix-profile/bin/python3.12mu"
+      - "/Users/yansongguo/.nix-profile/bin/python3.12m"
+      - "/Users/yansongguo/.nix-profile/bin/python3.12u"
+      - "/Users/yansongguo/.nix-profile/bin/python3.12"
+      - "/Users/yansongguo/.nix-profile/bin/python3.12dmu"
+      - "/Users/yansongguo/.nix-profile/bin/python3.12dm"
+      - "/Users/yansongguo/.nix-profile/bin/python3.12du"
+      - "/Users/yansongguo/.nix-profile/bin/python3.12d"
+      - "/Users/yansongguo/.nix-profile/bin/python3"
+      - "/Users/yansongguo/.nix-profile/bin/python"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/python3.12mu"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/python3.12m"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/python3.12u"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/python3.12"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/python3.12dmu"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/python3.12dm"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/python3.12du"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/python3.12d"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/python3"
+      - "/etc/profiles/per-user/yansongguo/bin/bin/python"
+      - "/etc/profiles/per-user/yansongguo/bin/Scripts/python3.12mu"
+      - "/etc/profiles/per-user/yansongguo/bin/Scripts/python3.12m"
+      - "/etc/profiles/per-user/yansongguo/bin/Scripts/python3.12u"
+      - "/etc/profiles/per-user/yansongguo/bin/Scripts/python3.12"
+      - "/etc/profiles/per-user/yansongguo/bin/Scripts/python3.12dmu"
+      - "/etc/profiles/per-user/yansongguo/bin/Scripts/python3.12dm"
+      - "/etc/profiles/per-user/yansongguo/bin/Scripts/python3.12du"
+      - "/etc/profiles/per-user/yansongguo/bin/Scripts/python3.12d"
+      - "/etc/profiles/per-user/yansongguo/bin/Scripts/python3"
+      - "/etc/profiles/per-user/yansongguo/bin/Scripts/python"
+      - "/etc/profiles/per-user/yansongguo/bin/python3.12mu"
+      - "/etc/profiles/per-user/yansongguo/bin/python3.12m"
+      - "/etc/profiles/per-user/yansongguo/bin/python3.12u"
+      - "/etc/profiles/per-user/yansongguo/bin/python3.12"
+      - "/etc/profiles/per-user/yansongguo/bin/python3.12dmu"
+      - "/etc/profiles/per-user/yansongguo/bin/python3.12dm"
+      - "/etc/profiles/per-user/yansongguo/bin/python3.12du"
+      - "/etc/profiles/per-user/yansongguo/bin/python3.12d"
+      - "/etc/profiles/per-user/yansongguo/bin/python3"
+      - "/etc/profiles/per-user/yansongguo/bin/python"
+      - "/run/current-system/sw/bin/bin/python3.12mu"
+      - "/run/current-system/sw/bin/bin/python3.12m"
+      - "/run/current-system/sw/bin/bin/python3.12u"
+      - "/run/current-system/sw/bin/bin/python3.12"
+      - "/run/current-system/sw/bin/bin/python3.12dmu"
+      - "/run/current-system/sw/bin/bin/python3.12dm"
+      - "/run/current-system/sw/bin/bin/python3.12du"
+      - "/run/current-system/sw/bin/bin/python3.12d"
+      - "/run/current-system/sw/bin/bin/python3"
+      - "/run/current-system/sw/bin/bin/python"
+      - "/run/current-system/sw/bin/Scripts/python3.12mu"
+      - "/run/current-system/sw/bin/Scripts/python3.12m"
+      - "/run/current-system/sw/bin/Scripts/python3.12u"
+      - "/run/current-system/sw/bin/Scripts/python3.12"
+      - "/run/current-system/sw/bin/Scripts/python3.12dmu"
+      - "/run/current-system/sw/bin/Scripts/python3.12dm"
+      - "/run/current-system/sw/bin/Scripts/python3.12du"
+      - "/run/current-system/sw/bin/Scripts/python3.12d"
+      - "/run/current-system/sw/bin/Scripts/python3"
+      - "/run/current-system/sw/bin/Scripts/python"
+      - "/run/current-system/sw/bin/python3.12mu"
+      - "/run/current-system/sw/bin/python3.12m"
+      - "/run/current-system/sw/bin/python3.12u"
+    found: "/run/current-system/sw/bin/python3.12"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/yansongguo/.local/bin"
+        - "/Users/yansongguo/.maestro/bin"
+        - "/Users/yansongguo/.nix-profile/bin"
+        - "/etc/profiles/per-user/yansongguo/bin"
+        - "/run/current-system/sw/bin"
+        - "/nix/var/nix/profiles/default/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2"
+        - "/usr/local"
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/Internal/CheckSourceCompiles.cmake:104 (try_compile)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/CheckCSourceCompiles.cmake:103 (cmake_check_source_compiles)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindThreads.cmake:97 (check_c_source_compiles)"
+      - "/nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/share/cmake-4.1/Modules/FindThreads.cmake:163 (_threads_check_libc)"
+      - "build_test_3d/_deps/googletest-src/googletest/cmake/internal_utils.cmake:66 (find_package)"
+      - "build_test_3d/_deps/googletest-src/googletest/CMakeLists.txt:83 (config_compiler_and_linker)"
+    checks:
+      - "Performing Test CMAKE_HAVE_LIBC_PTHREAD"
+    directories:
+      source: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-ge9tkK"
+      binary: "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-ge9tkK"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "CMAKE_HAVE_LIBC_PTHREAD"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-ge9tkK'
+        
+        Run Build Command(s): /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E env VERBOSE=1 /run/current-system/sw/bin/make -f Makefile cmTC_be3cf/fast
+        /run/current-system/sw/bin/make  -f CMakeFiles/cmTC_be3cf.dir/build.make CMakeFiles/cmTC_be3cf.dir/build
+        make[1]: Entering directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-ge9tkK'
+        Building C object CMakeFiles/cmTC_be3cf.dir/src.c.o
+        /usr/bin/cc -DCMAKE_HAVE_LIBC_PTHREAD  -arch arm64 -MD -MT CMakeFiles/cmTC_be3cf.dir/src.c.o -MF CMakeFiles/cmTC_be3cf.dir/src.c.o.d -o CMakeFiles/cmTC_be3cf.dir/src.c.o -c /Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-ge9tkK/src.c
+        Linking C executable cmTC_be3cf
+        /nix/store/syg57akx2cvcc8kamsravsxf1gypwvlv-cmake-4.1.2/bin/cmake -E cmake_link_script CMakeFiles/cmTC_be3cf.dir/link.txt --verbose=1
+        /usr/bin/cc  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cmTC_be3cf.dir/src.c.o -o cmTC_be3cf
+        make[1]: Leaving directory '/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/CMakeFiles/CMakeScratch/TryCompile-ge9tkK'
+        
+      exitCode: 0
+...

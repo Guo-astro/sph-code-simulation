@@ -1,0 +1,30 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/_deps/json-build/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/include/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/include/disph/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/include/gsph/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/include/gdisph/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/include/srgsph/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/include/kernel/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/disph/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/gsph/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/gdisph/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/srgsph/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/grgsph/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/gspmhd/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/srmhd/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/sample/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/relaxation/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/thermal/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/external_forces/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/src/writers/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/_deps/googletest-build/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/_deps/googletest-build/googlemock/cmake_install.cmake",
+		"/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/_deps/googletest-build/googletest/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

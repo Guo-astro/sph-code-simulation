@@ -1,0 +1,71 @@
+{
+    "_comment": "Phase 1 ULTRA HIGH-RES: 10M particles",
+    "_phase": "1 of 4: Damped relaxation to hydrostatic equilibrium",
+    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr",
+    "_resolution": "N=215 gives 215^3 = 9,938,375 particles (~10M)",
+
+    "_memory_estimate": {
+        "particles": "10M",
+        "memory_per_particle": "~2.5 KB",
+        "total_memory": "~25 GB",
+        "recommended_RAM": "48 GB (with headroom)"
+    },
+
+    "name": "Phase 1 ULTRA HIGH-RES: 10M particles (T=35K, n=500, xi_s=3.0)",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "N": 215,
+
+    "T_cloud": 35.0,
+    "n_center": 500.0,
+    "xi_s": 3.0,
+    "mu": 1.27,
+
+    "M_BH": 0.0,
+    "b_impact": 0.0,
+    "v_rel": 0.0,
+    "useEnvelope": true,
+    "envelopeLayers": 6,
+
+    "gamma": 1.6666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": true,
+
+    "treeMaxLevel": 22,
+    "treeLeafParticleNum": 32,
+    "useMortonCode": true,
+    "gravityTheta": 0.5,
+
+    "SPHType": "gsph",
+    "kernel": "cubic_spline",
+    "useGradH": true,
+    "use2ndOrderGSPH": false,
+
+    "endTime": 2.0,
+    "outputTime": 0.1,
+    "energyOutputTime": 0.1,
+    "cfl": 0.3,
+
+    "useRelaxation": true,
+    "relaxationSteps": 200,
+    "relaxationOutputFreq": 10,
+    "relaxationOnly": true,
+    "relaxationTimestepFactor": 0.05,
+    "useGlassRelaxation": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/ultrahires/phase1_relaxation",
+
+    "output": {
+        "formats": [
+            {"type": "hdf5", "compression": 6}
+        ],
+        "enableCSV": false,
+        "enableHDF5": true,
+        "enableVTK": false,
+        "enableEnergyFile": true,
+        "hdf5Compression": 6
+    }
+}

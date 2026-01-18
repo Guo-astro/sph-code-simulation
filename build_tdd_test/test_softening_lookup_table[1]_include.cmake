@@ -1,0 +1,5 @@
+if(EXISTS "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_tdd_test/test_softening_lookup_table[1]_tests.cmake")
+  include("/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_tdd_test/test_softening_lookup_table[1]_tests.cmake")
+else()
+  add_test(test_softening_lookup_table_NOT_BUILT test_softening_lookup_table_NOT_BUILT)
+endif()
