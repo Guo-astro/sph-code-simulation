@@ -1,18 +1,11 @@
 #include <cassert>
 #include <iostream>
-#include <array>
 
 #include "parameters.hpp"
 #include "bhtree.hpp"
 #include "openmp.hpp"
 #include "exception.hpp"
 #include "periodic.hpp"
-#include "hernquist_katz_lookup_table.hpp"
-#include "softening_lookup_table.hpp"
-
-#ifdef USE_MORTON_ORDERING
-#include "morton.hpp"
-#endif
 
 namespace sph
 {
@@ -112,24 +105,6 @@ void BHTree::make(std::vector<SPHParticle> & particles, const int particle_num)
         m_root.edge = l;
     }
 
-    // Reorder particles by Morton code for cache-friendly tree traversal
-#ifdef USE_MORTON_ORDERING
-    {
-        real domain_min[DIM];
-        real domain_size[DIM];
-        for (int d = 0; d < DIM; ++d) {
-            if (m_is_periodic) {
-                domain_min[d] = m_range_min[d];
-                domain_size[d] = m_range_max[d] - m_range_min[d];
-            } else {
-                domain_min[d] = m_root.center[d] - m_root.edge * 0.5;
-                domain_size[d] = m_root.edge;
-            }
-        }
-        morton::sort_particles_by_morton(particles, domain_min, domain_size);
-    }
-#endif
-
 #pragma omp parallel for
     for(int i = 0; i < particle_num - 1; ++i) {
         particles[i].next = &particles[i + 1];
@@ -151,7 +126,7 @@ int BHTree::neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor
 {
     int n_neighbor = 0;
     int max_neighbors = neighbor_list.size();
-    m_root.neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, m_periodic.get(), particles.data());
+    m_root.neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, m_periodic.get());
 
     // CRITICAL DEBUG: Log the values to see what's happening
     if(n_neighbor > max_neighbors || n_neighbor < 0) {
@@ -307,7 +282,7 @@ real BHTree::BHNode::set_kernel()
     return kernel_size;
 }
 
-void BHTree::BHNode::neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor_list, int & n_neighbor, int max_neighbors, const bool is_ij, const Periodic * periodic, const SPHParticle * particles_base)
+void BHTree::BHNode::neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor_list, int & n_neighbor, int max_neighbors, const bool is_ij, const Periodic * periodic)
 {
     const vec_t & r_i = p_i.pos;
     const real h = is_ij ? std::max(p_i.sml, kernel_size) : p_i.sml;
@@ -333,8 +308,7 @@ void BHTree::BHNode::neighbor_search(const SPHParticle & p_i, std::vector<int> &
                     if(n_neighbor >= max_neighbors) {
                         THROW_ERROR("Neighbor list overflow: increase neighbor_list_size in defines.hpp");
                     }
-                    // Use array index (computed from pointer) instead of particle ID
-                    neighbor_list[n_neighbor] = static_cast<int>(p - particles_base);
+                    neighbor_list[n_neighbor] = p->id;
                     ++n_neighbor;
                 }
                 p = p->next;
@@ -342,39 +316,119 @@ void BHTree::BHNode::neighbor_search(const SPHParticle & p_i, std::vector<int> &
         } else {
             for(int i = 0; i < NCHILD; ++i) {
                 if(childs[i]) {
-                    childs[i]->neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, periodic, particles_base);
+                    childs[i]->neighbor_search(p_i, neighbor_list, n_neighbor, max_neighbors, is_ij, periodic);
                 }
             }
         }
     }
 }
 
-// Hernquist & Katz (1989) - using lookup table
+ // Hernquist & Katz (1989)
 inline real f(const real r, const real h)
 {
-    return HernquistKatzLookupTable::get_instance().f_full(r, h);
+    const real e = h * 0.5;
+    const real u = r / e;
+    
+    if(u < 1.0) {
+        return (-0.5 * u * u * (1.0 / 3.0 - 3.0 / 20 * u * u + u * u * u / 20) + 1.4) / e;
+    } else if(u < 2.0) {
+        return -1.0 / (15 * r) + (-u * u * (4.0 / 3.0 - u + 0.3 * u * u - u * u * u / 30) + 1.6) / e;
+    } else {
+        return 1 / r;
+    }
 }
 
 inline real g(const real r, const real h)
 {
-    return HernquistKatzLookupTable::get_instance().g_full(r, h);
+    const real e = h * 0.5;
+    const real u = r / e;
+    
+    if(u < 1.0) {
+        return (4.0 / 3.0 - 1.2 * u * u + 0.5 * u * u * u) / (e * e * e);
+    } else if(u < 2.0) {
+        return (-1.0 / 15 + 8.0 / 3 * u * u * u - 3 * u * u * u * u + 1.2 * u * u * u * u * u - u * u * u * u * u * u / 6.0) / (r * r * r);
+    } else {
+        return 1 / (r * r * r);
+    }
 }
 
-// Wendland C4 gravitational potential kernel (3D only) - using lookup table
+// Wendland C4 gravitational potential kernel (3D only)
+// Derived from solving ∇²φ̃ = -4πG W for Wendland C4 kernel
+// The potential is: φ(r) = -G ∫ M(<r')/r'² dr' where M(<r') is enclosed mass
+// For W_C4(q) = (495/32π)/h³ (1-q)⁶(1 + 6q + 35/3 q²), q = r/h, 0 ≤ q ≤ 1
+// Numerically integrated to get polynomial fit: φ(q)*h = a₀ + a₁q + a₂q² + ... + a₉q⁹
 inline real wendland_phi(const real r, const real h)
 {
 #if DIM == 3
-    return WendlandC4LookupTable::get_instance().phi_full(r, h);
+    const real q = r / h;
+    if (q >= 1.0) {
+        return 1.0 / r;
+    }
+    const real q2 = q * q;
+    const real q3 = q2 * q;
+    const real q4 = q2 * q2;
+    const real q5 = q4 * q;
+    const real q6 = q3 * q3;
+    const real q7 = q6 * q;
+    const real q8 = q4 * q4;
+    const real q9 = q8 * q;
+    
+    // Coefficients from numerical integration of Poisson equation (verified)
+    // φ(0)*h ≈ 3.44 corresponds to enclosed mass integral
+    const real a0 =  3.4374743761;
+    const real a1 = -0.0031873250;  // ≈ 0 (boundary condition)
+    const real a2 = -10.2154807743;
+    const real a3 = -1.1577720555;
+    const real a4 =  36.1013669755;
+    const real a5 = -26.3399094060;
+    const real a6 = -44.1079372114;
+    const real a7 =  82.6543766683;
+    const real a8 = -50.5921624056;
+    const real a9 =  11.2232565249;
+    
+    return (a0 + a1*q + a2*q2 + a3*q3 + a4*q4 + a5*q5 + a6*q6 + a7*q7 + a8*q8 + a9*q9) / h;
 #else
     return 1.0 / (r + 1e-10);
 #endif
 }
 
-// Wendland C4 gravitational force kernel - using lookup table
+// Wendland C4 gravitational force kernel: g(r) = -dφ/dr / r
+// This is derived from the derivative of wendland_phi
+// Force: F = -G m₁ m₂ g(r) r̂
+// g(r) = (1/h³) × [-(d/dq)(φ*h)/q] where the derivative gives the force direction
 inline real wendland_g(const real r, const real h)
 {
 #if DIM == 3
-    return WendlandC4LookupTable::get_instance().g_full(r, h);
+    const real q = r / h;
+    if (q >= 1.0) {
+        return 1.0 / (r * r * r);
+    }
+    if (q < 1e-10) {
+        // At q=0, the force is zero (symmetric mass distribution)
+        return 0.0;
+    }
+    const real q2 = q * q;
+    const real q3 = q2 * q;
+    const real q4 = q2 * q2;
+    const real q5 = q4 * q;
+    const real q6 = q3 * q3;
+    const real q7 = q6 * q;
+    
+    // Derivative coefficients: bₙ = n × aₙ (from d(φ*h)/dq = b₁ + b₂q + ...)
+    // Then g(r) = -(b₁ + b₂q + b₃q² + ... + b₉q⁸) / (h³ × q)
+    const real b1 = -0.0031873250;   // 1 × a1 ≈ 0
+    const real b2 = -20.4309615486;  // 2 × a2
+    const real b3 = -3.4733161665;   // 3 × a3
+    const real b4 = 144.4054679020;  // 4 × a4
+    const real b5 = -131.6995470300; // 5 × a5
+    const real b6 = -264.6476232684; // 6 × a6
+    const real b7 = 578.5806366781;  // 7 × a7
+    const real b8 = -404.7372992448; // 8 × a8
+    const real b9 = 101.0093087241;  // 9 × a9
+    
+    const real denom = h * h * h;
+    // g(r) = -(b₁/q + b₂ + b₃q + b₄q² + ... + b₉q⁷) / h³
+    return -(b1/q + b2 + b3*q + b4*q2 + b5*q3 + b6*q4 + b7*q5 + b8*q6 + b9*q7) / denom;
 #else
     return 1.0 / (r * r * r + 1e-30);
 #endif
@@ -443,211 +497,5 @@ void BHTree::BHNode::calc_force(SPHParticle & p_i, const real theta2, const real
         p_i.grav_acc -= d * (g_constant * mass * pow3(r_inv));
     }
 }
-
-// =============================================================================
-// Iterative Tree Traversal Implementations
-// =============================================================================
-
-#ifdef USE_ITERATIVE_TRAVERSAL
-
-// Maximum tree depth of 64 levels supports 2^64 nodes
-constexpr int ITERATIVE_MAX_TREE_DEPTH = 64;
-
-int BHTree::neighbor_search_iterative(const SPHParticle & p_i, std::vector<int> & neighbor_list,
-                                       const std::vector<SPHParticle> & particles, const bool is_ij)
-{
-    int n_neighbor = 0;
-    const int max_neighbors = static_cast<int>(neighbor_list.size());
-    const vec_t & r_i = p_i.pos;
-
-    // Thread-local stack to avoid recursion
-    thread_local std::array<BHNode*, ITERATIVE_MAX_TREE_DEPTH> stack;
-    int stack_top = 0;
-
-    // Start with root node
-    stack[stack_top++] = &m_root;
-
-    while (stack_top > 0) {
-        BHNode* node = stack[--stack_top];
-
-        // Compute kernel size for this search
-        const real h = is_ij ? std::max(p_i.sml, node->kernel_size) : p_i.sml;
-        const real h2 = h * h;
-        const real l2 = sqr(node->edge * 0.5 + h);
-
-        // AABB overlap test: check if search sphere overlaps node bounding box
-        const vec_t d = m_periodic->calc_r_ij(r_i, node->center);
-        real dx2_max = sqr(d[0]);
-        for (int i = 1; i < DIM; ++i) {
-            const real dx2 = sqr(d[i]);
-            if (dx2 > dx2_max) {
-                dx2_max = dx2;
-            }
-        }
-
-        if (dx2_max > l2) {
-            continue;  // No overlap, skip this node
-        }
-
-        if (node->is_leaf) {
-            // Process particles in leaf node
-            auto * p = node->first;
-            while (p) {
-                // Scalar distance check with periodic boundary handling
-                const vec_t & r_j = p->pos;
-                const vec_t r_ij = m_periodic->calc_r_ij(r_i, r_j);
-                const real r2 = abs2(r_ij);
-                if (r2 < h2) {
-                    if (n_neighbor >= max_neighbors) {
-                        THROW_ERROR("Neighbor list overflow: increase neighbor_list_size in defines.hpp");
-                    }
-                    // Use array index (computed from pointer) instead of particle ID
-                    neighbor_list[n_neighbor++] = static_cast<int>(p - particles.data());
-                }
-                p = p->next;
-            }
-        } else {
-            // Push children onto stack (reverse order for depth-first traversal)
-            for (int c = NCHILD - 1; c >= 0; --c) {
-                if (node->childs[c]) {
-                    if (stack_top >= ITERATIVE_MAX_TREE_DEPTH) {
-                        THROW_ERROR("Tree depth exceeded ITERATIVE_MAX_TREE_DEPTH (", ITERATIVE_MAX_TREE_DEPTH, ")");
-                    }
-                    stack[stack_top++] = node->childs[c];
-                }
-            }
-        }
-    }
-
-    // Overflow check
-    if (n_neighbor > max_neighbors || n_neighbor < 0) {
-        THROW_ERROR("n_neighbor (", n_neighbor, ") exceeds max_neighbors (", max_neighbors, ") for particle ", p_i.id);
-    }
-
-    // Sort neighbors by distance (same as recursive version)
-    const auto & pos_i = p_i.pos;
-    std::sort(neighbor_list.begin(), neighbor_list.begin() + n_neighbor, [&](const int a, const int b) {
-        const vec_t r_ia = m_periodic->calc_r_ij(pos_i, particles[a].pos);
-        const vec_t r_ib = m_periodic->calc_r_ij(pos_i, particles[b].pos);
-        return abs2(r_ia) < abs2(r_ib);
-    });
-
-    return n_neighbor;
-}
-
-void BHTree::tree_force_iterative(SPHParticle & p_i)
-{
-    p_i.phi = 0.0;
-    p_i.grav_acc = vec_t(0.0);
-
-    const vec_t & r_i = p_i.pos;
-
-    // Thread-local stack
-    thread_local std::array<BHNode*, ITERATIVE_MAX_TREE_DEPTH> stack;
-    int stack_top = 0;
-
-    stack[stack_top++] = &m_root;
-
-    while (stack_top > 0) {
-        BHNode* node = stack[--stack_top];
-
-        const real l2 = node->edge * node->edge;
-        const vec_t d = m_periodic->calc_r_ij(r_i, node->m_center);
-        const real d2 = abs2(d);
-
-        // Barnes-Hut opening criterion
-        const bool theta_open = (l2 > m_theta2 * d2);
-        const bool distance_open = (d2 < l2);
-
-        if (theta_open || distance_open) {
-            // Must open node
-            if (node->is_leaf) {
-                // Direct pairwise forces
-                auto * p = node->first;
-                while (p) {
-                    if (p->id != p_i.id) {
-                        const vec_t & r_j = p->pos;
-                        const vec_t r_ij = m_periodic->calc_r_ij(r_i, r_j);
-                        const real r = std::abs(r_ij);
-
-                        if (m_softening_type == GravitySofteningType::WENDLAND_C4) {
-                            if (m_use_fixed_softening) {
-                                p_i.phi -= m_g_constant * p->mass * wendland_phi(r, m_fixed_softening);
-                                p_i.grav_acc -= r_ij * (m_g_constant * p->mass * wendland_g(r, m_fixed_softening));
-                            } else {
-                                const real h_ij = 0.5 * (p_i.sml + p->sml);
-                                p_i.phi -= m_g_constant * p->mass * wendland_phi(r, h_ij);
-                                p_i.grav_acc -= r_ij * (m_g_constant * p->mass * wendland_g(r, h_ij));
-                            }
-                        } else {
-                            // Hernquist-Katz
-                            if (m_use_fixed_softening) {
-                                const real h_fixed = m_fixed_softening * 2.0;
-                                p_i.phi -= m_g_constant * p->mass * f(r, h_fixed);
-                                p_i.grav_acc -= r_ij * (m_g_constant * p->mass * g(r, h_fixed));
-                            } else {
-                                p_i.phi -= m_g_constant * p->mass * (f(r, p_i.sml) + f(r, p->sml)) * 0.5;
-                                p_i.grav_acc -= r_ij * (m_g_constant * p->mass * (g(r, p_i.sml) + g(r, p->sml)) * 0.5);
-                            }
-                        }
-                    }
-                    p = p->next;
-                }
-            } else {
-                // Push children (reverse order for depth-first)
-                for (int c = NCHILD - 1; c >= 0; --c) {
-                    if (node->childs[c]) {
-                        if (stack_top >= ITERATIVE_MAX_TREE_DEPTH) {
-                            THROW_ERROR("Tree depth exceeded ITERATIVE_MAX_TREE_DEPTH (", ITERATIVE_MAX_TREE_DEPTH, ")");
-                        }
-                        stack[stack_top++] = node->childs[c];
-                    }
-                }
-            }
-        } else {
-            // Use monopole approximation
-            const real r_inv = 1.0 / std::sqrt(d2);
-            p_i.phi -= m_g_constant * node->mass * r_inv;
-            p_i.grav_acc -= d * (m_g_constant * node->mass * pow3(r_inv));
-        }
-    }
-}
-
-#endif // USE_ITERATIVE_TRAVERSAL
-
-// =============================================================================
-// Morton Code Particle Reordering
-// =============================================================================
-
-#ifdef USE_MORTON_ORDERING
-
-void BHTree::reorder_particles_by_morton(std::vector<SPHParticle> & particles, const int particle_num)
-{
-    if (particle_num <= 0) return;
-
-    // Compute domain bounds
-    real domain_min[DIM];
-    real domain_max[DIM];
-    real domain_size[DIM];
-
-    for (int d = 0; d < DIM; ++d) {
-        if (m_is_periodic) {
-            domain_min[d] = m_range_min[d];
-            domain_max[d] = m_range_max[d];
-        } else {
-            domain_min[d] = m_root.center[d] - m_root.edge * 0.5;
-            domain_max[d] = m_root.center[d] + m_root.edge * 0.5;
-        }
-        domain_size[d] = domain_max[d] - domain_min[d];
-        if (domain_size[d] <= 0) {
-            domain_size[d] = 1.0;  // Avoid division by zero
-        }
-    }
-
-    // Reorder particles by Morton code
-    morton::sort_particles_by_morton(particles, domain_min, domain_size);
-}
-
-#endif // USE_MORTON_ORDERING
 
 }

@@ -2,17 +2,11 @@
 
 #include <memory>
 #include <vector>
-#include <array>
 #include <algorithm>
 
 #include "vector_type.hpp"
 #include "particle.hpp"
 #include "parameters.hpp"
-#include "defines.hpp"
-
-#ifdef USE_SIMD_DISTANCE
-#include "simd_distance.hpp"
-#endif
 
 namespace sph
 {
@@ -62,7 +56,7 @@ class BHTree
         void create_tree(BHNode * & nodes, int & remaind, const int max_level, const int leaf_particle_num);
         void assign(SPHParticle * particle, BHNode * & nodes, int & remaind);
         real set_kernel();
-        void neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor_list, int & n_neighbor, int max_neighbors, const bool is_ij, const Periodic * periodic, const SPHParticle * particles_base);
+        void neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor_list, int & n_neighbor, int max_neighbors, const bool is_ij, const Periodic * periodic);
         void calc_force(SPHParticle & p_i, const real theta2, const real g_constant, const Periodic * periodic,
                        GravitySofteningType softening_type, bool use_fixed_softening, real fixed_softening);
     };
@@ -90,19 +84,6 @@ public:
     void set_kernel();
     int neighbor_search(const SPHParticle & p_i, std::vector<int> & neighbor_list, const std::vector<SPHParticle> & particles, const bool is_ij = false);
     void tree_force(SPHParticle & p_i);
-
-#ifdef USE_ITERATIVE_TRAVERSAL
-    // Iterative tree traversal using explicit stack (no recursion overhead)
-    // Maximum tree depth of 64 levels supports 2^64 nodes
-    int neighbor_search_iterative(const SPHParticle & p_i, std::vector<int> & neighbor_list,
-                                   const std::vector<SPHParticle> & particles, const bool is_ij = false);
-    void tree_force_iterative(SPHParticle & p_i);
-#endif
-
-#ifdef USE_MORTON_ORDERING
-    // Morton code particle reordering for cache-friendly access
-    void reorder_particles_by_morton(std::vector<SPHParticle> & particles, const int particle_num);
-#endif
 };
 
 }

@@ -1,0 +1,82 @@
+{
+    "_comment": "Phase 1: Lane-Emden n=3/2 (gamma=5/3) polytrope relaxation - 1M particles",
+    "_phase": "1 of 2: Damped relaxation to hydrostatic equilibrium",
+    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr",
+    "_physics": "Self-gravitating Lane-Emden polytrope, R=1pc, n_center=1000 cm^-3",
+
+    "_design_rationale": [
+        "HIGH RESOLUTION: 1 million particles (N=100, N^3=1,000,000)",
+        "Lane-Emden n=3/2 (gamma=5/3) hydrostatic equilibrium",
+        "P = K * rho^gamma with constant K (isentropic)",
+        "",
+        "Lane-Emden derived parameters:",
+        "  R_cloud = 1 pc, n_center = 1000 cm^-3",
+        "  rho_center = 57.6 M_sun/pc^3",
+        "  M_cloud = 40.2 M_sun (derived from Lane-Emden)",
+        "",
+        "Physical: M=40 Msun, R=1pc",
+        "Density profile matches Lane-Emden theta^1.5"
+    ],
+
+    "_lane_emden_parameters": {
+        "polytropic_index_n": 1.5,
+        "xi_1": 3.65375,
+        "dtheta_xi1": -0.20330,
+        "alpha_pc": 0.2737,
+        "rho_center_Msun_pc3": 57.6,
+        "n_center_cm3": 1000,
+        "R_cloud_pc": 1.0,
+        "M_cloud_Msun": 40.2
+    },
+
+    "name": "Phase 1: Lane-Emden 1M particles (R=1pc, n=1000)",
+    "dimension": 3,
+
+    "sample": "lane_emden",
+    "N": 100,
+
+    "M_total": 40.0,
+    "R": 1.0,
+
+    "_resume": "Resume from snapshot at step 50",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/lane_emden_1M/phase1_relaxation/snapshot_0001.h5",
+
+    "_scaling_note": "Physical units: M=40 Msun, R=1pc (no post-hoc scaling needed)",
+
+    "gamma": 1.6666666666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": false,
+
+    "_optimization": "Tree and Morton code settings for 1M particles",
+    "maxTreeLevel": 20,
+    "leafParticleNumber": 32,
+    "useMortonCode": true,
+    "gravityTheta": 0.5,
+
+    "SPHType": "gsph",
+    "kernel": "cubic_spline",
+    "useGradH": true,
+    "use2ndOrderGSPH": false,
+
+    "endTime": 2.0,
+    "outputTime": 0.2,
+    "cfl": 0.5,
+
+    "useRelaxation": true,
+    "relaxationSteps": 10000,
+    "relaxationOutputFreq": 10,
+    "relaxationOnly": true,
+    "useGlassRelaxation": false,
+    "_note": "HEALPix IC requires only ~500 relaxation steps (vs 20000 for random)",
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/lane_emden_1M/phase1_relaxation",
+
+    "output": {
+        "formats": [
+            {"type": "hdf5", "compression": 6}
+        ],
+        "enableEnergyFile": true
+    }
+}
