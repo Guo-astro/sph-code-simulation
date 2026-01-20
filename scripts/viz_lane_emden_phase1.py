@@ -94,10 +94,11 @@ valid_mask = ~np.isnan(all_r) & ~np.isnan(all_rho)
 all_r = all_r[valid_mask]
 all_rho = all_rho[valid_mask]
 
-# Use 99th percentile to exclude outliers
-global_r_max = np.nanpercentile(all_r, 99) * 1.2
-global_rho_max = np.nanpercentile(all_rho, 99) * 1.1
-print(f"Axis limits (99th percentile): r_max={global_r_max:.3f} pc, rho_max={global_rho_max:.1f} M☉/pc³")
+# Fixed y-axis range based on target number density
+# n_max = 1500 cm^-3 => rho_max = 1500 / 20.3 ≈ 73.9 M_sun/pc^3
+global_r_max = 1.2  # pc (slightly larger than R_cloud=1)
+global_rho_max = 1500.0 / density_to_n  # ~73.9 M_sun/pc^3 for n=1500 cm^-3
+print(f"Axis limits: r_max={global_r_max:.3f} pc, rho_max={global_rho_max:.1f} M☉/pc³ (n={1500} cm⁻³)")
 print(f"True max: r_max={all_r.max():.3f} pc ({(all_r > global_r_max).sum()} outliers)")
 
 fig, ax = plt.subplots(figsize=(10, 7))
