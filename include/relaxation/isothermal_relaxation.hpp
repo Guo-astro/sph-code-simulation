@@ -110,6 +110,14 @@ public:
     real get_R_cloud() const { return m_params.R_cloud; }
 
     /**
+     * @brief Remove particles that have escaped beyond the cloud boundary
+     * @param sim Simulation object
+     * @param tolerance_factor Remove particles beyond tolerance_factor * R_cloud (default 1.1)
+     * @return Number of particles removed
+     */
+    int remove_escaping_particles(std::shared_ptr<Simulation> sim, real tolerance_factor = 1.1);
+
+    /**
      * @brief Update analytical profile to better match SPH density
      *
      * Measures the actual SPH density profile in radial bins and

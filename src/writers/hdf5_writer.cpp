@@ -203,7 +203,8 @@ bool HDF5Writer::write_particles_group(const std::vector<SPHParticle*>& particle
     std::vector<real> mass(N), dens(N), pres(N), ene(N), sml(N), sound(N);
     std::vector<real> alpha(N), balsara(N), gradh(N), phi(N);
     std::vector<int> neighbor(N);
-    
+    std::vector<int> is_ghost_vec(N);
+
     for (hsize_t i = 0; i < N; ++i) {
         const SPHParticle* p = particles[i];
         ids[i] = p->id;
@@ -239,8 +240,9 @@ bool HDF5Writer::write_particles_group(const std::vector<SPHParticle*>& particle
         gradh[i] = p->gradh;
         phi[i] = p->phi;
         neighbor[i] = p->neighbor;
+        is_ghost_vec[i] = p->is_ghost ? 1 : 0;
     }
-    
+
     // Write datasets
     write_1d_int_dataset("id", ids);
     write_1d_dataset("pos_x", pos_x);
@@ -286,7 +288,8 @@ bool HDF5Writer::write_particles_group(const std::vector<SPHParticle*>& particle
     write_1d_dataset("gradh", gradh);
     write_1d_dataset("phi", phi);
     write_1d_int_dataset("neighbor", neighbor);
-    
+    write_1d_int_dataset("is_ghost", is_ghost_vec);
+
     if (plist_id != H5P_DEFAULT) {
         H5Pclose(plist_id);
     }
@@ -471,7 +474,8 @@ bool HDF5Writer::read_particles(const std::string& filepath, std::vector<SPHPart
     std::vector<real> mass(N), dens(N), pres(N), ene(N), sml(N), sound(N);
     std::vector<real> alpha(N), balsara(N), gradh(N), phi(N);
     std::vector<int> neighbor(N);
-    
+    std::vector<int> is_ghost_vec(N, 0);  // Default to 0 (not ghost) for backward compatibility
+
     read_1d_int_dataset("id", ids);
     read_1d_dataset("pos_x", pos_x);
 #if DIM >= 2
@@ -505,7 +509,11 @@ bool HDF5Writer::read_particles(const std::string& filepath, std::vector<SPHPart
     read_1d_dataset("gradh", gradh);
     read_1d_dataset("phi", phi);
     read_1d_int_dataset("neighbor", neighbor);
-    
+
+    // Try to read is_ghost (may not exist in older snapshots)
+    // If it doesn't exist, all particles remain as real (is_ghost=0)
+    read_1d_int_dataset("is_ghost", is_ghost_vec);
+
     // Clear existing particles and create new ones
     for (auto* p : particles) {
         delete p;
@@ -548,8 +556,9 @@ bool HDF5Writer::read_particles(const std::string& filepath, std::vector<SPHPart
         p->gradh = gradh[i];
         p->phi = phi[i];
         p->neighbor = neighbor[i];
+        p->is_ghost = (is_ghost_vec[i] != 0);
         p->next = nullptr;
-        
+
         particles.push_back(p);
     }
     

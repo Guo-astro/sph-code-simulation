@@ -1058,7 +1058,6 @@ void Solver::read_parameterfile(const char * filename)
     m_relaxation_steps = input.get<int>("relaxationSteps", 0);
     m_relaxation_output_freq = input.get<int>("relaxationOutputFreq", 10);
     m_relaxation_only = input.get<bool>("relaxationOnly", false);
-    m_relaxation_timestep_factor = input.get<real>("relaxationTimestepFactor", 0.1);
 
     // GLASS pre-relaxation to uniformize particle spacing before main relaxation
     m_use_glass_relaxation = input.get<bool>("useGlassRelaxation", false);
@@ -1068,7 +1067,6 @@ void Solver::read_parameterfile(const char * filename)
     if(m_use_relaxation) {
         std::cout << "Relaxation enabled: " << m_relaxation_steps << " steps" << std::endl;
         std::cout << "Relaxation output frequency: every " << m_relaxation_output_freq << " steps" << std::endl;
-        std::cout << "Relaxation timestep factor: " << m_relaxation_timestep_factor << std::endl;
         if(m_use_glass_relaxation) {
             std::cout << "GLASS pre-relaxation: " << m_glass_relaxation_steps << " steps (target " << m_glass_target_neighbors << " neighbors)" << std::endl;
         }
@@ -1512,9 +1510,7 @@ void Solver::run()
     // For SR/GR-GSPH and SRMHD, compute initial N from kernel sum, then update ghosts
     // This ensures consistent initial conditions for force calculation
     if(m_param->type == SPHType::SRGSPH || m_param->type == SPHType::GRGSPH || m_param->type == SPHType::SRMHD) {
-#ifndef EXHAUSTIVE_SEARCH
         m_sim->make_tree();
-#endif
         m_pre->calculation(m_sim);  // Compute N for real particles
         update_ghost_particles();   // Mirror N to ghost particles
 
@@ -1528,9 +1524,7 @@ void Solver::run()
     // on the very first timestep
     if(m_param->gravity.is_valid && 
        (m_param->type == SPHType::GSPH || m_param->type == SPHType::GDISPH)) {
-#ifndef EXHAUSTIVE_SEARCH
         m_sim->make_tree();
-#endif
         m_gforce->calculation(m_sim);  // Initialize grav_acc for all particles
     }
 
@@ -1894,11 +1888,9 @@ void Solver::initialize()
                 particles[i].sound = std::sqrt(c_sound_factor * particles[i].ene);
             }
             
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num_p);
             tree->make(particles, num_p);
-#endif
         }
         
         // Run relaxation phase
@@ -1948,11 +1940,9 @@ void Solver::initialize()
             auto& particles = m_sim->get_particles();
             const int num_p = m_sim->get_particle_num();
             
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num_p);
             tree->make(particles, num_p);
-#endif
             
             // Calculate SPH forces (pressure, gravity, etc.)
             m_pre->calculation(m_sim);
@@ -1968,10 +1958,7 @@ void Solver::initialize()
             // Calculate timestep dynamically based on CFL condition
             m_timestep->calculation(m_sim);
             real dt_relax = m_sim->get_dt();
-            
-            // Apply configurable safety factor for relaxation timestep
-            dt_relax *= m_relaxation_timestep_factor;
-            
+
             // Integrate positions with net acceleration
             // STEEPEST DESCENT: Zero velocities, move in direction of force
             // Use Δx = a·dt (NOT ½at² which is extremely slow)
@@ -1989,17 +1976,20 @@ void Solver::initialize()
                 particles[i].vel[2] = 0.0;
 #endif
                 
-                // STEEPEST DESCENT: Δx = a·dt (first order, much faster than ½at²)
-                // This moves particles in the direction of the net force
-                particles[i].pos[0] += particles[i].acc[0] * dt_relax;
-                particles[i].pos[1] += particles[i].acc[1] * dt_relax;
+                // Kinematic integration with v₀=0: Δx = ½at²
+                const real half_dt2 = 0.5 * dt_relax * dt_relax;
+                particles[i].pos[0] += particles[i].acc[0] * half_dt2;
+                particles[i].pos[1] += particles[i].acc[1] * half_dt2;
 #if DIM == 3
-                particles[i].pos[2] += particles[i].acc[2] * dt_relax;
+                particles[i].pos[2] += particles[i].acc[2] * half_dt2;
 #endif
                 
                 periodic->apply(particles[i].pos);
             }
-            
+
+            // Remove particles that escaped beyond cloud boundary
+            m_lane_emden_relax->remove_escaping_particles(m_sim, 1.1);
+
             // Update accumulated time
             accumulated_time += dt_relax;
             
@@ -2121,11 +2111,9 @@ void Solver::initialize()
                 p[i].sound = std::sqrt(c_sound * p[i].ene);
             }
             
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num);
             tree->make(p, num);
-#endif
             
             // Calculate final forces and derivatives
             m_pre->calculation(m_sim);
@@ -2203,11 +2191,9 @@ void Solver::initialize()
                 particles[i].sound = std::sqrt(c_sound_factor * particles[i].ene);
             }
             
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num_p);
             tree->make(particles, num_p);
-#endif
         }
         
         // Run relaxation phase
@@ -2248,11 +2234,9 @@ void Solver::initialize()
             auto& particles = m_sim->get_particles();
             const int num_p = m_sim->get_particle_num();
             
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num_p);
             tree->make(particles, num_p);
-#endif
             
             // Calculate SPH forces
             m_pre->calculation(m_sim);
@@ -2267,12 +2251,11 @@ void Solver::initialize()
             // Calculate timestep
             m_timestep->calculation(m_sim);
             real dt_relax = m_sim->get_dt();
-            dt_relax *= m_relaxation_timestep_factor;
-            
+
             // Integrate positions with net acceleration (zero velocity constraint)
             auto * periodic = m_sim->get_periodic().get();
             real max_acc = 0.0;
-            
+
 #pragma omp parallel for reduction(max:max_acc)
             for(int i = 0; i < num_p; ++i) {
                 // Zero velocities (constraint)
@@ -2393,11 +2376,9 @@ void Solver::initialize()
                 p[i].sound = std::sqrt(c_sound * p[i].ene);
             }
             
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num);
             tree->make(p, num);
-#endif
             
             m_pre->calculation(m_sim);
             m_fforce->calculation(m_sim);
@@ -2467,11 +2448,9 @@ void Solver::initialize()
                 particles[i].sound = std::sqrt(c_sound_factor * particles[i].ene);
             }
             
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num_p);
             tree->make(particles, num_p);
-#endif
         }
         
         // Run relaxation phase
@@ -2504,11 +2483,9 @@ void Solver::initialize()
             auto& particles = m_sim->get_particles();
             const int num_p = m_sim->get_particle_num();
             
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num_p);
             tree->make(particles, num_p);
-#endif
             
             // Calculate SPH forces
             m_pre->calculation(m_sim);
@@ -2524,8 +2501,7 @@ void Solver::initialize()
             // Calculate timestep
             m_timestep->calculation(m_sim);
             real dt_relax = m_sim->get_dt();
-            dt_relax *= m_relaxation_timestep_factor;
-            
+
             // Get polytropic constant K and gamma for isentropic EOS reset
             const real K_poly = m_polytropic_slab_2d_relax->get_K();
             const real gamma_poly = m_polytropic_slab_2d_relax->get_gamma();
@@ -2638,11 +2614,9 @@ void Solver::initialize()
                 p[i].sound = std::sqrt(c_sound * p[i].ene);
             }
             
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num);
             tree->make(p, num);
-#endif
             
             m_pre->calculation(m_sim);
             m_fforce->calculation(m_sim);
@@ -2726,11 +2700,9 @@ void Solver::initialize()
                 particles[i].sound = std::sqrt(c_sound_factor * particles[i].ene);
             }
 
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num_p);
             tree->make(particles, num_p);
-#endif
         }
 
         // Run relaxation phase
@@ -2763,11 +2735,9 @@ void Solver::initialize()
             auto& particles = m_sim->get_particles();
             const int num_p = m_sim->get_particle_num();
 
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num_p);
             tree->make(particles, num_p);
-#endif
 
             // Calculate SPH forces
             m_pre->calculation(m_sim);
@@ -2780,7 +2750,6 @@ void Solver::initialize()
             // Calculate timestep
             m_timestep->calculation(m_sim);
             real dt_relax = m_sim->get_dt();
-            dt_relax *= m_relaxation_timestep_factor;
 
             // Integrate positions with net acceleration (zero velocity constraint)
             auto * periodic = m_sim->get_periodic().get();
@@ -2897,11 +2866,9 @@ void Solver::initialize()
                 p[i].sound = std::sqrt(c_sound * p[i].ene);
             }
 
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num);
             tree->make(p, num);
-#endif
 
             m_pre->calculation(m_sim);
             m_fforce->calculation(m_sim);
@@ -2966,11 +2933,9 @@ void Solver::initialize()
                 particles[i].sound = std::sqrt(c_sound_factor * particles[i].ene);
             }
 
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num_p);
             tree->make(particles, num_p);
-#endif
         }
 
         // GLASS pre-relaxation phase to uniformize particle spacing
@@ -2999,11 +2964,9 @@ void Solver::initialize()
                 auto step_start = std::chrono::steady_clock::now();
 
                 // Build tree for neighbor search
-#ifndef EXHAUSTIVE_SEARCH
                 auto tree = m_sim->get_tree();
                 tree->resize(num_p);
                 tree->make(particles, num_p);
-#endif
                 // Compute density and smoothing length
                 m_pre->calculation(m_sim);
 
@@ -3016,17 +2979,7 @@ void Solver::initialize()
                     if(p_i.is_ghost) continue;
 
                     std::vector<int> neighbor_list(max_neighbors);
-#ifndef EXHAUSTIVE_SEARCH
                     int n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, true);
-#else
-                    int n_neighbor = 0;
-                    for(int j = 0; j < num_p && n_neighbor < max_neighbors; ++j) {
-                        if(i != j) {
-                            real r = std::abs(periodic->calc_r_ij(p_i.pos, particles[j].pos));
-                            if(r < p_i.sml) neighbor_list[n_neighbor++] = j;
-                        }
-                    }
-#endif
                     // GLASS repulsive force: push apart particles that are too close
                     vec_t f_glass(0.0);
                     for(int n = 0; n < n_neighbor; ++n) {
@@ -3148,11 +3101,9 @@ void Solver::initialize()
             const int num_p = m_sim->get_particle_num();
 
             // Build tree
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num_p);
             tree->make(particles, num_p);
-#endif
 
             // ================================================================
             // HYBRID RELAXATION: Analytical force + velocity damping
@@ -3170,18 +3121,19 @@ void Solver::initialize()
 
             // Step 3: Calculate timestep
             m_timestep->calculation(m_sim);
-            real dt = m_sim->get_dt() * m_relaxation_timestep_factor;
+            real dt = m_sim->get_dt();
             dt = std::max(dt, real(1.0e-10));
 
             // ================================================================
-            // STEEPEST DESCENT RELAXATION:
+            // QUASI-STATIC RELAXATION (same as Lane-Emden):
             // - Zero velocities every step (quasi-static)
-            // - Update position: Δx = a·dt (steepest descent, NOT ½at²)
-            // - ½at² is extremely slow when dt << 1
-            // - Keep reflecting boundary for containment
+            // - Kinematic integration: Δx = ½at² (with v₀=0)
+            // - External pressure confinement via envelope particles
+            // - Remove escaping particles beyond R_cloud
             // ================================================================
 
             // Step 4: Update positions with acceleration (velocities zeroed)
+            auto * periodic = m_sim->get_periodic().get();
 #pragma omp parallel for
             for(int i = 0; i < num_p; ++i) {
                 if(particles[i].is_ghost) continue;
@@ -3193,32 +3145,20 @@ void Solver::initialize()
                 particles[i].vel[2] = 0.0;
 #endif
 
-                // STEEPEST DESCENT: Δx = a·dt (NOT ½at² which is extremely slow)
-                particles[i].pos[0] += particles[i].acc[0] * dt;
-                particles[i].pos[1] += particles[i].acc[1] * dt;
+                // Kinematic integration with v₀=0: Δx = ½at²
+                const real half_dt2 = 0.5 * dt * dt;
+                particles[i].pos[0] += particles[i].acc[0] * half_dt2;
+                particles[i].pos[1] += particles[i].acc[1] * half_dt2;
 #if DIM == 3
-                particles[i].pos[2] += particles[i].acc[2] * dt;
+                particles[i].pos[2] += particles[i].acc[2] * half_dt2;
 #endif
 
-                // REFLECTING BOUNDARY at R_cloud
-                // If particle escapes, push it back inside
-                real R_cloud = m_isothermal_relax->get_R_cloud();
-                real r2 = particles[i].pos[0] * particles[i].pos[0]
-                        + particles[i].pos[1] * particles[i].pos[1];
-#if DIM == 3
-                r2 += particles[i].pos[2] * particles[i].pos[2];
-#endif
-                real r = std::sqrt(r2);
-                if (r > R_cloud) {
-                    // Push particle back to R_cloud surface
-                    real scale = R_cloud / r * 0.99;  // slightly inside
-                    particles[i].pos[0] *= scale;
-                    particles[i].pos[1] *= scale;
-#if DIM == 3
-                    particles[i].pos[2] *= scale;
-#endif
-                }
+                periodic->apply(particles[i].pos);
             }
+
+            // Remove particles that escaped beyond cloud boundary
+            // External pressure confinement via envelope particles keeps most particles inside
+            m_isothermal_relax->remove_escaping_particles(m_sim, 1.1);
 
             accumulated_time += dt;
 
@@ -3304,11 +3244,9 @@ void Solver::initialize()
             const real gamma = m_param->physics.gamma;
             const real c_sound_factor = gamma * (gamma - 1.0);
 
-#ifndef EXHAUSTIVE_SEARCH
             auto tree = m_sim->get_tree();
             tree->resize(num);
             tree->make(p, num);
-#endif
 
             m_pre->calculation(m_sim);
             m_fforce->calculation(m_sim);
@@ -3382,11 +3320,9 @@ void Solver::initialize()
         p[i].sound = std::sqrt(c_sound * p[i].ene);
     }
 
-#ifndef EXHAUSTIVE_SEARCH
     auto tree = m_sim->get_tree();
     tree->resize(num);
     tree->make(p, num);
-#endif
 
     m_pre->calculation(m_sim);
     
@@ -3425,9 +3361,7 @@ void Solver::integrate()
     m_timestep->calculation(m_sim);
 
     predict();
-#ifndef EXHAUSTIVE_SEARCH
     m_sim->make_tree();
-#endif
     // First compute densities and smoothing lengths for real particles
     m_pre->calculation(m_sim);
     

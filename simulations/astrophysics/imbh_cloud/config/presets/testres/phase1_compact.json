@@ -65,10 +65,10 @@
     "neighborNumber": 50,
 
     "G": 0.00430091,
-    "useGravity": true,
+    "useGravity": false,
 
     "SPHType": "gsph",
-    "kernel": "wendland",
+    "kernel": "cubic_spline",
     "useGradH": true,
     "use2ndOrderGSPH": false,
 
@@ -77,12 +77,21 @@
     "cfl": 0.3,
 
     "useRelaxation": true,
-    "relaxationSteps": 200,
+    "relaxationSteps": 2000,
     "relaxationOutputFreq": 10,
     "relaxationOnly": true,
-    "relaxationTimestepFactor": 0.05,
     "useGlassRelaxation": false,
 
     "outputDirectory": "simulations/astrophysics/imbh_cloud/results/phase1_compact",
-    "outputFormat": "csv"
+
+    "output": {
+        "formats": [
+            {"type": "hdf5", "compression": 6}
+        ],
+        "enableCSV": false,
+        "enableHDF5": true,
+        "enableVTK": false,
+        "enableEnergyFile": true,
+        "hdf5Compression": 6
+    }
 }

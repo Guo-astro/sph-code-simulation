@@ -336,4 +336,30 @@ bool IsothermalRelaxation::update_profile_from_sph(std::shared_ptr<Simulation> s
     return false;
 }
 
+int IsothermalRelaxation::remove_escaping_particles(std::shared_ptr<Simulation> sim, real tolerance_factor)
+{
+    if (!m_initialized) {
+        return 0;
+    }
+
+    auto& particles = sim->get_particles();
+    const real R_max = m_params.R_cloud * tolerance_factor;
+
+    // Use erase-remove idiom
+    auto new_end = std::remove_if(particles.begin(), particles.end(),
+        [R_max](const SPHParticle& p) {
+            const real r = std::abs(p.pos);
+            return r > R_max;
+        });
+
+    const int removed = std::distance(new_end, particles.end());
+    particles.erase(new_end, particles.end());
+    sim->set_particle_num(static_cast<int>(particles.size()));
+
+    if (removed > 0) {
+        std::cout << "IsothermalRelaxation: Removed " << removed << " particles (r > " << R_max << ")" << std::endl;
+    }
+    return removed;
+}
+
 } // namespace sph
