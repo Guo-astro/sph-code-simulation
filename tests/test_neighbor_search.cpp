@@ -2,11 +2,11 @@
  * @file test_neighbor_search.cpp
  * @brief TDD validation tests comparing tree-based neighbor search with exhaustive search
  *
- * Purpose: Use exhaustive search as ground truth to validate tree-based neighbor search
- * before removing the EXHAUSTIVE_SEARCH compile flag.
+ * Purpose: Use exhaustive search as ground truth to validate tree-based neighbor search.
+ * The EXHAUSTIVE_SEARCH compile flag has been removed; tree search is now the only method.
  *
  * Test Strategy:
- * - Both search methods are called directly (not through #ifdef)
+ * - Both search methods are called directly for validation
  * - Results are compared for correctness
  * - Tests cover edge cases, periodic boundaries, and various particle distributions
  */

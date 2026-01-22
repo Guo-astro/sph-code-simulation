@@ -14,9 +14,6 @@
 #include "bhtree.hpp"
 #include "logger.hpp"
 
-#ifdef EXHAUSTIVE_SEARCH
-#include "exhaustive_search.hpp"
-#endif
 
 namespace sph {
 namespace grgsph {
@@ -87,13 +84,7 @@ void GRPreInteraction::calculation(std::shared_ptr<Simulation> sim)
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
 
         const real search_r = p_i.sml * 6.0;
-#ifdef EXHAUSTIVE_SEARCH
-        const int n_neighbor_tmp = exhaustive_search(p_i, search_r, particles, num,
-                                                      neighbor_list, m_neighbor_number * neighbor_list_size,
-                                                      periodic, false);
-#else
         const int n_neighbor_tmp = tree->neighbor_search(p_i, neighbor_list, particles, false);
-#endif
 
         // Update smoothing length if iteration enabled
         if (m_iteration && !m_first_calculation) {

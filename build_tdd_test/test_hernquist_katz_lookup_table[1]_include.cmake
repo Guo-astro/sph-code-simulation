@@ -1,5 +1,0 @@
-if(EXISTS "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_tdd_test/test_hernquist_katz_lookup_table[1]_tests.cmake")
-  include("/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_tdd_test/test_hernquist_katz_lookup_table[1]_tests.cmake")
-else()
-  add_test(test_hernquist_katz_lookup_table_NOT_BUILT test_hernquist_katz_lookup_table_NOT_BUILT)
-endif()

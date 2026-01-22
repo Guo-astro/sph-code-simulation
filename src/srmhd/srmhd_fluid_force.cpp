@@ -25,9 +25,6 @@
 #include <cmath>
 #include <algorithm>
 
-#ifdef EXHAUSTIVE_SEARCH
-#include "exhaustive_search.hpp"
-#endif
 
 namespace sph
 {
@@ -153,13 +150,7 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
 
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
 
-#ifdef EXHAUSTIVE_SEARCH
-        const int n_neighbor = exhaustive_search(p_i, p_i.sml * 6.0, particles, num,
-                                                  neighbor_list, m_neighbor_number * neighbor_list_size,
-                                                  periodic, false);
-#else
         const int n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, false);
-#endif
 
         // Particle i state
         const real rho_i = p_i.dens;

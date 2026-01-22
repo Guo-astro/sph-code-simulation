@@ -1,0 +1,52 @@
+{
+    "_comment": "Phase 2: Lane-Emden n=3/2 (gamma=5/3) with self-gravity - 1M particles",
+    "_phase": "2 of 2: Test hydrostatic equilibrium stability",
+    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr",
+    "_physics": "Self-gravitating Lane-Emden polytrope, R=1pc, n_center=1000 cm^-3, M=40.2 Msun",
+
+    "_design_rationale": [
+        "HIGH RESOLUTION: 1 million particles",
+        "Resume from relaxed state in phase1",
+        "Enable self-gravity and evolve",
+        "No envelope particles needed - Lane-Emden is fully self-gravitating",
+        "",
+        "Expected behavior:",
+        "  - Sphere should maintain R ~ 1 pc",
+        "  - Density profile should match Lane-Emden theta^1.5",
+        "  - Small oscillations OK, but no collapse or expansion"
+    ],
+
+    "_timescales": {
+        "free_fall": "~7 Myr (at n=1000 cm^-3)",
+        "sound_crossing": "~2.4 Myr (for R=1pc, cs~0.41 km/s at T~35K)"
+    },
+
+    "name": "Phase 2: Lane-Emden 1M Hydrostatic Test",
+    "dimension": 3,
+
+    "sample": "lane_emden",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/lane_emden_1M/phase1_relaxation/snapshot_0020.csv",
+    "resetTimeOnResume": true,
+    "N": 100,
+
+    "gamma": 1.6666666666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": true,
+    "gravitySofteningType": "hernquist_katz",
+
+    "SPHType": "gsph",
+    "kernel": "cubic_spline",
+    "useGradH": true,
+    "use2ndOrderGSPH": false,
+
+    "endTime": 10.0,
+    "outputTime": 0.5,
+    "cfl": 0.3,
+
+    "useRelaxation": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/lane_emden_1M/phase2_hydrostatic",
+    "outputFormat": "csv"
+}

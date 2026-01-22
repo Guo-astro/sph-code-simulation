@@ -56,7 +56,6 @@
     "relaxationSteps": 200,
     "relaxationOutputFreq": 10,
     "relaxationOnly": true,
-    "relaxationTimestepFactor": 0.05,
     "useGlassRelaxation": false,
 
     "outputDirectory": "simulations/astrophysics/imbh_cloud/results/phase1_stable",

@@ -25,9 +25,6 @@
 #include <cmath>
 #include <algorithm>
 
-#ifdef EXHAUSTIVE_SEARCH
-#include "exhaustive_search.hpp"
-#endif
 
 namespace sph
 {
@@ -263,13 +260,7 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
         // Extended search radius for volume-based h iteration
         const real search_r = p_i.sml * 6.0;
 
-#ifdef EXHAUSTIVE_SEARCH
-        const int n_neighbor_tmp = exhaustive_search(p_i, search_r, particles, num,
-                                                      neighbor_list, m_neighbor_number * neighbor_list_size,
-                                                      periodic, false);
-#else
         const int n_neighbor_tmp = tree->neighbor_search(p_i, neighbor_list, particles, false);
-#endif
 
         // Update smoothing length (skip on first timestep)
         if (m_iteration && !m_first_calculation) {

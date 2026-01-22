@@ -21,9 +21,6 @@
 #include <cmath>
 #include <algorithm>
 
-#ifdef EXHAUSTIVE_SEARCH
-#include "exhaustive_search.hpp"
-#endif
 
 namespace sph {
 namespace grgsph {
@@ -414,9 +411,7 @@ void GRFluidForce::calculation(std::shared_ptr<Simulation> sim)
     auto* periodic = sim->get_periodic().get();
     const int num = sim->get_particle_num();
     auto* kernel = sim->get_kernel().get();
-#ifndef EXHAUSTIVE_SEARCH
     auto* tree = sim->get_tree().get();
-#endif
 
     // Reset derivatives
 #pragma omp parallel for
@@ -444,13 +439,7 @@ void GRFluidForce::calculation(std::shared_ptr<Simulation> sim)
         // Find neighbors
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
 
-#ifdef EXHAUSTIVE_SEARCH
-        const int n_neighbor = exhaustive_search(p_i, p_i.sml * 6.0, particles, num,
-                                                  neighbor_list, m_neighbor_number * neighbor_list_size,
-                                                  periodic, false);
-#else
         const int n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, false);
-#endif
 
         // Local accumulator for forces
         vec_t dS_acc(0.0);

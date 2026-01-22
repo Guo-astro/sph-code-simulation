@@ -1,0 +1,85 @@
+{
+    "_comment": "Phase 1: Lane-Emden n=3/2 (gamma=5/3) polytrope relaxation",
+    "_phase": "1 of 2: Damped relaxation to hydrostatic equilibrium",
+    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr",
+    "_physics": "Self-gravitating Lane-Emden polytrope, R=1.5pc, n_center=541 cm^-3, M=40 Msun",
+
+    "_design_rationale": [
+        "GOAL: Self-gravitating sphere that remains Jeans-stable with KI2000 cooling",
+        "Lane-Emden n=3/2 (gamma=5/3) is analytically solvable",
+        "Hydrostatic equilibrium: dP/dr = -rho * g",
+        "P = K * rho^gamma with constant K (isentropic)",
+        "",
+        "JEANS STABILITY ANALYSIS (with KI2000 cooling):",
+        "  At n_center = 541 cm^-3, KI2000 T_eq ~ 21 K",
+        "  Jeans length lambda_J ~ 3.2 pc",
+        "  lambda_J / R = 3.2 / 1.5 = 2.1 >> 1 => STABLE",
+        "",
+        "Parameters derived from:",
+        "  R_cloud = 1.5 pc (increased from 1.0 for Jeans stability)",
+        "  M_cloud = 40 M_sun",
+        "  Lane-Emden xi_1 = 3.65375",
+        "  |dtheta/dxi|_1 = 0.20330",
+        "  => alpha = R/xi_1 = 0.4105 pc",
+        "  => rho_center = 16.95 M_sun/pc^3",
+        "  => n_center = 541 cm^-3"
+    ],
+
+    "_lane_emden_parameters": {
+        "polytropic_index_n": 1.5,
+        "xi_1": 3.65375,
+        "dtheta_xi1": -0.20330,
+        "alpha_pc": 0.4105,
+        "rho_center_Msun_pc3": 16.95,
+        "n_center_cm3": 541,
+        "R_cloud_pc": 1.5,
+        "M_cloud_Msun": 40.0
+    },
+
+    "name": "Phase 1: Lane-Emden n=3/2 Relaxation (R=1.5pc, n=541, Jeans-stable)",
+    "dimension": 3,
+
+    "sample": "lane_emden",
+    "N": 25,
+
+    "M_total": 40.0,
+    "R": 1.5,
+
+    "gamma": 1.6666666666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": false,
+
+    "maxTreeLevel": 20,
+    "leafParticleNumber": 32,
+    "useMortonCode": true,
+
+    "SPHType": "gsph",
+    "kernel": "cubic_spline",
+    "useGradH": true,
+    "use2ndOrderGSPH": false,
+
+    "endTime": 2.0,
+    "outputTime": 0.2,
+    "cfl": 0.4,
+
+    "useRelaxation": true,
+    "relaxationSteps": 2000,
+    "relaxationOutputFreq": 10,
+    "relaxationOnly": true,
+    "useGlassRelaxation": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/lane_emden/phase1_relaxation",
+
+    "output": {
+        "formats": [
+            {"type": "hdf5", "compression": 6}
+        ],
+        "enableCSV": false,
+        "enableHDF5": true,
+        "enableVTK": false,
+        "enableEnergyFile": true,
+        "hdf5Compression": 6
+    }
+}

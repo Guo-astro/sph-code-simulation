@@ -5,14 +5,14 @@ target_sources(sph
         exhaustive_search.cpp
         fluid_force.cpp
         gravity_force.cpp
-        hernquist_katz_lookup_table_stub.cpp
+        hernquist_katz_lookup_table.cpp
+        ${CMAKE_SOURCE_DIR}/tests/softening_lookup_table.cpp
         logger.cpp
         output_manager.cpp
         output_metadata.cpp
         pre_interaction.cpp
         shock_tube_ghost.cpp
         simulation.cpp
-        softening_lookup_table_stub.cpp
         solver.cpp
         timestep.cpp
         units.cpp

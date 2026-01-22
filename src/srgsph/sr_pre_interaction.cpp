@@ -8,9 +8,6 @@
 #include "bhtree.hpp"
 #include <iostream>
 
-#ifdef EXHAUSTIVE_SEARCH
-#include "exhaustive_search.hpp"
-#endif
 
 namespace sph
 {
@@ -208,27 +205,7 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
         // 2. Expanded kernel W(r, C_smooth*h) for Vp* -> radius ~ 3 * C_smooth * h
         // With C_smooth=2.0, we need ~6h. Using 6.0h to be safe.
         const real search_r = p_i.sml * 6.0;
-#ifdef EXHAUSTIVE_SEARCH
-        const int n_neighbor_tmp = exhaustive_search(p_i, search_r, particles, num,
-                                                      neighbor_list, m_neighbor_number * neighbor_list_size,
-                                                      periodic, false);
-#else
-        // Tree search might need adjustment if it doesn't support explicit radius override easily
-        // But usually tree->neighbor_search uses p_i.sml * kernel_ratio or similar.
-        // For now assuming tree handles it or we rely on exhaustive search for correctness in 1D.
-        // Actually, tree->neighbor_search usually uses p_i.sml. We might need to temporarily boost sml?
-        // Or better, just use exhaustive search for 1D tests if tree is not flexible.
-        // But let's assume tree uses p_i.sml.
-        // If we want larger radius, we might need to hack it or use a different method.
-        // Given this is likely 1D test, exhaustive search is used if defined.
-        // If not defined, we rely on tree.
-        // Let's check if we can pass radius to tree search.
-        // tree->neighbor_search(p_i, neighbor_list, particles, false)
-        // It seems it doesn't take radius.
-        // We might need to set p_i.sml larger temporarily? No that's dangerous.
-        // For now, let's assume EXHAUSTIVE_SEARCH is used for 1D.
         const int n_neighbor_tmp = tree->neighbor_search(p_i, neighbor_list, particles, false);
-#endif
 
         // Update smoothing length if iteration enabled
         // Skip on first timestep to preserve exact h from initial conditions

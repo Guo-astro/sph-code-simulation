@@ -33,11 +33,9 @@ inline real pow6(real x) { return x * x * x * x * x * x; }
 
 // Lane-Emden has steep density gradient (~10^7:1), needs large neighbor list
 // SR Sod also has sharp discontinuity requiring large neighbor lists
-constexpr int neighbor_list_size = 5000;
+// For 1M+ particles, need larger buffer during initial smoothing iterations
+constexpr int neighbor_list_size = 20000;
 
-// for debug - DISABLED: tree search validated against exhaustive search
-// Uncomment to enable O(N^2) exhaustive search for debugging
-// #define EXHAUSTIVE_SEARCH
 
 // =============================================================================
 // Tree Optimization Switches

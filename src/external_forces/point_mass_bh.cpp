@@ -150,6 +150,14 @@ int PointMassBlackHole::apply_sink_accretion(std::shared_ptr<Simulation> sim)
         const vec_t r_vec = p_i.pos - m_position;
         const real r_squared = abs2(r_vec);
 
+        // === NaN/Inf guard: skip corrupted particles ===
+        // When cooling causes runaway collapse, positions can become NaN.
+        // NaN comparisons always return false, so without this guard,
+        // NaN-position particles would pass all checks and be incorrectly accreted.
+        if (std::isnan(r_squared) || std::isinf(r_squared)) {
+            continue;  // Skip corrupted particles
+        }
+
         // === Distance check: r < r_sink ===
         if (r_squared >= m_sink_radius_squared) {
             continue;  // Outside sink radius

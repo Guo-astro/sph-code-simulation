@@ -44,7 +44,6 @@
     "relaxationSteps": 10,
     "relaxationOutputFreq": 5,
     "relaxationOnly": true,
-    "relaxationTimestepFactor": 0.05,
     "useGlassRelaxation": false,
 
     "outputDirectory": "simulations/astrophysics/imbh_cloud/results/biniotest",

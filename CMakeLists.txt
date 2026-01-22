@@ -12,7 +12,7 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 # Dimension parameter (1D, 2D, or 3D)
 # Can be set via: cmake -DSPH_DIM=1 ..
-set(SPH_DIM "2" CACHE STRING "Spatial dimension (1, 2, or 3)")
+set(SPH_DIM "3" CACHE STRING "Spatial dimension (1, 2, or 3)")
 set_property(CACHE SPH_DIM PROPERTY STRINGS "1" "2" "3")
 message(STATUS "Building for ${SPH_DIM}D simulations (DIM=${SPH_DIM})")
 
@@ -174,8 +174,8 @@ if(BUILD_TESTS)
         tests/test_kernel_gravity.cpp
         src/gravity_force.cpp
         src/bhtree.cpp
-        src/hernquist_katz_lookup_table_stub.cpp
-        src/softening_lookup_table_stub.cpp
+        src/hernquist_katz_lookup_table.cpp
+        tests/softening_lookup_table.cpp
     )
     target_compile_features(test_kernel_gravity PUBLIC cxx_std_14)
     target_compile_definitions(test_kernel_gravity PRIVATE DIM=${SPH_DIM})
@@ -194,8 +194,8 @@ if(BUILD_TESTS)
         tests/test_neighbor_search.cpp
         src/bhtree.cpp
         src/exhaustive_search.cpp
-        src/hernquist_katz_lookup_table_stub.cpp
-        src/softening_lookup_table_stub.cpp
+        src/hernquist_katz_lookup_table.cpp
+        tests/softening_lookup_table.cpp
     )
     target_compile_features(test_neighbor_search PUBLIC cxx_std_14)
     target_compile_definitions(test_neighbor_search PRIVATE DIM=${SPH_DIM})
@@ -253,8 +253,8 @@ if(BUILD_TESTS)
         tests/test_morton_tree_integration.cpp
         src/bhtree.cpp
         src/morton.cpp
-        src/hernquist_katz_lookup_table_stub.cpp
-        src/softening_lookup_table_stub.cpp
+        src/hernquist_katz_lookup_table.cpp
+        tests/softening_lookup_table.cpp
     )
     target_compile_features(test_morton_tree_integration PUBLIC cxx_std_14)
     target_compile_definitions(test_morton_tree_integration PRIVATE DIM=${SPH_DIM} USE_MORTON_ORDERING)
@@ -294,8 +294,8 @@ if(BUILD_TESTS)
         tests/test_softening_lookup_table.cpp
         src/gravity_force.cpp
         src/bhtree.cpp
-        src/hernquist_katz_lookup_table_stub.cpp
-        src/softening_lookup_table_stub.cpp
+        src/hernquist_katz_lookup_table.cpp
+        tests/softening_lookup_table.cpp
     )
     target_compile_features(test_softening_lookup_table PUBLIC cxx_std_14)
     target_compile_definitions(test_softening_lookup_table PRIVATE DIM=${SPH_DIM})
@@ -317,7 +317,7 @@ if(BUILD_TESTS)
     # Tests for cubic spline softening kernel lookup table
     add_executable(test_hernquist_katz_lookup_table
         tests/test_hernquist_katz_lookup_table.cpp
-        src/hernquist_katz_lookup_table_stub.cpp
+        src/hernquist_katz_lookup_table.cpp
     )
     target_compile_features(test_hernquist_katz_lookup_table PUBLIC cxx_std_14)
     target_compile_definitions(test_hernquist_katz_lookup_table PRIVATE DIM=${SPH_DIM})
@@ -353,7 +353,7 @@ if(BUILD_TESTS)
     # Tests cache-efficient memory layout for gravity computation
     add_executable(test_gravity_soa
         tests/test_gravity_soa.cpp
-        src/gravity_data_soa_stub.cpp
+        tests/gravity_data_soa.cpp
         src/analytic_gravity_test_stub.cpp
     )
     target_compile_features(test_gravity_soa PUBLIC cxx_std_14)
@@ -372,8 +372,8 @@ if(BUILD_TESTS)
     # Tests that lookup tables are correctly integrated into gravity calculations
     add_executable(test_gravity_lookup_integration
         tests/test_gravity_lookup_integration.cpp
-        src/hernquist_katz_lookup_table_stub.cpp
-        src/softening_lookup_table_stub.cpp
+        src/hernquist_katz_lookup_table.cpp
+        tests/softening_lookup_table.cpp
     )
     target_compile_features(test_gravity_lookup_integration PUBLIC cxx_std_14)
     target_compile_definitions(test_gravity_lookup_integration PRIVATE DIM=${SPH_DIM})
@@ -392,8 +392,8 @@ if(BUILD_TESTS)
     # Tests: kernel accuracy, energy conservation, Newton's 3rd law
     add_executable(test_gravity_first_principles
         tests/test_gravity_first_principles.cpp
-        src/hernquist_katz_lookup_table_stub.cpp
-        src/softening_lookup_table_stub.cpp
+        src/hernquist_katz_lookup_table.cpp
+        tests/softening_lookup_table.cpp
     )
     target_compile_features(test_gravity_first_principles PUBLIC cxx_std_14)
     target_compile_definitions(test_gravity_first_principles PRIVATE DIM=${SPH_DIM})

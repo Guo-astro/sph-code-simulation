@@ -1,5 +1,0 @@
-if(EXISTS "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/test_shock_tube_3d_regression[1]_tests.cmake")
-  include("/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/test_shock_tube_3d_regression[1]_tests.cmake")
-else()
-  add_test(test_shock_tube_3d_regression_NOT_BUILT test_shock_tube_3d_regression_NOT_BUILT)
-endif()

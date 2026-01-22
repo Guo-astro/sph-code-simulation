@@ -53,7 +53,15 @@ public:
      * @param damping_factor Velocity damping (0-1, default 0.9 = strong damping)
      */
     void apply_relaxation(std::shared_ptr<Simulation> sim, real damping_factor = 0.9);
-    
+
+    /**
+     * @brief Remove particles that have escaped beyond the cloud boundary
+     * @param sim Simulation object
+     * @param tolerance_factor Remove particles beyond tolerance_factor * R_cloud (default 1.1)
+     * @return Number of particles removed
+     */
+    int remove_escaping_particles(std::shared_ptr<Simulation> sim, real tolerance_factor = 1.1);
+
     /**
      * @brief Check if relaxation is initialized
      */

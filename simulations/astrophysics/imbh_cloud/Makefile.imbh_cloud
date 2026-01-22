@@ -1,203 +1,68 @@
-# ============================================================================
-# IMBH-Cloud Tidal Interaction Simulation Makefile
-# ============================================================================
-#
-# USAGE:
-# ------
-# Phase 1 - Relaxation (create equilibrium BE sphere):
-#   make -f Makefile.imbh_cloud phase1_run
-#   make -f Makefile.imbh_cloud phase1_viz
-#
-# Phase 2 - Hydrostatic test (no cooling):
-#   make -f Makefile.imbh_cloud phase2_run
-#   make -f Makefile.imbh_cloud phase2_viz
-#
-# Phase 2.5 - Cooling test (K&I 2000):
-#   make -f Makefile.imbh_cloud phase2.5_run
-#   make -f Makefile.imbh_cloud phase2.5_viz
-#   make -f Makefile.imbh_cloud phase2.5_gif_radial
-#   make -f Makefile.imbh_cloud phase2.5_gif_xy
-#
-# Phase 3 - IMBH interaction:
-#   make -f Makefile.imbh_cloud phase3_run
-#   make -f Makefile.imbh_cloud phase3_viz
-#
-# Visualization only (all phases):
-#   make -f Makefile.imbh_cloud gif_radial PHASE=phase2.5_cooling_gamma53
-#   make -f Makefile.imbh_cloud gif_xy PHASE=phase2.5_cooling_gamma53
-#
-# ============================================================================
+# IMBH Cloud Simulation Makefile
+# Usage: make -f Makefile.imbh_cloud <target>
 
-# Paths
-ROOT_DIR := $(shell cd ../../.. && pwd)
-SPH_EXE := $(ROOT_DIR)/build/sph
-PRESET_DIR := config/presets
-RESULTS_BASE := results
-SCRIPTS_DIR := scripts
+# Paths (relative to this Makefile)
+ROOT := ../../..
+BUILD_REL := $(ROOT)/build
+RESULTS_LOCAL := results/lane_emden
 
-# Python
-PYTHON := /Library/Developer/CommandLineTools/usr/bin/python3
+# Paths after cd to ROOT (for running commands)
+BIN := ./build/sph
+IMBH_DIR := simulations/astrophysics/imbh_cloud
+CONFIG := $(IMBH_DIR)/config/presets/lane_emden
 
-# Default phase for viz commands
-PHASE ?= phase2.5_cooling_gamma53
+# Python (use system python with required packages)
+PYTHON := /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3
 
-.PHONY: help build phase1_run phase1_clean phase2_run phase2_clean \
-        phase2.5_run phase2.5_clean phase2.5_viz phase2.5_gif_radial phase2.5_gif_xy \
-        phase3_run phase3_clean gif_radial gif_xy
+.PHONY: help build phase1 phase2 gif-phase1 gif-phase2 clean-phase1 clean-phase2 clean-all
 
-# ============================================================================
-# Help
-# ============================================================================
 help:
-	@echo "========================================"
-	@echo "IMBH-Cloud Simulation Makefile"
-	@echo "========================================"
-	@echo ""
-	@echo "Build:"
-	@echo "  make -f Makefile.imbh_cloud build        Build SPH executable"
-	@echo ""
-	@echo "Phase 1 - Relaxation (T=10K, no BH):"
-	@echo "  make -f Makefile.imbh_cloud phase1_run   Run relaxation"
-	@echo "  make -f Makefile.imbh_cloud phase1_clean Clean Phase 1 results"
-	@echo ""
-	@echo "Phase 2 - Hydrostatic (no cooling):"
-	@echo "  make -f Makefile.imbh_cloud phase2_run   Run hydrostatic test"
-	@echo "  make -f Makefile.imbh_cloud phase2_clean Clean Phase 2 results"
-	@echo ""
-	@echo "Phase 2.5 - Cooling Test (K&I 2000):"
-	@echo "  make -f Makefile.imbh_cloud phase2.5_run       Run cooling test"
-	@echo "  make -f Makefile.imbh_cloud phase2.5_viz       Generate all viz"
-	@echo "  make -f Makefile.imbh_cloud phase2.5_gif_radial  Radial profile GIF"
-	@echo "  make -f Makefile.imbh_cloud phase2.5_gif_xy      XY slice GIF"
-	@echo "  make -f Makefile.imbh_cloud phase2.5_clean     Clean Phase 2.5 results"
-	@echo ""
-	@echo "Phase 3 - IMBH Interaction:"
-	@echo "  make -f Makefile.imbh_cloud phase3_run   Run IMBH encounter"
-	@echo "  make -f Makefile.imbh_cloud phase3_clean Clean Phase 3 results"
-	@echo ""
-	@echo "Generic Visualization (set PHASE=...):"
-	@echo "  make -f Makefile.imbh_cloud gif_radial PHASE=phase2.5_cooling_gamma53"
-	@echo "  make -f Makefile.imbh_cloud gif_xy PHASE=phase2.5_cooling_gamma53"
-	@echo ""
+	@echo "IMBH Cloud Simulation Targets:"
+	@echo "  make -f Makefile.imbh_cloud build       - Build the SPH code"
+	@echo "  make -f Makefile.imbh_cloud phase1      - Run Lane-Emden phase1 relaxation"
+	@echo "  make -f Makefile.imbh_cloud phase2      - Run Lane-Emden phase2 hydrostatic"
+	@echo "  make -f Makefile.imbh_cloud gif-phase1  - Generate phase1 GIF"
+	@echo "  make -f Makefile.imbh_cloud gif-phase2  - Generate phase2 GIF"
+	@echo "  make -f Makefile.imbh_cloud phase1-viz  - Run phase1 + generate GIF"
+	@echo "  make -f Makefile.imbh_cloud clean-phase1- Clean phase1 results"
+	@echo "  make -f Makefile.imbh_cloud clean-all   - Clean all results"
 
-# ============================================================================
 # Build
-# ============================================================================
 build:
-	@echo "========================================"
-	@echo "Building SPH executable..."
-	@echo "========================================"
-	cd $(ROOT_DIR)/build && make -j10
-	@echo "✓ Build complete"
+	cd $(BUILD_REL) && make -j4
 
-# ============================================================================
-# Phase 1: Relaxation
-# ============================================================================
-phase1_run: build
-	@echo "========================================"
-	@echo "Phase 1: Relaxation (T=10K, xi_s=6.0)"
-	@echo "========================================"
-	@mkdir -p $(RESULTS_BASE)/phase1_relaxation
-	cd $(ROOT_DIR) && $(SPH_EXE) simulations/astrophysics/imbh_cloud/$(PRESET_DIR)/phase1_relaxation.json
-	@echo "✓ Phase 1 complete"
+# Lane-Emden Phase 1: Relaxation
+phase1: build
+	@mkdir -p $(RESULTS_LOCAL)/phase1_relaxation
+	cd $(ROOT) && $(BIN) $(CONFIG)/phase1_relaxation.json
 
-phase1_clean:
-	@echo "Cleaning Phase 1 results..."
-	rm -rf $(RESULTS_BASE)/phase1_relaxation/snapshot_*.csv
-	rm -f $(RESULTS_BASE)/phase1_relaxation/energy.dat
-	@echo "✓ Phase 1 cleaned"
+# Lane-Emden Phase 2: Hydrostatic evolution
+phase2: build
+	@mkdir -p $(RESULTS_LOCAL)/phase2_hydrostatic
+	cd $(ROOT) && $(BIN) $(CONFIG)/phase2_hydrostatic.json
 
-# ============================================================================
-# Phase 2: Hydrostatic (no cooling)
-# ============================================================================
-phase2_run: build
-	@echo "========================================"
-	@echo "Phase 2: Hydrostatic Test (no cooling)"
-	@echo "========================================"
-	@mkdir -p $(RESULTS_BASE)/phase2_hydrostatic_long
-	cd $(ROOT_DIR) && $(SPH_EXE) simulations/astrophysics/imbh_cloud/$(PRESET_DIR)/phase2_hydrostatic_long.json
-	@echo "✓ Phase 2 complete"
+# Generate GIFs
+gif-phase1:
+	cd $(ROOT) && $(PYTHON) scripts/viz_lane_emden_phase1.py
 
-phase2_clean:
-	@echo "Cleaning Phase 2 results..."
-	rm -rf $(RESULTS_BASE)/phase2_hydrostatic_long/snapshot_*.csv
-	rm -f $(RESULTS_BASE)/phase2_hydrostatic_long/energy.dat
-	@echo "✓ Phase 2 cleaned"
+gif-phase2:
+	cd $(ROOT) && $(PYTHON) scripts/viz_lane_emden_phase2.py
 
-# ============================================================================
-# Phase 2.5: Cooling Test (K&I 2000)
-# ============================================================================
-phase2.5_run: build
-	@echo "========================================"
-	@echo "Phase 2.5: K&I 2000 Cooling Test"
-	@echo "========================================"
-	@mkdir -p $(RESULTS_BASE)/phase2.5_cooling_gamma53
-	cd $(ROOT_DIR) && $(SPH_EXE) simulations/astrophysics/imbh_cloud/$(PRESET_DIR)/phase2.5_hydrostatic_cooling_gamma53.json
-	@echo "✓ Phase 2.5 complete"
+# Run phase1 and generate GIF
+phase1-viz: phase1 gif-phase1
 
-phase2.5_viz: phase2.5_gif_radial phase2.5_gif_xy
-	@echo "✓ All Phase 2.5 visualizations complete"
+# Run phase2 and generate GIF
+phase2-viz: phase2 gif-phase2
 
-phase2.5_gif_radial:
-	@$(MAKE) -f Makefile.imbh_cloud gif_radial PHASE=phase2.5_cooling_gamma53
+# Clean results
+clean-phase1:
+	rm -rf $(RESULTS_LOCAL)/phase1_relaxation/*.h5
+	rm -rf $(RESULTS_LOCAL)/phase1_relaxation/*.csv
+	rm -rf $(RESULTS_LOCAL)/phase1_relaxation/*.gif
 
-phase2.5_gif_xy:
-	@$(MAKE) -f Makefile.imbh_cloud gif_xy PHASE=phase2.5_cooling_gamma53
+clean-phase2:
+	rm -rf $(RESULTS_LOCAL)/phase2_hydrostatic/*.h5
+	rm -rf $(RESULTS_LOCAL)/phase2_hydrostatic/*.csv
+	rm -rf $(RESULTS_LOCAL)/phase2_hydrostatic/*.gif
 
-phase2.5_clean:
-	@echo "Cleaning Phase 2.5 results..."
-	rm -rf $(RESULTS_BASE)/phase2.5_cooling_gamma53/snapshot_*.csv
-	rm -f $(RESULTS_BASE)/phase2.5_cooling_gamma53/energy.dat
-	rm -f $(RESULTS_BASE)/phase2.5_cooling_gamma53/*.png
-	rm -f $(RESULTS_BASE)/phase2.5_cooling_gamma53/*.gif
-	@echo "✓ Phase 2.5 cleaned"
-
-# ============================================================================
-# Phase 3: IMBH Interaction
-# ============================================================================
-phase3_run: build
-	@echo "========================================"
-	@echo "Phase 3: IMBH Tidal Interaction"
-	@echo "========================================"
-	@mkdir -p $(RESULTS_BASE)/phase3_imbh_interaction
-	cd $(ROOT_DIR) && $(SPH_EXE) simulations/astrophysics/imbh_cloud/$(PRESET_DIR)/phase3_imbh_interaction.json
-	@echo "✓ Phase 3 complete"
-
-phase3_clean:
-	@echo "Cleaning Phase 3 results..."
-	rm -rf $(RESULTS_BASE)/phase3_imbh_interaction/snapshot_*.csv
-	rm -f $(RESULTS_BASE)/phase3_imbh_interaction/energy.dat
-	rm -f $(RESULTS_BASE)/phase3_imbh_interaction/*.png
-	rm -f $(RESULTS_BASE)/phase3_imbh_interaction/*.gif
-	@echo "✓ Phase 3 cleaned"
-
-# ============================================================================
-# Generic GIF Generation
-# ============================================================================
-gif_radial:
-	@echo "========================================"
-	@echo "Generating Radial Profile GIF: $(PHASE)"
-	@echo "========================================"
-	@if [ ! -d "$(RESULTS_BASE)/$(PHASE)" ]; then \
-		echo "❌ Error: Results directory not found: $(RESULTS_BASE)/$(PHASE)"; \
-		exit 1; \
-	fi
-	@$(PYTHON) $(SCRIPTS_DIR)/make_radial_gif.py $(RESULTS_BASE)/$(PHASE)
-	@echo "✓ Radial GIF saved to $(RESULTS_BASE)/$(PHASE)/"
-
-gif_xy:
-	@echo "========================================"
-	@echo "Generating XY Slice GIF: $(PHASE)"
-	@echo "========================================"
-	@if [ ! -d "$(RESULTS_BASE)/$(PHASE)" ]; then \
-		echo "❌ Error: Results directory not found: $(RESULTS_BASE)/$(PHASE)"; \
-		exit 1; \
-	fi
-	@$(PYTHON) $(SCRIPTS_DIR)/make_xy_gif.py $(RESULTS_BASE)/$(PHASE)
-	@echo "✓ XY GIF saved to $(RESULTS_BASE)/$(PHASE)/"
-
-# ============================================================================
-# Clean All
-# ============================================================================
-clean_all: phase1_clean phase2_clean phase2.5_clean phase3_clean
-	@echo "✓ All results cleaned"
+clean-all: clean-phase1 clean-phase2

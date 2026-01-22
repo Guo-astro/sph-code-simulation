@@ -2,6 +2,7 @@
 #include "exception.hpp"
 #include <cmath>
 #include <iostream>
+#include <algorithm>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -48,9 +49,11 @@ vec_t LaneEmdenRelaxation::compute_relaxation_force(const SPHParticle& p) const
     
     // Dimensionless coordinate
     const real xi = r / m_params.alpha_scaling;
-    
-    if(xi >= m_data.get_xi_1()) {
-        return force;  // Outside sphere
+    const real xi_1 = m_data.get_xi_1();
+
+    if(xi >= xi_1) {
+        // Outside sphere: no relaxation force, particle will be removed
+        return force;
     }
     
     // Get Lane-Emden solution
@@ -143,6 +146,34 @@ void LaneEmdenRelaxation::apply_relaxation(std::shared_ptr<Simulation> sim, real
         
         // NOTE: Velocities are zeroed in the solver loop, not here
     }
+}
+
+int LaneEmdenRelaxation::remove_escaping_particles(std::shared_ptr<Simulation> sim, real tolerance_factor)
+{
+    if(!m_initialized) {
+        THROW_ERROR("LaneEmdenRelaxation not initialized");
+    }
+
+    auto& particles = sim->get_particles();
+    const real xi_1 = m_data.get_xi_1();
+    const real R_cloud = xi_1 * m_params.alpha_scaling;
+    const real R_max = R_cloud * tolerance_factor;
+
+    // Use erase-remove idiom
+    auto new_end = std::remove_if(particles.begin(), particles.end(),
+        [R_max](const SPHParticle& p) {
+            const real r = std::abs(p.pos);
+            return r > R_max;
+        });
+
+    const int removed = std::distance(new_end, particles.end());
+    particles.erase(new_end, particles.end());
+    sim->set_particle_num(static_cast<int>(particles.size()));
+
+    if(removed > 0) {
+        std::cout << "LaneEmdenRelaxation: Removed " << removed << " particles (r > " << R_max << ")" << std::endl;
+    }
+    return removed;
 }
 
 } // namespace sph

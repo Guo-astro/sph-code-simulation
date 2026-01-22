@@ -9,9 +9,6 @@
 #include <cmath>
 #include <iostream>
 
-#ifdef EXHAUSTIVE_SEARCH
-#include "exhaustive_search.hpp"
-#endif
 
 namespace sph
 {
@@ -57,11 +54,7 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
 
         // Neighbor search
-#ifdef EXHAUSTIVE_SEARCH
-        int const n_neighbor = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, m_neighbor_number * neighbor_list_size, periodic, true);
-#else
         int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, true);
-#endif
 
         const vec_t& r_i = p_i.pos;
         const vec3_t& B_i = p_i.B;

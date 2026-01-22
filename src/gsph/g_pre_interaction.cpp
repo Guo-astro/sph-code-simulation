@@ -10,9 +10,6 @@
 #include "exception.hpp"
 #include "bhtree.hpp"
 
-#ifdef EXHAUSTIVE_SEARCH
-#include "exhaustive_search.hpp"
-#endif
 
 namespace sph
 {
@@ -168,11 +165,7 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
         // neighbor search - use larger search radius for volume-based approach
         const real search_radius = m_use_volume_based ? p_i.sml * 6.0 : p_i.sml;
-#ifdef EXHAUSTIVE_SEARCH
-        const int n_neighbor_tmp = exhaustive_search(p_i, search_radius, particles, num, neighbor_list, m_neighbor_number * neighbor_list_size, periodic, false);
-#else
         const int n_neighbor_tmp = tree->neighbor_search(p_i, neighbor_list, particles, false);
-#endif
 
         // smoothing length update
         if(m_iteration) {
@@ -331,9 +324,7 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
     sim->set_h_per_v_sig(h_per_v_sig.min());
 
-#ifndef EXHAUSTIVE_SEARCH
     tree->set_kernel();
-#endif
 }
 
 }

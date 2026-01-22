@@ -1,5 +1,0 @@
-if(EXISTS "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_tdd_test/test_analytic_gravity_3d[1]_tests.cmake")
-  include("/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_tdd_test/test_analytic_gravity_3d[1]_tests.cmake")
-else()
-  add_test(test_analytic_gravity_3d_NOT_BUILT test_analytic_gravity_3d_NOT_BUILT)
-endif()

@@ -1,5 +1,0 @@
-if(EXISTS "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/test_hdf5_resume[1]_tests.cmake")
-  include("/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_test_3d/test_hdf5_resume[1]_tests.cmake")
-else()
-  add_test(test_hdf5_resume_NOT_BUILT test_hdf5_resume_NOT_BUILT)
-endif()

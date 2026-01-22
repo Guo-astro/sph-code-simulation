@@ -9,9 +9,6 @@
 #include "exception.hpp"
 #include "bhtree.hpp"
 
-#ifdef EXHAUSTIVE_SEARCH
-#include "exhaustive_search.hpp"
-#endif
 
 namespace sph
 {
@@ -67,11 +64,7 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
         p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / DIM) * m_kernel_ratio;
         
         // neighbor search
-#ifdef EXHAUSTIVE_SEARCH
-        const int n_neighbor_tmp = exhaustive_search(p_i, p_i.sml, particles, num, neighbor_list, m_neighbor_number * neighbor_list_size, periodic, false);
-#else
         const int n_neighbor_tmp = tree->neighbor_search(p_i, neighbor_list, particles, false);
-#endif
         // smoothing length (DISPH Newton-Raphson)
         if(m_iteration) {
             p_i.sml = newton_raphson(p_i, particles, neighbor_list, n_neighbor_tmp, periodic, kernel);
@@ -209,9 +202,7 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
     sim->set_h_per_v_sig(h_per_v_sig.min());
 
-#ifndef EXHAUSTIVE_SEARCH
     tree->set_kernel();
-#endif
 }
 
 inline real powh_(const real h) {

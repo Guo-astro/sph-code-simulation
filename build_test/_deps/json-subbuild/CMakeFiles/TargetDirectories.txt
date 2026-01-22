@@ -1,3 +1,0 @@
-/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/CMakeFiles/json-populate.dir
-/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/CMakeFiles/edit_cache.dir
-/Users/kunishigehana/sph-code-simulation/build_test/_deps/json-subbuild/CMakeFiles/rebuild_cache.dir

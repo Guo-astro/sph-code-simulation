@@ -544,6 +544,234 @@ Precomputed slopes: $s_i = (f_{i+1} - f_i) / \Delta u$ for $O(1)$ evaluation.
 \end{table}
 
 %==============================================================================
+\part{C++ Implementation Architecture}
+%==============================================================================
+
+\section{Structure of Arrays (SoA) vs Array of Structures (AoS)}
+
+\subsection{The Memory Layout Problem}
+
+In N-body simulations, we typically store particle data as an \textbf{Array of Structures (AoS)}:
+
+\begin{verbatim}
+struct Particle {
+    double pos[3];      // 24 bytes
+    double vel[3];      // 24 bytes
+    double mass;        // 8 bytes
+    double sml;         // 8 bytes
+    double grav_acc[3]; // 24 bytes
+    double phi;         // 8 bytes
+};                      // Total: 96 bytes per particle
+
+Particle particles[N];  // AoS layout
+\end{verbatim}
+
+When computing gravity, we loop over all particle pairs:
+\begin{verbatim}
+for (i = 0; i < N; ++i) {
+    for (j = 0; j < N; ++j) {
+        dx = particles[i].pos[0] - particles[j].pos[0];
+        // ...
+    }
+}
+\end{verbatim}
+
+\textbf{Problem:} Accessing \texttt{particles[j].pos[0]} loads an entire cache line (64 bytes)
+containing \texttt{pos}, \texttt{vel}, \texttt{mass}, and part of \texttt{sml}---but we only need
+\texttt{pos[0]}. This wastes memory bandwidth.
+
+\subsection{Structure of Arrays Solution}
+
+The \textbf{Structure of Arrays (SoA)} layout stores each field contiguously:
+
+\begin{verbatim}
+class GravityDataSoA {
+    AlignedVector<double> pos_x;      // All x-coordinates
+    AlignedVector<double> pos_y;      // All y-coordinates
+    AlignedVector<double> pos_z;      // All z-coordinates
+    AlignedVector<double> mass;       // All masses
+    AlignedVector<double> sml;        // All smoothing lengths
+    AlignedVector<double> grav_acc_x; // Output: x-accelerations
+    AlignedVector<double> grav_acc_y; // Output: y-accelerations
+    AlignedVector<double> grav_acc_z; // Output: z-accelerations
+    AlignedVector<double> phi;        // Output: potentials
+};
+\end{verbatim}
+
+Now gravity computation becomes:
+\begin{verbatim}
+for (i = 0; i < N; ++i) {
+    for (j = 0; j < N; ++j) {
+        dx = data.pos_x[i] - data.pos_x[j];
+        // Cache line contains 8 consecutive pos_x values!
+    }
+}
+\end{verbatim}
+
+\subsection{SoA Benefits}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Aspect} & \textbf{AoS} & \textbf{SoA} \\
+\midrule
+Cache utilization & $\sim$8/96 = 8\% & $\sim$100\% \\
+SIMD vectorization & Hard & Natural \\
+Memory prefetching & Strided & Sequential \\
+Code complexity & Simple & Moderate \\
+\bottomrule
+\end{tabular}
+\caption{Comparison of AoS vs SoA memory layouts}
+\end{table}
+
+\textbf{SIMD vectorization:} Modern CPUs can process 4--8 doubles simultaneously (AVX-256/512).
+With SoA, consecutive \texttt{pos\_x[j], pos\_x[j+1], ...} values are adjacent in memory,
+enabling automatic vectorization:
+
+\begin{verbatim}
+// Compiler can vectorize this loop automatically
+for (j = 0; j < N; j += 4) {
+    __m256d dx = _mm256_sub_pd(target_x, pos_x[j:j+3]);
+    // Process 4 particles simultaneously
+}
+\end{verbatim}
+
+\subsection{Conversion Functions}
+
+The implementation provides conversion between layouts:
+\begin{itemize}
+\item \texttt{GravityDataSoA::from\_aos(particles)} --- Convert AoS to SoA
+\item \texttt{GravityDataSoA::to\_aos()} --- Convert SoA to AoS
+\item \texttt{GravityDataSoA::copy\_results\_to\_aos(particles)} --- Copy gravity results back
+\end{itemize}
+
+\section{Stub File Organization}
+
+The codebase uses a \textbf{stub file pattern} for TDD (Test-Driven Development):
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{File} & \textbf{Purpose} \\
+\midrule
+\texttt{include/*.hpp} & Header with declarations, documentation, API contracts \\
+\texttt{src/*\_stub.cpp} & Actual implementation (initially minimal) \\
+\texttt{tests/test\_*.cpp} & Unit tests that drive development \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{TDD Workflow}
+
+\begin{enumerate}
+\item \textbf{RED:} Write tests for desired behavior; tests fail because implementation is missing
+\item \textbf{GREEN:} Write minimal \texttt{*\_stub.cpp} code to make tests pass
+\item \textbf{REFACTOR:} Clean up implementation while keeping tests green
+\end{enumerate}
+
+The ``stub'' naming convention indicates these files started as minimal stubs and grew
+through incremental TDD cycles.
+
+\section{Lookup Table Implementation}
+
+\subsection{Hernquist-Katz Lookup Table}
+
+File: \texttt{hernquist\_katz\_lookup\_table\_stub.cpp}
+
+\begin{verbatim}
+class HernquistKatzLookupTable {
+    static constexpr int TABLE_SIZE = 4096;
+    static constexpr double U_MAX = 2.0;
+    static constexpr double DU = U_MAX / TABLE_SIZE;
+
+    double f_table_[TABLE_SIZE + 1];  // Potential values
+    double g_table_[TABLE_SIZE + 1];  // Force values
+    double f_slope_[TABLE_SIZE];      // Precomputed slopes
+    double g_slope_[TABLE_SIZE];
+};
+\end{verbatim}
+
+\textbf{Initialization:}
+\begin{align}
+f_{\text{table}}[i] &= f_{\text{poly}}(i \cdot \Delta u) \\
+g_{\text{table}}[i] &= g_{\text{poly}}(i \cdot \Delta u) \\
+\text{slope}_i &= (f_{i+1} - f_i) / \Delta u
+\end{align}
+
+\textbf{Lookup with linear interpolation:}
+\begin{align}
+i &= \lfloor u / \Delta u \rfloor \\
+t &= u / \Delta u - i \\
+f(u) &\approx f_i + t \cdot \text{slope}_i
+\end{align}
+
+\textbf{Boundary handling:} Near $u = 1$ (polynomial piece boundary), direct polynomial
+evaluation is used to avoid interpolation artifacts:
+\begin{verbatim}
+if (idx == INNER_BOUNDARY_IDX - 1 || idx == INNER_BOUNDARY_IDX) {
+    return compute_f_polynomial(u);  // Direct evaluation
+}
+\end{verbatim}
+
+\subsection{Wendland C4 Lookup Table}
+
+File: \texttt{softening\_lookup\_table\_stub.cpp}
+
+\begin{verbatim}
+class WendlandC4LookupTable {
+    static constexpr int TABLE_SIZE = 2048;
+    static constexpr double Q_MAX = 1.0;  // Wendland support is [0,1]
+
+    double phi_table_[TABLE_SIZE + 1];
+    double g_table_[TABLE_SIZE + 1];
+};
+\end{verbatim}
+
+\textbf{Small-$q$ handling:} The force kernel $g(q)$ has a steep gradient near $q = 0$.
+Linear interpolation fails here, so direct polynomial evaluation is used:
+\begin{verbatim}
+constexpr double SMALL_Q_THRESHOLD = 40.0 * DQ;  // ~0.02
+if (q < SMALL_Q_THRESHOLD) {
+    return eval_g_poly(q);  // Direct polynomial
+}
+\end{verbatim}
+
+\subsection{Singleton Pattern}
+
+Both lookup tables use the Meyers singleton for thread-safe initialization:
+\begin{verbatim}
+const HernquistKatzLookupTable& HernquistKatzLookupTable::get_instance() {
+    static HernquistKatzLookupTable instance;  // C++11 thread-safe
+    return instance;
+}
+\end{verbatim}
+
+Tables are initialized once on first use, with zero runtime overhead for subsequent calls.
+
+\section{File Summary}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lp{6cm}}
+\toprule
+\textbf{File} & \textbf{Contents} \\
+\midrule
+\texttt{gravity\_data\_soa.hpp} & SoA class declaration, documentation \\
+\texttt{gravity\_data\_soa\_stub.cpp} & SoA$\leftrightarrow$AoS conversion, O($N^2$) gravity loop \\
+\texttt{hernquist\_katz\_lookup\_table.hpp} & H-K lookup table API \\
+\texttt{hernquist\_katz\_lookup\_table\_stub.cpp} & H-K polynomial \& interpolation implementation \\
+\texttt{softening\_lookup\_table.hpp} & Wendland C4 lookup table API \\
+\texttt{softening\_lookup\_table\_stub.cpp} & W-C4 polynomial \& interpolation implementation \\
+\texttt{gravity\_force.cpp} & 1D/2D/3D gravity dispatch, kernel selection \\
+\bottomrule
+\end{tabular}
+\caption{Implementation file overview}
+\end{table}
+
+%==============================================================================
 \part{Summary}
 %==============================================================================
 

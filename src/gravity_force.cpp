@@ -14,9 +14,6 @@
 #include <algorithm>
 #include <utility>
 
-#ifdef EXHAUSTIVE_SEARCH
-#include "exhaustive_search.hpp"
-#endif
 
 namespace sph
 {
@@ -431,26 +428,17 @@ void GravityForce::calculation(std::shared_ptr<Simulation> sim)
         // uniform in x. Gravity acts only in y-direction (like 1D slab).
         const real pi_G = M_PI * m_constant;
         
-#ifdef EXHAUSTIVE_SEARCH
-        auto * periodic = sim->get_periodic().get();
-#endif
-        
         #pragma omp parallel for
         for (int i = 0; i < num; ++i) {
             auto & p_i = particles[i];
             const real y_i = p_i.pos[1];  // y-coordinate
-            
+
             real g_sum = 0.0;
             real phi = 0.0;
-            
+
             for (int j = 0; j < num; ++j) {
                 const auto & p_j = particles[j];
-#ifdef EXHAUSTIVE_SEARCH
-                const vec_t r_ij = periodic->calc_r_ij(p_i.pos, p_j.pos);
-                const real y_ij = r_ij[1];  // y-component of separation
-#else
                 const real y_ij = y_i - p_j.pos[1];
-#endif
                 
                 // Average smoothing length
                 const real h_ij = 0.5 * (p_i.sml + p_j.sml);
@@ -470,26 +458,18 @@ void GravityForce::calculation(std::shared_ptr<Simulation> sim)
     } else if (m_use_kernel_gravity_2d) {
         // Kernel-convolved gravity for 2D cylindrical geometry
         const real two_G = 2.0 * m_constant;  // Factor for 2D logarithmic potential
-        
-#ifdef EXHAUSTIVE_SEARCH
-        auto * periodic = sim->get_periodic().get();
-#endif
 
         #pragma omp parallel for
         for (int i = 0; i < num; ++i) {
             auto & p_i = particles[i];
             const vec_t & r_i = p_i.pos;
-            
+
             real phi = 0.0;
             vec_t force(0.0);
-            
+
             for (int j = 0; j < num; ++j) {
                 const auto & p_j = particles[j];
-#ifdef EXHAUSTIVE_SEARCH
-                const vec_t r_ij = periodic->calc_r_ij(r_i, p_j.pos);
-#else
                 const vec_t r_ij = r_i - p_j.pos;
-#endif
                 const real r = std::abs(r_ij);
                 
                 if (r < 1e-30) continue;  // Skip self
@@ -513,52 +493,12 @@ void GravityForce::calculation(std::shared_ptr<Simulation> sim)
         }
     } else {
         // Standard softened gravity (fall back to 3D formulas)
-#ifdef EXHAUSTIVE_SEARCH
-        auto * periodic = sim->get_periodic().get();
-#else
         auto * tree = sim->get_tree().get();
-#endif
 
         #pragma omp parallel for
         for (int i = 0; i < num; ++i) {
             auto & p_i = particles[i];
-            
-#ifdef EXHAUSTIVE_SEARCH
-            real phi = 0.0;
-            vec_t force(0.0);
-            const vec_t & r_i = p_i.pos;
-
-            for (int j = 0; j < num; ++j) {
-                const auto & p_j = particles[j];
-                const vec_t r_ij = periodic->calc_r_ij(r_i, p_j.pos);
-                const real r = std::abs(r_ij);
-                
-                if (m_softening_type == GravitySofteningType::WENDLAND_C4) {
-                    if (m_use_fixed_softening) {
-                        phi -= m_constant * p_j.mass * wendland_c4_phi(r, m_fixed_softening);
-                        force -= r_ij * (m_constant * p_j.mass * wendland_c4_g(r, m_fixed_softening));
-                    } else {
-                        const real h_ij = 0.5 * (p_i.sml + p_j.sml);
-                        phi -= m_constant * p_j.mass * wendland_c4_phi(r, h_ij);
-                        force -= r_ij * (m_constant * p_j.mass * wendland_c4_g(r, h_ij));
-                    }
-                } else {
-                    if (m_use_fixed_softening) {
-                        const real h_fixed = m_fixed_softening * 2.0;
-                        phi -= m_constant * p_j.mass * f(r, h_fixed);
-                        force -= r_ij * (m_constant * p_j.mass * g(r, h_fixed));
-                    } else {
-                        phi -= m_constant * p_j.mass * (f(r, p_i.sml) + f(r, p_j.sml)) * 0.5;
-                        force -= r_ij * (m_constant * p_j.mass * (g(r, p_i.sml) + g(r, p_j.sml)) * 0.5);
-                    }
-                }
-            }
-
-            p_i.grav_acc = force;
-            p_i.phi = phi;
-#else
             tree->tree_force(p_i);
-#endif
         }
     }
 
@@ -580,30 +520,20 @@ void GravityForce::calculation(std::shared_ptr<Simulation> sim)
         // This is for Lane-Emden cylinder: density varies radially in xy,
         // uniform in z. Gravity acts only in xy-plane (like 2D disk).
         const real two_G = 2.0 * m_constant;
-        
-#ifdef EXHAUSTIVE_SEARCH
-        auto * periodic = sim->get_periodic().get();
-#endif
-        
+
         #pragma omp parallel for
         for (int i = 0; i < num; ++i) {
             auto & p_i = particles[i];
             const real x_i = p_i.pos[0];
             const real y_i = p_i.pos[1];
-            
+
             real phi = 0.0;
             vec_t force(0.0);
-            
+
             for (int j = 0; j < num; ++j) {
                 const auto & p_j = particles[j];
-#ifdef EXHAUSTIVE_SEARCH
-                const vec_t r_ij = periodic->calc_r_ij(p_i.pos, p_j.pos);
-                const real x_ij = r_ij[0];
-                const real y_ij = r_ij[1];
-#else
                 const real x_ij = x_i - p_j.pos[0];
                 const real y_ij = y_i - p_j.pos[1];
-#endif
                 
                 // Radial distance in xy-plane (perpendicular to cylinder axis)
                 const real r_perp = std::sqrt(x_ij * x_ij + y_ij * y_ij);
@@ -633,57 +563,13 @@ void GravityForce::calculation(std::shared_ptr<Simulation> sim)
         // ====================================================================
         // 3D SPHERICAL: standard point-mass gravity (existing implementation)
         // ====================================================================
-    
-#ifdef EXHAUSTIVE_SEARCH
-    auto * periodic = sim->get_periodic().get();
-#else
-    auto * tree = sim->get_tree().get();
-#endif
+        auto * tree = sim->get_tree().get();
 
 #pragma omp parallel for
-    for(int i = 0; i < num; ++i) {
-        auto & p_i = particles[i];
-        
-#ifdef EXHAUSTIVE_SEARCH
-        real phi = 0.0;
-        vec_t force(0.0);
-        const vec_t & r_i = p_i.pos;
-
-        for(int j = 0; j < num; ++j) {
-            const auto & p_j = particles[j];
-            const vec_t r_ij = periodic->calc_r_ij(r_i, p_j.pos);
-            const real r = std::abs(r_ij);
-            
-            if (m_softening_type == GravitySofteningType::WENDLAND_C4) {
-                // True kernel-convolved gravity using Wendland C4
-                if (m_use_fixed_softening) {
-                    phi -= m_constant * p_j.mass * wendland_c4_phi(r, m_fixed_softening);
-                    force -= r_ij * (m_constant * p_j.mass * wendland_c4_g(r, m_fixed_softening));
-                } else {
-                    // h-dependent: average over h_i and h_j
-                    const real h_ij = 0.5 * (p_i.sml + p_j.sml);
-                    phi -= m_constant * p_j.mass * wendland_c4_phi(r, h_ij);
-                    force -= r_ij * (m_constant * p_j.mass * wendland_c4_g(r, h_ij));
-                }
-            } else {
-                // Hernquist-Katz (original)
-                if (m_use_fixed_softening) {
-                    const real h_fixed = m_fixed_softening * 2.0;
-                    phi -= m_constant * p_j.mass * f(r, h_fixed);
-                    force -= r_ij * (m_constant * p_j.mass * g(r, h_fixed));
-                } else {
-                    phi -= m_constant * p_j.mass * (f(r, p_i.sml) + f(r, p_j.sml)) * 0.5;
-                    force -= r_ij * (m_constant * p_j.mass * (g(r, p_i.sml) + g(r, p_j.sml)) * 0.5);
-                }
-            }
+        for(int i = 0; i < num; ++i) {
+            auto & p_i = particles[i];
+            tree->tree_force(p_i);
         }
-
-        p_i.grav_acc = force;
-        p_i.phi = phi;
-#else
-        tree->tree_force(p_i);
-#endif
-    }
     }  // end else (spherical 3D)
 #endif  // DIM == 3
 #endif  // DIM == 1

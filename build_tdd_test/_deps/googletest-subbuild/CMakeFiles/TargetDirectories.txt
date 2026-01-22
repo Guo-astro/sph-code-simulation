@@ -1,3 +1,0 @@
-/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_tdd_test/_deps/googletest-subbuild/CMakeFiles/googletest-populate.dir
-/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_tdd_test/_deps/googletest-subbuild/CMakeFiles/edit_cache.dir
-/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/build_tdd_test/_deps/googletest-subbuild/CMakeFiles/rebuild_cache.dir

@@ -45,6 +45,5 @@
     
     "useRelaxation": true,
     "relaxationSteps": 500,
-    "relaxationOutputFreq": 100,
-    "relaxationTimestepFactor": 0.1
+    "relaxationOutputFreq": 100
 }
