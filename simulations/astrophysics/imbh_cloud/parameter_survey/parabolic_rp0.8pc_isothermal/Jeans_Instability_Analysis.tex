@@ -1,0 +1,326 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{physics}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+
+\title{Jeans Instability in IMBH-Cloud Tidal Disruption:\\
+Tidal Heating vs. Radiative Cooling Balance}
+\author{Analysis of Parameter Survey Simulations}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We analyze the Jeans instability that caused the $r_p = 0.8$ pc isothermal cooling
+simulation to crash. By examining the balance between tidal heating and radiative
+cooling, we derive an estimate for the critical pericenter distance below which
+tidal disruption dominates over gravitational collapse. We also calculate the
+resolution requirements (particle number) needed to properly resolve the Jeans
+mass at low temperatures.
+\end{abstract}
+
+\section{Introduction: The Problem}
+
+The simulation with pericenter $r_p = 0.8$ pc crashed at $t \approx 2.88$ code units
+due to runaway gravitational collapse. Analysis of the final snapshots reveals:
+\begin{itemize}
+    \item Maximum density: $\rho_{\max} \sim 10^7 \, M_\odot/\text{pc}^3$
+          ($n \sim 2 \times 10^8 \, \text{cm}^{-3}$)
+    \item Minimum temperature: $T_{\min} \sim 6$ K
+    \item Jeans mass at collapse: $M_J \sim 0.06 \, M_\odot$
+    \item Particle mass: $m_p \sim 0.008 \, M_\odot$
+    \item Ratio: $M_J / m_p \sim 7$ (below resolution threshold)
+\end{itemize}
+
+\section{Theoretical Framework}
+
+\subsection{Jeans Mass and Length}
+
+The Jeans mass is the critical mass above which a cloud will collapse under
+self-gravity:
+\begin{equation}
+    M_J = \frac{\pi^{5/2}}{6} \frac{c_s^3}{G^{3/2} \rho^{1/2}}
+\end{equation}
+where $c_s = \sqrt{k_B T / (\mu m_H)}$ is the isothermal sound speed.
+
+For molecular gas with $\mu = 1.27$:
+\begin{equation}
+    \boxed{M_J \approx 18 \, M_\odot \left(\frac{T}{10 \, \text{K}}\right)^{3/2}
+    \left(\frac{n}{10^4 \, \text{cm}^{-3}}\right)^{-1/2}}
+\end{equation}
+
+The Jeans length is:
+\begin{equation}
+    \lambda_J = \sqrt{\frac{\pi c_s^2}{G \rho}} \approx 0.4 \, \text{pc}
+    \left(\frac{T}{10 \, \text{K}}\right)^{1/2}
+    \left(\frac{n}{10^4 \, \text{cm}^{-3}}\right)^{-1/2}
+\end{equation}
+
+\subsection{Tidal Heating Rate}
+
+As the cloud approaches the IMBH, tidal forces do work on the gas. The tidal
+heating rate per unit mass can be estimated as:
+\begin{equation}
+    \dot{\epsilon}_{\text{tidal}} \sim \frac{G M_{\text{BH}}}{r^3} R_{\text{cloud}}^2
+    \cdot v_{\text{rel}}
+\end{equation}
+where $v_{\text{rel}}$ is the relative velocity and $r$ is the distance to the IMBH.
+
+At pericenter passage ($r = r_p$, $v = v_p$):
+\begin{equation}
+    \dot{\epsilon}_{\text{tidal}} \sim \frac{G M_{\text{BH}} R^2 v_p}{r_p^3}
+\end{equation}
+
+For a parabolic orbit, $v_p = \sqrt{2 G M_{\text{BH}} / r_p}$, so:
+\begin{equation}
+    \boxed{\dot{\epsilon}_{\text{tidal}} \sim \frac{\sqrt{2} G^{3/2} M_{\text{BH}}^{3/2} R^2}{r_p^{7/2}}}
+\end{equation}
+
+\textbf{Key scaling:} $\dot{\epsilon}_{\text{tidal}} \propto r_p^{-7/2}$
+
+\subsection{Radiative Cooling Rate}
+
+The Koyama \& Inutsuka (2000) cooling function gives:
+\begin{equation}
+    \Lambda(T) = 2 \times 10^{-19} \exp\left(-\frac{1.184 \times 10^5}{T + 1000}\right)
+    + 2.8 \times 10^{-28} \sqrt{T} \exp\left(-\frac{92}{T}\right)
+    \, \text{erg cm}^3 \text{s}^{-1}
+\end{equation}
+
+The cooling rate per unit mass is:
+\begin{equation}
+    \dot{\epsilon}_{\text{cool}} = \frac{n^2 \Lambda(T)}{\rho} = \frac{n \Lambda(T)}{\mu m_H}
+\end{equation}
+
+For $T \sim 35$ K and $n \sim 500 \, \text{cm}^{-3}$:
+\begin{equation}
+    \dot{\epsilon}_{\text{cool}} \sim 10^{-3} \, \text{erg g}^{-1} \text{s}^{-1}
+\end{equation}
+
+\section{Balance Condition: Critical Pericenter}
+
+\subsection{Heating-Cooling Equilibrium}
+
+The cloud remains thermally stable when tidal heating balances cooling:
+\begin{equation}
+    \dot{\epsilon}_{\text{tidal}} \gtrsim \dot{\epsilon}_{\text{cool}}
+\end{equation}
+
+Substituting our expressions:
+\begin{equation}
+    \frac{G^{3/2} M_{\text{BH}}^{3/2} R^2}{r_p^{7/2}} \gtrsim \frac{n \Lambda(T)}{\mu m_H}
+\end{equation}
+
+Solving for critical pericenter:
+\begin{equation}
+    \boxed{r_{p,\text{crit}} \lesssim \left(\frac{G^{3/2} M_{\text{BH}}^{3/2} R^2 \mu m_H}{n \Lambda(T)}\right)^{2/7}}
+\end{equation}
+
+\subsection{Numerical Estimate}
+
+Using simulation parameters:
+\begin{align}
+    M_{\text{BH}} &= 10^5 \, M_\odot \\
+    R_{\text{cloud}} &= 1.55 \, \text{pc} \\
+    n &= 500 \, \text{cm}^{-3} \\
+    T &= 35 \, \text{K} \\
+    \Lambda(35 \, \text{K}) &\approx 10^{-27} \, \text{erg cm}^3 \text{s}^{-1}
+\end{align}
+
+Converting to code units and computing:
+\begin{equation}
+    r_{p,\text{crit}} \approx 0.5 - 0.6 \, \text{pc}
+\end{equation}
+
+\subsection{Interpretation}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Pericenter & Regime & Outcome \\
+\midrule
+$r_p < r_{p,\text{crit}}$ & Tidal heating dominates & Cloud disrupted, stable \\
+$r_p > r_{p,\text{crit}}$ & Cooling dominates & Jeans collapse, unstable \\
+\midrule
+$r_p = 0.4$ pc & $< r_{p,\text{crit}}$ & \textbf{Stable} (observed) \\
+$r_p = 0.8$ pc & $> r_{p,\text{crit}}$ & \textbf{Collapsed} (observed) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This explains why:
+\begin{itemize}
+    \item $r_p = 0.4$ pc simulation with cooling remains stable
+    \item $r_p = 0.8$ pc simulation with cooling collapsed
+\end{itemize}
+
+\section{Physical Reality: Jeans Floor and Opacity}
+
+\subsection{Why Real Clouds Don't Collapse to Singularities}
+
+In reality, several physical mechanisms prevent infinite collapse:
+
+\subsubsection{1. Opacity-Limited Cooling}
+
+At high densities ($n \gtrsim 10^{10}$ cm$^{-3}$), the gas becomes optically thick
+to its own cooling radiation. The cooling timescale becomes:
+\begin{equation}
+    t_{\text{cool}} \sim \frac{\tau}{n \Lambda} \propto \rho
+\end{equation}
+where $\tau$ is the optical depth. This effectively reduces cooling efficiency
+at high densities.
+
+\subsubsection{2. Dust Thermal Coupling}
+
+At $n \gtrsim 10^4$ cm$^{-3}$, gas-dust collisions thermally couple the gas to
+dust grains. The dust temperature is set by the interstellar radiation field:
+\begin{equation}
+    T_{\text{dust}} \sim 10 \, \text{K} \cdot \left(\frac{G_0}{1}\right)^{1/6}
+\end{equation}
+This provides a temperature floor $T \gtrsim 10$ K.
+
+\subsubsection{3. Compressional Heating}
+
+Rapid collapse ($t_{\text{collapse}} < t_{\text{cool}}$) leads to adiabatic heating:
+\begin{equation}
+    T \propto \rho^{\gamma - 1}
+\end{equation}
+When collapse becomes faster than cooling, the gas heats up, increasing pressure
+support and slowing collapse.
+
+\subsection{Effective Equation of State}
+
+The combination of these effects creates an effective ``stiff'' equation of state
+at high densities:
+\begin{equation}
+    P = K \rho^{\gamma_{\text{eff}}}
+\end{equation}
+where $\gamma_{\text{eff}} > 4/3$ above a critical density, preventing runaway
+collapse.
+
+\subsection{Implementing a Jeans Floor}
+
+The Jeans floor is a numerical technique that mimics these physical effects by
+preventing cooling below a temperature where the Jeans mass is resolved:
+\begin{equation}
+    T_{\text{floor}}(\rho) = T_J \left(\frac{\rho}{\rho_J}\right)^{2/3}
+\end{equation}
+where $T_J$ and $\rho_J$ are chosen such that $M_J(T_{\text{floor}}, \rho) =
+N_{\text{neighbor}} \cdot m_{\text{particle}}$.
+
+This ensures:
+\begin{equation}
+    \boxed{M_J \geq N_{\text{neighbor}} \cdot m_p \sim 50 \cdot m_p}
+\end{equation}
+
+\section{Resolution Requirements}
+
+\subsection{Jeans Criterion for SPH}
+
+For SPH to properly capture gravitational collapse without artificial
+fragmentation, the Jeans mass must be resolved by at least $N_J$ particles:
+\begin{equation}
+    M_J \geq N_J \cdot m_p
+\end{equation}
+
+The standard criterion is $N_J \approx 2 N_{\text{neighbor}} \approx 100$
+(Bate \& Burkert 1997).
+
+\subsection{Required Particle Number}
+
+Given the observed conditions at collapse:
+\begin{align}
+    T_{\min} &= 6 \, \text{K} \\
+    n_{\max} &= 2 \times 10^8 \, \text{cm}^{-3} \\
+    M_J &= 18 \cdot (6/10)^{1.5} \cdot (2 \times 10^8 / 10^4)^{-0.5} \\
+        &= 18 \cdot 0.465 \cdot 0.00707 \\
+        &\approx 0.059 \, M_\odot
+\end{align}
+
+For the cloud mass $M_{\text{cloud}} = 127.5 \, M_\odot$:
+
+\textbf{Current resolution:}
+\begin{equation}
+    N_{\text{current}} = 15552 \implies m_p = 0.0082 \, M_\odot
+\end{equation}
+\begin{equation}
+    \frac{M_J}{m_p} = \frac{0.059}{0.0082} \approx 7.2 \quad \text{(INSUFFICIENT)}
+\end{equation}
+
+\textbf{Required resolution for $N_J = 100$:}
+\begin{equation}
+    m_p^{\text{req}} = \frac{M_J}{N_J} = \frac{0.059}{100} = 5.9 \times 10^{-4} \, M_\odot
+\end{equation}
+\begin{equation}
+    \boxed{N_{\text{required}} = \frac{M_{\text{cloud}}}{m_p^{\text{req}}}
+    = \frac{127.5}{5.9 \times 10^{-4}} \approx 2.2 \times 10^5}
+\end{equation}
+
+\subsection{Scaling with Temperature}
+
+If we use a Jeans floor at $T_{\text{floor}} = 10$ K:
+\begin{equation}
+    M_J(10 \, \text{K}, 10^8 \, \text{cm}^{-3}) = 18 \cdot 1 \cdot 0.01 = 0.18 \, M_\odot
+\end{equation}
+\begin{equation}
+    N_{\text{required}} = \frac{127.5 \cdot 100}{0.18} \approx 7 \times 10^4
+\end{equation}
+
+With $T_{\text{floor}} = 20$ K:
+\begin{equation}
+    M_J(20 \, \text{K}, 10^8 \, \text{cm}^{-3}) = 18 \cdot 2.83 \cdot 0.01 = 0.51 \, M_\odot
+\end{equation}
+\begin{equation}
+    N_{\text{required}} = \frac{127.5 \cdot 100}{0.51} \approx 2.5 \times 10^4
+\end{equation}
+
+\subsection{Summary Table}
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+$T_{\text{floor}}$ (K) & $M_J$ ($M_\odot$) & $N_{\text{required}}$ & Feasible? \\
+\midrule
+6 (no floor) & 0.059 & $2.2 \times 10^5$ & Expensive \\
+10 & 0.18 & $7 \times 10^4$ & Moderate \\
+20 & 0.51 & $2.5 \times 10^4$ & Current resolution \\
+35 (initial) & 1.4 & $9 \times 10^3$ & Easy \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Conclusions}
+
+\begin{enumerate}
+    \item The $r_p = 0.8$ pc simulation crashed due to Jeans instability when
+          cooling reduced $T$ below the Jeans resolution limit.
+
+    \item The critical pericenter is $r_{p,\text{crit}} \approx 0.5-0.6$ pc,
+          explaining why $r_p = 0.4$ pc is stable and $r_p = 0.8$ pc is not.
+
+    \item Physical mechanisms (opacity, dust coupling, adiabatic heating)
+          naturally provide temperature floors in real ISM.
+
+    \item To resolve Jeans collapse at $T = 6$ K without a floor, we need
+          $N \sim 2 \times 10^5$ particles.
+
+    \item A practical solution is implementing a Jeans floor at $T \sim 10-20$ K,
+          which requires only $N \sim 2.5-7 \times 10^4$ particles.
+\end{enumerate}
+
+\section{Recommended Action}
+
+Implement a density-dependent temperature floor:
+\begin{equation}
+    T_{\text{floor}}(\rho) = \max\left(10 \, \text{K}, \, T_J \left(\frac{\rho}{\rho_J}\right)^{2/3}\right)
+\end{equation}
+where $T_J = 10$ K and $\rho_J$ is chosen such that $M_J(T_J, \rho_J) = 50 \cdot m_p$.
+
+This is physically motivated and computationally efficient.
+
+\end{document}

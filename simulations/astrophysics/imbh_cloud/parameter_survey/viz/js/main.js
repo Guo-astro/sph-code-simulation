@@ -84,33 +84,97 @@ function initDraggablePanels() {
     });
 }
 
-// Load CSV format snapshots
-async function loadCSVSnapshots(loadId) {
-    // Use path directly from dataset config
-    const basePath = STATE.currentDataset.path + '/';
-    console.log('Loading CSV from:', basePath);
+// Parse HDF5 snapshot for main view (uses h5wasmModule from comparison.js)
+async function parseHDF5SnapshotMain(arrayBuffer, frameIndex) {
+    if (!h5wasmModule) await initH5wasm();
+    if (!h5wasmModule) return null;
 
+    try {
+        // Write to virtual FS then open
+        const filename = `temp_main_${Date.now()}.h5`;
+        h5wasmModule.FS.writeFile(filename, new Uint8Array(arrayBuffer));
+        const file = new h5wasmModule.File(filename, 'r');
+
+        // Read time from header
+        let time = frameIndex * 0.02;
+        try {
+            if (file.get('header')) {
+                const header = file.get('header');
+                if (header.attrs && header.attrs['time']) {
+                    time = header.attrs['time'].value;
+                }
+            }
+        } catch (e) {}
+
+        // Read particle data
+        const particlesGroup = file.get('particles');
+        if (!particlesGroup) {
+            file.close();
+            h5wasmModule.FS.unlink(filename);
+            return null;
+        }
+
+        const pos_x = particlesGroup.get('pos_x')?.value || [];
+        const pos_y = particlesGroup.get('pos_y')?.value || [];
+        const pos_z = particlesGroup.get('pos_z')?.value || [];
+        const vel_x = particlesGroup.get('vel_x')?.value || [];
+        const vel_y = particlesGroup.get('vel_y')?.value || [];
+        const vel_z = particlesGroup.get('vel_z')?.value || [];
+        const dens = particlesGroup.get('dens')?.value || [];
+        const pres = particlesGroup.get('pres')?.value || [];
+        const ene = particlesGroup.get('ene')?.value || [];
+        const mass = particlesGroup.get('mass')?.value || [];
+        const sml = particlesGroup.get('sml')?.value || [];
+
+        const particles = [];
+        for (let i = 0; i < pos_x.length; i++) {
+            const vx = vel_x[i] || 0;
+            const vy = vel_y[i] || 0;
+            const vz = vel_z[i] || 0;
+            particles.push({
+                id: i,
+                x: pos_x[i], y: pos_y[i], z: pos_z[i],
+                vx, vy, vz,
+                dens: dens[i] || 0,
+                pres: pres[i] || 0,
+                temp: (ene[i] || 0) * (CONFIG?.tempConversion || 186),
+                mass: mass[i] || 0,
+                sound: sml[i] || 0,
+                vel_mag: Math.sqrt(vx*vx + vy*vy + vz*vz),
+                is_ghost: 0
+            });
+        }
+
+        file.close();
+        h5wasmModule.FS.unlink(filename);
+        return { time, particles };
+    } catch (error) {
+        console.error('Error parsing HDF5:', error);
+        return null;
+    }
+}
+
+// Load HDF5 format snapshots
+async function loadHDF5Snapshots(loadId) {
+    const basePath = STATE.currentDataset.path + '/';
+    console.log('Loading HDF5 from:', basePath);
+
+    await initH5wasm();
+
+    // First scan for available files using HEAD requests
+    const availableFiles = [];
     let snapshotNum = 1;
     let consecutiveFailures = 0;
 
     while (consecutiveFailures < 3) {
-        if (STATE.loadId !== loadId) return;
-
-        const filename = `snapshot_${String(snapshotNum).padStart(4, '0')}.csv`;
+        const filename = `snapshot_${String(snapshotNum).padStart(4, '0')}.h5`;
         try {
-            const response = await fetch(basePath + filename);
-            if (!response.ok) {
-                consecutiveFailures++;
-                snapshotNum++;
-                continue;
-            }
-
-            const text = await response.text();
-            const data = parseCSV(text);
-            if (data.particles.length > 0) {
-                STATE.snapshots.push(data);
+            const response = await fetch(basePath + filename, { method: 'HEAD' });
+            if (response.ok) {
+                availableFiles.push({ num: snapshotNum, filename });
                 consecutiveFailures = 0;
-                document.getElementById('loading').textContent = `Loading... ${STATE.snapshots.length} snapshots`;
+            } else {
+                consecutiveFailures++;
             }
         } catch (e) {
             consecutiveFailures++;
@@ -118,7 +182,28 @@ async function loadCSVSnapshots(loadId) {
         snapshotNum++;
         if (snapshotNum > 500) break;
     }
-    console.log(`Loaded ${STATE.snapshots.length} CSV snapshots`);
+
+    console.log(`Found ${availableFiles.length} HDF5 files`);
+
+    // Now load each file
+    for (const { num, filename } of availableFiles) {
+        if (STATE.loadId !== loadId) return;
+
+        try {
+            const response = await fetch(basePath + filename);
+            if (!response.ok) continue;
+
+            const arrayBuffer = await response.arrayBuffer();
+            const data = await parseHDF5SnapshotMain(arrayBuffer, num - 1);
+            if (data && data.particles.length > 0) {
+                STATE.snapshots.push(data);
+                document.getElementById('loading').textContent = `Loading... ${STATE.snapshots.length} / ${availableFiles.length} snapshots`;
+            }
+        } catch (e) {
+            console.error(`Error loading ${filename}:`, e);
+        }
+    }
+    console.log(`Loaded ${STATE.snapshots.length} HDF5 snapshots`);
 }
 
 async function loadSnapshots() {
@@ -145,8 +230,8 @@ async function loadSnapshots() {
 
     STATE.snapshots = [];
 
-    // Load CSV snapshots directly
-    await loadCSVSnapshots(currentLoadId);
+    // Load HDF5 snapshots
+    await loadHDF5Snapshots(currentLoadId);
 
     // Check again if cancelled before processing
     if (currentLoadId !== STATE.loadId) {
@@ -297,6 +382,22 @@ function parseCSV(text) {
     return { time, particleCount, particles };
 }
 
+// Start comparison mode from dropdown selection
+function startComparison() {
+    const selector = document.getElementById('comparison-select');
+    if (!selector || !selector.value) {
+        console.error('No comparison selected');
+        return;
+    }
+
+    try {
+        const comparisonSpec = JSON.parse(selector.value);
+        initComparisonMode(comparisonSpec);
+    } catch (e) {
+        console.error('Failed to parse comparison selection:', e);
+    }
+}
+
 // Playback controls
 function togglePlay() {
     STATE.isPlaying = !STATE.isPlaying;
@@ -336,7 +437,25 @@ function onTimelineChange(e) {
 }
 
 function onSimTypeChange(e) {
-    STATE.simType = e.target.value;
+    const newPhysics = e.target.value;
+
+    // Find matching dataset with same orbit and ic_type but different physics
+    const currentDs = STATE.currentDataset;
+    const matchingDs = STATE.datasets.find(ds =>
+        ds.orbit === currentDs.orbit &&
+        ds.ic_type === currentDs.ic_type &&
+        ds.physics === newPhysics
+    );
+
+    if (matchingDs && matchingDs.id !== currentDs.id) {
+        // Switch to matching dataset
+        selectDataset(matchingDs.id);
+        // Update dataset selector UI
+        const dsSelector = document.getElementById('dataset-select');
+        if (dsSelector) dsSelector.value = matchingDs.id;
+    }
+
+    STATE.simType = newPhysics;
     // Reset state but don't recreate orbit (same dataset, different sim type)
     if (STATE.isPlaying) {
         togglePlay();
@@ -436,6 +555,15 @@ function updateRangeSliders() {
 function onDatasetChange(e) {
     const datasetId = e.target.value;
     selectDataset(datasetId);
+
+    // Sync sim-type selector with the selected dataset's physics
+    const dataset = STATE.datasets.find(ds => ds.id === datasetId);
+    if (dataset) {
+        STATE.simType = dataset.physics;
+        const simTypeSelect = document.getElementById('sim-type');
+        if (simTypeSelect) simTypeSelect.value = dataset.physics;
+    }
+
     resetVisualizationState();
     loadSnapshots();
 }

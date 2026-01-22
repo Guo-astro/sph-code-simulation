@@ -1,0 +1,118 @@
+{
+    "_comment": "Parameter Survey: Parabolic orbit r_p=0.8pc - ISOTHERMAL BE ADIABATIC",
+    "_orbit": "Parabolic (E=0), pericenter=0.8pc",
+    "_units": "CODE units: L=pc, M=Msun, V=km/s",
+    "_physics": "Isothermal Bonnor-Ebert cloud tidal disruption - NO COOLING",
+
+    "_calculation": {
+        "orbit_type": "parabolic (E=0)",
+        "r_pericenter": "0.8 pc",
+        "v_pericenter": "32.79 km/s",
+        "start_distance": "30.0 pc",
+        "start_velocity": "5.35 km/s",
+        "sink_radius": "0.01 pc",
+        "cloud_R": "1.55 pc (Isothermal BE, xi_s=3.0)",
+        "cloud_M": "127.5 M_sun (Isothermal BE, n_center=500 cm^-3)",
+        "M_BH": "10^5 M_sun"
+    },
+
+    "name": "Parabolic r_p=0.8pc Adiabatic (Isothermal BE IC)",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/phase1_compact/snapshot_0201.h5",
+    "resetTimeOnResume": true,
+    "N": 25,
+
+    "T_cloud": 35.0,
+    "n_center": 500.0,
+    "xi_s": 3.0,
+    "mu": 1.27,
+
+    "gamma": 1.6666666666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": true,
+    "gravitySofteningType": "hernquist_katz",
+
+    "maxTreeLevel": 20,
+    "leafParticleNumber": 32,
+    "useMortonCode": true,
+
+    "useEnvelope": true,
+    "envelopeLayers": 6,
+
+    "imbh_parameters": {
+        "enabled": true,
+        "use_code_units": true,
+        "_note_units": "BH at origin, cloud on parabolic orbit toward disruption",
+        "M_BH": 100000.0,
+        "BH_initial_position": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0
+        },
+        "BH_initial_velocity": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0
+        },
+        "softening_epsilon": 0.005,
+        "sink_radius": 0.01,
+        "enable_sink": true,
+        "_note": "Sink accretion enabled: particles within 0.01pc are accreted",
+
+        "cloud_initial_position": {
+            "0": -28.4234,
+            "1": 9.5821,
+            "2": 0.0
+        },
+        "cloud_initial_velocity": {
+            "0": 4.7267,
+            "1": -2.5162,
+            "2": 0.0
+        },
+        "_cloud_note": "Parabolic orbit: r_p=0.8pc, v_p=32.8km/s"
+    },
+
+    "SPHType": "gsph",
+    "kernel": "cubic_spline",
+    "riemannSolver": "hll",
+    "use2ndOrderGSPH": false,
+    "useGradH": true,
+
+    "useBalsaraSwitch": true,
+    "alpha": 1.0,
+
+    "endTime": 8.0,
+    "outputTime": 0.02,
+    "energyOutputTime": 0.02,
+    "cfl": 0.3,
+
+    "useRelaxation": false,
+    "enableCooling": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/parameter_survey/parabolic_rp0.8pc_isothermal/adiabatic/results",
+
+    "output": {
+        "formats": [
+            {"type": "hdf5", "compression": 6}
+        ],
+        "enableCSV": false,
+        "enableHDF5": true,
+        "enableVTK": false,
+        "enableEnergyFile": true,
+        "hdf5Compression": 6
+    },
+
+    "notes": [
+        "PARABOLIC ORBIT: r_p = 0.8 pc, v_p = 32.8 km/s",
+        "ISOTHERMAL BE IC from phase1 relaxation (snapshot_0201.h5)",
+        "Cloud R = 1.55 pc, M = 127.5 M_sun, T = 35K, n_center = 500 cm^-3",
+        "Envelope particles provide external pressure confinement",
+        "Sink accretion enabled: r_sink = 0.01 pc",
+        "ADIABATIC: No cooling, energy conservation",
+        "Longer endTime (8.0) due to wider orbit"
+    ]
+}

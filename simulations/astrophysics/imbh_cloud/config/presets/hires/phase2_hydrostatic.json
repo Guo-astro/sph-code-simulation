@@ -1,0 +1,77 @@
+{
+    "_comment": "Phase 2 HIGH-RES: Isothermal Bonnor-Ebert sphere with self-gravity",
+    "_phase": "2 of 2: Test hydrostatic equilibrium stability",
+    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr",
+    "_physics": "Pressure-truncated isothermal sphere with envelope confinement",
+
+    "_design_rationale": [
+        "GOAL: Verify high-res isothermal BE sphere is stable in hydrostatic equilibrium",
+        "Resume from relaxed state in hires phase1",
+        "Enable self-gravity and evolve",
+        "IMPORTANT: Envelope particles provide external pressure P_ext",
+        "",
+        "Expected behavior:",
+        "  - Sphere should maintain R ~ 1.55 pc",
+        "  - Density profile should match isothermal BE: rho = rho_c * exp(-psi)",
+        "  - Small oscillations OK, but no collapse or expansion",
+        "  - Envelope should remain at constant density providing P_ext"
+    ],
+
+    "_timescales": {
+        "free_fall": "~10.9 Myr (at n=500 cm^-3)",
+        "sound_crossing": "~3.8 Myr (for R=1.55pc, cs~0.41 km/s at T=35K)"
+    },
+
+    "name": "Phase 2 HIGH-RES: Isothermal BE Hydrostatic Test",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/hires_phase1_compact/snapshot_0200.h5",
+    "resetTimeOnResume": true,
+    "N": 61,
+
+    "_param_mode": "n_center=500 cm^-3, xi_s=3.0, T=35K",
+    "T_cloud": 35.0,
+    "n_center": 500.0,
+    "xi_s": 3.0,
+    "mu": 1.27,
+
+    "gamma": 1.6666666666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": true,
+    "gravitySofteningType": "hernquist_katz",
+
+    "maxTreeLevel": 20,
+    "leafParticleNumber": 32,
+    "useMortonCode": true,
+
+    "_envelope_note": "Envelope particles provide external pressure for BE equilibrium",
+    "useEnvelope": true,
+    "envelopeLayers": 6,
+
+    "SPHType": "gsph",
+    "kernel": "cubic_spline",
+    "useGradH": true,
+    "use2ndOrderGSPH": false,
+
+    "endTime": 10.0,
+    "outputTime": 0.5,
+    "cfl": 0.3,
+
+    "useRelaxation": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/hires_phase2_hydrostatic",
+
+    "output": {
+        "formats": [
+            {"type": "hdf5", "compression": 6}
+        ],
+        "enableCSV": false,
+        "enableHDF5": true,
+        "enableVTK": false,
+        "enableEnergyFile": true,
+        "hdf5Compression": 6
+    }
+}

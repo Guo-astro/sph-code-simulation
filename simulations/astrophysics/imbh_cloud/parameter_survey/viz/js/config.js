@@ -128,16 +128,19 @@ async function loadDatasets() {
             });
         }
 
-        // Check URL parameter first, then global variable, then use first dataset (cooling)
+        // Populate comparison selector with auto-derived pairs
+        populateComparisonSelector();
+
+        // Check URL parameter first, then global variable, then use first dataset
         const urlParams = new URLSearchParams(window.location.search);
         const urlDataset = urlParams.get('dataset');
         let datasetId;
         if (urlDataset && STATE.datasets.find(d => d.id === urlDataset)) {
             datasetId = urlDataset;
-        } else if (typeof SELECTED_DATASET !== 'undefined') {
+        } else if (typeof SELECTED_DATASET !== 'undefined' && STATE.datasets.find(d => d.id === SELECTED_DATASET)) {
             datasetId = SELECTED_DATASET;
         } else {
-            datasetId = STATE.datasets[0].id;  // First dataset is cooling
+            datasetId = STATE.datasets[0].id;  // First available dataset
         }
         console.log('Selecting dataset:', datasetId);
         selectDataset(datasetId);
@@ -151,6 +154,76 @@ async function loadDatasets() {
     } catch (error) {
         console.error('Failed to load datasets:', error);
     }
+}
+
+// Build and populate comparison selector from datasets
+function populateComparisonSelector() {
+    const selector = document.getElementById('comparison-select');
+    if (!selector) return;
+
+    selector.innerHTML = '';
+
+    // Group datasets by orbit
+    const orbits = {};
+    STATE.datasets.forEach(ds => {
+        if (!orbits[ds.orbit]) {
+            orbits[ds.orbit] = {};
+        }
+        orbits[ds.orbit][ds.physics] = ds;
+    });
+
+    // Create comparison options for each orbit that has both cooling and adiabatic
+    Object.entries(orbits).forEach(([orbit, variants]) => {
+        if (variants.cooling && variants.adiabatic) {
+            const option = document.createElement('option');
+            option.value = JSON.stringify({
+                left: variants.cooling.id,
+                right: variants.adiabatic.id
+            });
+            option.textContent = `${orbit}: Cooling vs Adiabatic`;
+            selector.appendChild(option);
+        }
+    });
+
+    // Add cross-orbit comparisons (same physics, different orbit)
+    const coolingDatasets = STATE.datasets.filter(ds => ds.physics === 'cooling');
+    const adiabaticDatasets = STATE.datasets.filter(ds => ds.physics === 'adiabatic');
+
+    if (coolingDatasets.length > 1) {
+        const optGroup = document.createElement('optgroup');
+        optGroup.label = 'Cross-orbit (Cooling)';
+        for (let i = 0; i < coolingDatasets.length; i++) {
+            for (let j = i + 1; j < coolingDatasets.length; j++) {
+                const option = document.createElement('option');
+                option.value = JSON.stringify({
+                    left: coolingDatasets[i].id,
+                    right: coolingDatasets[j].id
+                });
+                option.textContent = `${coolingDatasets[i].orbit} vs ${coolingDatasets[j].orbit} (cooling)`;
+                optGroup.appendChild(option);
+            }
+        }
+        selector.appendChild(optGroup);
+    }
+
+    if (adiabaticDatasets.length > 1) {
+        const optGroup = document.createElement('optgroup');
+        optGroup.label = 'Cross-orbit (Adiabatic)';
+        for (let i = 0; i < adiabaticDatasets.length; i++) {
+            for (let j = i + 1; j < adiabaticDatasets.length; j++) {
+                const option = document.createElement('option');
+                option.value = JSON.stringify({
+                    left: adiabaticDatasets[i].id,
+                    right: adiabaticDatasets[j].id
+                });
+                option.textContent = `${adiabaticDatasets[i].orbit} vs ${adiabaticDatasets[j].orbit} (adiabatic)`;
+                optGroup.appendChild(option);
+            }
+        }
+        selector.appendChild(optGroup);
+    }
+
+    console.log('Comparison selector populated with', selector.options.length, 'options');
 }
 
 // Select and configure a dataset

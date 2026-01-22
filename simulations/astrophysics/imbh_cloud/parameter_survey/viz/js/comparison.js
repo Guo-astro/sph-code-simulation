@@ -100,24 +100,34 @@ const COMPARISON = {
 // Initialization
 // ============================================================
 
-async function initComparisonMode(comparisonId) {
-    console.log('Initializing comparison mode:', comparisonId);
+// Initialize comparison mode
+// comparisonSpec can be:
+//   - Object: { left: datasetId, right: datasetId }
+//   - String (legacy): comparison ID to look up in datasets.json
+async function initComparisonMode(comparisonSpec) {
+    console.log('Initializing comparison mode:', comparisonSpec);
 
-    // Find comparison config
     const response = await fetch('datasets.json');
     const data = await response.json();
-    const comparison = data.comparisons?.find(c => c.id === comparisonId);
 
-    if (!comparison) {
-        console.error('Comparison not found:', comparisonId);
-        return false;
+    let leftDataset, rightDataset;
+
+    // Handle both new format (object with left/right) and legacy format (comparison ID)
+    if (typeof comparisonSpec === 'object' && comparisonSpec.left && comparisonSpec.right) {
+        // New format: direct dataset IDs
+        leftDataset = data.datasets.find(d => d.id === comparisonSpec.left);
+        rightDataset = data.datasets.find(d => d.id === comparisonSpec.right);
+    } else if (typeof comparisonSpec === 'string') {
+        // Legacy format: lookup comparison by ID (for backward compatibility)
+        const comparison = data.comparisons?.find(c => c.id === comparisonSpec);
+        if (comparison) {
+            leftDataset = data.datasets.find(d => d.id === comparison.left);
+            rightDataset = data.datasets.find(d => d.id === comparison.right);
+        }
     }
 
-    const leftDataset = data.datasets.find(d => d.id === comparison.left);
-    const rightDataset = data.datasets.find(d => d.id === comparison.right);
-
     if (!leftDataset || !rightDataset) {
-        console.error('Dataset not found for comparison');
+        console.error('Dataset not found for comparison:', comparisonSpec);
         return false;
     }
 
@@ -126,8 +136,8 @@ async function initComparisonMode(comparisonId) {
     COMPARISON.right.datasetId = rightDataset.id;
     COMPARISON.right.basePath = rightDataset.path;
 
-    // Set up CONFIG with dataset values (both datasets have same orbit params)
-    // Use left dataset config as the reference
+    // Set up CONFIG with dataset values
+    // Use left dataset config as the reference for orbital params
     if (leftDataset.config) {
         CONFIG.cloud_pos0 = leftDataset.config.cloud_pos0;
         CONFIG.cloud_vel0 = leftDataset.config.cloud_vel0;
@@ -145,6 +155,20 @@ async function initComparisonMode(comparisonId) {
     if (typeof computeOrbitalParams === 'function') {
         computeOrbitalParams();
         console.log('Comparison mode: orbital params computed - r_peri:', CONFIG.r_peri, 'p:', CONFIG.p?.toFixed(4));
+    }
+
+    // Update comparison UI with dataset names
+    const headerEl = document.querySelector('#comparison-header h3');
+    if (headerEl) {
+        headerEl.textContent = `${leftDataset.name} vs ${rightDataset.name}`;
+    }
+    const leftLabelEl = document.getElementById('comparison-left-label');
+    if (leftLabelEl) {
+        leftLabelEl.textContent = leftDataset.name;
+    }
+    const rightLabelEl = document.getElementById('comparison-right-label');
+    if (rightLabelEl) {
+        rightLabelEl.textContent = rightDataset.name;
     }
 
     // Show comparison UI
@@ -195,10 +219,36 @@ async function initComparisonMode(comparisonId) {
 
     return true;
 }
+// ============================================================
+// Data Loading (HDF5 support via h5wasm)
+// ============================================================
 
-// ============================================================
-// Data Loading (Lazy - scan headers first, load data on demand)
-// ============================================================
+// Global h5wasm instance
+let h5wasmModule = null;
+
+// Initialize h5wasm
+async function initH5wasm() {
+    if (h5wasmModule) return h5wasmModule;
+
+    try {
+        // Load h5wasm from CDN
+        const module = await import('https://cdn.jsdelivr.net/npm/h5wasm@0.6.8/+esm');
+        const h5wasm = module.h5wasm || module.default;
+        // h5wasm.ready returns { FS, File, ... }
+        const result = await h5wasm.ready;
+        // Store the result which contains FS and File
+        h5wasmModule = {
+            FS: result.FS,
+            File: result.File || h5wasm.File,
+            ...result
+        };
+        console.log('h5wasm initialized, FS:', !!h5wasmModule.FS, 'File:', !!h5wasmModule.File);
+        return h5wasmModule;
+    } catch (error) {
+        console.error('Failed to load h5wasm:', error);
+        return null;
+    }
+}
 
 async function scanDatasetFiles(side, dataset) {
     const basePath = dataset.path;
@@ -207,29 +257,28 @@ async function scanDatasetFiles(side, dataset) {
 
     console.log(`Scanning ${side} dataset: ${basePath}`);
 
-    // Scan for snapshot files and read only headers to get times
+    // Initialize h5wasm
+    await initH5wasm();
+
+    // Scan for HDF5 snapshot files
     let fileIndex = 1;
     let consecutiveFails = 0;
 
     while (consecutiveFails < 3) {
-        const filename = `snapshot_${String(fileIndex).padStart(4, '0')}.csv`;
+        const filename = `snapshot_${String(fileIndex).padStart(4, '0')}.h5`;
         const url = `${basePath}/${filename}`;
 
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, { method: 'HEAD' });
             if (!response.ok) {
                 consecutiveFails++;
                 fileIndex++;
                 continue;
             }
 
-            // Only read first 2KB to get header with time info
-            const reader = response.body.getReader();
-            const { value } = await reader.read();
-            reader.cancel();  // Cancel the rest of the download
-
-            const headerText = new TextDecoder().decode(value.slice(0, 2000));
-            const time = extractTimeFromHeader(headerText, fileIndex - 1);
+            // File exists - we'll load time when we actually load the frame
+            // For now, estimate time from file index
+            const time = (fileIndex - 1) * 0.02;
 
             snapshotFiles.push(filename);
             timeIndex.push({
@@ -247,23 +296,19 @@ async function scanDatasetFiles(side, dataset) {
         }
 
         fileIndex++;
-        if (fileIndex > 300) break;  // Safety limit
+        if (fileIndex > 500) break;  // Safety limit
     }
 
     COMPARISON[side].snapshotFiles = snapshotFiles;
     COMPARISON[side].timeIndex = timeIndex.sort((a, b) => a.time - b.time);
     COMPARISON[side].snapshotCache = {};
 
-    console.log(`Scanned ${snapshotFiles.length} files for ${side}`);
-}
+    console.log(`Scanned ${snapshotFiles.length} HDF5 files for ${side}`);
 
-function extractTimeFromHeader(headerText, fallbackIndex) {
-    // Extract time from CSV header: "# Time (code): 1.234"
-    const match = headerText.match(/# Time \(code\):\s*([\d.e+-]+)/);
-    if (match) {
-        return parseFloat(match[1]);
+    // Now load first frame to get accurate times
+    if (snapshotFiles.length > 0) {
+        await loadFrameIfNeeded(side, 0);
     }
-    return fallbackIndex * 0.02;  // Fallback
 }
 
 async function loadFrameIfNeeded(side, frameIdx) {
@@ -291,13 +336,17 @@ async function loadFrameIfNeeded(side, frameIdx) {
             return null;
         }
 
-        const csvText = await response.text();
-        const snapshot = parseComparisonSnapshot(csvText, frameIdx);
+        const arrayBuffer = await response.arrayBuffer();
+        const snapshot = await parseHDF5Snapshot(arrayBuffer, frameIdx);
+
+        // Update time index with actual time from file
+        if (snapshot && timeEntry) {
+            timeEntry.time = snapshot.time;
+        }
 
         // Cache management: remove oldest if cache is full
         const cacheKeys = Object.keys(data.snapshotCache).map(Number);
         if (cacheKeys.length >= COMPARISON.maxCacheSize) {
-            // Remove the frame furthest from current
             const currentFrame = data.currentFrame;
             cacheKeys.sort((a, b) => Math.abs(b - currentFrame) - Math.abs(a - currentFrame));
             const toRemove = cacheKeys[0];
@@ -318,72 +367,96 @@ function getSnapshot(side, frameIdx) {
     return COMPARISON[side].snapshotCache[frameIdx] || null;
 }
 
-function parseComparisonSnapshot(csvText, frameIndex) {
-    const lines = csvText.split('\n');
+async function parseHDF5Snapshot(arrayBuffer, frameIndex) {
+    if (!h5wasmModule) {
+        await initH5wasm();
+    }
 
-    // Extract time from header comments
-    let time = frameIndex * 0.02;  // Default fallback
-    for (const line of lines) {
-        if (line.startsWith('# Time (code):')) {
-            time = parseFloat(line.split(':')[1].trim());
-            break;
+    if (!h5wasmModule) {
+        console.error('h5wasm not available');
+        return null;
+    }
+
+    try {
+        // Write to virtual FS then open
+        const filename = `temp_${Date.now()}.h5`;
+        h5wasmModule.FS.writeFile(filename, new Uint8Array(arrayBuffer));
+        const file = new h5wasmModule.File(filename, 'r');
+
+        // Read time from header
+        let time = frameIndex * 0.02;
+        try {
+            if (file.get('header')) {
+                const header = file.get('header');
+                if (header.attrs && header.attrs['time']) {
+                    time = header.attrs['time'].value;
+                }
+            }
+        } catch (e) {
+            console.log('No time attribute found, using default');
         }
-    }
 
-    // Find header line (first non-comment line)
-    let headerIdx = 0;
-    while (headerIdx < lines.length && lines[headerIdx].startsWith('#')) {
-        headerIdx++;
-    }
+        // Read particle data
+        const particles = [];
+        const particlesGroup = file.get('particles');
 
-    const headers = lines[headerIdx].split(',').map(h => h.trim());
+        if (!particlesGroup) {
+            console.error('No particles group in HDF5 file');
+            file.close();
+            h5wasmModule.FS.unlink(filename);
+            return null;
+        }
 
-    // Parse particles
-    const particles = [];
-    for (let i = headerIdx + 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
+        // Read datasets
+        const pos_x = particlesGroup.get('pos_x')?.value || [];
+        const pos_y = particlesGroup.get('pos_y')?.value || [];
+        const pos_z = particlesGroup.get('pos_z')?.value || [];
+        const vel_x = particlesGroup.get('vel_x')?.value || [];
+        const vel_y = particlesGroup.get('vel_y')?.value || [];
+        const vel_z = particlesGroup.get('vel_z')?.value || [];
+        const dens = particlesGroup.get('dens')?.value || [];
+        const pres = particlesGroup.get('pres')?.value || [];
+        const ene = particlesGroup.get('ene')?.value || [];
+        const mass = particlesGroup.get('mass')?.value || [];
+        const sml = particlesGroup.get('sml')?.value || [];
 
-        const values = line.split(',').map(v => parseFloat(v.trim()));
-        const particle = {};
+        const nParticles = pos_x.length;
 
-        headers.forEach((h, idx) => {
-            // Map CSV column names to our standard names
-            const mapping = {
-                'pos_x': 'x', 'pos_y': 'y', 'pos_z': 'z',
-                'vel_x': 'vx', 'vel_y': 'vy', 'vel_z': 'vz',
-                'dens': 'dens', 'pres': 'pres', 'ene': 'temp',
-                'mass': 'mass', 'sound': 'sound', 'id': 'id'
+        for (let i = 0; i < nParticles; i++) {
+            const vx = vel_x[i] || 0;
+            const vy = vel_y[i] || 0;
+            const vz = vel_z[i] || 0;
+
+            const particle = {
+                id: i,
+                x: pos_x[i],
+                y: pos_y[i],
+                z: pos_z[i],
+                vx: vx,
+                vy: vy,
+                vz: vz,
+                dens: dens[i] || 0,
+                pres: pres[i] || 0,
+                temp: (ene[i] || 0) * (CONFIG.tempConversion || 186),
+                mass: mass[i] || 0,
+                sound: sml[i] || 0,
+                vel_mag: Math.sqrt(vx*vx + vy*vy + vz*vz),
+                is_ghost: 0
             };
-            const key = mapping[h] || h;
-            particle[key] = values[idx];
-        });
 
-        // Convert internal energy to temperature if needed
-        // T = (gamma - 1) * mu * m_H * u / k_B ≈ 186 * u for molecular gas
-        if (particle.temp !== undefined && particle.temp > 100) {
-            // Already seems like temperature or internal energy
-            // If it's internal energy (ene), convert
-            particle.temp = particle.temp * CONFIG.tempConversion;
+            particles.push(particle);
         }
 
-        // Compute velocity magnitude
-        if (particle.vx !== undefined) {
-            particle.vel_mag = Math.sqrt(
-                particle.vx**2 + particle.vy**2 + particle.vz**2
-            );
-        }
+        file.close();
+        h5wasmModule.FS.unlink(filename);
 
-        // Ensure ID
-        if (particle.id === undefined) {
-            particle.id = i - headerIdx - 1;
-        }
+        console.log(`Parsed HDF5: ${nParticles} particles, time=${time}`);
+        return { time, particles, frameIndex };
 
-        particle.is_ghost = 0;
-        particles.push(particle);
+    } catch (error) {
+        console.error('Error parsing HDF5:', error);
+        return null;
     }
-
-    return { time, particles, frameIndex };
 }
 
 // ============================================================
@@ -1722,27 +1795,40 @@ function updateComparisonProfiles() {
     const varKey = document.getElementById('comp-profile-var')?.value || 'density';
     const config = COMP_PROFILE_CONFIG[varKey];
 
-    // Compute shared range for both plots (for fair comparison)
-    const allSelected = [...leftSelected, ...rightSelected];
-    let yMin = Infinity, yMax = -Infinity;
-    for (const p of allSelected) {
-        const val = config.getValue(p);
-        if (isFinite(val)) {
-            if (val < yMin) yMin = val;
-            if (val > yMax) yMax = val;
+    // Check if fixed Y range is enabled
+    const fixYCheckbox = document.getElementById('comp-profile-fix-y');
+    const useFixedY = fixYCheckbox?.checked;
+
+    let yMin, yMax;
+
+    if (useFixedY) {
+        // Use user-specified fixed range
+        yMin = parseFloat(document.getElementById('comp-profile-ymin')?.value) || 0;
+        yMax = parseFloat(document.getElementById('comp-profile-ymax')?.value) || 6;
+    } else {
+        // Compute shared range for both plots (for fair comparison)
+        const allSelected = [...leftSelected, ...rightSelected];
+        yMin = Infinity;
+        yMax = -Infinity;
+        for (const p of allSelected) {
+            const val = config.getValue(p);
+            if (isFinite(val)) {
+                if (val < yMin) yMin = val;
+                if (val > yMax) yMax = val;
+            }
         }
-    }
 
-    // Handle empty selection or invalid range
-    if (!isFinite(yMin) || !isFinite(yMax)) {
-        yMin = 0;
-        yMax = 1;
-    }
+        // Handle empty selection or invalid range
+        if (!isFinite(yMin) || !isFinite(yMax)) {
+            yMin = 0;
+            yMax = 1;
+        }
 
-    // Add padding
-    const yPad = (yMax - yMin) * 0.1 || 0.5;
-    yMin -= yPad;
-    yMax += yPad;
+        // Add padding
+        const yPad = (yMax - yMin) * 0.1 || 0.5;
+        yMin -= yPad;
+        yMax += yPad;
+    }
 
     // Draw both profiles
     drawComparisonProfilePlot('comp-profile-left', leftSelected, config, yMin, yMax, '#66ddff');

@@ -9,11 +9,10 @@
         // ============================================================
         // Dataset Selection - Change this to load a different dataset
         // ============================================================
-        // Available datasets:
-        //   "parabolic_rp0.13pc" - Close passage (r_p = 0.13 pc)
-        //   "parabolic_rp0.4pc"  - Wide passage (r_p = 0.4 pc)
+        // Available datasets are auto-scanned from parameter_survey/
+        // Run: python viz/scan_datasets.py to regenerate datasets.json
         // ============================================================
-        const SELECTED_DATASET = "parabolic_rp0.4pc";
+        const SELECTED_DATASET = "rp0.4pc_isothermal_cooling";
     </script>
 </head>
 <body>
@@ -81,9 +80,15 @@
             </div>
         </div>
         <hr style="margin: 10px 0; border-color: #4a4a6a;">
-        <button onclick="initComparisonMode('cooling_vs_adiabatic')"
+        <div style="margin-bottom: 10px;">
+            <label>Compare:</label>
+            <select id="comparison-select" style="width: 100%;">
+                <!-- Populated dynamically -->
+            </select>
+        </div>
+        <button id="btn-compare" onclick="startComparison()"
             style="width: 100%; padding: 8px; background: linear-gradient(90deg, #1a3344, #443322); border: 1px solid #556; color: #ffcc88; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            ⚔ Compare: Cooling vs Adiabatic
+            ⚔ Start Comparison
         </button>
     </div>
 
@@ -398,19 +403,19 @@
 
         <!-- Split View Container -->
         <div style="flex: 1; display: flex; gap: 2px; padding: 2px;">
-            <!-- Left Panel (Cooling) -->
+            <!-- Left Panel -->
             <div style="flex: 1; display: flex; flex-direction: column; background: #12141a; border-radius: 4px; overflow: hidden;">
                 <div style="padding: 6px 10px; background: #1a3344; color: #66ddff; font-size: 12px; font-weight: bold; display: flex; justify-content: space-between;">
-                    <span>COOLING (Koyama-Inutsuka)</span>
+                    <span id="comparison-left-label">LEFT</span>
                     <span id="comparison-left-time" style="font-weight: normal; color: #88aacc;">t = -- | N = --</span>
                 </div>
                 <div id="comparison-left-canvas" style="flex: 1; position: relative;"></div>
             </div>
 
-            <!-- Right Panel (Adiabatic) -->
+            <!-- Right Panel -->
             <div style="flex: 1; display: flex; flex-direction: column; background: #12141a; border-radius: 4px; overflow: hidden;">
                 <div style="padding: 6px 10px; background: #443322; color: #ffcc88; font-size: 12px; font-weight: bold; display: flex; justify-content: space-between;">
-                    <span>ADIABATIC (No Cooling)</span>
+                    <span id="comparison-right-label">RIGHT</span>
                     <span id="comparison-right-time" style="font-weight: normal; color: #ccaa88;">t = -- | N = --</span>
                 </div>
                 <div id="comparison-right-canvas" style="flex: 1; position: relative;"></div>
@@ -480,6 +485,14 @@
                         <option value="entropy">Entropy</option>
                         <option value="pressure">Pressure</option>
                     </select>
+                    <span style="color: #666;">|</span>
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: #888; cursor: pointer;">
+                        <input type="checkbox" id="comp-profile-fix-y" onchange="updateComparisonProfiles()" style="margin: 0;">
+                        Fix Y
+                    </label>
+                    <input type="number" id="comp-profile-ymin" value="0" step="0.5" onchange="updateComparisonProfiles()" style="width: 50px; padding: 2px 4px; background: #223; border: 1px solid #445; color: #aaa; border-radius: 3px; font-size: 10px;">
+                    <span style="color: #666; font-size: 10px;">to</span>
+                    <input type="number" id="comp-profile-ymax" value="6" step="0.5" onchange="updateComparisonProfiles()" style="width: 50px; padding: 2px 4px; background: #223; border: 1px solid #445; color: #aaa; border-radius: 3px; font-size: 10px;">
                 </div>
                 <button onclick="hideComparisonProfilePanel()" style="padding: 2px 8px; background: #433; border: 1px solid #655; color: #faa; border-radius: 3px; cursor: pointer; font-size: 10px;">✕</button>
             </div>
@@ -519,7 +532,7 @@
     <script src="js/particle-tracking.js"></script>
     <script src="js/particles.js"></script>
     <script src="js/scene-init.js"></script>
-    <script src="js/comparison.js"></script>
+    <script src="js/comparison.js?v=3"></script>
 
     <!-- 4. Interactive features -->
     <script src="js/pv-diagram.js"></script>
@@ -528,6 +541,6 @@
     <script src="js/panel-autohide.js"></script>
 
     <!-- 5. Main entry point -->
-    <script src="js/main.js"></script>
+    <script src="js/main.js?v=7"></script>
 </body>
 </html>

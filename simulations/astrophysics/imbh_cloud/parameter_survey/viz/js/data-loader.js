@@ -1,7 +1,26 @@
 // ============================================================
 // IMBH-Cloud Visualization - Data Loader
-// Supports both CSV and binary formats
+// Supports HDF5 format via h5wasm
 // ============================================================
+
+// Global h5wasm instance
+let h5wasmModule = null;
+
+// Initialize h5wasm
+async function initH5wasm() {
+    if (h5wasmModule) return h5wasmModule;
+
+    try {
+        // Load h5wasm from CDN
+        const { h5wasm } = await import('https://cdn.jsdelivr.net/npm/h5wasm@0.6.8/+esm');
+        h5wasmModule = await h5wasm.ready;
+        console.log('h5wasm initialized');
+        return h5wasmModule;
+    } catch (error) {
+        console.error('Failed to load h5wasm:', error);
+        return null;
+    }
+}
 
 // Detect data format and load appropriately
 async function loadSnapshotData() {
@@ -9,31 +28,11 @@ async function loadSnapshotData() {
     STATE.isLoading = true;
 
     try {
-        // Check for manifest.json (binary format)
-        const manifestPath = STATE.basePath.replace(/\.\.\//g, '') + '/../data/manifest.json';
-        let useBinary = false;
-        let manifest = null;
+        // Initialize h5wasm
+        await initH5wasm();
 
-        try {
-            const response = await fetch('data/manifest.json');
-            if (response.ok) {
-                manifest = await response.json();
-                // Check if current dataset is in manifest
-                const dsInfo = manifest.datasets.find(d => d.id === STATE.currentDataset?.id);
-                if (dsInfo && dsInfo.snapshots && dsInfo.snapshots.length > 0) {
-                    useBinary = true;
-                    console.log('Binary format detected, using manifest');
-                }
-            }
-        } catch (e) {
-            console.log('No binary manifest found, using CSV format');
-        }
-
-        if (useBinary && manifest) {
-            await loadBinarySnapshots(manifest, loadId);
-        } else {
-            await loadCSVSnapshots(loadId);
-        }
+        // Load HDF5 snapshots
+        await loadHDF5Snapshots(loadId);
     } catch (error) {
         console.error('Error loading data:', error);
     } finally {
@@ -41,180 +40,143 @@ async function loadSnapshotData() {
     }
 }
 
-// Load snapshots in binary format
-async function loadBinarySnapshots(manifest, loadId) {
-    const dsInfo = manifest.datasets.find(d => d.id === STATE.currentDataset?.id);
-    if (!dsInfo) {
-        console.error('Dataset not found in manifest');
-        return;
-    }
-
-    const basePath = `data/${dsInfo.path}`;
-    const snapshots = dsInfo.snapshots;
-    const columns = manifest.columns; // ["x", "y", "z", "vx", "vy", "vz", "dens", "temp", "mass", "sound"]
-
-    STATE.snapshots = [];
-    const total = snapshots.length;
-
-    for (let i = 0; i < total; i++) {
-        if (STATE.loadId !== loadId) {
-            console.log('Load cancelled');
-            return;
-        }
-
-        const filename = snapshots[i];
-        const url = `${basePath}/${filename}`;
-
-        try {
-            const response = await fetch(url);
-            const buffer = await response.arrayBuffer();
-            const snapshot = parseBinarySnapshot(buffer, columns, i);
-
-            STATE.snapshots.push(snapshot);
-            updateLoadingProgress(i + 1, total);
-        } catch (error) {
-            console.error(`Error loading ${filename}:`, error);
-        }
-    }
-
-    console.log(`Loaded ${STATE.snapshots.length} binary snapshots`);
-    onDataLoaded();
-}
-
-// Parse binary snapshot buffer
-function parseBinarySnapshot(buffer, columns, frameIndex) {
-    const dataView = new DataView(buffer);
-
-    // Read particle count (uint32, little-endian)
-    const nParticles = dataView.getUint32(0, true);
-    let offset = 4;
-
-    // Read column data (each column is n_particles × float32)
-    const columnData = {};
-    for (const col of columns) {
-        const floatArray = new Float32Array(buffer, offset, nParticles);
-        columnData[col] = floatArray;
-        offset += nParticles * 4;
-    }
-
-    // Convert to particle objects (matching CSV format)
-    const particles = [];
-    for (let i = 0; i < nParticles; i++) {
-        const vx = columnData.vx[i];
-        const vy = columnData.vy[i];
-        const vz = columnData.vz[i];
-
-        particles.push({
-            id: columnData.id ? columnData.id[i] : i,  // Use file ID or array index
-            x: columnData.x[i],
-            y: columnData.y[i],
-            z: columnData.z[i],
-            vx: vx,
-            vy: vy,
-            vz: vz,
-            dens: columnData.dens[i],
-            temp: columnData.temp[i],
-            mass: columnData.mass[i],
-            sound: columnData.sound[i],
-            pres: columnData.pres ? columnData.pres[i] : 0,
-            vel_mag: Math.sqrt(vx*vx + vy*vy + vz*vz),
-            is_ghost: 0
-        });
-    }
-
-    // Calculate time from frame index (approximate)
-    const time = frameIndex * 0.05; // Adjust based on your output frequency
-
-    return { time, particles };
-}
-
-// Load snapshots in CSV format (original method)
-async function loadCSVSnapshots(loadId) {
+// Load snapshots in HDF5 format
+async function loadHDF5Snapshots(loadId) {
     const basePath = STATE.basePath;
     const simType = STATE.simType;
 
-    // Try to get snapshot list from index file or scan directory
-    let snapshotFiles = [];
-
-    try {
-        const indexUrl = `${basePath}/${simType}/results/index.json`;
-        const response = await fetch(indexUrl);
-        if (response.ok) {
-            const index = await response.json();
-            snapshotFiles = index.files;
-        }
-    } catch (e) {
-        // Fall back to numbered snapshots
-        for (let i = 1; i <= 100; i++) {
-            snapshotFiles.push(`snapshot_${String(i).padStart(4, '0')}.csv`);
-        }
-    }
-
     STATE.snapshots = [];
+    let fileIndex = 1;
+    let consecutiveFails = 0;
 
-    for (let i = 0; i < snapshotFiles.length; i++) {
+    while (consecutiveFails < 3) {
         if (STATE.loadId !== loadId) {
             console.log('Load cancelled');
             return;
         }
 
-        const filename = snapshotFiles[i];
+        const filename = `snapshot_${String(fileIndex).padStart(4, '0')}.h5`;
         const url = `${basePath}/${simType}/results/${filename}`;
 
         try {
             const response = await fetch(url);
             if (!response.ok) {
-                if (i > 0) break; // Stop at first missing file (after at least one loaded)
+                consecutiveFails++;
+                fileIndex++;
                 continue;
             }
 
-            const csvText = await response.text();
-            const snapshot = parseCSVSnapshot(csvText, i);
+            const arrayBuffer = await response.arrayBuffer();
+            const snapshot = await parseHDF5Snapshot(arrayBuffer, fileIndex - 1);
 
-            STATE.snapshots.push(snapshot);
-            updateLoadingProgress(i + 1, snapshotFiles.length);
+            if (snapshot) {
+                STATE.snapshots.push(snapshot);
+                updateLoadingProgress(STATE.snapshots.length, fileIndex);
+            }
+
+            consecutiveFails = 0;
         } catch (error) {
-            if (i > 0) break;
+            consecutiveFails++;
         }
+
+        fileIndex++;
+        if (fileIndex > 500) break;  // Safety limit
     }
 
-    console.log(`Loaded ${STATE.snapshots.length} CSV snapshots`);
+    console.log(`Loaded ${STATE.snapshots.length} HDF5 snapshots`);
     onDataLoaded();
 }
 
-// Parse CSV snapshot (existing logic)
-function parseCSVSnapshot(csvText, frameIndex) {
-    const lines = csvText.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-
-    const particles = [];
-    for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => parseFloat(v.trim()));
-        const particle = {};
-
-        headers.forEach((h, idx) => {
-            particle[h] = values[idx];
-        });
-
-        // Ensure particle has an ID for Lagrangian tracking
-        if (particle.id === undefined) {
-            particle.id = i - 1;  // Use array index as ID
-        }
-
-        // Add derived values
-        if (particle.vx !== undefined) {
-            particle.vel_mag = Math.sqrt(
-                particle.vx**2 + particle.vy**2 + particle.vz**2
-            );
-        }
-
-        particles.push(particle);
+// Parse HDF5 snapshot
+async function parseHDF5Snapshot(arrayBuffer, frameIndex) {
+    if (!h5wasmModule) {
+        await initH5wasm();
     }
 
-    // Get time from first particle if available
-    const time = particles[0]?.time ?? frameIndex * 0.05;
+    if (!h5wasmModule) {
+        console.error('h5wasm not available');
+        return null;
+    }
 
-    return { time, particles };
+    try {
+        // Create a file from the array buffer
+        const filename = `temp_${Date.now()}.h5`;
+        h5wasmModule.FS.writeFile(filename, new Uint8Array(arrayBuffer));
+
+        const file = new h5wasmModule.File(filename, 'r');
+
+        // Read time from header
+        let time = frameIndex * 0.02;
+        try {
+            if (file.get('header')) {
+                const header = file.get('header');
+                if (header.attrs && header.attrs['time']) {
+                    time = header.attrs['time'].value;
+                }
+            }
+        } catch (e) {
+            console.log('No time attribute found, using default');
+        }
+
+        // Read particle data
+        const particles = [];
+        const particlesGroup = file.get('particles');
+
+        if (!particlesGroup) {
+            console.error('No particles group in HDF5 file');
+            file.close();
+            h5wasmModule.FS.unlink(filename);
+            return null;
+        }
+
+        // Read datasets
+        const pos_x = particlesGroup.get('pos_x')?.value || [];
+        const pos_y = particlesGroup.get('pos_y')?.value || [];
+        const pos_z = particlesGroup.get('pos_z')?.value || [];
+        const vel_x = particlesGroup.get('vel_x')?.value || [];
+        const vel_y = particlesGroup.get('vel_y')?.value || [];
+        const vel_z = particlesGroup.get('vel_z')?.value || [];
+        const dens = particlesGroup.get('dens')?.value || [];
+        const pres = particlesGroup.get('pres')?.value || [];
+        const ene = particlesGroup.get('ene')?.value || [];
+        const mass = particlesGroup.get('mass')?.value || [];
+        const sml = particlesGroup.get('sml')?.value || [];
+
+        const nParticles = pos_x.length;
+
+        for (let i = 0; i < nParticles; i++) {
+            const vx = vel_x[i] || 0;
+            const vy = vel_y[i] || 0;
+            const vz = vel_z[i] || 0;
+
+            particles.push({
+                id: i,
+                x: pos_x[i],
+                y: pos_y[i],
+                z: pos_z[i],
+                vx: vx,
+                vy: vy,
+                vz: vz,
+                dens: dens[i] || 0,
+                pres: pres[i] || 0,
+                temp: (ene[i] || 0) * (CONFIG?.tempConversion || 186),
+                mass: mass[i] || 0,
+                sound: sml[i] || 0,
+                vel_mag: Math.sqrt(vx*vx + vy*vy + vz*vz),
+                is_ghost: 0
+            });
+        }
+
+        file.close();
+        h5wasmModule.FS.unlink(filename);
+
+        console.log(`Parsed HDF5 frame ${frameIndex}: ${nParticles} particles, time=${time}`);
+        return { time, particles };
+
+    } catch (error) {
+        console.error('Error parsing HDF5:', error);
+        return null;
+    }
 }
 
 // Update loading progress display
@@ -223,7 +185,7 @@ function updateLoadingProgress(current, total) {
     const loadingEl = document.getElementById('loading');
     if (loadingEl) {
         const text = loadingEl.querySelector('span') || loadingEl;
-        text.textContent = `Loading snapshots... ${current}/${total} (${percent}%)`;
+        text.textContent = `Loading HDF5 snapshots... ${current} loaded`;
     }
 }
 
