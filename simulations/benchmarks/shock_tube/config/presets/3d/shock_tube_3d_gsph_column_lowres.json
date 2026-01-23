@@ -1,0 +1,36 @@
+{
+  "outputDirectory": "simulations/benchmarks/shock_tube/results/gsph_3d_column_lowres",
+  "startTime": 0.0,
+  "endTime": 0.2,
+  "outputTime": 0.01,
+  "energyTime": 0.01,
+  "checkpoint": {
+    "enabled": false,
+    "resumeFile": ""
+  },
+  "output": {
+    "formats": [
+      {
+        "type": "csv",
+        "precision": 16
+      }
+    ],
+    "enableEnergyFile": true
+  },
+  "sample": "shock_tube_3d_column",
+  "Nx": 25,
+  "neighborNumber": 50,
+  "gamma": 1.4,
+  "kernel": "cubic_spline",
+  "periodic": true,
+  "iterativeSmoothingLength": true,
+  "rangeMax": [0.5, 0.1, 0.1],
+  "rangeMin": [-0.5, -0.1, -0.1],
+  "SPHType": "gsph",
+  "use2ndOrderGSPH": false,
+  "useBalsaraSwitch": false,
+  "riemannSolver": "hllc",
+  "useVolumeBased": false,
+  "cflSound": 0.3,
+  "cflForce": 0.25
+}

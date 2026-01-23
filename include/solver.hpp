@@ -35,6 +35,7 @@ enum struct Sample {
     ShockTube2D,
     ShockTube3D,
     ShockTube3DCubic,
+    ShockTube3DColumn,
     Vacuum,
     StrongShock,
     PressureEquilibrium,
@@ -141,6 +142,7 @@ class Solver {
     void make_shock_tube_2d();
     void make_shock_tube_3d();
     void make_shock_tube_3d_cubic();
+    void make_shock_tube_3d_column();
     void make_vacuum();
     void make_strong_shock();
     void make_pressure_equilibrium();
