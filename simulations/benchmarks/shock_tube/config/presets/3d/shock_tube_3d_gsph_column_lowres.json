@@ -30,7 +30,8 @@
   "use2ndOrderGSPH": false,
   "useBalsaraSwitch": false,
   "riemannSolver": "hllc",
-  "useVolumeBased": true,
+  "useVolumeBased": false,
+  "preserveInitialDensity": true,
   "cflSound": 0.3,
   "cflForce": 0.25
 }

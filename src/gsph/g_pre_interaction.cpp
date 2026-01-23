@@ -121,6 +121,15 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
     if(m_first) {
         initial_smoothing(sim);
         m_first = false;
+
+        // When preserving initial density, skip the first density recalculation
+        // to keep the correct initial conditions set by make_*() functions
+        if(m_preserve_initial_density) {
+            // Still need to set up tree for force calculation
+            auto * tree = sim->get_tree().get();
+            tree->set_kernel();
+            return;
+        }
     }
 
     auto & particles = sim->get_particles();
@@ -338,6 +347,7 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
 {
     std::cout << "\n=== GSPH INITIAL_SMOOTHING CALLED ===" << std::endl;
     std::cout << "Volume-based approach: " << (m_use_volume_based ? "ENABLED" : "disabled") << std::endl;
+    std::cout << "Preserve initial density: " << (m_preserve_initial_density ? "YES" : "no") << std::endl;
 
     auto & particles = sim->get_particles();
     auto * periodic = sim->get_periodic().get();
@@ -456,6 +466,11 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
         if(!m_preserve_initial_density) {
             p_i.dens = dens_i;
             p_i.pres = (m_gamma - 1.0) * dens_i * p_i.ene;
+        } else if(m_use_volume_based) {
+            // When preserving initial density with volume-based forces,
+            // compute V from the preserved density: V = m/ρ
+            // This ensures V is consistent with the density used in Riemann solver
+            p_i.nu = p_i.mass / p_i.dens;
         }
 
         // Precompute p/ρ² for force loop
