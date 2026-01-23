@@ -577,6 +577,22 @@ void Solver::read_parameterfile(const char * filename)
             if (input.count("n_center") > 0) {
                 m_sample_parameters["n_center"] = input.get<real>("n_center");
             }
+            // Pre-computed equilibrium parameters (required for relaxation when resuming)
+            if (input.count("rho_center_code") > 0) {
+                m_sample_parameters["rho_center_code"] = input.get<real>("rho_center_code");
+            }
+            if (input.count("r_c_code") > 0) {
+                m_sample_parameters["r_c_code"] = input.get<real>("r_c_code");
+            }
+            if (input.count("R_cloud_code") > 0) {
+                m_sample_parameters["R_cloud_code"] = input.get<real>("R_cloud_code");
+            }
+            if (input.count("P_ext") > 0) {
+                m_sample_parameters["P_ext"] = input.get<real>("P_ext");
+            }
+            if (input.count("density_to_n") > 0) {
+                m_sample_parameters["density_to_n"] = input.get<real>("density_to_n");
+            }
         } else if (sample_type == "hvcc_isothermal_10k") {
             m_sample = Sample::HVCCIsothermal10K;
             // 10K isothermal HVCC for IMBH-cloud interaction (Oka 2017)
@@ -1605,7 +1621,19 @@ void Solver::initialize()
         if(m_output_manager->load_for_resume(m_checkpoint_file, m_sim, &snapshot_data)) {
             resumed = true;
             std::cout << "=== Successfully resumed from snapshot ===" << std::endl;
-            
+
+            // Reset particle IDs to match array indices
+            // The tree stores p->id in neighbor lists, and pre_interaction uses it as array index.
+            // If IDs don't match indices (e.g., after Morton sorting), neighbor lookups fail.
+            {
+                auto& particles = m_sim->get_particles();
+                const int num_p = m_sim->get_particle_num();
+                for(int i = 0; i < num_p; ++i) {
+                    particles[i].id = i;
+                }
+                std::cout << "  Reset particle IDs to match array indices" << std::endl;
+            }
+
             // Reset time if requested
             if(m_reset_time_on_resume) {
                 m_sim->set_time(0.0);
