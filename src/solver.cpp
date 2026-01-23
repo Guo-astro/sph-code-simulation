@@ -345,6 +345,9 @@ void Solver::read_parameterfile(const char * filename)
             m_sample_parameters["Nz"] = input.get<int>("Nz", 10);
             m_sample_parameters["Ly"] = input.get<real>("Ly", 0.1);
             m_sample_parameters["Lz"] = input.get<real>("Lz", 0.1);
+        } else if (sample_type == "shock_tube_3d_cubic") {
+            m_sample = Sample::ShockTube3DCubic;
+            m_sample_parameters["Nx"] = input.get<int>("Nx", 100);
         } else if (sample_type == "vacuum") {
             m_sample = Sample::Vacuum;
             m_sample_parameters["N"] = input.get<int>("N", 800);
@@ -3949,6 +3952,7 @@ void Solver::make_initial_condition()
         MAKE_SAMPLE(Sample::ShockTube, shock_tube);
         MAKE_SAMPLE(Sample::ShockTube2D, shock_tube_2d);
         MAKE_SAMPLE(Sample::ShockTube3D, shock_tube_3d);
+        MAKE_SAMPLE(Sample::ShockTube3DCubic, shock_tube_3d_cubic);
         MAKE_SAMPLE(Sample::Vacuum, vacuum);
         MAKE_SAMPLE(Sample::StrongShock, strong_shock);
         MAKE_SAMPLE(Sample::PressureEquilibrium, pressure_equilibrium);
