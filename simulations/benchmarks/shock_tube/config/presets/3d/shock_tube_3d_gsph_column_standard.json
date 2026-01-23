@@ -1,5 +1,5 @@
 {
-  "outputDirectory": "simulations/benchmarks/shock_tube/results/gsph_3d_column_lowres",
+  "outputDirectory": "simulations/benchmarks/shock_tube/results/gsph_3d_column_standard",
   "startTime": 0.0,
   "endTime": 0.2,
   "outputTime": 0.01,
@@ -30,7 +30,7 @@
   "use2ndOrderGSPH": false,
   "useBalsaraSwitch": false,
   "riemannSolver": "hllc",
-  "useVolumeBased": true,
+  "useVolumeBased": false,
   "cflSound": 0.3,
   "cflForce": 0.25
 }

@@ -36,6 +36,10 @@ class PreInteraction : public sph::PreInteraction {
         const class Periodic * periodic,
         const class KernelFunction * kernel);
 
+protected:
+    // Override initial_smoothing to support volume-based density
+    void initial_smoothing(std::shared_ptr<Simulation> sim);
+
 public:
     void initialize(std::shared_ptr<SPHParameters> param) override;
     void calculation(std::shared_ptr<Simulation> sim) override;

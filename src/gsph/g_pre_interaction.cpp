@@ -324,5 +324,149 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
     tree->set_kernel();
 }
 
+/**
+ * Initial smoothing with volume-based density support
+ *
+ * For volume-based approach (Kitajima et al.):
+ *   V_p(x) = [Σ_j W(x - x_j, h)]^(-1)
+ *   ρ(x) = m(x) / V_p(x) = m(x) * Σ_j W(x - x_j, h)
+ *
+ * This correctly recovers density for non-equal mass particles
+ * on uniform grids (column-based approach).
+ */
+void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
+{
+    std::cout << "\n=== GSPH INITIAL_SMOOTHING CALLED ===" << std::endl;
+    std::cout << "Volume-based approach: " << (m_use_volume_based ? "ENABLED" : "disabled") << std::endl;
+
+    auto & particles = sim->get_particles();
+    auto * periodic = sim->get_periodic().get();
+    const int num = sim->get_particle_num();
+    auto * kernel = sim->get_kernel().get();
+    auto * tree = sim->get_tree().get();
+
+    // Count real particles and ghost particles
+    int n_real = 0, n_ghost = 0;
+    for (int i = 0; i < num; ++i) {
+        if (particles[i].is_ghost) n_ghost++;
+        else n_real++;
+    }
+    std::cout << "Total particles: " << num << " (real: " << n_real << ", ghost: " << n_ghost << ")" << std::endl;
+
+    std::cout << "First particle before smoothing: dens=" << particles[0].dens
+             << ", pres=" << particles[0].pres << ", mass=" << particles[0].mass << std::endl;
+
+#pragma omp parallel for
+    for(int i = 0; i < num; ++i) {
+        auto & p_i = particles[i];
+
+        // Ghost particles: skip density computation, keep initial values
+        if (p_i.is_ghost) {
+            p_i.gradh = 1.0;
+            continue;
+        }
+
+        const vec_t & pos_i = p_i.pos;
+        std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
+
+        // Guess initial smoothing length
+        constexpr real A = DIM == 1 ? 2.0 :
+                           DIM == 2 ? M_PI :
+                                      4.0 * M_PI / 3.0;
+        p_i.sml = std::pow(m_neighbor_number * p_i.mass / (p_i.dens * A), 1.0 / DIM);
+
+        // Neighbor search
+        int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, false);
+
+        // Compute density based on approach
+        real dens_i = 0.0;
+        real dh_dens_i = 0.0;
+        int n_used = 0;
+
+        if(m_use_volume_based) {
+            // ===== VOLUME-BASED APPROACH (Kitajima et al.) =====
+            // Compute kernel sum: W_sum = Σ_j W(r_ij, h)
+            real sum_W = 0.0;
+            real sum_dW_dh = 0.0;
+
+            for(int n = 0; n < n_neighbor; ++n) {
+                int const j = neighbor_list[n];
+                auto & p_j = particles[j];
+                const vec_t r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
+                const real r = std::abs(r_ij);
+
+                if(r >= p_i.sml) {
+                    break;
+                }
+
+                ++n_used;
+                sum_W += kernel->w(r, p_i.sml);
+                sum_dW_dh += kernel->dhw(r, p_i.sml);
+            }
+
+            // Volume: V_p = 1 / W_sum
+            // Density: ρ = m / V_p = m * W_sum
+            if (sum_W > 1e-15) {
+                const real Vp = 1.0 / sum_W;
+                dens_i = p_i.mass / Vp;  // = m * W_sum
+                p_i.nu = Vp;  // Store volume for later use
+
+                // Grad-h correction factor (volume-based)
+                // Ω = 1 / (1 + h * Σ dW/dh / (D * Σ W))
+                if(m_use_gradh) {
+                    const real dh_term = p_i.sml * sum_dW_dh / (DIM * sum_W);
+                    p_i.gradh = 1.0 / (1.0 + dh_term);
+                } else {
+                    p_i.gradh = 1.0;
+                }
+            } else {
+                // Fallback: keep initial density
+                dens_i = p_i.dens;
+                p_i.nu = p_i.mass / dens_i;
+                p_i.gradh = 1.0;
+            }
+        } else {
+            // ===== MASS-BASED APPROACH (Standard SPH) =====
+            // Density: ρ = Σ_j m_j W(r_ij, h)
+            for(int n = 0; n < n_neighbor; ++n) {
+                int const j = neighbor_list[n];
+                auto & p_j = particles[j];
+                const vec_t r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
+                const real r = std::abs(r_ij);
+
+                if(r >= p_i.sml) {
+                    break;
+                }
+
+                ++n_used;
+                dens_i += p_j.mass * kernel->w(r, p_i.sml);
+                dh_dens_i += p_j.mass * kernel->dhw(r, p_i.sml);
+            }
+
+            // Grad-h correction factor (mass-based)
+            // Ω = 1 / (1 + (h/Dρ) * dρ/dh)
+            if(m_use_gradh) {
+                p_i.gradh = 1.0 / (1.0 + p_i.sml / (DIM * dens_i) * dh_dens_i);
+            } else {
+                p_i.gradh = 1.0;
+            }
+        }
+
+        // Store computed density (unless preserveInitialDensity is set)
+        if(!m_preserve_initial_density) {
+            p_i.dens = dens_i;
+            p_i.pres = (m_gamma - 1.0) * dens_i * p_i.ene;
+        }
+
+        // Precompute p/ρ² for force loop
+        p_i.pres_per_rho2 = p_i.pres / sqr(p_i.dens);
+        p_i.neighbor = n_used;
+    }
+
+    std::cout << "First particle after smoothing: dens=" << particles[0].dens
+             << ", pres=" << particles[0].pres << ", mass=" << particles[0].mass << std::endl;
+    std::cout << "=== GSPH INITIAL_SMOOTHING COMPLETE ===" << std::endl;
+}
+
 }
 }
