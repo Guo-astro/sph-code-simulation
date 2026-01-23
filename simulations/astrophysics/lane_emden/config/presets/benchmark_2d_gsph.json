@@ -26,9 +26,7 @@
   },
   
   "artificial_viscosity": {
-    "alpha": 1.0,
-    "use_balsara_switch": false,
-    "use_time_dependent_av": false
+    "use_balsara_switch": false
   },
   
   "cfl": {

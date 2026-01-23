@@ -18,7 +18,6 @@
     "enableEnergyFile": true
   },
   "sample": "shock_tube",
-  "avAlpha": 1.0,
   "neighborNumber": 4,
   "gamma": 1.4,
   "kernel": "cubic_spline",

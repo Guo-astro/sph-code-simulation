@@ -194,9 +194,6 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
             // Density from volume: ρ = m / V_p
             dens_i = p_i.mass / Vp;
-
-            // Store volume in nu field for force calculation
-            // (nu is normally baryon number, but in non-relativistic GSPH we use it for volume)
             p_i.nu = Vp;
 
             if(m_use_gradh) {

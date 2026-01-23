@@ -26,7 +26,7 @@
     "dimension": 3,
 
     "sample": "isothermal_bonnor_ebert",
-    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/hires_phase1_compact/snapshot_0200.h5",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/hires_phase1_compact/snapshot_0112.h5",
     "resetTimeOnResume": true,
     "N": 61,
 

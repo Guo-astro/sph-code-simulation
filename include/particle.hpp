@@ -15,6 +15,7 @@ public:
     real mass;    // mass (SRGSPH: baryon number ν)
     real dens;    // mass density (SRGSPH: lab-frame density N = γn)
     real pres;    // pressure
+    real pres_per_rho2;  // precomputed p/ρ² for performance (eliminates division per neighbor)
     real ene;     // internal energy (SRGSPH: primitive u = P/[(γ-1)n])
     real ene_p;   // internal energy at t + dt/2
     real dene;    // du/dt (SRGSPH: ALIAS for de, do NOT use directly!)

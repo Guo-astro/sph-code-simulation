@@ -20,27 +20,28 @@ namespace Wendland {
     constexpr real sigma_c4 = 495. / (32 * M_PI);
 #endif
 
-class C4Kernel : public KernelFunction {
+class C4Kernel final : public KernelFunction {
 public:
     C4Kernel()
     {
         assert(DIM != 1);
     }
 
-    real w(const real r, const real h) const
+    // Mark as final + inline to enable devirtualization and inlining
+    inline real w(const real r, const real h) const final
     {
         const real q = r / h;
         return sigma_c4 / powh(h) * pow6(0.5 * (1.0 - q + std::abs(1.0 - q))) * (1.0 + 6.0 * q + 35.0 / 3.0 * q * q);
     }
 
-    vec_t dw(const vec_t &rij, const real r, const real h) const
+    inline vec_t dw(const vec_t &rij, const real r, const real h) const final
     {
         const real q = r / h;
         const real c = -56.0 / 3.0 * sigma_c4 / (powh(h) * sqr(h)) * pow5(0.5 * (1.0 - q + std::abs(1.0 - q))) * (1.0 + 5.0 * q);
         return rij * c;
     }
 
-    real dhw(const real r, const real h) const
+    inline real dhw(const real r, const real h) const final
     {
         const double q = r / h;
         return -sigma_c4 / (powh(h) * h * 3.0) * pow5(0.5 * (1.0 - q + std::abs(1.0 - q)))

@@ -406,4 +406,77 @@ if(BUILD_TESTS)
     )
     target_compile_options(test_gravity_first_principles PRIVATE -Wall -Wno-sign-compare)
     gtest_discover_tests(test_gravity_first_principles)
+
+    # =============================================================================
+    # SPH Performance Optimization TDD Tests
+    # =============================================================================
+    # Tests for three performance optimizations (TDD red phase - tests fail initially):
+    # 1. Thread-local neighbor list - avoid heap allocation in hot loops
+    # 2. Distance caching before sorting - reduce redundant computation
+    # 3. OpenMP dynamic scheduling - better load balancing
+    add_executable(test_performance_optimizations
+        tests/test_performance_optimizations.cpp
+        src/fluid_force.cpp
+        src/pre_interaction.cpp
+        src/bhtree.cpp
+        src/exhaustive_search.cpp
+        src/hernquist_katz_lookup_table.cpp
+        src/logger.cpp
+        tests/softening_lookup_table.cpp
+    )
+    target_compile_features(test_performance_optimizations PUBLIC cxx_std_14)
+    target_compile_definitions(test_performance_optimizations PRIVATE DIM=${SPH_DIM})
+    target_include_directories(test_performance_optimizations PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_performance_optimizations
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_performance_optimizations PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_performance_optimizations)
+
+    # =============================================================================
+    # High-ROI Optimizations TDD Tests
+    # =============================================================================
+    add_executable(test_high_roi_optimizations
+        tests/test_high_roi_optimizations.cpp
+        src/bhtree.cpp
+        src/morton.cpp
+        src/hernquist_katz_lookup_table.cpp
+        tests/softening_lookup_table.cpp
+    )
+    target_compile_features(test_high_roi_optimizations PUBLIC cxx_std_14)
+    target_compile_definitions(test_high_roi_optimizations PRIVATE DIM=${SPH_DIM} USE_MORTON_ORDERING)
+    target_include_directories(test_high_roi_optimizations PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_high_roi_optimizations
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(test_high_roi_optimizations PRIVATE -Wall -Wno-sign-compare)
+    gtest_discover_tests(test_high_roi_optimizations)
+
+    # =============================================================================
+    # Performance Benchmark
+    # =============================================================================
+    # Benchmark tree construction and neighbor search with various particle counts
+    add_executable(benchmark_performance
+        tests/benchmark_performance.cpp
+        src/bhtree.cpp
+        src/morton.cpp
+        src/hernquist_katz_lookup_table.cpp
+        tests/softening_lookup_table.cpp
+    )
+    target_compile_features(benchmark_performance PUBLIC cxx_std_14)
+    target_compile_definitions(benchmark_performance PRIVATE DIM=${SPH_DIM} USE_MORTON_ORDERING)
+    target_include_directories(benchmark_performance PUBLIC include ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(benchmark_performance
+        GTest::gtest_main
+        GTest::gmock
+        OpenMP::OpenMP_CXX
+        Boost::boost
+    )
+    target_compile_options(benchmark_performance PRIVATE -Wall -Wno-sign-compare -O3)
 endif()

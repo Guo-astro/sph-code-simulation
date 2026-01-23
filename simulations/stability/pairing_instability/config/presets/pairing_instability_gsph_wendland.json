@@ -17,8 +17,7 @@
     ],
     "enableEnergyFile": true
   },
-  "avAlpha": 1.0,
-  "useBalsaraSwitch": true,
+  "useBalsaraSwitch": false,
   "neighborNumber": 32,
   "leafParticleNumber": 32,
   "gamma": 1.66666666666666666666666666666666667,

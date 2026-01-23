@@ -51,3 +51,27 @@ constexpr int neighbor_list_size = 20000;
 // Expected speedup: 10-20%
 #define USE_ITERATIVE_TRAVERSAL
 
+// =============================================================================
+// Performance Optimization Switches
+// =============================================================================
+
+// Thread-local neighbor list storage to avoid heap allocation in hot loops
+// Moves neighbor_list outside the loop and uses thread-local storage
+// Expected speedup: 5-15% by reducing allocator contention
+#define SPH_USE_THREAD_LOCAL_NEIGHBOR_LIST
+
+// Distance caching before sorting neighbors
+// Caches distances to avoid recomputing during sort comparison
+// Expected speedup: 10-30% for neighbor-heavy operations
+#define SPH_USE_DISTANCE_CACHING
+
+// OpenMP dynamic scheduling for load balancing
+// Uses schedule(dynamic, 64) for better load distribution with variable density
+// Expected speedup: 5-20% on non-uniform particle distributions
+#define SPH_USE_DYNAMIC_SCHEDULING
+
+// Template-based kernel dispatch to eliminate virtual function overhead
+// Uses CRTP pattern for compile-time polymorphism instead of virtual calls
+// Expected speedup: 10-15% in kernel-heavy loops
+#define SPH_USE_TEMPLATE_KERNEL
+

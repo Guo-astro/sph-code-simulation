@@ -1,0 +1,66 @@
+{
+    "_comment": "Phase 1 HIGH-RES: RESTART FROM SNAPSHOT 90 - Continue relaxation",
+    "_phase": "Continuing relaxation from step 900/2000",
+    "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr",
+    "_physics": "Truncated isothermal BE sphere at T=35K, xi_s=3.0, n_center=500 cm^-3",
+
+    "name": "Phase 1 HIGH-RES: Isothermal BE Sphere (N=61, >220k particles) - RESTART",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "N": 61,
+
+    "T_cloud": 35.0,
+    "n_center": 500.0,
+    "xi_s": 3.0,
+    "mu": 1.27,
+
+    "rho_center_code": 15.693463433221543,
+    "r_c_code": 0.5177631638619442,
+    "R_cloud_code": 1.5532894915858326,
+    "P_ext": 6043.192369367433,
+    "density_to_n": 31.86039857470521,
+    "c_s": 0.4768432712526686,
+
+    "M_BH": 0.0,
+    "b_impact": 0.0,
+    "v_rel": 0.0,
+    "useEnvelope": true,
+    "envelopeLayers": 6,
+
+    "gamma": 1.6666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": false,
+
+    "SPHType": "gsph",
+    "kernel": "cubic_spline",
+    "useGradH": true,
+    "use2ndOrderGSPH": false,
+
+    "endTime": 2.0,
+    "outputTime": 0.2,
+    "cfl": 0.3,
+
+    "useRelaxation": true,
+    "relaxationSteps": 1100,
+    "relaxationOutputFreq": 10,
+    "relaxationOnly": true,
+    "useGlassRelaxation": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/hires_phase1_compact",
+
+    "resumeFromSnapshot": "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/simulations/astrophysics/imbh_cloud/results/hires_phase1_compact/snapshot_0112.h5",
+
+    "output": {
+        "formats": [
+            {"type": "hdf5", "compression": 6}
+        ],
+        "enableCSV": false,
+        "enableHDF5": true,
+        "enableVTK": false,
+        "enableEnergyFile": true,
+        "hdf5Compression": 6
+    }
+}

@@ -201,13 +201,23 @@ def solve_lane_emden(xi_s, n_points=1000):
 
 
 def load_config(result_dir):
-    """Try to load config from result directory or parent"""
+    """Try to load config from result directory or SSOT preset configs"""
+    # Extract result name to find matching preset (e.g., hires_phase1_compact -> phase1_compact)
+    result_name = os.path.basename(result_dir)
+
+    # Build list of config paths to search (SSOT presets first)
+    base_dir = os.path.dirname(os.path.dirname(result_dir))  # imbh_cloud directory
     config_paths = [
+        # SSOT: Look in presets directory based on result name
+        os.path.join(base_dir, 'config', 'presets', 'hires', f'{result_name.replace("hires_", "")}.json'),
+        os.path.join(base_dir, 'config', 'presets', 'lores', f'{result_name.replace("lores_", "")}.json'),
+        os.path.join(base_dir, 'config', 'presets', f'{result_name}.json'),
+        # Fallback: config in result directory
         os.path.join(result_dir, 'config.json'),
         os.path.join(os.path.dirname(result_dir), 'config.json'),
     ]
 
-    # Default values
+    # Default values (only used if no config found)
     config = {
         'xi_s': 6.0,
         'T_cloud': 10.0,

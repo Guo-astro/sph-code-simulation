@@ -48,9 +48,6 @@
     "leaf_particle_number": 32
   },
   "artificial_viscosity": {
-    "alpha": 1.0,
-    "use_balsara_switch": true,
-    "use_time_dependent_av": true,
-    "use_artificial_conductivity": false
+    "use_balsara_switch": false
   }
 }

@@ -16,7 +16,6 @@
     ],
     "enableEnergyFile": true
   },
-  "avAlpha": 1.0,
   "neighborNumber": 20,
   "gamma": 1.4,
   "Nx": 50,

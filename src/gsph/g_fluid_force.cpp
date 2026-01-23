@@ -44,6 +44,10 @@ namespace sph
             {
                 iterative_solver();
             }
+            else if (param->gsph.riemann_solver == RiemannSolverType::HLLC)
+            {
+                hllc_solver();
+            }
             else
             {
                 hll_solver();
@@ -255,6 +259,68 @@ namespace sph
 
                 vstar = (c5 - c4) * c3;
                 pstar = (c1 * c5 - c2 * c4) * c3;
+            };
+        }
+
+        /**
+         * HLLC Riemann solver (Toro 2009)
+         *
+         * Extends HLL by adding a contact wave (S*) that resolves the contact
+         * discontinuity. This gives sharper density jumps at material interfaces.
+         *
+         * Wave structure: S_L --- S* --- S_R
+         *                  ^      ^      ^
+         *               left   contact  right
+         *               wave    wave    wave
+         *
+         * Reference: Toro, E.F. (2009) "Riemann Solvers and Numerical Methods
+         *            for Fluid Dynamics", 3rd ed., Chapter 10
+         */
+        void FluidForce::hllc_solver()
+        {
+            m_solver = [&](const real left[], const real right[], real &pstar, real &vstar)
+            {
+                const real u_l = left[0];
+                const real rho_l = left[1];
+                const real p_l = left[2];
+                const real c_l = left[3];
+
+                const real u_r = right[0];
+                const real rho_r = right[1];
+                const real p_r = right[2];
+                const real c_r = right[3];
+
+                constexpr real smallval = 1.0e-25;
+
+                // Wave speed estimates using Roe averages
+                const real roe_l = std::sqrt(rho_l);
+                const real roe_r = std::sqrt(rho_r);
+                const real roe_inv = 1.0 / (roe_l + roe_r + smallval);
+
+                const real u_roe = (roe_l * u_l + roe_r * u_r) * roe_inv;
+                const real c_roe = (roe_l * c_l + roe_r * c_r) * roe_inv;
+
+                const real S_L = std::min(u_l - c_l, u_roe - c_roe);
+                const real S_R = std::max(u_r + c_r, u_roe + c_roe);
+
+                // HLLC contact wave speed S* (becomes v*)
+                // S* = (p_R - p_L + rho_L*u_L*(S_L - u_L) - rho_R*u_R*(S_R - u_R))
+                //      / (rho_L*(S_L - u_L) - rho_R*(S_R - u_R))
+                const real rho_L_factor = rho_l * (S_L - u_l);
+                const real rho_R_factor = rho_r * (S_R - u_r);
+
+                const real S_star_num = p_r - p_l + rho_L_factor * u_l - rho_R_factor * u_r;
+                const real S_star_den = rho_L_factor - rho_R_factor;
+
+                // Contact wave speed = interface velocity
+                vstar = S_star_num / (S_star_den + smallval);
+
+                // Interface pressure from left state (or equivalently from right)
+                // p* = p_L + rho_L * (S_L - u_L) * (S* - u_L)
+                pstar = p_l + rho_L_factor * (vstar - u_l);
+
+                // Ensure positive pressure
+                pstar = std::max(pstar, smallval);
             };
         }
 

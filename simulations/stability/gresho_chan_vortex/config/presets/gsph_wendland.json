@@ -1,7 +1,6 @@
 {
     "outputDirectory" : "simulations/stability/gresho_chan_vortex/results/gsph_wendland",
     "endTime" : 3.0,
-    "avAlpha" : 1.0,
     "neighborNumber" : 50,
     "useBalsaraSwitch" : false,
     "leafParticleNumber" : 32,

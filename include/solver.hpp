@@ -126,6 +126,8 @@ class Solver {
     void correct();
     void integrate();
     void update_ghost_particles();  // Mirror ghost particle properties from real particles
+    void create_periodic_ghost_particles();  // Create ghost particles for periodic boundaries
+    void remove_periodic_ghost_particles();  // Remove ghost particles before next cycle
     
     // Helper method to compute total energies
     void compute_total_energies(real& kinetic, real& thermal, real& potential) const;

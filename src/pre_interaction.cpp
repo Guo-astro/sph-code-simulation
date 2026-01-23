@@ -59,7 +59,11 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
 
     omp_real h_per_v_sig(std::numeric_limits<real>::max());
 
+#ifdef SPH_USE_DYNAMIC_SCHEDULING
+#pragma omp parallel for schedule(dynamic, 64)
+#else
 #pragma omp parallel for
+#endif
     for(int i = 0; i < num; ++i) {
         auto & p_i = particles[i];
 
@@ -70,7 +74,12 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
             continue;
         }
 
+#ifdef SPH_USE_THREAD_LOCAL_NEIGHBOR_LIST
+        thread_local std::vector<int> neighbor_list;
+        neighbor_list.resize(m_neighbor_number * neighbor_list_size);
+#else
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
+#endif
 
         // guess smoothing length
         constexpr real A = DIM == 1 ? 2.0 :
@@ -85,12 +94,25 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
             p_i.sml = newton_raphson(p_i, particles, neighbor_list, n_neighbor_tmp, periodic, kernel);
         }
 
-        // density etc.
+        // =============================================================================
+        // MERGED LOOP: density, balsara switch, and time-dependent AV in one pass
+        // This eliminates redundant r_ij/r computation (previously computed 3x)
+        // =============================================================================
         real dens_i = 0.0;
         real dh_dens_i = 0.0;
         real v_sig_max = p_i.sound * 2.0;
         const vec_t & pos_i = p_i.pos;
         int n_neighbor = 0;
+
+        // Variables for AV computations (computed in same loop to avoid redundant r_ij calculation)
+        real div_v = 0.0;
+#if DIM == 2
+        real rot_v = 0.0;
+#elif DIM == 3
+        vec_t rot_v = 0.0;
+#endif
+        const bool need_av_quantities = (m_use_balsara_switch && DIM != 1) || m_use_time_dependent_av;
+
         for(int n = 0; n < n_neighbor_tmp; ++n) {
             int const j = neighbor_list[n];
             auto & p_j = particles[j];
@@ -102,26 +124,42 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
             }
 
             ++n_neighbor;
+
+            // Density computation
             dens_i += p_j.mass * kernel->w(r, p_i.sml);
             dh_dens_i += p_j.mass * kernel->dhw(r, p_i.sml);
 
+            // Signal velocity (skip self-interaction)
             if(i != j) {
-                const real v_sig = p_i.sound + p_j.sound - 3.0 * inner_product(r_ij, p_i.vel - p_j.vel) / r;
+                const vec_t v_ij = p_i.vel - p_j.vel;
+                const real v_sig = p_i.sound + p_j.sound - 3.0 * inner_product(r_ij, v_ij) / r;
                 if(v_sig > v_sig_max) {
                     v_sig_max = v_sig;
+                }
+
+                // AV quantities: compute div_v and rot_v in same loop
+                // (previously required separate neighbor loop - now merged)
+                if(need_av_quantities) {
+                    const vec_t dw = kernel->dw(r_ij, r, p_i.sml);
+                    div_v -= p_j.mass * inner_product(v_ij, dw);
+#if DIM != 1
+                    if(m_use_balsara_switch) {
+                        rot_v += vector_product(v_ij, dw) * p_j.mass;
+                    }
+#endif
                 }
             }
         }
 
         p_i.dens = dens_i;
         p_i.pres = (m_gamma - 1.0) * dens_i * p_i.ene;
+        // Precompute p/ρ² to eliminate division per neighbor in force loop
+        p_i.pres_per_rho2 = p_i.pres / sqr(dens_i);
         // Grad-h correction factor: Ω_i = 1 / (1 + (h/Dρ) * dρ/dh)
-        // This corrects for variable smoothing length in the kernel gradient
-        // When disabled (use_gradh=false), set to 1.0 which causes core collapse in hydrostatic tests
         if(m_use_gradh) {
             p_i.gradh = 1.0 / (1.0 + p_i.sml / (DIM * dens_i) * dh_dens_i);
         } else {
-            p_i.gradh = 1.0;  // No grad-h correction
+            p_i.gradh = 1.0;
         }
         p_i.neighbor = n_neighbor;
 
@@ -130,52 +168,31 @@ void PreInteraction::calculation(std::shared_ptr<Simulation> sim)
             h_per_v_sig.get() = h_per_v_sig_i;
         }
 
-        // Artificial viscosity
-        if(m_use_balsara_switch && DIM != 1) {
-#if DIM != 1
-            // balsara switch
-            real div_v = 0.0;
-#if DIM == 2
-            real rot_v = 0.0;
-#else
-            vec_t rot_v = 0.0;
-#endif
-            for(int n = 0; n < n_neighbor; ++n) {
-                int const j = neighbor_list[n];
-                auto & p_j = particles[j];
-                const vec_t r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
-                const real r = std::abs(r_ij);
-                const vec_t dw = kernel->dw(r_ij, r, p_i.sml);
-                const vec_t v_ij = p_i.vel - p_j.vel;
-                div_v -= p_j.mass * inner_product(v_ij, dw);
-                rot_v += vector_product(v_ij, dw) * p_j.mass;
-            }
+        // =============================================================================
+        // Process AV quantities (div_v and rot_v were computed in merged loop above)
+        // =============================================================================
+        if(need_av_quantities) {
             div_v /= p_i.dens;
-            rot_v /= p_i.dens;
-            p_i.balsara = std::abs(div_v) / (std::abs(div_v) + std::abs(rot_v) + 1e-4 * p_i.sound / p_i.sml);
 
-            // time dependent alpha
+            if(m_use_balsara_switch && DIM != 1) {
+#if DIM != 1
+                rot_v /= p_i.dens;
+                p_i.balsara = std::abs(div_v) / (std::abs(div_v) + std::abs(rot_v) + 1e-4 * p_i.sound / p_i.sml);
+#endif
+            }
+
             if(m_use_time_dependent_av) {
                 const real tau_inv = m_epsilon * p_i.sound / p_i.sml;
-                const real dalpha = (-(p_i.alpha - m_alpha_min) * tau_inv + std::max(-div_v, (real)0.0) * (m_alpha_max - p_i.alpha)) * dt;
-                p_i.alpha += dalpha;
+                if(m_use_balsara_switch) {
+                    // Balsara + time-dependent AV
+                    const real dalpha = (-(p_i.alpha - m_alpha_min) * tau_inv + std::max(-div_v, (real)0.0) * (m_alpha_max - p_i.alpha)) * dt;
+                    p_i.alpha += dalpha;
+                } else {
+                    // Time-dependent AV only
+                    const real s_i = std::max(-div_v, (real)0.0);
+                    p_i.alpha = (p_i.alpha + dt * tau_inv * m_alpha_min + s_i * dt * m_alpha_max) / (1.0 + dt * tau_inv + s_i * dt);
+                }
             }
-#endif
-        } else if(m_use_time_dependent_av) {
-            real div_v = 0.0;
-            for(int n = 0; n < n_neighbor; ++n) {
-                int const j = neighbor_list[n];
-                auto & p_j = particles[j];
-                const vec_t r_ij = periodic->calc_r_ij(pos_i, p_j.pos);
-                const real r = std::abs(r_ij);
-                const vec_t dw = kernel->dw(r_ij, r, p_i.sml);
-                const vec_t v_ij = p_i.vel - p_j.vel;
-                div_v -= p_j.mass * inner_product(v_ij, dw);
-            }
-            div_v /= p_i.dens;
-            const real tau_inv = m_epsilon * p_i.sound / p_i.sml;
-            const real s_i = std::max(-div_v, (real)0.0);
-            p_i.alpha = (p_i.alpha + dt * tau_inv * m_alpha_min + s_i * dt * m_alpha_max) / (1.0 + dt * tau_inv + s_i * dt);
         }
     }
 
@@ -269,7 +286,11 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
     };
     std::vector<BoundaryDebugInfo> boundary_debug;
 
+#ifdef SPH_USE_DYNAMIC_SCHEDULING
+#pragma omp parallel for schedule(dynamic, 64)
+#else
 #pragma omp parallel for
+#endif
     for(int i = 0; i < num; ++i) {
         auto & p_i = particles[i];
 
@@ -281,7 +302,12 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
         }
 
         const vec_t & pos_i = p_i.pos;
+#ifdef SPH_USE_THREAD_LOCAL_NEIGHBOR_LIST
+        thread_local std::vector<int> neighbor_list;
+        neighbor_list.resize(m_neighbor_number * neighbor_list_size);
+#else
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
+#endif
 
         // guess smoothing length
         constexpr real A = DIM == 1 ? 2.0 :
@@ -339,6 +365,8 @@ void PreInteraction::initial_smoothing(std::shared_ptr<Simulation> sim)
             p_i.dens = dens_i;
             p_i.pres = (m_gamma - 1.0) * dens_i * p_i.ene;
         }
+        // Precompute p/ρ² to eliminate division per neighbor in force loop
+        p_i.pres_per_rho2 = p_i.pres / sqr(p_i.dens);
         // If preserveInitialDensity is set, keep the initial density/pressure values
 
         // Grad-h correction factor (use kernel-computed density for gradh even if preserving initial)

@@ -2,7 +2,6 @@
     "outputDirectory" : "simulations/benchmarks/sedov/results/gsph_wendland",
     "endTime" : 0.1,
     "outputTime" : 0.005,
-    "avAlpha" : 1.0,
     "neighborNumber" : 50,
     "useBalsaraSwitch" : false,
     "leafParticleNumber" : 32,

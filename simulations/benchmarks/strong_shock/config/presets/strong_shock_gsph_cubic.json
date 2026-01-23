@@ -17,7 +17,6 @@
     ],
     "enableEnergyFile": true
   },
-  "avAlpha": 1.0,
   "neighborNumber": 5.2,
   "gamma": 1.4,
   "kernel": "cubic_spline",

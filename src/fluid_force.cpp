@@ -28,10 +28,19 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
     auto * kernel = sim->get_kernel().get();
     auto * tree = sim->get_tree().get();
 
+#ifdef SPH_USE_DYNAMIC_SCHEDULING
+#pragma omp parallel for schedule(dynamic, 64)
+#else
 #pragma omp parallel for
+#endif
     for(int i = 0; i < num; ++i) {
         auto & p_i = particles[i];
+#ifdef SPH_USE_THREAD_LOCAL_NEIGHBOR_LIST
+        thread_local std::vector<int> neighbor_list;
+        neighbor_list.resize(m_neighbor_number * neighbor_list_size);
+#else
         std::vector<int> neighbor_list(m_neighbor_number * neighbor_list_size);
+#endif
         
         // neighbor search
         int const n_neighbor = tree->neighbor_search(p_i, neighbor_list, particles, true);
@@ -39,7 +48,8 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
         // fluid force
         const vec_t & r_i = p_i.pos;
         const vec_t & v_i = p_i.vel;
-        const real p_per_rho2_i = p_i.pres / sqr(p_i.dens);
+        // Use precomputed pres_per_rho2 instead of computing p/ρ² per particle
+        const real p_per_rho2_i = p_i.pres_per_rho2;
         const real h_i = p_i.sml;
         const real gradh_i = p_i.gradh;
 
@@ -68,7 +78,8 @@ void FluidForce::calculation(std::shared_ptr<Simulation> sim)
             acc -= dw_ij * (p_j.mass * (p_per_rho2_i + p_j.pres / sqr(p_j.dens) + pi_ij));
             dene += p_j.mass * (p_per_rho2_i + 0.5 * pi_ij) * inner_product(v_ij, dw_ij);
 #else
-            acc -= dw_i * (p_j.mass * (p_per_rho2_i * gradh_i + 0.5 * pi_ij)) + dw_j * (p_j.mass * (p_j.pres / sqr(p_j.dens) * p_j.gradh + 0.5 * pi_ij));
+            // Use precomputed pres_per_rho2 to eliminate division per neighbor
+            acc -= dw_i * (p_j.mass * (p_per_rho2_i * gradh_i + 0.5 * pi_ij)) + dw_j * (p_j.mass * (p_j.pres_per_rho2 * p_j.gradh + 0.5 * pi_ij));
             dene += p_j.mass * p_per_rho2_i * gradh_i * inner_product(v_ij, dw_i) + 0.5 * p_j.mass * pi_ij * inner_product(v_ij, dw_ij) + dene_ac;
 #endif
         }

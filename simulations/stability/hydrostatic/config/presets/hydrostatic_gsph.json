@@ -2,7 +2,6 @@
     "outputDirectory" : "simulations/stability/hydrostatic/results/gsph",
     "endTime" : 8.0,
     "outputTime" : 0.2,
-    "avAlpha" : 1.0,
     "neighborNumber" : 32,
     "useBalsaraSwitch" : false,
     "leafParticleNumber" : 16,

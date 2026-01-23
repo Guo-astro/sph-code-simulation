@@ -27,8 +27,7 @@
     "rangeMax": [2.0],
     "boundaryType": "inflow",
     
-    "avAlpha": 1.0,
-    "useBalsaraSwitch": true,
+    "useBalsaraSwitch": false,
     
     "cflSound": 0.3,
     "cflForce": 0.125,

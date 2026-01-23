@@ -1,7 +1,7 @@
 {
-  "outputDirectory": "simulations/benchmarks/shock_tube/results/gsph_3d_wendland_n120",
+  "outputDirectory": "simulations/benchmarks/shock_tube/results/gsph_3d_hcp",
   "startTime": 0.0,
-  "endTime": 0.1,
+  "endTime": 0.2,
   "outputTime": 0.01,
   "energyTime": 0.01,
   "checkpoint": {
@@ -19,17 +19,18 @@
   },
   "sample": "shock_tube_3d",
   "Nx": 100,
-  "Ly": 0.2,
-  "Lz": 0.2,
-  "avAlpha": 1.0,
-  "neighborNumber": 120,
+  "neighborNumber": 50,
   "gamma": 1.4,
-  "kernel": "wendland",
+  "kernel": "cubic_spline",
   "periodic": true,
   "iterativeSmoothingLength": true,
-  "rangeMax": [1.0, 0.2, 0.2],
-  "rangeMin": [0.0, 0.0, 0.0],
+  "rangeMax": [0.5, 0.1, 0.1],
+  "rangeMin": [-0.5, -0.1, -0.1],
   "SPHType": "gsph",
   "use2ndOrderGSPH": false,
-  "riemannSolver": "hll"
+  "useBalsaraSwitch": false,
+  "riemannSolver": "hllc",
+  "useVolumeBased": false,
+  "cflSound": 0.3,
+  "cflForce": 0.25
 }

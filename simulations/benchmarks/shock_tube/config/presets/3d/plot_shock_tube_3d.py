@@ -5,6 +5,8 @@ Shows RAW particle data (no binning) with analytic solution.
 """
 
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend for headless plotting
 import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
@@ -67,8 +69,8 @@ def sod_exact_solution(x, t, gamma=1.4, x0=0.5):
 
 
 def main():
-    # Configuration - updated for Morton/iterative traversal test
-    data_dir = Path("simulations/benchmarks/shock_tube/results/gsph_3d_wendland_n120")
+    # Configuration - mass-based GSPH (not volume-based)
+    data_dir = Path("simulations/benchmarks/shock_tube/results/gsph_3d_hllc_mass_n200")
 
     # Find latest snapshot
     csv_files = sorted(data_dir.glob("snapshot_*.csv"))
@@ -94,7 +96,7 @@ def main():
     print(f"rho range: [{rho.min():.4f}, {rho.max():.4f}]")
 
     # Analytical solution at simulation time
-    x_exact = np.linspace(0, 1, 1000)
+    x_exact = np.linspace(-1, 1, 2000)
     rho_exact, u_exact, P_exact = sod_exact_solution(x_exact, t)
     gamma = 1.4
 
@@ -109,7 +111,7 @@ def main():
     ax.set_ylabel('Density')
     ax.set_title('Density (raw particle data)')
     ax.legend()
-    ax.set_xlim(0, 1)
+    ax.set_xlim(-1, 1)
     ax.grid(True, alpha=0.3)
 
     # Velocity - RAW particles
@@ -120,7 +122,7 @@ def main():
     ax.set_ylabel('Velocity')
     ax.set_title('Velocity (raw particle data)')
     ax.legend()
-    ax.set_xlim(0, 1)
+    ax.set_xlim(-1, 1)
     ax.grid(True, alpha=0.3)
 
     # Pressure - RAW particles
@@ -131,7 +133,7 @@ def main():
     ax.set_ylabel('Pressure')
     ax.set_title('Pressure (raw particle data)')
     ax.legend()
-    ax.set_xlim(0, 1)
+    ax.set_xlim(-1, 1)
     ax.grid(True, alpha=0.3)
 
     # Internal energy - RAW particles
@@ -144,7 +146,7 @@ def main():
     ax.set_ylabel('Internal Energy')
     ax.set_title('Internal Energy (raw particle data)')
     ax.legend()
-    ax.set_xlim(0, 1)
+    ax.set_xlim(-1, 1)
     ax.grid(True, alpha=0.3)
 
     plt.suptitle(f'3D Sod Shock Tube - GSPH HLL Wendland N=120 (t={t:.2f})\n'
