@@ -41,7 +41,8 @@
 
     "endTime": 2.0,
     "outputTime": 0.2,
-    "cfl": 0.3,
+    "cflSound": 0.6,
+    "cflForce": 0.25,
 
     "useRelaxation": true,
     "relaxationSteps": 1100,
@@ -51,7 +52,7 @@
 
     "outputDirectory": "simulations/astrophysics/imbh_cloud/results/hires_phase1_compact",
 
-    "resumeFromSnapshot": "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/simulations/astrophysics/imbh_cloud/results/hires_phase1_compact/snapshot_0112.h5",
+    "resumeFromSnapshot": "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/simulations/astrophysics/imbh_cloud/results/hires_phase1_compact/snapshot_0025.h5",
 
     "output": {
         "formats": [

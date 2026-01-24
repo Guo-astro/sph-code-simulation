@@ -5,16 +5,18 @@
 ROOT := ../../..
 BUILD_REL := $(ROOT)/build
 RESULTS_LOCAL := results/lane_emden
+RESULTS_HIRES := results/hires_phase1_compact
 
 # Paths after cd to ROOT (for running commands)
 BIN := ./build/sph
 IMBH_DIR := simulations/astrophysics/imbh_cloud
 CONFIG := $(IMBH_DIR)/config/presets/lane_emden
+CONFIG_HIRES := $(IMBH_DIR)/config/presets/hires
 
 # Python (use system python with required packages)
 PYTHON := /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3
 
-.PHONY: help build phase1 phase2 gif-phase1 gif-phase2 clean-phase1 clean-phase2 clean-all
+.PHONY: help build phase1 phase2 gif-phase1 gif-phase2 clean-phase1 clean-phase2 clean-all hires-phase1-restart gif-hires-phase1
 
 help:
 	@echo "IMBH Cloud Simulation Targets:"
@@ -24,6 +26,8 @@ help:
 	@echo "  make -f Makefile.imbh_cloud gif-phase1  - Generate phase1 GIF"
 	@echo "  make -f Makefile.imbh_cloud gif-phase2  - Generate phase2 GIF"
 	@echo "  make -f Makefile.imbh_cloud phase1-viz  - Run phase1 + generate GIF"
+	@echo "  make -f Makefile.imbh_cloud hires-phase1-restart - Run hi-res BE sphere restart"
+	@echo "  make -f Makefile.imbh_cloud gif-hires-phase1    - Generate hi-res phase1 GIF"
 	@echo "  make -f Makefile.imbh_cloud clean-phase1- Clean phase1 results"
 	@echo "  make -f Makefile.imbh_cloud clean-all   - Clean all results"
 
@@ -53,6 +57,15 @@ phase1-viz: phase1 gif-phase1
 
 # Run phase2 and generate GIF
 phase2-viz: phase2 gif-phase2
+
+# Hi-res Phase 1: Restart from snapshot (BE sphere relaxation)
+hires-phase1-restart: build
+	@mkdir -p $(RESULTS_HIRES)
+	cd $(ROOT) && $(BIN) $(CONFIG_HIRES)/phase1_compact_restart.json
+
+# Generate GIF for hi-res phase1
+gif-hires-phase1:
+	cd $(ROOT) && $(PYTHON) $(IMBH_DIR)/scripts/visualize_be_sphere.py $(IMBH_DIR)/results/hires_phase1_compact
 
 # Clean results
 clean-phase1:
