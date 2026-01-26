@@ -1,10 +1,9 @@
 {
-    "_comment": "Phase 1 HIGH-RES: RESTART FROM SNAPSHOT 95 - Continue relaxation 2x longer",
-    "_phase": "Continuing relaxation from step 950/2200",
+    "_comment": "Short relaxation for upsampled 1M particles - fix angular arrangement",
+    "_phase": "Angular optimization only (radial profile already correct)",
     "_units": "L=1pc, M=1Msun, V=1km/s => T=0.978Myr",
-    "_physics": "Truncated isothermal BE sphere at T=35K, xi_s=3.0, n_center=500 cm^-3",
 
-    "name": "Phase 1 HIGH-RES: Isothermal BE Sphere (N=61, >220k particles) - RESTART",
+    "name": "1M Particle Short Relaxation",
     "dimension": 3,
 
     "sample": "isothermal_bonnor_ebert",
@@ -25,8 +24,8 @@
     "M_BH": 0.0,
     "b_impact": 0.0,
     "v_rel": 0.0,
-    "useEnvelope": true,
-    "envelopeLayers": 6,
+    "useEnvelope": false,
+    "envelopeLayers": 0,
 
     "gamma": 1.6666666667,
     "neighborNumber": 50,
@@ -45,14 +44,15 @@
     "cflForce": 0.25,
 
     "useRelaxation": true,
-    "relaxationSteps": 2200,
+    "relaxationSteps": 100,
     "relaxationOutputFreq": 10,
     "relaxationOnly": true,
     "useGlassRelaxation": false,
 
-    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/hires_phase1_compact",
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/results/hires_1M_relaxed",
 
-    "resumeFromSnapshot": "/Users/yansongguo/personal/research/shamrock-wrapper/sph-code-simulation/simulations/astrophysics/imbh_cloud/results/hires_phase1_compact/snapshot_0095.h5",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/hires_phase1_compact/upsampled_1M_complete.h5",
+    "resetTimeOnResume": true,
 
     "output": {
         "formats": [

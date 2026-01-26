@@ -60,9 +60,22 @@ def scan_datasets(survey_dir):
 
         config_dir = item / 'config'
 
-        for physics in ['adiabatic', 'cooling']:
-            config_path = config_dir / f'{physics}.json'
-            results_dir = item / physics / 'results'
+        # Check both standard and hires variants
+        physics_variants = [
+            ('adiabatic', 'adiabatic', None),
+            ('cooling', 'cooling', None),
+            ('hires_224k_adiabatic', 'adiabatic', 'hires_224k'),
+            ('hires_224k_cooling', 'cooling', 'hires_224k'),
+        ]
+
+        for subdir, physics, variant in physics_variants:
+            # For hires, config is in the subdir itself
+            if variant:
+                config_path = item / subdir / 'config.json'
+                results_dir = item / subdir / 'results'
+            else:
+                config_path = config_dir / f'{physics}.json'
+                results_dir = item / physics / 'results'
 
             if not config_path.exists() and not results_dir.exists():
                 continue
@@ -78,6 +91,8 @@ def scan_datasets(survey_dir):
             ds_id = f"rp{orbit_info['r_peri']}pc"
             if suffix:
                 ds_id += f"_{suffix}"
+            if variant:
+                ds_id += f"_{variant}"
             ds_id += f"_{physics}"
 
             name_parts = [f"r_p={orbit_info['r_peri']}pc"]
@@ -87,6 +102,8 @@ def scan_datasets(survey_dir):
                 name_parts.append("Hi-Res")
             else:
                 name_parts.append("Lane-Emden")
+            if variant:
+                name_parts.append("Hi-Res 224k")
             name_parts.append("Cooling" if physics == 'cooling' else "Adiabatic")
 
             rel_path = os.path.relpath(results_dir, survey_dir / 'viz')
@@ -127,8 +144,46 @@ def scan_datasets(survey_dir):
 
     all_datasets.sort(key=sort_key)
 
+    # Generate comparisons automatically by pairing cooling/adiabatic datasets
+    comparisons = []
+    dataset_by_id = {d['id']: d for d in all_datasets}
+
+    # Group by orbit and variant (everything except physics suffix)
+    from collections import defaultdict
+    groups = defaultdict(dict)
+    for ds in all_datasets:
+        # Extract base ID (remove _cooling or _adiabatic suffix)
+        base_id = ds['id'].rsplit('_', 1)[0]  # e.g., "rp0.4pc_isothermal_hires_224k"
+        groups[base_id][ds['physics']] = ds['id']
+
+    # Create comparison for each group that has both cooling and adiabatic
+    for base_id, physics_map in groups.items():
+        if 'cooling' in physics_map and 'adiabatic' in physics_map:
+            cooling_ds = dataset_by_id[physics_map['cooling']]
+            adiabatic_ds = dataset_by_id[physics_map['adiabatic']]
+
+            # Generate comparison name
+            name_parts = [f"r_p={cooling_ds['config']['r_peri']}pc"]
+            if 'hires_224k' in base_id:
+                name_parts.append("Hi-Res 224k")
+            if cooling_ds['ic_type'] == 'isothermal_be':
+                name_parts.append("Isothermal BE")
+            name_parts.append("Cooling vs Adiabatic")
+
+            comparisons.append({
+                'id': f"{base_id}_compare",
+                'name': ' '.join(name_parts),
+                'left': physics_map['cooling'],
+                'right': physics_map['adiabatic'],
+                'orbit': cooling_ds['orbit']
+            })
+
+    # Sort comparisons by orbit
+    comparisons.sort(key=lambda c: float(c['orbit'].replace('rp', '').replace('pc', '')))
+
     return {
         'datasets': all_datasets,
+        'comparisons': comparisons,
         'common': {
             'G': 0.00430091,
             'M_BH': 100000.0,

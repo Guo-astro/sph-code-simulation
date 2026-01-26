@@ -16,7 +16,7 @@ CONFIG_HIRES := $(IMBH_DIR)/config/presets/hires
 # Python (use system python with required packages)
 PYTHON := /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3
 
-.PHONY: help build phase1 phase2 gif-phase1 gif-phase2 clean-phase1 clean-phase2 clean-all hires-phase1-restart gif-hires-phase1
+.PHONY: help build phase1 phase2 gif-phase1 gif-phase2 clean-phase1 clean-phase2 clean-all hires-phase1-restart gif-hires-phase1 hires-phase2-hydro hires-1M-relax
 
 help:
 	@echo "IMBH Cloud Simulation Targets:"
@@ -66,6 +66,16 @@ hires-phase1-restart: build
 # Generate GIF for hi-res phase1
 gif-hires-phase1:
 	cd $(ROOT) && $(PYTHON) $(IMBH_DIR)/scripts/visualize_be_sphere.py $(IMBH_DIR)/results/hires_phase1_compact
+
+# Hi-res Phase 2: Hydrostatic test with upsampled 1M particles
+hires-phase2-hydro: build
+	@mkdir -p results/hires_phase2_hydrostatic_1M
+	cd $(ROOT) && $(BIN) $(CONFIG_HIRES)/phase2_hydrostatic.json
+
+# Short relaxation for upsampled 1M particles
+hires-1M-relax: build
+	@mkdir -p results/hires_1M_relaxed
+	cd $(ROOT) && $(BIN) $(CONFIG_HIRES)/phase1_1M_short_relax.json
 
 # Clean results
 clean-phase1:

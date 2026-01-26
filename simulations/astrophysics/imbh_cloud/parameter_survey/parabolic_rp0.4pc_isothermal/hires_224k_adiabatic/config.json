@@ -1,0 +1,111 @@
+{
+    "_comment": "Hi-Res 224k: Parabolic orbit r_p=0.4pc - ISOTHERMAL BE ADIABATIC",
+    "_orbit": "Parabolic (E=0), pericenter=0.4pc",
+    "_units": "CODE units: L=pc, M=Msun, V=km/s",
+    "_physics": "Isothermal Bonnor-Ebert cloud tidal disruption - NO COOLING",
+    "_resolution": "224k particles from hires hydrostatic phase2",
+
+    "_calculation": {
+        "orbit_type": "parabolic (E=0)",
+        "r_pericenter": "0.4 pc",
+        "v_pericenter": "46.37 km/s",
+        "start_distance": "15.27 pc",
+        "start_velocity": "7.51 km/s",
+        "sink_radius": "0.01 pc",
+        "cloud_R": "1.55 pc (Isothermal BE, xi_s=3.0)",
+        "cloud_M": "127.5 M_sun (Isothermal BE, n_center=500 cm^-3)",
+        "M_BH": "10^5 M_sun"
+    },
+
+    "name": "Hi-Res 224k Parabolic r_p=0.4pc Adiabatic",
+    "dimension": 3,
+
+    "sample": "isothermal_bonnor_ebert",
+    "resumeFromSnapshot": "simulations/astrophysics/imbh_cloud/results/hires_phase2_hydrostatic/snapshot_0021.h5",
+    "resetTimeOnResume": true,
+    "N": 61,
+
+    "T_cloud": 35.0,
+    "n_center": 500.0,
+    "xi_s": 3.0,
+    "mu": 1.27,
+
+    "gamma": 1.6666666666666667,
+    "neighborNumber": 50,
+
+    "G": 0.00430091,
+    "useGravity": true,
+    "gravitySofteningType": "hernquist_katz",
+
+    "maxTreeLevel": 20,
+    "leafParticleNumber": 32,
+    "useMortonCode": true,
+
+    "useEnvelope": true,
+    "envelopeLayers": 6,
+
+    "imbh_parameters": {
+        "enabled": true,
+        "use_code_units": true,
+        "_note_units": "BH at origin, cloud on parabolic orbit toward disruption",
+        "M_BH": 100000.0,
+        "BH_initial_position": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0
+        },
+        "BH_initial_velocity": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0
+        },
+        "softening_epsilon": 0.005,
+        "sink_radius": 0.1,
+        "enable_sink": true,
+        "_note": "Sink accretion enabled: particles within 0.01pc are accreted",
+
+        "cloud_initial_position": {
+            "0": -14.4675,
+            "1": 4.8773,
+            "2": 0.0
+        },
+        "cloud_initial_velocity": {
+            "0": 7.4071,
+            "1": -1.2149,
+            "2": 0.0
+        },
+        "_cloud_note": "Parabolic orbit: r_p=0.4pc, v_p=46km/s"
+    },
+
+    "SPHType": "gsph",
+    "kernel": "cubic_spline",
+    "riemannSolver": "hll",
+    "use2ndOrderGSPH": false,
+    "useGradH": true,
+
+    "useBalsaraSwitch": false,
+    "avAlpha": 0.0,
+    "_note_gsph": "GSPH uses Riemann solver - no artificial viscosity needed",
+
+    "endTime": 6.0,
+    "outputTime": 0.02,
+    "energyOutputTime": 0.02,
+    "cfl": 0.3,
+    "cflForce": 0.3,
+
+    "useRelaxation": false,
+    "enableCooling": false,
+
+    "outputDirectory": "simulations/astrophysics/imbh_cloud/parameter_survey/parabolic_rp0.4pc_isothermal/hires_224k_adiabatic/results",
+
+    "output": {
+        "formats": [
+            {"type": "hdf5", "compression": 6}
+        ],
+        "enableCSV": false,
+        "enableHDF5": true,
+        "enableVTK": false,
+        "enableEnergyFile": true,
+        "hdf5Compression": 6
+    }
+}
